@@ -3,24 +3,17 @@
 This repository is a modified version of Scott Morrison's [lean-training-data](https://github.com/semorrison/lean-training-data).
 
 
-We provide tools for extracting training data based on Lean source code. 
+We provide tools for extracting training data based on Lean source code, and for creating instruction-tuning data for language models.
 
 
-### Running the new tools
+### Running extraction
 To run the full pipeline on all repositories in `configs/config.json`:
 ```
-python scripts/run_multiple.py --cwd {filepath_of_this_repo}
+python scripts/extract_repos.py --cwd {filepath_of_this_repo}
 ```
 
-To run the pipeline on an individual repository:
-```
-python scripts/run_pipeline.py --cwd {filepath_of_this_repo}
-```
-By default, this extracts training data from the Mathlib version specified in `lakefile.lean`. 
+On a Macbook Pro (M3 Max, 14 CPU) it takes around 2 hours to run the extractions on mathlib.
 
-On a Macbook Pro (M3 Max, 14 CPU) it takes around 2 hours.
-
-```
 
 
 
@@ -42,10 +35,24 @@ This produces a `.jsonl` file where each line is an example of the following for
 }
 ```
 
+### `full_proof_training_data`
+
+This produces a `.jsonl` file where each line is an example of the following form:
+```json
+{
+   "srcUpToDecl":"{source code in the file up to the declaration}",
+   "decl": "{declaration without proof (e.g., statement of a theorem)}",
+   "declId": "{unique identifier of the declaration}",
+   "proof":"{proof}"
+}
+```
+
+### `state_comments`
+
+This produces Lean source files with proof states interleaved as comments after each tactic.
 
 
-
-## Usage (from `lean-training-data`)
+## Other docs (from `lean-training-data`)
 
 * Install [`elan`](https://github.com/leanprover/elan) by running
 
