@@ -66,8 +66,10 @@ def _import_file(name, import_file, old_version):
     else:
         return os.path.join('.lake', 'packages', name, import_file)
 
-def _run(cwd, name, import_file, old_version):
-    flags = '' 
+def _run(cwd, name, import_file, old_version, max_workers):
+    flags = ''
+    if max_workers is not None:
+        flags += ' --max-workers %d' % max_workers
     subprocess.Popen(['python %s/scripts/run_pipeline.py --output-base-dir Examples/%s --cwd %s --import-file %s %s' % (
         cwd,
         name.capitalize(),
@@ -120,5 +122,6 @@ if __name__ == '__main__':
             cwd=args.cwd,
             name=source['name'],
             import_file=source['import_file'],
-            old_version=False if 'old_version' not in source else source['old_version']
+            old_version=False if 'old_version' not in source else source['old_version'],
+            max_workers=args.max_workers
         )
