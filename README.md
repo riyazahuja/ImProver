@@ -1,6 +1,6 @@
 # ntp-training-data
 
-This repository is a modified version of Scott Morrison's [lean-training-data](https://github.com/semorrison/lean-training-data).
+This repository is a modified version of Kim Morrison's [lean-training-data](https://github.com/semorrison/lean-training-data).
 
 
 We provide tools for extracting training data based on Lean source code, and for creating instruction-tuning data for language models.
