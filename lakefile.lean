@@ -1,24 +1,25 @@
 import Lake
-open Lake DSL
+    open Lake DSL
 
-package «lean-training-data» {
-  -- add any package configuration options here
-}
+    package «lean-training-data» {
+    -- add any package configuration options here
+    }
 
-require PFR from git
-  "https://github.com/teorth/pfr.git" @ "71bddfb866c423f3285c6ee186a0d95e62126bb3"
+    require mathlib from git
+    "https://github.com/leanprover-community/mathlib4.git" @ "cf8e23a62939ed7cc530fbb68e83539730f32f86"
 
-@[default_target]
-lean_lib TrainingData where
+    require Tests from git
+    "https://github.com/riyazahuja/Tests.git" @ "bff613df11a1f8c3c812276ee93365c16980e174"
 
-lean_lib Examples where
+    @[default_target]
+    lean_lib TrainingData where
 
-lean_exe training_data where
-  root := `scripts.training_data
+    lean_lib Examples where
 
-lean_exe full_proof_training_data where
-  root := `scripts.full_proof_training_data
+    lean_exe training_data where
+    root := `scripts.training_data
 
-lean_exe state_comments where
-  root := `scripts.state_comments
+    lean_exe state_comments where
+    root := `scripts.state_comments
 
+    

@@ -3,36 +3,57 @@ import os
 import subprocess
 import json
 from pathlib import Path
-
+import requests
+import base64
 
 def _lakefile(repo, commit, name, cwd):
+    envvar = os.getenv("GITHUB_ACCESS_TOKEN")
+    headers={'Authorization': f'token {envvar}'}
+    url = f'https://api.github.com/repos/{repo.replace("https://github.com/","")}/contents/lakefile.lean'
+    if envvar is None:
+        req = requests.get(url)
+    else:
+        req = requests.get(url,headers=headers)
+    if req.status_code == requests.codes.ok:
+        req = req.json()  # the response is a JSON
+        # req is now a dict with keys: name, encoding, url, size ...
+        # and content. But it is encoded with base64.
+        text = str(base64.b64decode(req['content']))
+    else:
+        text = ''
+        print('Content was not found.')
+
+    
+    mathlib_text = ''
+    if 'require mathlib from git' not in text:
+        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "cf8e23a62939ed7cc530fbb68e83539730f32f86"'
     contents = """import Lake
-open Lake DSL
+    open Lake DSL
 
-package «lean-training-data» {
-  -- add any package configuration options here
-}
+    package «lean-training-data» {
+    -- add any package configuration options here
+    }
 
-require %s from git
-  "%s.git" @ "%s"
+    %s
 
-@[default_target]
-lean_lib TrainingData where
+    require %s from git
+    "%s.git" @ "%s"
 
-lean_lib Examples where
+    @[default_target]
+    lean_lib TrainingData where
 
-lean_exe training_data where
-  root := `scripts.training_data
+    lean_lib Examples where
 
-lean_exe full_proof_training_data where
-  root := `scripts.full_proof_training_data
+    lean_exe training_data where
+    root := `scripts.training_data
 
-lean_exe state_comments where
-  root := `scripts.state_comments
+    lean_exe state_comments where
+    root := `scripts.state_comments
 
-""" % (name, repo, commit)
+    """ % (mathlib_text, name, repo, commit)
     with open(os.path.join(cwd, 'lakefile.lean'), 'w') as f:
         f.write(contents)
+   
 
 
 def _examples(imports, cwd):
@@ -70,7 +91,7 @@ def _run(cwd, name, import_file, old_version, max_workers):
     flags = ''
     if max_workers is not None:
         flags += ' --max-workers %d' % max_workers
-    subprocess.Popen(['python %s/scripts/run_pipeline.py --output-base-dir Examples/%s --cwd %s --import-file %s %s' % (
+    subprocess.Popen(['python3 %s/scripts/run_pipeline.py --output-base-dir .cache/%s --cwd %s --import-file %s %s' % (
         cwd,
         name.capitalize(),
         cwd,
