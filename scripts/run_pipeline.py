@@ -9,20 +9,21 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 DIR_NAMES = {
-    'training_data': 'TacticPrediction',
-    'state_comments': 'StateComments',
-    'full_proof_training_data': 'FullProof',
-    'full_proof_training_data_states': 'FullProofWithStates',
+    'training_data': 'Data',
+    'state_comments': 'Annotations'
 }
 
 def _get_stem(input_module, input_file_mode):
     if input_file_mode:
-        stem = Path(input_module).stem.replace('.', '_')
+        stem = Path(input_module).stem.replace('.', '/')
     else:
-        stem = input_module.replace('.', '_')
+        stem = input_module.replace('.', '/')
     return stem
 
 def _run_cmd(cmd, cwd, input_file, output_file):
+    #print(f'cmd: {cmd}\n input: {input_file}\n output {output_file}')
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+
     with open(output_file, 'w') as f:
         subprocess.Popen(
             ['lake exe %s %s' % (cmd, input_file)], 
@@ -38,8 +39,7 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
         cwd=cwd,
         input_file=input_module,
         output_file=os.path.join(
-            output_base_dir, 
-            DIR_NAMES['training_data'],
+            output_base_dir,
             _get_stem(input_module, input_file_mode) + '.jsonl'
         )
     )
@@ -47,7 +47,6 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
      # State comments
     state_comments_output_file = os.path.join(
         output_base_dir, 
-        DIR_NAMES['state_comments'],
         _get_stem(input_module, input_file_mode) + '.lean'
     )
     _run_cmd(
@@ -132,8 +131,8 @@ if __name__ == '__main__':
     end = time.time()
     print("Elapsed %.2f" % (round(end - start, 2)))
 
-    subprocess.Popen(
-        ['python3 scripts/data_stats.py --pipeline-output-base-dir %s' % (args.output_base_dir)], 
-        cwd=args.cwd,
-        shell=True
-    ).wait()
+    # subprocess.Popen(
+    #     ['python3 scripts/data_stats.py --pipeline-output-base-dir %s' % (args.output_base_dir)], 
+    #     cwd=args.cwd,
+    #     shell=True
+    # ).wait()
