@@ -9,8 +9,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 DIR_NAMES = {
-    'training_data': 'Data',
-    'state_comments': 'Annotations'
+    #'training_data': 'Data',
+    #'state_comments': 'Annotations'
 }
 
 def _get_stem(input_module, input_file_mode):
@@ -31,6 +31,8 @@ def _run_cmd(cmd, cwd, input_file, output_file):
             shell=True,
             stdout=f
         ).wait()
+    
+    
 
 def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
     # Tactic prediction
