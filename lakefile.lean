@@ -6,10 +6,10 @@ import Lake
     }
 
     require mathlib from git
-    "https://github.com/leanprover-community/mathlib4.git" @ "cf8e23a62939ed7cc530fbb68e83539730f32f86"
+    "https://github.com/leanprover-community/mathlib4.git" @ "master"
 
     require Tests from git
-    "https://github.com/riyazahuja/Tests.git" @ "bff613df11a1f8c3c812276ee93365c16980e174"
+    "https://github.com/riyazahuja/Tests.git" @ "acdb55e7de01fb3e62bb0757dcbabcb38ad2694f"
 
     @[default_target]
     lean_lib TrainingData where

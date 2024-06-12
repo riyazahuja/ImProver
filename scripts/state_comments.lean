@@ -53,7 +53,7 @@ def stateComments (args : Cli.Parsed) : IO UInt32 := do
     trees := trees.bind InfoTree.retainTacticInfo
     trees := trees.bind InfoTree.retainOriginal
     trees := trees.bind InfoTree.retainSubstantive
-    let L₁ ← (trees.bind InfoTree.tactics).mapM TacticInvocation.rangeAndStates
+    let L₁ ← (trees.bind InfoTree.tactics_new).mapM TacticInvocation.rangeAndStates
     let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
     let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
     let mut src := (← moduleSource module).splitOn "\n"
