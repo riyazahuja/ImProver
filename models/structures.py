@@ -18,6 +18,7 @@ class AnnotatedProofStep(BaseModel):
 class AnnotatedTheorem(BaseModel):
     decl : str = Field(description="Theorem declaration")
     declID : str = Field(description="Unique theorem declaration ID")
+    src : str = Field(description="Source repo of the theorem")
     leanFile : str = Field(description="Lean file in which theorem is located")
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
     proof : List[AnnotatedProofStep] = Field(..., description="Sequence of annotated proofsteps for full proof of theorem.")
@@ -25,6 +26,7 @@ class AnnotatedTheorem(BaseModel):
 class Theorem(BaseModel):
     decl : str = Field(description="Theorem declaration")
     declID : str = Field(description="Unique theorem declaration ID")
+    src : str = Field(description="Source repo of the theorem")
     leanFile : str = Field(description="Lean file in which theorem is located")
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
     proof : List[ProofStep] = Field(..., description="Sequence of proofsteps for full proof of theorem.")
@@ -41,7 +43,7 @@ class AnnotatedFile(BaseModel):
     theorems : List[AnnotatedTheorem] = Field(..., description="List of all theorems in a file")
 
 
-def getTheorems(data,file) -> List[AnnotatedTheorem]:
+def getTheorems(data,src, file) -> List[AnnotatedTheorem]:
     temp = {}
     for step in data:
         ps = AnnotatedProofStep(prevState=step['prevState'],
@@ -69,12 +71,12 @@ def getTheorems(data,file) -> List[AnnotatedTheorem]:
             
     result = {}
     for ID,value in temp.items():
-        result[ID] = AnnotatedTheorem(leanFile=file,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'])
+        result[ID] = AnnotatedTheorem(leanFile=file,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'])
     return [v for _,v in result.items()]
         
 
 def get_stem(path):
-    print(f'{path} : {path[-5:]} : {path[:-5]}')
+    #print(f'{path} : {path[-5:]} : {path[:-5]}')
     if path[-5:]=='.lean':
         return path[:-5]
     return path
@@ -96,11 +98,12 @@ def getAnnotatedFile(src, file_name):
     with open(os.path.join(content_path,file_name+'.jsonl'),'r') as f:
         data = [json.loads(jline) for jline in f.read().splitlines()]
     
-    theorems = getTheorems(data,file_name)
-    print(theorems)
+    theorems = getTheorems(data,src, file_name)
+    #print(theorems)
 
     return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems)
     
+
 
 def parseTheorem(thm):
     statement = thm.decl
@@ -109,4 +112,4 @@ def parseTheorem(thm):
     proof = ''
     for i in psteps:
         proof = proof + '  ' + i + '\n'
-    return f'{context}\n{statement} := by\n{proof}'
+    return f'{context}\n\n{statement} := by\n{proof}'

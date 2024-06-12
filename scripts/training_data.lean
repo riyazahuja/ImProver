@@ -4,8 +4,8 @@ import TrainingData.InfoTree.TacticInvocation.Basic
 import TrainingData.Utils.Range
 import Mathlib.Data.String.Defs
 import Mathlib.Lean.CoreM
-import Std.Lean.Util.Path
-import Std.Data.String.Basic
+import Batteries.Lean.Util.Path
+import Batteries.Data.String.Basic
 import Mathlib.Tactic.Change
 import Cli
 
@@ -136,7 +136,7 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
 
     let mut idJsons : List (String × Json) := []
     for t in trees do
-      for t in t.tactics do
+      for t in t.tactics_new do
 
         match getElabDeclOfTacticInvocation infos t with
         | some elabDeclInfo => do

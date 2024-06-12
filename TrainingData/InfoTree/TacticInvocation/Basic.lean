@@ -75,13 +75,14 @@ def ppExpr (t : TacticInvocation) (e : Expr) : IO Format :=
 
 end Lean.Elab.TacticInvocation
 
+
 namespace Lean.Elab.InfoTree
 
 /--
 Finds all tactic invocations in an `InfoTree`,
 ignoring structuring tactics (e.g. `by`, `;`, multiline tactics, parenthesized tactics).
 -/
-def tactics (t : InfoTree) : List TacticInvocation :=
+def tactics_new (t : InfoTree) : List TacticInvocation :=
   t.findTacticNodes.map (fun ⟨i, ctx, children⟩ => ⟨i, ctx, children⟩)
     |>.filter fun i => i.info.isSubstantive
 

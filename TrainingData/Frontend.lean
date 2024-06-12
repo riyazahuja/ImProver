@@ -4,8 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Scott Morrison
 -/
 import Lean.Elab.Frontend
-import Std.Util.TermUnsafe
-import Std.Data.MLList.Basic
+import Batteries.Data.MLList.Basic
 
 /-!
 # Compiling Lean sources to obtain `Environment`, `Message`s and `InfoTree`s.
@@ -38,7 +37,7 @@ The functions `compileModule : Name → IO (List CompilationStep)` and
 
 set_option autoImplicit true
 
-open Lean Elab Frontend
+open Lean Elab Frontend Meta
 
 namespace Lean.PersistentArray
 
@@ -71,6 +70,22 @@ partial def runStateRefT [Monad m] [MonadLiftT (ST ω) m] (L : MLList (StateRefT
 
 end MLList
 
+private def isInternal' (declName : Name) : Bool :=
+  declName.isInternal ||
+  match declName with
+  | .str _ s => "match_".isPrefixOf s || "proof_".isPrefixOf s
+  | _        => true
+
+-- from Lean.Server.Completion
+private def isBlackListed {m} [Monad m] [MonadEnv m] (declName : Name) : m Bool := do
+  if declName == ``sorryAx then return true
+  if declName matches .str _ "inj" then return true
+  if declName matches .str _ "noConfusionType" then return true
+  let env ← getEnv
+  pure $ isInternal' declName
+   || isAuxRecursor env declName
+   || isNoConfusion env declName
+  <||> isRec declName <||> isMatcher declName
 namespace Lean.Elab.IO
 
 /--
@@ -81,6 +96,8 @@ the `src : Substring` and `stx : Syntax` of the command,
 and any `Message`s and `InfoTree`s produced while processing.
 -/
 structure CompilationStep where
+  fileName : String
+  fileMap : FileMap
   src : Substring
   stx : Syntax
   before : Environment
@@ -102,9 +119,10 @@ def one : FrontendM (CompilationStep × Bool) := do
   let src := ⟨(← read).inputCtx.input, (← get).cmdPos, (← get).parserState.pos⟩
   let s' := (← get).commandState
   let after := s'.env
-  let msgs := s'.messages.msgs.drop s.messages.msgs.size
+  let msgs := s'.messages.toList.drop s.messages.toList.length
   let trees := s'.infoState.trees.drop s.infoState.trees.size
-  return ({ src, stx, before, after, msgs, trees }, done)
+  let ⟨_, fileName, fileMap⟩  := (← read).inputCtx
+  return ({ fileName, fileMap, src, stx, before, after, msgs, trees }, done)
 
 /-- Process all commands in the input. -/
 partial def all : FrontendM (List CompilationStep) := do
@@ -114,10 +132,36 @@ partial def all : FrontendM (List CompilationStep) := do
   else
     return cmd :: (← all)
 
+def runCoreMBefore (c : CompilationStep) (x : CoreM α) : IO α :=
+  (·.1) <$> Core.CoreM.toIO x { fileName := c.fileName, fileMap := c.fileMap } { env := c.before }
+
+open Meta in
+def runMetaMBefore (c : CompilationStep) (x : MetaM α) : IO α :=
+  c.runCoreMBefore <| MetaM.run' x {} {}
+
 /-- Return all new `ConstantInfo`s added during the processed command. -/
 def diff (cmd : CompilationStep) : List ConstantInfo :=
   cmd.after.constants.map₂.toList.filterMap
     fun (c, i) => if cmd.before.constants.map₂.contains c then none else some i
+
+/-- Data extracted from a `ConstantInfo`. -/
+structure DeclInfo where
+  name : Name
+  type : Expr
+  ppType : String
+  docString : Option String
+
+/-- Return info about each new declaration added during the processed command. -/
+def newDecls (cmd : CompilationStep) : IO (List DeclInfo) := do
+  cmd.diff.filterMapM fun ci => cmd.runMetaMBefore do
+    if ← isBlackListed ci.name then
+      pure none
+    else pure <| some {
+      name := ci.name
+      type := ci.type
+      ppType := toString (← Meta.ppExpr ci.type)
+      docString := ← findDocString? cmd.after ci.name
+    }
 
 end CompilationStep
 
@@ -188,13 +232,7 @@ open System
 
 -- TODO allow finding Lean 4 sources from the toolchain.
 def findLean (mod : Name) : IO FilePath := do
-  try
-    -- Prior to Lean v4.3
-    let oldLeanFilePath := FilePath.mk ((← findOLean mod).toString.replace "build/lib/" "") |>.withExtension "lean"
-    _ ← IO.FS.readFile oldLeanFilePath
-    return oldLeanFilePath
-  catch _ =>
-    return FilePath.mk ((← findOLean mod).toString.replace ".lake/build/lib/" "") |>.withExtension "lean"
+  return FilePath.mk ((← findOLean mod).toString.replace ".lake/build/lib/" "") |>.withExtension "lean"
 
 /-- Implementation of `moduleSource`, which is the cached version of this function. -/
 def moduleSource' (mod : Name) : IO String := do

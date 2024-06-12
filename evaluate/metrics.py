@@ -11,7 +11,7 @@ class Metric():
         self.metric_fn = metric_fn
     
     def metric(self,thm):
-        return self.metric_fun(thm)
+        return self.metric_fn(thm)
     
     def delta(self, old_thm, new_thm):
         old = self.metric(old_thm)

@@ -26,7 +26,7 @@ def _lakefile(repo, commit, name, cwd):
     
     mathlib_text = ''
     if 'require mathlib from git' not in text:
-        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "cf8e23a62939ed7cc530fbb68e83539730f32f86"'
+        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "master"'
     contents = """import Lake
     open Lake DSL
 

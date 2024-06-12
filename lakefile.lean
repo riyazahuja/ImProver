@@ -5,11 +5,10 @@ import Lake
     -- add any package configuration options here
     }
 
-    require mathlib from git
-    "https://github.com/leanprover-community/mathlib4.git" @ "cf8e23a62939ed7cc530fbb68e83539730f32f86"
+    
 
-    require Tests from git
-    "https://github.com/riyazahuja/Tests.git" @ "bff613df11a1f8c3c812276ee93365c16980e174"
+    require Tests3 from git
+    "https://github.com/riyazahuja/Tests3.git" @ "961344f4e153f35f6b65e1b6cdfc769fc9c5ba26"
 
     @[default_target]
     lean_lib TrainingData where
