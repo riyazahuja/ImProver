@@ -14,6 +14,7 @@ metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 def process_theorem(thm, metric, model):
     #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
     out = prompt_structured(thm, metric, model=model)
+    print(out)
     original_correct,old_out = eval_correctness(thm)
     correct,new_out = eval_correctness(out)
     old_m = metric.metric(thm)

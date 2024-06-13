@@ -76,7 +76,12 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     output = chain.invoke({"data_str" : thm})
     proof = output.get('contents',[])
     #TODO FORCING WITH RETRY PARSER
-    return Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
+    
+    thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
+    #ANNOTATION TIME!
+    annotated = annotateTheorem(thm)
+    return thm
+
     
 
 if __name__ == '__main__':

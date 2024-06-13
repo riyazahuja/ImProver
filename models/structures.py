@@ -3,7 +3,8 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import List, Union
 import os
 import json
-import re
+import tempfile
+import subprocess 
 
 class ProofStep(BaseModel):
     tactic : str = Field(description="One line/tactic in a tactic proof.")
@@ -104,6 +105,7 @@ def getAnnotatedFile(src, file_name):
     return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems)
     
 
+
 def parseAnnotatedTheorem(thm):
     last_pstep = thm.proof[-1]
     src = last_pstep.srcUpToTactic+last_pstep.tactic
@@ -118,3 +120,52 @@ def parseTheorem(thm):
     for i in psteps:
         proof = proof + '  ' + i + '\n'
     return f'{context}\n\n{statement} := by\n{proof}'
+
+
+def run_training_data(root_path,module_name):
+    os.chdir(root_path)
+    cmd = f'lake exe training_data {module_name}'
+    output = subprocess.run([cmd],shell=True,text=True,capture_output=True)
+    data_raw = output.stdout
+    data = [json.loads(item) for item in data_raw.splitlines()]
+    return data_raw
+
+
+
+def annotateTheorem(thm):
+    src = thm.src
+    path = thm.leanFile
+    text = parseTheorem(thm)
+
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    package_path = os.path.join(root_path,'.lake','packages',src,os.path.dirname(path))
+    #make tempfile at package_path containing text
+    #then chdir to root_path and run lake exe training_data {os.path.dirname(path).replace('/','.')+'.{file.name}'}
+    temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=package_path)
+    with open(temp.name,'w') as f:
+        f.write(text)
+    print(f'{src} | {path} | {os.path.dirname(path)}')
+    mod_name = get_stem(os.path.dirname(path).replace('/','.') + f'.{os.path.basename(temp.name)}')
+    print(mod_name)
+    output = run_training_data(root_path,mod_name)
+
+    json_path = get_stem(temp.name)+'.jsonl'
+    with open(json_path,'w') as f:
+        f.write(output)
+    
+    path = os.path.join(get_stem(os.path.dirname(path), os.path.basename(temp.name)))
+    file = getAnnotatedFile(src,path)
+
+    '''
+    FINISH AFTER MEETING!!!
+    '''
+
+
+
+    print(output)
+    for item in output:
+        print(item['tactic'])
+
+if __name__ == '__main__':
+    thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
+    annotateTheorem(thm)
