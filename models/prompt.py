@@ -86,7 +86,7 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
 if __name__ == '__main__':
     src = 'Tests'
-    name = '«Tests»/Basic.lean'
+    name = 'Tests/Basic.lean'
 
     f = getAnnotatedFile(src,name)
     thms = f.theorems

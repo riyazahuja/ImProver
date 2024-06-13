@@ -8,6 +8,7 @@ from evaluate.metrics import *
 from repl.repl import *
 from models.structures import *
 from models.prompt import prompt_structured
+from evaluate.build_prooftree import *
 
 metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
@@ -19,8 +20,15 @@ def process_theorem(thm, metric, model):
     correct,new_out = eval_correctness(out)
     old_m = metric.metric(thm)
     if correct and original_correct:
+        if metric.name == 'MODULARITY' and type(out) == Theorem:
+            out = annotateTheorem(out)
         new_m = metric.metric(out)
         delta = metric.delta(thm, out)
+        if metric.name == 'MODULARITY':
+            G, p, l, _ = getProofTree(thm)
+            save_tree(G,p,l,f'.trees/{thm.decl}/OG.png')
+            G, p, l, _ = getProofTree(out)
+            save_tree(G,p,l,f'.trees/{thm.decl}/GPT.png')
     else:
         new_m = None
         delta = None
@@ -64,7 +72,7 @@ def correct_print(data):
         return 'True'
     else:
         return f'False : {output["messages"]}'
-def pretty_print(result):
+def pretty_print(result,printAll=False):
     out = f'''
 src: {result['src']}
 path: {result['path']}

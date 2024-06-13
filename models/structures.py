@@ -132,39 +132,45 @@ def run_training_data(root_path,module_name):
 
 
 
-def annotateTheorem(thm):
+def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     package_path = os.path.join(root_path,'.lake','packages',src,os.path.dirname(path))
+    cache_path = os.path.join(root_path,'.cache',src,os.path.dirname(path))
+
+    print(cache_path)
     #make tempfile at package_path containing text
     #then chdir to root_path and run lake exe training_data {os.path.dirname(path).replace('/','.')+'.{file.name}'}
     temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=package_path)
     with open(temp.name,'w') as f:
         f.write(text)
-    print(f'{src} | {path} | {os.path.dirname(path)}')
+    #print(f'{src} | {path} | {os.path.dirname(path)}')
     mod_name = get_stem(os.path.dirname(path).replace('/','.') + f'.{os.path.basename(temp.name)}')
-    print(mod_name)
+    #print(mod_name)
     output = run_training_data(root_path,mod_name)
 
-    json_path = get_stem(temp.name)+'.jsonl'
+    #json_path = get_stem(temp.name)+'.jsonl'
+    json_path = os.path.join(cache_path,get_stem(os.path.basename(temp.name))+'.jsonl')
+    lean_path = os.path.join(cache_path,os.path.basename(temp.name))
     with open(json_path,'w') as f:
         f.write(output)
+    with open(lean_path,'w') as f:
+        f.write("")
     
-    path = os.path.join(get_stem(os.path.dirname(path), os.path.basename(temp.name)))
+    path = os.path.join(get_stem(os.path.dirname(path)), os.path.basename(temp.name))
+    print(f'json_path = {json_path}\n {src}|{path}')
     file = getAnnotatedFile(src,path)
+    thms = file.theorems
+    os.remove(json_path)
+    os.remove(lean_path)
 
-    '''
-    FINISH AFTER MEETING!!!
-    '''
+    return thms[0]
+    
+    
 
-
-
-    print(output)
-    for item in output:
-        print(item['tactic'])
 
 if __name__ == '__main__':
     thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
