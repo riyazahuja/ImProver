@@ -109,6 +109,6 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
     return results
 
 if __name__ == "__main__":
-    output = benchmark_repo('Tests3', 'LENGTH')
+    output = benchmark_repo('Tests3', 'MODULARITY')
     for f in output:
         print(pretty_print(f))

@@ -104,6 +104,11 @@ def getAnnotatedFile(src, file_name):
     return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems)
     
 
+def parseAnnotatedTheorem(thm):
+    last_pstep = thm.proof[-1]
+    src = last_pstep.srcUpToTactic+last_pstep.tactic
+    return src
+
 
 def parseTheorem(thm):
     statement = thm.decl
