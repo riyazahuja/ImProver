@@ -9,6 +9,7 @@ from repl.repl import *
 from models.structures import *
 from models.prompt import prompt_structured
 from evaluate.build_prooftree import *
+import shutil
 
 metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
@@ -25,10 +26,14 @@ def process_theorem(thm, metric, model):
         new_m = metric.metric(out)
         delta = metric.delta(thm, out)
         if metric.name == 'MODULARITY':
+            #print(thm.decl)
+            #print(out.decl)
+            if os.path.isdir(f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}'):
+                shutil.rmtree(f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}')
             G, p, l, _ = getProofTree(thm)
-            save_tree(G,p,l,f'.trees/{thm.decl}/OG.png')
+            save_tree(G,p,l,f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}/OG.png')
             G, p, l, _ = getProofTree(out)
-            save_tree(G,p,l,f'.trees/{thm.decl}/GPT.png')
+            save_tree(G,p,l,f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}/GPT.png')
     else:
         new_m = None
         delta = None
@@ -44,11 +49,13 @@ def process_theorem(thm, metric, model):
         'new_raw': out
     }
 
-def benchmark_file(src, name, metric_name, model='gpt-4-turbo', max_workers=4):
+def benchmark_file(src, name, metric_name, model='gpt-4-turbo', max_workers=3):
     f = getAnnotatedFile(src, name)
     thms = f.theorems
     metric = metrics[metric_name]
     file_benchmark = {'src': src, 'path': name, 'metric': metric_name, 'model': model, 'theorems': {}}
+    if os.path.isdir(f'.trees/{src}/{name}') and metric_name=="MODULARITY":
+        shutil.rmtree(f'.trees/{src}/{name}')
     with ThreadPoolExecutor(max_workers=min(len(thms),max_workers)) as executor:
         future_to_thm = {executor.submit(process_theorem, thm, metric, model): thm.declID for thm in thms}
         for future in future_to_thm:
@@ -94,6 +101,10 @@ original correct? {correct_print(thm['original_correct'])} | new correct? {corre
 original score: {thm['original_score']} | new score: {thm['new_score']}
 delta = {thm['delta']}%
 
+og: {parseTheoremAny(thm['original_raw'],False) if printAll else ''}
+
+new: {parseTheoremAny(thm['new_raw'],False) if printAll else ''}
+
 '''
     out += thm_txt
     return out
@@ -103,6 +114,8 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, '.cache')
     src_path = os.path.join(cache_path, src)
+    if os.path.isdir(f'.trees/{src}') and metric_name=='MODULARITY':
+        shutil.rmtree(f'.trees/{src}')
     file_names = []
     for root, _, files in os.walk(src_path):
         for file in files:
@@ -120,4 +133,4 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
 if __name__ == "__main__":
     output = benchmark_repo('Tests3', 'MODULARITY')
     for f in output:
-        print(pretty_print(f))
+        print(pretty_print(f,True))

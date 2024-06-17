@@ -25,7 +25,7 @@ def _lakefile(repo, commit, name, cwd):
 
     
     mathlib_text = ''
-    if 'require mathlib from git' not in text:
+    if 'require mathlib from git' not in text and name != 'mathlib':
         mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "master"'
     contents = """import Lake
     open Lake DSL
@@ -102,7 +102,7 @@ def _run(cwd, name, import_file, old_version, max_workers):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cwd', default='/Users/wellecks/projects/ntp-training-data/')
+    parser.add_argument('--cwd', default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     parser.add_argument(
         '--config', 
         default='configs/config.json', 

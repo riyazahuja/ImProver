@@ -106,21 +106,32 @@ def getAnnotatedFile(src, file_name):
     
 
 
-def parseAnnotatedTheorem(thm):
+def parseAnnotatedTheorem(thm,context=True):
     last_pstep = thm.proof[-1]
-    src = last_pstep.srcUpToTactic+last_pstep.tactic
+    if context:
+        src = last_pstep.srcUpToTactic+last_pstep.tactic
+    else:
+        src = last_pstep.declUpToTactic+last_pstep.tactic
     return src
 
 
-def parseTheorem(thm):
+def parseTheorem(thm,context=True):
     statement = thm.decl
-    context = thm.context
+    if context:
+        context = thm.context
+    else:
+        context = ''
     psteps = [t.tactic for t in thm.proof]
     proof = ''
     for i in psteps:
         proof = proof + '  ' + i + '\n'
     return f'{context}\n\n{statement} := by\n{proof}'
 
+def parseTheoremAny(thm,context=True):
+    if type(thm) == AnnotatedTheorem:
+        return parseAnnotatedTheorem(thm,context)
+    else:
+        return parseTheorem(thm,context)
 
 def run_training_data(root_path,module_name):
     os.chdir(root_path)
@@ -167,7 +178,20 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
     os.remove(json_path)
     os.remove(lean_path)
 
-    return thms[0]
+    return thms[-1]
+    for new_thm in thms:
+        if thm.decl == new_thm.decl:
+            return new_thm
+    allthms = "\n".join([parseTheoremAny(i,False) for i in thms])
+    raise ValueError(f'''Original theorem lost:
+                     
+                     og: 
+                     {parseTheoremAny(thm,False)}
+                    
+                    rest:
+                    {allthms}
+
+                     ''')
     
     
 

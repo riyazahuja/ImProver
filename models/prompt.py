@@ -79,7 +79,7 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     
     thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
     #ANNOTATION TIME!
-    annotated = annotateTheorem(thm)
+    #annotated = annotateTheorem(thm)
     return thm
 
     

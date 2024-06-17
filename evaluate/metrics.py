@@ -33,8 +33,9 @@ def modularity_metric ():
         _,_,_,depth = getProofTree(thm)
         return depth
     
-    gpt_assistant_prompt = "You are a bot that modifies Lean4 proofs to be more modular while maintaining their correctness. We say a proof is more modular if the proof structure is moreso made up of independent subproofs rather than a sequential list of tactics.\n"
-    gpt_user_prompt = "Here is a proof in Lean 4. Your goal is to rewrite the proof so that it is more modular. To help you keep track of the state of the proof, and to help think of ways to rewrite the proof, we have provided the proof states as comments.\n"
+    gpt_assistant_prompt = "You are a bot that modifies Lean4 proofs to be more modular while maintaining their correctness. We say a proof is more modular if the proof structure is moreso made up of independent subproofs rather than a sequential list of tactics. The metric we're using measures the depth of the proof tree, which strongly favors proofs that use many independent lemmas and have statements as they have smaller proof tree depths.\n"
+    gpt_user_prompt = '''Here is a proof in Lean 4. Your goal is to rewrite the proof so that it is more modular. Any lemmas or independent subproofs you wish to make, put them as a have statement proofstep within the tactic proof rather than an external lemma.
+     To help you keep track of the state of the proof, and to help think of ways to rewrite the proof, we have provided the proof states as comments.\n'''
     modularity_prompt = gpt_assistant_prompt + "\n" + gpt_user_prompt + "\n"
 
     return Metric('MODULARITY', modularity_prompt, mod_fn)
