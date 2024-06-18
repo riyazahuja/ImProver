@@ -7,7 +7,7 @@ from evaluate.eval import *
 from evaluate.metrics import *
 from repl.repl import *
 from models.structures import *
-from models.prompt import prompt_structured
+from models.prompt import *
 from evaluate.build_prooftree import *
 import shutil
 
@@ -15,7 +15,7 @@ metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
 def process_theorem(thm, metric, model):
     #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
-    out = prompt_structured(thm, metric, model=model)
+    out = best_of_n(thm, metric, 5, model=model)
     print(out)
     original_correct,old_out = eval_correctness(thm)
     correct,new_out = eval_correctness(out)
@@ -131,6 +131,6 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
     return results
 
 if __name__ == "__main__":
-    output = benchmark_repo('Tests3', 'MODULARITY')
+    output = benchmark_repo('Tests3', 'LENGTH')
     for f in output:
         print(pretty_print(f,True))

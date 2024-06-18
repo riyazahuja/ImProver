@@ -10,45 +10,45 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
 from evaluate.metrics import *
-
-#Set GITHUB_ACCESS_TOKEN environment variable to a 
-# github PAT for better rate limits
+from evaluate.eval import eval_correctness
+from concurrent.futures import ThreadPoolExecutor
 
 
 
 #REQUIRES OPENAI_API_KEY envvar to be set
+
+
+#UPDATE THEOREM PARSING SO WE GET ANNOTATED IN ANNOTATEDTHEOREMS
+def parse_prev_data(data):
+    intro = "For reference, here is the previous thread of inputs and GPT outputs (from most recent to least recent), along with any errors encountered in the compilation, and if compilation was successful, the metric score.\n Prioritize fixing any correctness errors before trying to shorten the proof as we require a short AND correct proof."
+    data.reverse()
+    rev = data
+    text = ''
+    for item in rev:
+        err_msg=''
+        score_msg=''
+        if item['err'] == []:
+            score_msg = f"Evaluation: Correct\n Metric ({item['score'][0]}) score = {item['score'][1]}"
+        else:
+            for msg in item['err']:
+                err_msg += f"[ERROR MESSAGE]\n(line {msg['pos']['line']}, col {msg['pos']['column']} - line {msg['endPos']['line']}, col {msg['endPos']['column']})\n{msg['data']}\n[END MESSAGE]"
+            
+        
+        text += f'''========
+INPUT: {parseTheoremAny(item['input'],context=False)}
+
+OUTPUT: {parseTheoremAny(item['output'],context=False)}
+
+{err_msg}{score_msg}
+========
 '''
-def prompt_raw(thm) -> str:
-    client = OpenAI()
-    gpt_assistant_prompt = "You are a bot that shortens Lean4 proofs while maintaining their correctness.\n"
-    gpt_user_prompt = "Here is a proof in Lean 4. Your goal is to rewrite the proof so that it is shorter. To help you keep track of the state of the proof, and to help think of ways to rewrite the proof, we have provided the proof states as comments.\n"
-    gpt_data = thm
-    gpt_prompt = gpt_user_prompt + gpt_data
-
-    message=[{"role": "assistant", "content": gpt_assistant_prompt}, {"role": "user", "content": gpt_prompt}]
-    temperature=0
-    max_tokens=256
-    frequency_penalty=0.0
+    if text != '':
+        return intro + text
+    else:
+        return ''
 
 
-    response = client.chat.completions.create(
-        model="gpt-4-turbo",
-        messages = message,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        frequency_penalty=frequency_penalty
-    )
-    try:
-        return response.choices[0].message
-    except:
-        return f"ERROR: {response.__dict__()}"
-
-'''
-
-
-
-
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo') -> List[ProofStep]:
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[]) -> Theorem:
 
     model = ChatOpenAI(model=model,temperature=0)
 
@@ -57,14 +57,12 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
     # Define the output parser
     parser = JsonOutputParser(pydantic_object= Proof)
-    
-    #gpt_assistant_prompt = "You are a bot that shortens Lean4 proofs while maintaining their correctness.\n"
-    #gpt_user_prompt = "Here is a proof in Lean 4. Your goal is to rewrite the proof so that it is shorter. To help you keep track of the state of the proof, and to help think of ways to rewrite the proof, we have provided the proof states as comments.\n"
 
-
+    actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
+    prev_data_text = parse_prev_data(prev_data).replace('{',r'{{').replace('}',r'}}')
     # Define the prompt template
     prompt = PromptTemplate(
-        template=metric.prompt + "{data_str}\n\n"+"{format_instructions}",
+        template=actual_prompt + "{data_str}\n\n"+prev_data_text+'\n'+"{format_instructions}",
         input_variables=["data_str"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
@@ -72,33 +70,89 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     # Create the chain
     chain = prompt | model | parser
 
-
     output = chain.invoke({"data_str" : thm})
     proof = output.get('contents',[])
-    #TODO FORCING WITH RETRY PARSER
     
     thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
-    #ANNOTATION TIME!
-    #annotated = annotateTheorem(thm)
     return thm
 
+
+
+
+
+def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1) -> Theorem:
+    thms = []
+    if max_workers == 1:
+        for i in range(n):
+            output = prompt_structured(thm,metric,model)
+            correct,_ = eval_correctness(output)
+            thms.append((output,correct))
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(prompt_structured, thm, metric, model) for _ in range(n)]
+            for future in futures:
+                output = future.result()
+                correct, _ = eval_correctness(output)
+                thms.append((output,correct))
     
+    correct_thms = [item for item in thms if item[1]]
+    if len(correct_thms) == 0:
+        return thms[0][0]
+    
+    best = correct_thms[0][0]
+    for t,_ in correct_thms:
+        best = metric.cmp(best,t)
+    return best
+
+
+
+def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = False) -> Theorem:
+    curr = thm
+    prev_data = []
+
+    for i in range(n):
+        print(f'=== i: {i} ===\n curr:\n {parseTheoremAny(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
+        output = prompt_structured(curr,metric,model,prev_data=prev_data[-prev_data_num:]) 
+        correct,data = eval_correctness(output)
+        #print(parseTheoremAny(output,context=False))
+        #if type(output) == Theorem:
+        #    output = annotateTheorem(output)
+        #print(parseTheoremAny(output,context=False))
+
+        curr_data = {'input':curr,'output':output}
+        curr_data['err'] = [msg for msg in data.get('messages',[]) if msg['severity'] == 'error']
+        curr_data['score'] = (metric.name, metric.metric(output))
+
+        prev_data.append(curr_data)
+
+        if not keep_best:
+            curr = output
+        else:
+            old_correct = eval_correctness(curr)[0]
+            new_correct = correct
+            if not old_correct or new_correct:
+                curr = metric.cmp(curr,output)
+    
+    return curr
+        
+
 
 if __name__ == '__main__':
-    src = 'Tests'
-    name = 'Tests/Basic.lean'
+    src = 'Tests3'
+    name = 'Tests3/Basic.lean'
 
     f = getAnnotatedFile(src,name)
     thms = f.theorems
     
-    for thm in thms:
-        print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
+    for thm in [thms[0]]:
+        #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
         
-        out = prompt_structured(thm,length_metric())
-        print(out)
+        out = refinement(thm,length_metric(),5,prev_data_num=1)
+        #print(out)
         print(parseTheorem(out))
-        print('\n\n')
+        #print('\n\n')
 
+        
 
 
 

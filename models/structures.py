@@ -106,7 +106,7 @@ def getAnnotatedFile(src, file_name):
     
 
 
-def parseAnnotatedTheorem(thm,context=True):
+def parseAnnotatedTheorem(thm,context=True,annotation=False):
     last_pstep = thm.proof[-1]
     if context:
         src = last_pstep.srcUpToTactic+last_pstep.tactic
@@ -126,6 +126,8 @@ def parseTheorem(thm,context=True):
     for i in psteps:
         proof = proof + '  ' + i + '\n'
     return f'{context}\n\n{statement} := by\n{proof}'
+
+
 
 def parseTheoremAny(thm,context=True):
     if type(thm) == AnnotatedTheorem:
@@ -152,7 +154,7 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
     package_path = os.path.join(root_path,'.lake','packages',src,os.path.dirname(path))
     cache_path = os.path.join(root_path,'.cache',src,os.path.dirname(path))
 
-    print(cache_path)
+    #print(cache_path)
     #make tempfile at package_path containing text
     #then chdir to root_path and run lake exe training_data {os.path.dirname(path).replace('/','.')+'.{file.name}'}
     temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=package_path)
@@ -172,7 +174,7 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
         f.write("")
     
     path = os.path.join(get_stem(os.path.dirname(path)), os.path.basename(temp.name))
-    print(f'json_path = {json_path}\n {src}|{path}')
+    #print(f'json_path = {json_path}\n {src}|{path}')
     file = getAnnotatedFile(src,path)
     thms = file.theorems
     os.remove(json_path)
