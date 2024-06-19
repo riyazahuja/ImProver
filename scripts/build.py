@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import requests
 import base64
+import shutil
 
 def _lakefile(repo, commit, name, cwd):
     envvar = os.getenv("GITHUB_ACCESS_TOKEN")
@@ -26,7 +27,7 @@ def _lakefile(repo, commit, name, cwd):
     
     mathlib_text = ''
     if 'require mathlib from git' not in text and name != 'mathlib':
-        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "master"'
+        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git"'
     contents = """import Lake
     open Lake DSL
 
@@ -120,6 +121,9 @@ if __name__ == '__main__':
         sources = json.load(f)
 
     for source in sources:
+        src_dir = os.path.join(args.cwd,'.cache',source['name'])
+        if os.path.isdir(src_dir):
+            shutil.rmtree(src_dir)
         print("=== %s ===" % (source['name']))
         print(source)
         _lakefile(

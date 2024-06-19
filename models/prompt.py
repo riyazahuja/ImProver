@@ -70,7 +70,7 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     # Create the chain
     chain = prompt | model | parser
 
-    output = chain.invoke({"data_str" : parseTheorem(thm,annotation=True)})
+    output = chain.invoke({"data_str" : parseTheorem(thm,annotation=True,prompt=True)})
     proof = output.get('contents',[])
     
     print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')

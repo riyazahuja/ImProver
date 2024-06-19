@@ -85,23 +85,25 @@ def get_stem(path):
     #print(f'{path} : {path[-5:]} : {path[:-5]}')
     if path[-5:]=='.lean':
         return path[:-5]
+    elif path[-6:]=='.jsonl':
+        return path[:-6]
     return path
 
 def getAnnotatedFile(src, file_name):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    content_path = os.path.join(root_path, f'.cache/{src}')
+    cache_path = os.path.join(root_path, f'.cache/{src}')
+    lake_path =  os.path.join(root_path, f'.lake/packages/{src}')
 
-    
     contents = None
     data = None
 
     file_name = get_stem(file_name)
 
-    with open(os.path.join(content_path,file_name+'.lean'),'r') as f:
+    with open(os.path.join(lake_path,file_name+'.lean'),'r') as f:
         contents = f.read()
 
 
-    with open(os.path.join(content_path,file_name+'.jsonl'),'r') as f:
+    with open(os.path.join(cache_path,file_name+'.jsonl'),'r') as f:
         data = [json.loads(jline) for jline in f.read().splitlines()]
     
     theorems = getTheorems(data,src, file_name)
@@ -161,7 +163,7 @@ def annotate(step : AnnotatedProofStep, prev_goal=False):
         return indent(text,'  ', lambda x: True)
     
 
-def parseAnnotatedTheorem2(thm,context=True,annotation=False):
+def parseAnnotatedTheorem2(thm,context=True,annotation=False,prompt=False):
     statement = thm.decl
     if context:
         context = thm.context
@@ -177,10 +179,13 @@ def parseAnnotatedTheorem2(thm,context=True,annotation=False):
         else:
             text = psteps[i].tactic
         proof = proof + '  ' + text + '\n'
-    return f'{context}\n\n{statement} := by\n{proof}'
+    if prompt:
+        return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
+    else:
+        return f'{context}\n\n{statement} := by\n{proof}'
 
 
-def parseTheoremBase(thm,context=True):
+def parseTheoremBase(thm,context=True,prompt=False):
     statement = thm.decl
     if context:
         context = thm.context
@@ -190,15 +195,18 @@ def parseTheoremBase(thm,context=True):
     proof = ''
     for i in psteps:
         proof = proof + '  ' + i + '\n'
-    return f'{context}\n\n{statement} := by\n{proof}'
-
-
-
-def parseTheorem(thm,context=True,annotation=False):
-    if type(thm) == AnnotatedTheorem:
-        return parseAnnotatedTheorem2(thm,context,annotation)
+    if prompt:
+        return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
     else:
-        return parseTheoremBase(thm,context)
+        return f'{context}\n\n{statement} := by\n{proof}'
+
+
+
+def parseTheorem(thm,context=True,annotation=False,prompt=False):
+    if type(thm) == AnnotatedTheorem:
+        return parseAnnotatedTheorem2(thm,context,annotation,prompt)
+    else:
+        return parseTheoremBase(thm,context,prompt)
 
 def run_training_data(root_path,module_name):
     os.chdir(root_path)

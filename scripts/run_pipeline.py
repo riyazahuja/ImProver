@@ -46,17 +46,17 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
         )
     )
 
-     # State comments
-    state_comments_output_file = os.path.join(
-        output_base_dir, 
-        _get_stem(input_module, input_file_mode) + '.lean'
-    )
-    _run_cmd(
-        cmd='state_comments',
-        cwd=cwd,
-        input_file=input_module,
-        output_file=state_comments_output_file
-    )
+    #  # State comments
+    # state_comments_output_file = os.path.join(
+    #     output_base_dir, 
+    #     _get_stem(input_module, input_file_mode) + '.lean'
+    # )
+    # _run_cmd(
+    #     cmd='state_comments',
+    #     cwd=cwd,
+    #     input_file=input_module,
+    #     output_file=state_comments_output_file
+    # )
 
     print(input_module)
     return 1

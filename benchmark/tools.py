@@ -10,13 +10,19 @@ from models.structures import *
 from models.prompt import *
 from evaluate.build_prooftree import *
 import shutil
+import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')  
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
 def process_theorem(thm, metric, model):
     #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
-    out = refinement(thm, metric, 5, model=model)
-    print(out)
+    #out = refinement(thm, metric, 5, model=model)
+    out = prompt_structured(thm,metric)
+    #print(out)
     original_correct,old_out = eval_correctness(thm)
     correct,new_out = eval_correctness(out)
     old_m = metric.metric(thm)
@@ -119,18 +125,62 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
     file_names = []
     for root, _, files in os.walk(src_path):
         for file in files:
-            if file.endswith('.lean'):
+            if file.endswith('.jsonl'):
                 path = os.path.relpath(os.path.join(root, file), start=src_path)
                 file_names.append(path)
     results = []
     for name in file_names:
         result = benchmark_file(src, name, metric_name, model)
         results.append(result)
-    
+    print(results)
      # Optionally print or handle the file benchmark results
     return results
 
+
+def generate_dataframe(results):
+    # Flatten the results to create a DataFrame
+    data = []
+    for file_result in results:
+        for ID, theorem_result in file_result['theorems'].items():
+            data.append({
+                'src': file_result['src'],
+                'path': file_result['path'],
+                'decl': theorem_result['decl'],
+                'original_correct': theorem_result['original_correct'][0],
+                'new_correct': theorem_result['new_correct'][0],
+                'original_score': theorem_result['original_score'],
+                'new_score': theorem_result['new_score'],
+                'delta': theorem_result['delta'],
+            })
+    return pd.DataFrame(data)
+
+
+def plot_results(df):
+    # Plotting correctness rates
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x='path', y='new_correct', data=df)
+    plt.title('New Correctness Rate by File')
+    plt.xlabel('File Path')
+    plt.ylabel('Correctness Rate')
+    plt.xticks(rotation=45)
+    plt.show()
+
+    # Plotting delta distribution
+    plt.figure(figsize=(12, 6))
+    sns.histplot(df['delta'].dropna(), kde=True)
+    plt.title('Distribution of Improvement (Delta)')
+    plt.xlabel('Delta')
+    plt.ylabel('Frequency')
+    plt.show()
+
+
+
 if __name__ == "__main__":
-    output = benchmark_repo('Tests3', 'MODULARITY')
+    output = benchmark_repo('Tests3', 'LENGTH')
     for f in output:
         print(pretty_print(f,True))
+    print('\n\nDATAFRAMING\n')
+    df = generate_dataframe(output)
+    df.to_csv('benchmark_results.csv', index=False)  # Save to CSV
+    #plot_results(df)
+    
