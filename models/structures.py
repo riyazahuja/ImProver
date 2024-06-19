@@ -5,6 +5,7 @@ import os
 import json
 import tempfile
 import subprocess 
+from textwrap import indent
 
 class ProofStep(BaseModel):
     tactic : str = Field(description="One line/tactic in a tactic proof.")
@@ -15,6 +16,8 @@ class AnnotatedProofStep(BaseModel):
     nextState : List[str] = Field(description="Pretty printed tactic state after the tactic invocation")
     srcUpToTactic : str = Field(description="Source code from file start to current tactic")
     declUpToTactic : str = Field(description="Source code from theorem declaration to current tactic")
+    start : int = Field(description='start UTF-8 byte position of tactic invocation')
+    end : int = Field(description='end UTF-8 byte position of tactic invocation')
 
 class AnnotatedTheorem(BaseModel):
     decl : str = Field(description="Theorem declaration")
@@ -51,7 +54,9 @@ def getTheorems(data,src, file) -> List[AnnotatedTheorem]:
                                         tactic = step['tactic'],
                                         nextState=step['nextState'],
                                         srcUpToTactic=step['srcUpToTactic'],
-                                        declUpToTactic=step['declUpToTactic'])
+                                        declUpToTactic=step['declUpToTactic'],
+                                        start = int(step['start']),
+                                        end= int(step['end']))
         decl = step['decl']
         declID = step['declId']
 
@@ -114,8 +119,68 @@ def parseAnnotatedTheorem(thm,context=True,annotation=False):
         src = last_pstep.declUpToTactic+last_pstep.tactic
     return src
 
+def elim_overlap(pf: List[AnnotatedProofStep]):
+    ptr = 0
+    output = []
+    for step in pf:
+        start = step.start
+        end = step.end
+        if start <= ptr and end <= ptr:
+            #this is inside a have
+            pass
+        else:
+            ptr = max(start,end)
+            output.append(step)
+    return output
 
-def parseTheorem(thm,context=True):
+def annotate(step : AnnotatedProofStep, prev_goal=False):
+    prev = step.prevState
+    tactic = step.tactic
+    next = step.nextState
+    def pp_state(state):
+        if state == []:
+            return 'No Goals Left!'
+        return "\n".join(state)
+    
+    prev_text = f'''
+/-
+{pp_state(prev)}
+-/
+'''    
+    
+    text = f'''
+{tactic}
+
+/-
+{pp_state(next)}
+-/
+'''
+    if prev_goal:
+        return indent(prev_text+text,'  ', lambda x: True)
+    else:
+        return indent(text,'  ', lambda x: True)
+    
+
+def parseAnnotatedTheorem2(thm,context=True,annotation=False):
+    statement = thm.decl
+    if context:
+        context = thm.context
+    else:
+        context = ''
+
+    psteps = elim_overlap(thm.proof)
+
+    proof = ''
+    for i in range(len(psteps)):
+        if annotation:
+            text = annotate(psteps[i],i==0)
+        else:
+            text = psteps[i].tactic
+        proof = proof + '  ' + text + '\n'
+    return f'{context}\n\n{statement} := by\n{proof}'
+
+
+def parseTheoremBase(thm,context=True):
     statement = thm.decl
     if context:
         context = thm.context
@@ -129,11 +194,11 @@ def parseTheorem(thm,context=True):
 
 
 
-def parseTheoremAny(thm,context=True):
+def parseTheorem(thm,context=True,annotation=False):
     if type(thm) == AnnotatedTheorem:
-        return parseAnnotatedTheorem(thm,context)
+        return parseAnnotatedTheorem2(thm,context,annotation)
     else:
-        return parseTheorem(thm,context)
+        return parseTheoremBase(thm,context)
 
 def run_training_data(root_path,module_name):
     os.chdir(root_path)
@@ -199,5 +264,11 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
 
 
 if __name__ == '__main__':
-    thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
-    annotateTheorem(thm)
+    src = 'Tests3'
+    path = 'Tests3/Basic.lean'
+    f = getAnnotatedFile(src,path)
+    thms = f.theorems
+    thm = thms[0]
+    #thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
+    #annotateTheorem(thm)
+    print(parseAnnotatedTheorem2(thm,context=False,annotation=True))

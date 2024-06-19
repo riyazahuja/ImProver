@@ -35,9 +35,9 @@ def parse_prev_data(data):
             
         
         text += f'''========
-INPUT: {parseTheoremAny(item['input'],context=False)}
+INPUT: {parseTheorem(item['input'],context=False)}
 
-OUTPUT: {parseTheoremAny(item['output'],context=False)}
+OUTPUT: {parseTheorem(item['output'],context=False)}
 
 {err_msg}{score_msg}
 ========
@@ -70,9 +70,10 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     # Create the chain
     chain = prompt | model | parser
 
-    output = chain.invoke({"data_str" : thm})
+    output = chain.invoke({"data_str" : parseTheorem(thm,annotation=True)})
     proof = output.get('contents',[])
     
+    print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
     thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
     return thm
 
@@ -111,13 +112,13 @@ def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', pre
     prev_data = []
 
     for i in range(n):
-        print(f'=== i: {i} ===\n curr:\n {parseTheoremAny(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
+        print(f'=== i: {i} ===\n curr:\n {parseTheorem(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
         output = prompt_structured(curr,metric,model,prev_data=prev_data[-prev_data_num:]) 
         correct,data = eval_correctness(output)
         #print(parseTheoremAny(output,context=False))
-        #if type(output) == Theorem:
-        #    output = annotateTheorem(output)
-        #print(parseTheoremAny(output,context=False))
+        if type(output) == Theorem :
+            output = annotateTheorem(output)
+        print(f'COERCED!!!!! \n\n{parseTheorem(output,context=False,annotation=True)}\n\n')
 
         curr_data = {'input':curr,'output':output}
         curr_data['err'] = [msg for msg in data.get('messages',[]) if msg['severity'] == 'error']

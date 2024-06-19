@@ -110,6 +110,9 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
   let next_state := ((← i.goalStateAfter).map (fun x => x.pretty)).toArray
   let tactic ← tacticPP module i
   let decl ← ppDeclWithoutProof module elabDeclInfo.snd
+  let start := (i.info.stx.getPos?.getD 0).byteIdx
+  let tail := (i.info.stx.getTailPos?.getD 0).byteIdx
+
 
   let json : Json :=
     Json.mkObj [
@@ -119,7 +122,10 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
       ("declUpToTactic", Json.str declUpToTactic.toString),
       ("prevState", Json.arr (prev_state.map (fun x => Json.str x))),
       ("nextState", Json.arr (next_state.map (fun x => Json.str x))),
-      ("tactic", Json.str tactic)
+      ("tactic", Json.str tactic),
+      ("start", Json.str <| toString start),
+      ("end", Json.str <| toString tail)
+
     ]
   return (declId, json)
 

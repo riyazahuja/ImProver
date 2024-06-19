@@ -15,7 +15,7 @@ metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
 def process_theorem(thm, metric, model):
     #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
-    out = best_of_n(thm, metric, 5, model=model)
+    out = refinement(thm, metric, 5, model=model)
     print(out)
     original_correct,old_out = eval_correctness(thm)
     correct,new_out = eval_correctness(out)
@@ -101,9 +101,9 @@ original correct? {correct_print(thm['original_correct'])} | new correct? {corre
 original score: {thm['original_score']} | new score: {thm['new_score']}
 delta = {thm['delta']}%
 
-og: {parseTheoremAny(thm['original_raw'],False) if printAll else ''}
+og: {parseTheorem(thm['original_raw'],False) if printAll else ''}
 
-new: {parseTheoremAny(thm['new_raw'],False) if printAll else ''}
+new: {parseTheorem(thm['new_raw'],False) if printAll else ''}
 
 '''
     out += thm_txt
@@ -131,6 +131,6 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
     return results
 
 if __name__ == "__main__":
-    output = benchmark_repo('Tests3', 'LENGTH')
+    output = benchmark_repo('Tests3', 'MODULARITY')
     for f in output:
         print(pretty_print(f,True))
