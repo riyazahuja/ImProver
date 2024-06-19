@@ -8,7 +8,7 @@ import Lake
     
 
     require Tests3 from git
-    "https://github.com/riyazahuja/Tests3.git" @ "961344f4e153f35f6b65e1b6cdfc769fc9c5ba26"
+    "https://github.com/riyazahuja/Tests3.git" @ "8c545b4691a61cdd218f5a0e1779f64383866356"
 
     @[default_target]
     lean_lib TrainingData where
