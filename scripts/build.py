@@ -48,9 +48,6 @@ def _lakefile(repo, commit, name, cwd):
     lean_exe training_data where
     root := `scripts.training_data
 
-    lean_exe state_comments where
-    root := `scripts.state_comments
-
     """ % (mathlib_text, name, repo, commit)
     with open(os.path.join(cwd, 'lakefile.lean'), 'w') as f:
         f.write(contents)

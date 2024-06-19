@@ -18,7 +18,4 @@ import Lake
     lean_exe training_data where
     root := `scripts.training_data
 
-    lean_exe state_comments where
-    root := `scripts.state_comments
-
     

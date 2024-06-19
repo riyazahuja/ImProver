@@ -149,10 +149,8 @@ def annotate(step : AnnotatedProofStep, prev_goal=False):
 {pp_state(prev)}
 -/
 '''    
-    
     text = f'''
 {tactic}
-
 /-
 {pp_state(next)}
 -/
@@ -272,11 +270,15 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
 
 
 if __name__ == '__main__':
-    src = 'Tests3'
-    path = 'Tests3/Basic.lean'
-    f = getAnnotatedFile(src,path)
-    thms = f.theorems
-    thm = thms[0]
-    #thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
-    #annotateTheorem(thm)
-    print(parseAnnotatedTheorem2(thm,context=False,annotation=True))
+    #src = 'Tests3'
+    #path = 'Tests3/Basic.lean'
+    #f = getAnnotatedFile(src,path)
+    #thms = f.theorems
+    #thm = thms[0]
+    #print(thm)
+    thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q fail'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
+    print(parseTheorem(thm))
+    out = annotateTheorem(thm)
+    print(out)
+    print(parseTheorem(out,annotation=True))
+    #print(parseAnnotatedTheorem2(thm,context=False,annotation=True))
