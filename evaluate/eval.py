@@ -14,10 +14,8 @@ def eval_correctness(thm):
 
     og_path = os.path.join(root_path,'.lake/packages',src)
 
-    if (type(thm) is AnnotatedTheorem):
-        thm_text = parseAnnotatedTheorem(thm)
-    else:
-        thm_text = parseTheorem(thm)
+    
+    thm_text = parseTheorem(thm)
     #print(thm_text)
     #print(og_path)
     '''

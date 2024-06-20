@@ -12,7 +12,7 @@ from models.structures import *
 from evaluate.metrics import *
 from evaluate.eval import eval_correctness
 from concurrent.futures import ThreadPoolExecutor
-
+import time
 
 
 #REQUIRES OPENAI_API_KEY envvar to be set
@@ -31,7 +31,16 @@ def parse_prev_data(data):
             score_msg = f"Evaluation: Correct\n Metric ({item['score'][0]}) score = {item['score'][1]}"
         else:
             for msg in item['err']:
-                err_msg += f"[ERROR MESSAGE]\n(line {msg['pos']['line']}, col {msg['pos']['column']} - line {msg['endPos']['line']}, col {msg['endPos']['column']})\n{msg['data']}\n[END MESSAGE]"
+                #print(msg)
+                try:
+                    err_msg += f"[ERROR MESSAGE]\n(line {msg.get('pos',{}).get('line',-1)}, col {msg.get('pos',{}).get('column',-1)}"
+                    try:
+                        err_msg += f"- line {msg.get('endPos',{}).get('line',-1)}, col {msg.get('endPos',{}).get('column',-1)}"
+                    except:
+                        pass
+                    err_msg+= f")\n{msg['data']}\n[END MESSAGE]"
+                except Exception as e:
+                    raise KeyError(str(msg))
             
         
         text += f'''========
@@ -48,7 +57,7 @@ OUTPUT: {parseTheorem(item['output'],context=False)}
         return ''
 
 
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[]) -> Theorem:
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=3) -> Theorem:
 
     model = ChatOpenAI(model=model,temperature=0)
 
@@ -69,8 +78,19 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
     # Create the chain
     chain = prompt | model | parser
-
-    output = chain.invoke({"data_str" : parseTheorem(thm,annotation=True,prompt=True)})
+    output=None
+    err = None
+    for _ in range(retries):
+        try:
+            output = chain.invoke({"data_str" : parseTheorem(thm,annotation=True,prompt=True)})
+            break
+        except Exception as e:
+            err = e
+            time.sleep(3)
+            
+    if output is None:
+        print(err)
+        raise TimeoutError('ERROR')
     proof = output.get('contents',[])
     
     print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
@@ -115,10 +135,9 @@ def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', pre
         print(f'=== i: {i} ===\n curr:\n {parseTheorem(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
         output = prompt_structured(curr,metric,model,prev_data=prev_data[-prev_data_num:]) 
         correct,data = eval_correctness(output)
-        #print(parseTheoremAny(output,context=False))
-        if type(output) == Theorem :
-            output = annotateTheorem(output)
-        print(f'COERCED!!!!! \n\n{parseTheorem(output,context=False,annotation=True)}\n\n')
+
+        if type(output) == Theorem:
+            output = annotateTheorem(output,force=True)
 
         curr_data = {'input':curr,'output':output}
         curr_data['err'] = [msg for msg in data.get('messages',[]) if msg['severity'] == 'error']

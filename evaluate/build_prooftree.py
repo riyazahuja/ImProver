@@ -1,7 +1,7 @@
 import math
 import json
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import sys
@@ -92,6 +92,7 @@ def getProofTree(thm:AnnotatedTheorem, visualize=False):
     return G, positions, labels, depth
 
 def save_tree(G,positions,labels,save_path):
+    matplotlib.use('agg')
     plt.figure(figsize=(12, 8))
     nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=8, font_color="black", node_color="skyblue", edge_color="gray")
     plt.title('Proof Tree Visualization')

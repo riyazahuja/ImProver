@@ -45,6 +45,8 @@ def length_metric ():
 def modularity_metric ():
 
     def mod_fn(thm):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm)
         _,_,_,depth = getProofTree(thm)
         return depth
     

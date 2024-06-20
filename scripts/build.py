@@ -112,15 +112,14 @@ if __name__ == '__main__':
         type=int,
         help="maximum number of processes; defaults to number of processors"
     )
+    parser.add_argument('--run', action=argparse.BooleanOptionalAction)
+    parser.set_defaults(run=True)
     args = parser.parse_args()
 
     with open(args.config) as f:
         sources = json.load(f)
 
     for source in sources:
-        src_dir = os.path.join(args.cwd,'.cache',source['name'])
-        if os.path.isdir(src_dir):
-            shutil.rmtree(src_dir)
         print("=== %s ===" % (source['name']))
         print(source)
         _lakefile(
@@ -140,10 +139,17 @@ if __name__ == '__main__':
         _setup(
             cwd=args.cwd
         )
-        _run(
-            cwd=args.cwd,
-            name=source['name'],
-            import_file=source['import_file'],
-            old_version=False if 'old_version' not in source else source['old_version'],
-            max_workers=args.max_workers
-        )
+
+        if args.run:
+
+            src_dir = os.path.join(args.cwd,'.cache',source['name'])
+            if os.path.isdir(src_dir):
+                shutil.rmtree(src_dir)
+
+            _run(
+                cwd=args.cwd,
+                name=source['name'],
+                import_file=source['import_file'],
+                old_version=False if 'old_version' not in source else source['old_version'],
+                max_workers=args.max_workers
+            )
