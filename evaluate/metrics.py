@@ -17,7 +17,6 @@ class Metric():
     def delta(self, old_thm, new_thm):
         old = self.metric(old_thm)
         new = self.metric(new_thm)
-
         return ((new-old)/old) * 100
     
     def cmp(self,*thms):
@@ -46,6 +45,8 @@ def length_metric ():
 def modularity_metric ():
 
     def mod_fn(thm):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm)
         _,_,_,depth = getProofTree(thm)
         return depth
     

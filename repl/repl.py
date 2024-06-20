@@ -48,7 +48,6 @@ def run_file(project_path, file_path, commands_path = None,force_clone_at=None):
 
     cmd = f"lake env {os.path.join(repl_path,'.lake/build/bin/repl')} < {commands_path}"
     output = subprocess.run([cmd],shell=True, text=True, capture_output = True)
-
     os.chdir(cwd)
     return json.loads(output.stdout)
     
@@ -60,6 +59,7 @@ def run_text(text, project_path, commands_path = None,force_clone_at=None):
     with open(temp.name,'w') as f:
         f.write(text)
     output = run_file(project_path,f.name,commands_path=commands_path,force_clone_at=force_clone_at)
+
     return output
 
 

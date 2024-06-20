@@ -10,67 +10,147 @@ from models.structures import *
 from models.prompt import *
 from evaluate.build_prooftree import *
 import shutil
+import pandas as pd 
+import seaborn as sns
+import time
+import numpy as np
 
 metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
-def process_theorem(thm, metric, model):
-    #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
-    out = refinement(thm, metric, 5, model=model)
-    print(out)
-    original_correct,old_out = eval_correctness(thm)
-    correct,new_out = eval_correctness(out)
+def process_theorem(thm, metric, model,method):
+    start_time = time.time()
+
+    if method[0] == 'BASIC' or method == 'BASIC':
+        out = prompt_structured(thm,metric,model=model)
+    elif method[0] == 'REFINEMENT':
+        n = method[1]
+        kwargs = {}
+        if len(method) == 3:
+            kwargs = method[2]
+        out = refinement(thm,metric,n,model=model,**kwargs)
+    elif method[0] == 'BEST':
+        n = method[1]
+        kwargs = {}
+        if len(method) == 3:
+            kwargs = method[2]
+        out = best_of_n(thm,metric,n,model=model,**kwargs)
+    else:
+        raise ValueError(f"Invalid Method: {method}")
+    
+
+    #print(out)
+    original_correct,_ = eval_correctness(thm)
+    correct,_ = eval_correctness(out)
     old_m = metric.metric(thm)
     if correct and original_correct:
         if metric.name == 'MODULARITY' and type(out) == Theorem:
             out = annotateTheorem(out)
         new_m = metric.metric(out)
         delta = metric.delta(thm, out)
+        
         if metric.name == 'MODULARITY':
-            #print(thm.decl)
-            #print(out.decl)
+            #print('PRINTING PROOF TREES!!!')
             if os.path.isdir(f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}'):
                 shutil.rmtree(f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}')
             G, p, l, _ = getProofTree(thm)
             save_tree(G,p,l,f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}/OG.png')
             G, p, l, _ = getProofTree(out)
             save_tree(G,p,l,f'.trees/{thm.src}/{thm.leanFile}/{thm.decl}/GPT.png')
+            #print('DONE PRINTING PROOF TREES!!!')
     else:
         new_m = None
         delta = None
 
+    total_time = time.time()-start_time
+
     return {
         'decl': thm.decl,
-        'original_correct': (original_correct,old_out),
-        'new_correct': (correct,new_out),
+        'original_correct': original_correct,
+        'new_correct': correct,
         'original_score': old_m,
         'new_score': new_m,
         'delta': delta,
-        'original_raw': thm,
-        'new_raw': out
+        'original_raw': parseTheorem(thm,context=False),
+        'new_raw': parseTheorem(out,context=False),
+        'total_time': total_time
     }
 
-def benchmark_file(src, name, metric_name, model='gpt-4-turbo', max_workers=3):
+
+def benchmark_file(src, name, metric_name, model='gpt-4-turbo', method_workers = None,theorem_workers=None, methods=[('BASIC')]):
+    print(f'{src}|{name}')
+    start_time = time.time()
     f = getAnnotatedFile(src, name)
     thms = f.theorems
     metric = metrics[metric_name]
-    file_benchmark = {'src': src, 'path': name, 'metric': metric_name, 'model': model, 'theorems': {}}
+    file_benchmark = {'src': src, 'path': name, 'metric': metric_name, 'model': model, 'num_theorems' : len(thms)}
     if os.path.isdir(f'.trees/{src}/{name}') and metric_name=="MODULARITY":
         shutil.rmtree(f'.trees/{src}/{name}')
-    with ThreadPoolExecutor(max_workers=min(len(thms),max_workers)) as executor:
-        future_to_thm = {executor.submit(process_theorem, thm, metric, model): thm.declID for thm in thms}
-        for future in future_to_thm:
+    theorem_data=[]
+    future_data={}
+    max_workers = 1
+    if method_workers is None:
+        method_workers=len(methods)
+    else:
+        method_workers=1
+    if theorem_workers is None:
+        theorem_workers = len(thms)
+    else:
+        theorem_workers=1
+    max_workers = method_workers * theorem_workers
+    
+    with ThreadPoolExecutor(max_workers=max(1,min(len(thms)*len(methods),max_workers))) as executor:
+        future_to_thm = {(thm.declID,method[0]) : executor.submit(process_theorem, thm, metric, model, method) for thm in thms for method in methods}
+        for pair,future in future_to_thm.items():
             result = future.result()
-            file_benchmark['theorems'][future_to_thm[future]] = result
+            ID, method = pair
+            if ID not in future_data.keys():
+                future_data[ID]={}
+            future_data[ID][method] = result
+        
+        
+    #print(future_data)
+    for ID,val in future_data.items():
+        data = {}
 
+        for method in methods:
+            curr = val[method[0]]
+            data.update({
+                'decl': curr['decl'],
+                'original_correct': curr['original_correct'], 
+                f'new_correct_{method}': curr['new_correct'],
+                'original_score': curr['original_score'],
+                f'new_score_{method}': curr['new_score'],
+                f'delta_{method}': curr['delta'],
+                'original_raw': curr['original_raw'],
+                f'new_raw_{method}':curr['new_raw'],
+                f'total_time_{method}': curr['total_time']
+                })
+        theorem_data.append(data)
+
+
+    
+
+    file_benchmark['theorems']=theorem_data
+
+    total_time = time.time()-start_time
     # Aggregate results at the file level
-    og_corr = sum(1 for v in file_benchmark['theorems'].values() if v['original_correct'][0])
-    new_corr = sum(1 for v in file_benchmark['theorems'].values() if v['new_correct'][0])
-    deltas = [v['delta'] for v in file_benchmark['theorems'].values() if v['delta'] is not None]
-    avg_delta = sum(deltas) / len(deltas) if deltas else 0
+    og_corr = sum(1 for v in file_benchmark['theorems'] if v['original_correct'])
 
+
+    file_benchmark['total_time'] = total_time
     file_benchmark['original_correct'] = og_corr
-    file_benchmark['new_correct'] = new_corr
-    file_benchmark['avg_delta'] = avg_delta
+    file_benchmark['percent_original_correct'] = og_corr/len(thms)*100 if len(thms)!=0 else None
+
+    for method in methods:
+        new_corr = sum(1 for v in file_benchmark['theorems'] if v[f'new_correct_{method}'])
+        deltas = [v[f'delta_{method}'] for v in file_benchmark['theorems'] if v[f'delta_{method}'] is not None]
+
+        file_benchmark[f'new_correct_{method}'] = new_corr
+        file_benchmark[f'percent_new_correct_{method}'] = new_corr/len(thms)*100 if len(thms)!=0 else None
+        file_benchmark[f'mean_delta_{method}'] = np.mean(deltas) if deltas != [] else None
+        file_benchmark[f'median_delta_{method}'] = np.median(deltas) if deltas != [] else None
+        file_benchmark[f'stdev_delta_{method}'] = np.std(deltas) if deltas != [] else None
+
     return file_benchmark
 
 def correct_print(data):
@@ -109,28 +189,97 @@ new: {parseTheorem(thm['new_raw'],False) if printAll else ''}
     out += thm_txt
     return out
 
-
-def benchmark_repo(src, metric_name, model='gpt-4-turbo'):
+#METHODS: 
+# ('BASIC') is a standard, basic prompt.
+# ('REFINEMENT', n, {prev_num=1, keep_best=False}) is an n-shot iterative refinement
+# ('BEST', n, {max_workers=n}) is best of n with n workers
+def benchmark_repo(src, metric_name, model='gpt-4-turbo',start = '',ignore=[], methods = [('BASIC')],method_workers = None,theorem_workers=None):
+    start_time = time.time()
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, '.cache')
     src_path = os.path.join(cache_path, src)
+    start_path = os.path.join(src_path,start)
     if os.path.isdir(f'.trees/{src}') and metric_name=='MODULARITY':
         shutil.rmtree(f'.trees/{src}')
     file_names = []
-    for root, _, files in os.walk(src_path):
+    abs_ignore = [os.path.join(src_path,ig) for ig in ignore]
+    for root, dirs, files in os.walk(start_path):
+        rel_ignore = [os.path.relpath(ig,start=start_path) for ig in abs_ignore]
+        dirs[:] = [d for d in dirs if d not in rel_ignore]
         for file in files:
-            if file.endswith('.lean'):
-                path = os.path.relpath(os.path.join(root, file), start=src_path)
+            path = os.path.relpath(os.path.join(root, file), start=src_path)
+            if get_stem(path) not in ignore and path.endswith('.jsonl'):
                 file_names.append(path)
-    results = []
-    for name in file_names:
-        result = benchmark_file(src, name, metric_name, model)
-        results.append(result)
+    if os.path.isfile(get_stem(start_path)+'.jsonl'):
+        file_names=[get_stem(os.path.relpath(start_path, start=src_path))+'.jsonl']
+    if any([start.startswith(ig) for ig in ignore]):
+        file_names=[]
+    print(file_names)
+
+    file_data = []
+    for name in file_names: #TODO PARALLELIZE
+        result = benchmark_file(src, name, metric_name, model=model, methods=methods,method_workers=method_workers,theorem_workers=theorem_workers)
+        file_data.append(result)
+    #print(results)
+
+    total_time = time.time()-start_time
+
     
-     # Optionally print or handle the file benchmark results
-    return results
+
+    repo_data = {
+        'name': src,
+        'metric': metric_name,
+        'model': model,
+        'total_time': total_time,
+        'number_of_files': len(file_names),
+        'number_of_theorems': sum(file['num_theorems'] for file in file_data),
+        'num_original_correct': sum(file['original_correct'] for file in file_data),
+        'percent_original_correct': sum(file['original_correct'] for file in file_data)/sum(x['num_theorems'] for x in file_data)*100,
+        'files': file_data
+    }
+
+    for method in methods:
+        all_deltas = [thm[f'delta_{method}'] for file in file_data for thm in file['theorems'] if thm[f'delta_{method}'] is not None]
+
+        repo_data[f'num_new_correct_{method}']= sum(file[f'new_correct_{method}'] for file in file_data)
+        repo_data[f'percent_new_correct_{method}']= sum(file[f'new_correct_{method}'] for file in file_data)/sum(x['num_theorems'] for x in file_data)*100
+        repo_data[f'mean_delta_{method}']= np.mean(all_deltas) if all_deltas else None
+        repo_data[f'median_delta_{method}']= np.median(all_deltas) if all_deltas else None
+        repo_data[f'stdev_delta_{method}']= np.std(all_deltas) if all_deltas else None
+
+
+    return repo_data
+
+def save_to_csv(repo_data, methods=[('BASIC')], thm_path='theorem_data.csv', file_path='file_data.csv', repo_path='repository_data.csv',raw=False):
+    file_data = repo_data['files']
+    thm_data = [thm for file in file_data for thm in file['theorems'] ]
+    del repo_data['files']
+    for file in file_data:
+        del file['theorems']
+    if not raw:
+        for thm in thm_data:
+            del thm['original_raw']
+            for method in methods:
+                del thm[f'new_raw_{method}']
+    
+    repo_df = pd.DataFrame([repo_data])
+    files_df = pd.DataFrame(file_data)
+    thms_df = pd.DataFrame(thm_data)
+
+    repo_df.to_csv(repo_path,index=False)
+    files_df.to_csv(file_path,index=False)
+    thms_df.to_csv(thm_path,index=False)
+
+
 
 if __name__ == "__main__":
-    output = benchmark_repo('Tests3', 'MODULARITY')
-    for f in output:
-        print(pretty_print(f,True))
+    methods = [('BASIC')]
+    repo_data = benchmark_repo('Tests3', 'LENGTH', model='gpt-4-turbo', methods = methods)
+    #for f in repo_data:
+    #    print(pretty_print(f,True))
+    #print('\n\nDATAFRAMING\n')
+    save_to_csv(repo_data,methods=methods)
+    #save_repo_data_to_csv(repo_data)
+    #save_file_data_to_csv(repo_data)
+    #save_theorem_data_to_csv(repo_data)
+    

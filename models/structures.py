@@ -85,23 +85,30 @@ def get_stem(path):
     #print(f'{path} : {path[-5:]} : {path[:-5]}')
     if path[-5:]=='.lean':
         return path[:-5]
+    elif path[-6:]=='.jsonl':
+        return path[:-6]
     return path
 
 def getAnnotatedFile(src, file_name):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    content_path = os.path.join(root_path, f'.cache/{src}')
+    cache_path = os.path.join(root_path, f'.cache/{src}')
+    lake_path =  os.path.join(root_path, f'.lake/packages/{src}')
 
-    
     contents = None
     data = None
 
     file_name = get_stem(file_name)
+    print(f'{root_path}|.lake/packages/{src}|{file_name}.lean')
 
-    with open(os.path.join(content_path,file_name+'.lean'),'r') as f:
-        contents = f.read()
+    contents = ''
+    try:
+        with open(os.path.join(lake_path,file_name+'.lean'),'r') as f:
+            contents = f.read()
+    except:
+        pass
 
 
-    with open(os.path.join(content_path,file_name+'.jsonl'),'r') as f:
+    with open(os.path.join(cache_path,file_name+'.jsonl'),'r') as f:
         data = [json.loads(jline) for jline in f.read().splitlines()]
     
     theorems = getTheorems(data,src, file_name)
@@ -147,10 +154,8 @@ def annotate(step : AnnotatedProofStep, prev_goal=False):
 {pp_state(prev)}
 -/
 '''    
-    
     text = f'''
 {tactic}
-
 /-
 {pp_state(next)}
 -/
@@ -161,7 +166,7 @@ def annotate(step : AnnotatedProofStep, prev_goal=False):
         return indent(text,'  ', lambda x: True)
     
 
-def parseAnnotatedTheorem2(thm,context=True,annotation=False):
+def parseAnnotatedTheorem2(thm,context=True,annotation=False,prompt=False):
     statement = thm.decl
     if context:
         context = thm.context
@@ -177,10 +182,13 @@ def parseAnnotatedTheorem2(thm,context=True,annotation=False):
         else:
             text = psteps[i].tactic
         proof = proof + '  ' + text + '\n'
-    return f'{context}\n\n{statement} := by\n{proof}'
+    if prompt:
+        return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
+    else:
+        return f'{context}\n\n{statement} := by\n{proof}'
 
 
-def parseTheoremBase(thm,context=True):
+def parseTheoremBase(thm,context=True,prompt=False):
     statement = thm.decl
     if context:
         context = thm.context
@@ -190,15 +198,18 @@ def parseTheoremBase(thm,context=True):
     proof = ''
     for i in psteps:
         proof = proof + '  ' + i + '\n'
-    return f'{context}\n\n{statement} := by\n{proof}'
-
-
-
-def parseTheorem(thm,context=True,annotation=False):
-    if type(thm) == AnnotatedTheorem:
-        return parseAnnotatedTheorem2(thm,context,annotation)
+    if prompt:
+        return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
     else:
-        return parseTheoremBase(thm,context)
+        return f'{context}\n\n{statement} := by\n{proof}'
+
+
+
+def parseTheorem(thm,context=True,annotation=False,prompt=False):
+    if type(thm) == AnnotatedTheorem:
+        return parseAnnotatedTheorem2(thm,context,annotation,prompt)
+    else:
+        return parseTheoremBase(thm,context,prompt)
 
 def run_training_data(root_path,module_name):
     os.chdir(root_path)
@@ -210,10 +221,12 @@ def run_training_data(root_path,module_name):
 
 
 
-def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
+def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
+    tactics = [step.tactic for step in thm.proof]
+
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     package_path = os.path.join(root_path,'.lake','packages',src,os.path.dirname(path))
@@ -225,6 +238,7 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
     temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=package_path)
     with open(temp.name,'w') as f:
         f.write(text)
+        print(text)
     #print(f'{src} | {path} | {os.path.dirname(path)}')
     mod_name = get_stem(os.path.dirname(path).replace('/','.') + f'.{os.path.basename(temp.name)}')
     #print(mod_name)
@@ -244,31 +258,60 @@ def annotateTheorem(thm:Theorem) -> AnnotatedTheorem:
     thms = file.theorems
     os.remove(json_path)
     os.remove(lean_path)
+    if len(thms)==0:
+        raise NameError(f'No Theorems??\n {file}')
+    output = thms[-1]
+    #print([s.tactic for s in output.proof])
+    output.proof = elim_overlap(output.proof)
+    #print([s.tactic for s in output.proof])
+    first = None
+    #print('ENTERING FIRST CALC')
+    for idx in range(min(len(thm.proof),len(output.proof))):
+        if thm.proof[idx].tactic != output.proof[idx].tactic:
+            #print(f'\n\nDIFF! {thm.proof[idx].tactic} vs {output.proof[idx].tactic}\n\n')
+            first = idx-1
+            break
+    if first is None:
+        if len(thm.proof) != len(output.proof):
+            first = min(len(thm.proof),len(output.proof))-1
+            #print(f'\n\nDIFF LENGTH! {thm.proof[first].tactic} vs {output.proof[first].tactic}\n\n')
+    
+    
+    #print(f'{first}: \nthm: {thm.proof[first].tactic}\noutput: {output.proof[first].tactic}\n')
+    if first is not None:
+        max_pos = output.proof[first].end
+        if force:
+            def get_empty_annotated_proof_step(thm,i):
+                proofstep=thm.proof[i]
+                return AnnotatedProofStep(prevState=['ERROR'],tactic = proofstep.tactic, nextState=['ERROR'],srcUpToTactic='ERROR',declUpToTactic='ERROR',start=max_pos+i,end=max_pos+i)
+            proof = [get_empty_annotated_proof_step(thm,i) if i > idx else output.proof[i] for i in range(len(thm.proof))]
 
-    return thms[-1]
-    for new_thm in thms:
-        if thm.decl == new_thm.decl:
-            return new_thm
-    allthms = "\n".join([parseTheoremAny(i,False) for i in thms])
-    raise ValueError(f'''Original theorem lost:
-                     
-                     og: 
-                     {parseTheoremAny(thm,False)}
-                    
-                    rest:
-                    {allthms}
+            return AnnotatedTheorem(decl=output.decl,
+                                    declID=output.declID,
+                                    src=output.src,
+                                    leanFile=output.leanFile,
+                                    context=output.context,
+                                    proof=proof)
+        else:
+            raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{thm.proof}\n{output.proof}')
 
-                     ''')
+
+    return output
+   
     
     
 
 
 if __name__ == '__main__':
-    src = 'Tests3'
-    path = 'Tests3/Basic.lean'
-    f = getAnnotatedFile(src,path)
-    thms = f.theorems
-    thm = thms[0]
-    #thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
-    #annotateTheorem(thm)
-    print(parseAnnotatedTheorem2(thm,context=False,annotation=True))
+    #src = 'Tests3'
+    #path = 'Tests3/Basic.lean'
+    #f = getAnnotatedFile(src,path)
+    #thms = f.theorems
+    #thm = thms[0]
+    #print(thm)
+    thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q fail'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
+    print(parseTheorem(thm))
+    out = annotateTheorem(thm,force=True)
+    print(out)
+    print(parseTheorem(out,annotation=True))
+    #print(parseAnnotatedTheorem2(thm,context=False,annotation=True))

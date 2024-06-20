@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import requests
 import base64
+import shutil
 
 def _lakefile(repo, commit, name, cwd):
     envvar = os.getenv("GITHUB_ACCESS_TOKEN")
@@ -26,7 +27,7 @@ def _lakefile(repo, commit, name, cwd):
     
     mathlib_text = ''
     if 'require mathlib from git' not in text and name != 'mathlib':
-        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "master"'
+        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git"'
     contents = """import Lake
     open Lake DSL
 
@@ -46,9 +47,6 @@ def _lakefile(repo, commit, name, cwd):
 
     lean_exe training_data where
     root := `scripts.training_data
-
-    lean_exe state_comments where
-    root := `scripts.state_comments
 
     """ % (mathlib_text, name, repo, commit)
     with open(os.path.join(cwd, 'lakefile.lean'), 'w') as f:
@@ -114,6 +112,8 @@ if __name__ == '__main__':
         type=int,
         help="maximum number of processes; defaults to number of processors"
     )
+    parser.add_argument('--run', action=argparse.BooleanOptionalAction)
+    parser.set_defaults(run=True)
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -139,10 +139,17 @@ if __name__ == '__main__':
         _setup(
             cwd=args.cwd
         )
-        _run(
-            cwd=args.cwd,
-            name=source['name'],
-            import_file=source['import_file'],
-            old_version=False if 'old_version' not in source else source['old_version'],
-            max_workers=args.max_workers
-        )
+
+        if args.run:
+
+            src_dir = os.path.join(args.cwd,'.cache',source['name'])
+            if os.path.isdir(src_dir):
+                shutil.rmtree(src_dir)
+
+            _run(
+                cwd=args.cwd,
+                name=source['name'],
+                import_file=source['import_file'],
+                old_version=False if 'old_version' not in source else source['old_version'],
+                max_workers=args.max_workers
+            )
