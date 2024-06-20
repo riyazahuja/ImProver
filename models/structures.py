@@ -47,6 +47,7 @@ class AnnotatedFile(BaseModel):
     theorems : List[AnnotatedTheorem] = Field(..., description="List of all theorems in a file")
 
 
+
 def getTheorems(data,src, file) -> List[AnnotatedTheorem]:
     temp = {}
     for step in data:
@@ -61,8 +62,11 @@ def getTheorems(data,src, file) -> List[AnnotatedTheorem]:
         declID = step['declId']
 
         lines_src = step['srcUpToTactic'].split('\n')
-        lines = [line for line in lines_src if decl not in line]
-        maybe_context = '\n'.join(lines).strip()
+        decl_lines = decl.split('\n')
+        #print(lines_src)
+        
+        #lines = [line for line in lines_src if not line in decl_lines]
+        maybe_context = '\n'.join(lines_src[:-len(decl_lines)-1]).strip()
 
         if declID not in temp.keys():
             temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context}
@@ -182,6 +186,7 @@ def parseAnnotatedTheorem2(thm,context=True,annotation=False,prompt=False):
         else:
             text = psteps[i].tactic
         proof = proof + '  ' + text + '\n'
+        
     if prompt:
         return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
     else:
@@ -238,7 +243,7 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=package_path)
     with open(temp.name,'w') as f:
         f.write(text)
-        print(text)
+    
     #print(f'{src} | {path} | {os.path.dirname(path)}')
     mod_name = get_stem(os.path.dirname(path).replace('/','.') + f'.{os.path.basename(temp.name)}')
     #print(mod_name)
@@ -259,7 +264,7 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     os.remove(json_path)
     os.remove(lean_path)
     if len(thms)==0:
-        raise NameError(f'No Theorems??\n {file}')
+        raise NameError(f'No Theorems??\n {file}\n =|{output}|=\n\n =|{text}|=')
     output = thms[-1]
     #print([s.tactic for s in output.proof])
     output.proof = elim_overlap(output.proof)

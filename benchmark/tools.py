@@ -19,7 +19,6 @@ metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
 def process_theorem(thm, metric, model,method):
     start_time = time.time()
-
     if method[0] == 'BASIC' or method == 'BASIC':
         out = prompt_structured(thm,metric,model=model)
     elif method[0] == 'REFINEMENT':
@@ -39,7 +38,9 @@ def process_theorem(thm, metric, model,method):
     
 
     #print(out)
-    original_correct,_ = eval_correctness(thm)
+    original_correct,msg = eval_correctness(thm)
+    #if not original_correct:
+    #    raise ValueError(f'===CTX:===\n {thm.context}\n===DECL:===\n{thm.decl}\n\n ===msg:=== {msg.get("messages",msg)}\n\n===TEST===\n{parseTheorem(thm)}')
     correct,_ = eval_correctness(out)
     old_m = metric.metric(thm)
     if correct and original_correct:
@@ -273,12 +274,12 @@ def save_to_csv(repo_data, methods=[('BASIC')], thm_path='theorem_data.csv', fil
 
 
 if __name__ == "__main__":
-    methods = [('BASIC')]
-    repo_data = benchmark_repo('Tests3', 'LENGTH', model='gpt-4-turbo', methods = methods)
+    methods = [('REFINEMENT',3)]
+    repo_data = benchmark_repo('Tests3', 'LENGTH', model='gpt-4-turbo',methods = methods)
     #for f in repo_data:
     #    print(pretty_print(f,True))
     #print('\n\nDATAFRAMING\n')
-    save_to_csv(repo_data,methods=methods)
+    save_to_csv(repo_data,methods=methods,raw=True)
     #save_repo_data_to_csv(repo_data)
     #save_file_data_to_csv(repo_data)
     #save_theorem_data_to_csv(repo_data)

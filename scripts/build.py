@@ -66,7 +66,7 @@ def _lean_toolchain(lean, cwd):
     with open(os.path.join(cwd, 'lean-toolchain'), 'w') as f:
         f.write(contents)
 
-def _setup(cwd):
+def _setup(cwd,rebuild):
     print("Building...")
     if Path(os.path.join(cwd, '.lake')).exists():
         subprocess.Popen(['rm -rf .lake'], shell=True).wait()
@@ -76,7 +76,8 @@ def _setup(cwd):
         subprocess.Popen(['rm -rf lake-manifest.json'], shell=True).wait()
     subprocess.Popen(['lake update'], shell=True).wait()
     subprocess.Popen(['lake exe cache get'], shell=True).wait()
-    subprocess.Popen(['lake build'], shell=True).wait()
+    if rebuild:
+        subprocess.Popen(['lake build'], shell=True).wait()
 
 def _import_file(name, import_file, old_version):
     name = name.replace('«', '').replace('»', '') 
@@ -114,6 +115,10 @@ if __name__ == '__main__':
     )
     parser.add_argument('--run', action=argparse.BooleanOptionalAction)
     parser.set_defaults(run=True)
+    parser.add_argument('--rebuild', action=argparse.BooleanOptionalAction)
+    parser.set_defaults(run=True)
+    parser.add_argument('--recache', action=argparse.BooleanOptionalAction)
+    parser.set_defaults(run=True)
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -137,14 +142,16 @@ if __name__ == '__main__':
             cwd=args.cwd
         )
         _setup(
-            cwd=args.cwd
+            cwd=args.cwd,
+            rebuild = args.rebuild
         )
 
         if args.run:
 
-            src_dir = os.path.join(args.cwd,'.cache',source['name'])
-            if os.path.isdir(src_dir):
-                shutil.rmtree(src_dir)
+            if args.recache:
+                src_dir = os.path.join(args.cwd,'.cache',source['name'])
+                if os.path.isdir(src_dir):
+                    shutil.rmtree(src_dir)
 
             _run(
                 cwd=args.cwd,

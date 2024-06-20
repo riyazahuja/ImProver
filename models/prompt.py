@@ -13,12 +13,17 @@ from evaluate.metrics import *
 from evaluate.eval import eval_correctness
 from concurrent.futures import ThreadPoolExecutor
 import time
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+) 
 
 
 #REQUIRES OPENAI_API_KEY envvar to be set
 
 
-#UPDATE THEOREM PARSING SO WE GET ANNOTATED IN ANNOTATEDTHEOREMS
+
 def parse_prev_data(data):
     intro = "For reference, here is the previous thread of inputs and GPT outputs (from most recent to least recent), along with any errors encountered in the compilation, and if compilation was successful, the metric score.\n Prioritize fixing any correctness errors before trying to shorten the proof as we require a short AND correct proof."
     data.reverse()
@@ -57,12 +62,12 @@ OUTPUT: {parseTheorem(item['output'],context=False)}
         return ''
 
 
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=3) -> Theorem:
+def prompt_basic(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=3) -> Theorem:
 
     model = ChatOpenAI(model=model,temperature=0)
 
     class Proof(BaseModel):
-        contents : List[ProofStep] = Field(description= "Contents of a proof, seperated into a sequence of proof steps (i.e. tactics)")
+        contents : str = Field(description= "Contents of a lean proof (not including the theorem declaration or context. If a tactic proof, do not include the \"by\")")
 
     # Define the output parser
     parser = JsonOutputParser(pydantic_object= Proof)
@@ -91,9 +96,46 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     if output is None:
         print(err)
         raise TimeoutError('ERROR')
+    proof = [ProofStep(tactic=output.get('contents',''))]
+    
+    #print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
+    thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
+    return thm
+
+
+
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=3) -> Theorem:
+
+    model = ChatOpenAI(model=model,temperature=0)
+
+    class Proof(BaseModel):
+        contents : List[ProofStep] = Field(description= "Contents of a proof, seperated into a sequence of proof steps (i.e. tactics)")
+
+    # Define the output parser
+    parser = JsonOutputParser(pydantic_object= Proof)
+
+    actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
+    prev_data_text = parse_prev_data(prev_data).replace('{',r'{{').replace('}',r'}}')
+    # Define the prompt template
+    prompt = PromptTemplate(
+        template=actual_prompt + "{data_str}\n\n"+prev_data_text+'\n'+"{format_instructions}",
+        input_variables=["data_str"],
+        partial_variables={"format_instructions": parser.get_format_instructions()},
+    )
+
+    # Create the chain
+    chain = prompt | model | parser
+
+    @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(6))
+    def invoke_throttled(chain,config):
+        return chain.invoke(config)
+    
+    output=invoke_throttled(chain,{"data_str" : parseTheorem(thm,annotation=True,prompt=True)})
+    
+         
     proof = output.get('contents',[])
     
-    print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
+    #print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
     thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
     return thm
 
@@ -110,7 +152,7 @@ def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo
             thms.append((output,correct))
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(prompt_structured, thm, metric, model) for _ in range(n)]
+            futures = [executor.submit(prompt_basic, thm, metric, model) for _ in range(n)]
             for future in futures:
                 output = future.result()
                 correct, _ = eval_correctness(output)
@@ -137,7 +179,11 @@ def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', pre
         correct,data = eval_correctness(output)
 
         if type(output) == Theorem:
-            output = annotateTheorem(output,force=True)
+            try:
+                output = annotateTheorem(output,force=True)
+            except Exception as e:
+                print(output)
+                raise e
 
         curr_data = {'input':curr,'output':output}
         curr_data['err'] = [msg for msg in data.get('messages',[]) if msg['severity'] == 'error']
@@ -164,13 +210,13 @@ if __name__ == '__main__':
     f = getAnnotatedFile(src,name)
     thms = f.theorems
     
-    for thm in [thms[0]]:
+    for thm in thms:
         #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
         
-        out = refinement(thm,length_metric(),5,prev_data_num=1)
-        #print(out)
+        #out = refinement(thm,length_metric(),5,prev_data_num=1)
+        out=prompt_basic(thm,length_metric())
         print(parseTheorem(out))
-        #print('\n\n')
+        print('=========\n\n\n=========')
 
         
 
