@@ -86,10 +86,15 @@ def _import_file(name, import_file, old_version):
     else:
         return os.path.join('.lake', 'packages', name, import_file)
 
-def _run(cwd, name, import_file, old_version, max_workers):
+def _run(cwd, name, import_file, old_version, max_workers,start):
+    
     flags = ''
     if max_workers is not None:
         flags += ' --max-workers %d' % max_workers
+
+    proj_path = os.path.join(cwd,'.lake','packages',name)
+    start_path = os.path.join(proj_path,start)
+    flags += ' --start %s --proj-path %s' % (start_path, proj_path)
     subprocess.Popen(['python3 %s/scripts/run_pipeline.py --output-base-dir .cache/%s --cwd %s --import-file %s %s' % (
         cwd,
         name.capitalize(),
@@ -113,12 +118,23 @@ if __name__ == '__main__':
         type=int,
         help="maximum number of processes; defaults to number of processors"
     )
-    parser.add_argument('--run', action=argparse.BooleanOptionalAction)
-    parser.set_defaults(run=True)
-    parser.add_argument('--rebuild', action=argparse.BooleanOptionalAction)
-    parser.set_defaults(run=True)
-    parser.add_argument('--recache', action=argparse.BooleanOptionalAction)
-    parser.set_defaults(run=True)
+    parser.add_argument(
+        '--run',
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help = 'Run the module?'
+        )
+    parser.add_argument(
+        '--rebuild', 
+        action=argparse.BooleanOptionalAction, 
+        default=True,
+        help='runs lake build on imported module'
+        )
+    parser.add_argument(
+        '--start', 
+        default='',
+        help="Start path in file tree of packages to be run"
+    )
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -127,6 +143,7 @@ if __name__ == '__main__':
     for source in sources:
         print("=== %s ===" % (source['name']))
         print(source)
+        
         _lakefile(
             repo=source['repo'],
             commit=source['commit'],
@@ -145,18 +162,18 @@ if __name__ == '__main__':
             cwd=args.cwd,
             rebuild = args.rebuild
         )
+        
 
         if args.run:
-
-            if args.recache:
-                src_dir = os.path.join(args.cwd,'.cache',source['name'])
-                if os.path.isdir(src_dir):
-                    shutil.rmtree(src_dir)
+            src_dir = os.path.join(args.cwd,'.cache',source['name'])
+            if os.path.isdir(src_dir):
+                shutil.rmtree(src_dir)
 
             _run(
                 cwd=args.cwd,
                 name=source['name'],
                 import_file=source['import_file'],
                 old_version=False if 'old_version' not in source else source['old_version'],
-                max_workers=args.max_workers
+                max_workers=args.max_workers,
+                start = args.start
             )

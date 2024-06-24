@@ -36,7 +36,7 @@ class Metric():
 
 
 def length_metric ():
-    gpt_assistant_prompt = "You are a bot that shortens Lean4 proofs while ensuring their correctness.\n"
+    gpt_assistant_prompt = "You are a bot that shortens Lean4 proofs while ensuring their correctness. Output in a proof tree format that aligns with the pydantic output parsing object that splits off subproofs and subtheorems.\n"
     gpt_user_prompt = "Here is a proof in Lean 4. Your goal is to rewrite the proof so that it is shorter. To help you keep track of the state of the proof, and to help think of ways to rewrite the proof, we have provided the proof states as comments.\n"
     length_prompt = gpt_assistant_prompt + "\n" + gpt_user_prompt + "\n"
     return Metric('LENGTH', length_prompt, lambda thm: len(thm.proof),'MIN')

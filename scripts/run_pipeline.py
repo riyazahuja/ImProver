@@ -7,12 +7,6 @@ from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-
-DIR_NAMES = {
-    #'training_data': 'Data',
-    #'state_comments': 'Annotations'
-}
-
 def _get_stem(input_module, input_file_mode):
     if input_file_mode:
         stem = Path(input_module).stem.replace('.', '/')
@@ -65,7 +59,7 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output-base-dir', default='Examples/Mathlib')
-    parser.add_argument('--cwd', default='/Users/wellecks/projects/ntptutorial/partI_nextstep/ntp_lean/llm-training-data')
+    parser.add_argument('--cwd', default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     parser.add_argument(
         '--input-file', 
         default=None, 
@@ -82,12 +76,22 @@ if __name__ == '__main__':
         type=int,
         help="maximum number of processes; defaults to number of processors"
     )
+    parser.add_argument(
+        '--start', 
+        default=None,
+        help="Start path in file tree of packages to be run"
+    )
+    parser.add_argument(
+        '--proj-path', 
+        default='',
+        help="Start path in file tree of project to be run"
+    )
     args = parser.parse_args()
 
 
     Path(args.output_base_dir).mkdir(parents=True, exist_ok=True)
-    for name in DIR_NAMES.values():
-        Path(os.path.join(args.output_base_dir, name)).mkdir(parents=True, exist_ok=True)
+    if args.start is None:
+        args.start = ''
 
     print("Building...")
     subprocess.Popen(['lake build training_data'], shell=True).wait()
@@ -107,11 +111,24 @@ if __name__ == '__main__':
                     input_modules.append(module)
     else:
         raise AssertionError('one of --input-file or --import-file must be set')
+    
+    #modify input_modules to handle start
+    files_in_path = []
+    start = args.start
+    proj_path = args.proj_path
+    for root, dirs, files in os.walk(start):
+        for file in files:
+            path = os.path.relpath(os.path.join(root, file), start=proj_path)
+            if path.endswith('.lean'):
+                files_in_path.append(path)
+    print(files_in_path)
 
     completed = []
     start = time.time()
     with ProcessPoolExecutor(args.max_workers) as executor:
         input_file_mode = args.input_file is not None
+        #print(f'{input_modules} | {input_file_mode} | {[_get_stem(mod, input_file_mode) for mod in input_modules]}')
+        input_modules = [mod for mod in input_modules if {_get_stem(mod, input_file_mode)} + '.lean' in files_in_path]
         futures = [
             executor.submit(
                 _extract_module,

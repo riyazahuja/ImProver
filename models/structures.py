@@ -1,6 +1,6 @@
 from __future__ import annotations
 from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import List, Union
+from typing import List, Union,Tuple
 import os
 import json
 import tempfile
@@ -8,7 +8,16 @@ import subprocess
 from textwrap import indent
 
 class ProofStep(BaseModel):
-    tactic : str = Field(description="One line/tactic in a tactic proof.")
+    tactic : Union[str,Theorem] = Field(description="One line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof")
+
+class Theorem(BaseModel):
+    decl : str = Field(description="Theorem declaration")
+    proof : List[ProofStep] = Field(..., description="Sequence of proofsteps for full proof of theorem.")
+    declID : str = Field(description="Unique theorem declaration ID")
+    src : str = Field(description="Source repo of the theorem")
+    leanFile : str = Field(description="Lean file in which theorem is located")
+    context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
+    
 
 class AnnotatedProofStep(BaseModel):
     prevState : List[str] = Field(description="Pretty printed tactic st ate before the tactic invocation")
@@ -26,14 +35,6 @@ class AnnotatedTheorem(BaseModel):
     leanFile : str = Field(description="Lean file in which theorem is located")
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
     proof : List[AnnotatedProofStep] = Field(..., description="Sequence of annotated proofsteps for full proof of theorem.")
-
-class Theorem(BaseModel):
-    decl : str = Field(description="Theorem declaration")
-    declID : str = Field(description="Unique theorem declaration ID")
-    src : str = Field(description="Source repo of the theorem")
-    leanFile : str = Field(description="Lean file in which theorem is located")
-    context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
-    proof : List[ProofStep] = Field(..., description="Sequence of proofsteps for full proof of theorem.")
 
 class File(BaseModel):
     src : str = Field(description="File source repo")
@@ -193,16 +194,33 @@ def parseAnnotatedTheorem2(thm,context=True,annotation=False,prompt=False):
         return f'{context}\n\n{statement} := by\n{proof}'
 
 
+def parse_proof(thm,indent = 1,dot=False):
+    output = ''
+    spaces = '  '
+    proof = thm.proof
+    for step in proof:
+        content = step.tactic
+        if type(content) == str:
+            output += indent*spaces + content + '\n'
+            #single tactic
+        else:
+            output += indent*spaces + content.decl+'\n'
+            output += parse_proof(content,indent=indent+1,dot=True)
+            #subtheorem
+    if output[:len(spaces)] == spaces and dot:
+        depth = indent * len(spaces)
+        output = output[:depth] + output[depth: depth + 1].replace(' ', '.') + output[depth + 1:]
+    return output
+            
+
 def parseTheoremBase(thm,context=True,prompt=False):
     statement = thm.decl
     if context:
         context = thm.context
     else:
         context = ''
-    psteps = [t.tactic for t in thm.proof]
-    proof = ''
-    for i in psteps:
-        proof = proof + '  ' + i + '\n'
+    proof = parse_proof(thm,dot=True)
+    
     if prompt:
         return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
     else:
@@ -230,7 +248,6 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
-    tactics = [step.tactic for step in thm.proof]
 
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

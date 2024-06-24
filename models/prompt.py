@@ -1,7 +1,5 @@
-from lean_dojo import *
-import os
-from openai import OpenAI
-from langchain_core.output_parsers import JsonOutputParser
+from __future__ import annotations
+from langchain_core.output_parsers import JsonOutputParser, PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 import sys
@@ -104,15 +102,24 @@ def prompt_basic(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', pre
 
 
 
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=3) -> Theorem:
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6) -> Theorem:
 
     model = ChatOpenAI(model=model,temperature=0)
 
+    class trimmedProofStep(BaseModel):
+        tactic : Union[str,trimmedTheorem] = Field(description="One line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (decl, [...proof])")
+
+    class trimmedTheorem(BaseModel):
+        decl : str = Field(description="Theorem declaration")
+        proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
+        
     class Proof(BaseModel):
-        contents : List[ProofStep] = Field(description= "Contents of a proof, seperated into a sequence of proof steps (i.e. tactics)")
+        contents : List[trimmedProofStep] = Field(description= "Contents of a proof, seperated into a sequence of proof steps (i.e. tactics)")
+    
+    
 
     # Define the output parser
-    parser = JsonOutputParser(pydantic_object= Proof)
+    parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
 
     actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
     prev_data_text = parse_prev_data(prev_data).replace('{',r'{{').replace('}',r'}}')
@@ -126,18 +133,30 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     # Create the chain
     chain = prompt | model | parser
 
-    @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(6))
+    @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(retries))
     def invoke_throttled(chain,config):
         return chain.invoke(config)
     
     output=invoke_throttled(chain,{"data_str" : parseTheorem(thm,annotation=True,prompt=True)})
     
          
-    proof = output.get('contents',[])
+    decl,pf = output.decl, output.proof
+    print(f'DECL: {decl}\nPF:\n {pf}')
+
+    def coerce_PS(step):
+        ProofStep.update_forward_refs()
+        if type(step) == str:
+            return ProofStep(tactic=step)
+        return ProofStep(tactic=coerce_trimmedThm(step))
+
+    def coerce_trimmedThm(curr):
+        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof])
+     
+    final = coerce_trimmedThm(output)
     
     #print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
-    thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
-    return thm
+    #thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
+    return final
 
 
 
@@ -210,12 +229,16 @@ if __name__ == '__main__':
     f = getAnnotatedFile(src,name)
     thms = f.theorems
     
+
     for thm in thms:
         #print(f"RAW: \n\n {thm} \n\nSending to GPT:\n")
         
         #out = refinement(thm,length_metric(),5,prev_data_num=1)
-        out=prompt_basic(thm,length_metric())
-        print(parseTheorem(out))
+        out=prompt_structured(thm,length_metric())
+        print(out)
+        print('\n')
+        print(parseTheorem(out,context=False))
+        #print(f'DECL: {d}\nPF:\n {p}')
         print('=========\n\n\n=========')
 
         
