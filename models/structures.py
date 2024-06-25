@@ -1,6 +1,6 @@
 from __future__ import annotations
 from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import List, Union,Tuple
+from typing import List, Union,Tuple,Dict
 import os
 import json
 import tempfile
@@ -18,6 +18,12 @@ class Theorem(BaseModel):
     leanFile : str = Field(description="Lean file in which theorem is located")
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
     
+class File(BaseModel):
+    src : str = Field(description="File source repo")
+    file_name : str = Field(description="File Name")
+    file_path : str
+    file_type : str
+    contents : str = Field(description= "File contents")
 
 class AnnotatedProofStep(BaseModel):
     prevState : List[str] = Field(description="Pretty printed tactic st ate before the tactic invocation")
@@ -36,16 +42,26 @@ class AnnotatedTheorem(BaseModel):
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
     proof : List[AnnotatedProofStep] = Field(..., description="Sequence of annotated proofsteps for full proof of theorem.")
 
-class File(BaseModel):
-    src : str = Field(description="File source repo")
-    file_name : str = Field(description="File Name")
-    contents : str = Field(description= "File contents")
-
 class AnnotatedFile(BaseModel):
     src : str = Field(description="File source repo")
     file_name : str = Field(description="File Name")
     contents : str = Field(description= "File contents")
     theorems : List[AnnotatedTheorem] = Field(..., description="List of all theorems in a file")
+
+class Repo(BaseModel):
+    url: str 
+    commit : str 
+    version : str 
+    name: str 
+    owner : str 
+    import_file: str
+    imports: List[str]
+    dependencies: List[Repo]
+    files: List[Union[AnnotatedFile,File]]
+
+
+
+
 
 
 
@@ -121,6 +137,62 @@ def getAnnotatedFile(src, file_name):
 
     return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems)
     
+
+
+
+#TODO IMPLEMENT LOCAL CONFIGS TO ADD LOCAL CONFIGS TO GETREPO
+
+
+def getRepo(src,config=None,annotate=True,force=False):
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if config is None:
+        config_files = []
+        for root,_,files in os.walk(os.path.join(root_path,'configs')):
+            for file in files:
+                path = os.path.join(root, file)
+                if path.endswith('.json'):
+                    config_files.append(path)
+        for path in config_files:
+            with open(path,'r') as f:
+                data = json.load(f)
+            if src in [item.get('name','') for item in data]:
+                config = os.path.relpath(path,start=root_path)
+                break
+        if config is None:
+            raise ValueError(f'{src} config not found')
+    
+    config_path = os.path.join(root_path,config)
+    with open(config_path,'r') as f:
+        data = json.load(f)
+    data = [item for item in data if src==item.get('name','')]
+    if len(data) == 0:
+        raise ValueError(f'{src} not in config file {config}')
+    repo_data = data[0]
+    url = repo_data.get('repo','')
+    commit = repo_data.get('commit','')
+    version = repo_data.get('lean','')
+    name = repo_data.get('name','')
+    import_file = repo_data.get('import_file','')
+    imports = repo_data.get('imports',[])
+
+    #depedencies - assume in env (ie lake build has been run):
+    package_path = os.path.join(root_path,'.lake','packages')
+    dependency_names = [item for item in os.listdir(package_path) if os.path.isdir(os.path.join(package_path, item)) and item!=name]
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def parseAnnotatedTheorem(thm,context=True,annotation=False):
@@ -331,9 +403,11 @@ if __name__ == '__main__':
     #thms = f.theorems
     #thm = thms[0]
     #print(thm)
-    thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q fail'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
-    print(parseTheorem(thm))
-    out = annotateTheorem(thm,force=True)
-    print(out)
-    print(parseTheorem(out,annotation=True))
+
+    getRepo('Tests3','configs/config_test3_all.json')
+    # thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q fail'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
+    # print(parseTheorem(thm))
+    # out = annotateTheorem(thm,force=True)
+    # print(out)
+    # print(parseTheorem(out,annotation=True))
     #print(parseAnnotatedTheorem2(thm,context=False,annotation=True))

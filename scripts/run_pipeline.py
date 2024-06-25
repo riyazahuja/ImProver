@@ -116,19 +116,22 @@ if __name__ == '__main__':
     files_in_path = []
     start = args.start
     proj_path = args.proj_path
+    
     for root, dirs, files in os.walk(start):
         for file in files:
             path = os.path.relpath(os.path.join(root, file), start=proj_path)
             if path.endswith('.lean'):
                 files_in_path.append(path)
-    print(files_in_path)
+    if os.path.isfile(start):
+        files_in_path = [os.path.relpath(start,proj_path)]
+    #print(files_in_path)
 
     completed = []
     start = time.time()
     with ProcessPoolExecutor(args.max_workers) as executor:
         input_file_mode = args.input_file is not None
         #print(f'{input_modules} | {input_file_mode} | {[_get_stem(mod, input_file_mode) for mod in input_modules]}')
-        input_modules = [mod for mod in input_modules if {_get_stem(mod, input_file_mode)} + '.lean' in files_in_path]
+        input_modules = [mod for mod in input_modules if _get_stem(mod, input_file_mode) + '.lean' in files_in_path]
         futures = [
             executor.submit(
                 _extract_module,
