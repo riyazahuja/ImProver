@@ -275,7 +275,7 @@ def save_to_csv(repo_data, methods=[('BASIC')], thm_path='theorem_data.csv', fil
 
 if __name__ == "__main__":
     methods = [('BASIC')]
-    repo_data = benchmark_repo('Tests3', 'LENGTH', model='gpt-4-turbo',start='Tests3/one.lean',methods = methods)
+    repo_data = benchmark_repo('Tests', 'LENGTH', model='gpt-4-turbo',methods = methods)
     #for f in repo_data:
     #    print(pretty_print(f,True))
     #print('\n\nDATAFRAMING\n')

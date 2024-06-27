@@ -106,17 +106,9 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
     model = ChatOpenAI(model=model,temperature=0)
 
-    class trimmedProofStep(BaseModel):
-        tactic : Union[str,trimmedTheorem] = Field(description="One line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (decl, [...proof])")
-
     class trimmedTheorem(BaseModel):
         decl : str = Field(description="Theorem declaration")
         proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
-        
-    class Proof(BaseModel):
-        contents : List[trimmedProofStep] = Field(description= "Contents of a proof, seperated into a sequence of proof steps (i.e. tactics)")
-    
-    
 
     # Define the output parser
     parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
@@ -162,11 +154,11 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
 
 
-def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1) -> Theorem:
+def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1,promptfn = prompt_structured) -> Theorem:
     thms = []
     if max_workers == 1:
         for i in range(n):
-            output = prompt_structured(thm,metric,model)
+            output = promptfn(thm,metric,model)
             correct,_ = eval_correctness(output)
             thms.append((output,correct))
     else:
@@ -188,13 +180,13 @@ def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo
 
 
 
-def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = False) -> Theorem:
+def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = False,promptfn=prompt_structured) -> Theorem:
     curr = thm
     prev_data = []
 
     for i in range(n):
         print(f'=== i: {i} ===\n curr:\n {parseTheorem(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
-        output = prompt_structured(curr,metric,model,prev_data=prev_data[-prev_data_num:]) 
+        output = promptfn(curr,metric,model,prev_data=prev_data[-prev_data_num:]) 
         correct,data = eval_correctness(output)
 
         if type(output) == Theorem:

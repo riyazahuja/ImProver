@@ -1,6 +1,6 @@
 from __future__ import annotations
 from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import List, Union,Tuple,Dict
+from typing import List, Union,Optional
 import os
 import json
 import tempfile
@@ -21,8 +21,8 @@ class Theorem(BaseModel):
 class File(BaseModel):
     src : str = Field(description="File source repo")
     file_name : str = Field(description="File Name")
-    file_path : str
-    file_type : str
+    file_path : str = Field(description="File path (stem) relative to src repo root")
+    file_type : str = Field(description="File type")
     contents : str = Field(description= "File contents")
 
 class AnnotatedProofStep(BaseModel):
@@ -45,19 +45,21 @@ class AnnotatedTheorem(BaseModel):
 class AnnotatedFile(BaseModel):
     src : str = Field(description="File source repo")
     file_name : str = Field(description="File Name")
+    file_path : str = Field(description="File path (stem) relative to src repo root")
+    file_type : str = Field(description="File type")
     contents : str = Field(description= "File contents")
     theorems : List[AnnotatedTheorem] = Field(..., description="List of all theorems in a file")
 
 class Repo(BaseModel):
-    url: str 
-    commit : str 
-    version : str 
-    name: str 
-    owner : str 
-    import_file: str
-    imports: List[str]
-    dependencies: List[Repo]
-    files: List[Union[AnnotatedFile,File]]
+    type: str = Field(description="Repository type (git or local)")
+    url: Optional[str] = Field(description= "if git repo, github url")#if remote
+    commit : Optional[str] = Field(description= "if git repo, github commit SHA code") #if remote
+    path : Optional[str] = Field(description= "if local repo, path")#if local
+    version : str = Field(description= "Lean version")
+    name: str = Field(description= "Repo name")
+    dependencies: List[Repo] = Field(description= "Repository dependencies")
+    files: List[Union[AnnotatedFile,File]]= Field(description= "files in repository")
+    
 
 
 
@@ -110,38 +112,128 @@ def get_stem(path):
         return path[:-6]
     return path
 
-def getAnnotatedFile(src, file_name):
+def getAnnotatedFile(src, file_name,content_path):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f'.cache/{src}')
-    lake_path =  os.path.join(root_path, f'.lake/packages/{src}')
+
 
     contents = None
     data = None
 
-    file_name = get_stem(file_name)
-    print(f'{root_path}|.lake/packages/{src}|{file_name}.lean')
+    file_stem = get_stem(file_name)
+    #print(f'{root_path}|.lake/packages/{src}|{file_name}.lean')
 
     contents = ''
     try:
-        with open(os.path.join(lake_path,file_name+'.lean'),'r') as f:
+        with open(os.path.join(content_path,file_name),'r') as f:
             contents = f.read()
     except:
         pass
 
 
-    with open(os.path.join(cache_path,file_name+'.jsonl'),'r') as f:
+    with open(os.path.join(cache_path,file_stem+'.jsonl'),'r') as f:
         data = [json.loads(jline) for jline in f.read().splitlines()]
     
-    theorems = getTheorems(data,src, file_name)
-    #print(theorems)
+    theorems = getTheorems(data,src, file_stem)
+    stem,ftype = os.path.splitext(file_name)
 
-    return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems)
+    return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems,file_path=stem,file_type=ftype)
     
+#if annotate + force, run annotateFile and if error quit
+#if annotate run annotateFile and if error, return File
+#if not annotate, return File
+def getFile(src,path,content_path, annotate=True,force=False):
+    #print(f'{src} | {path}')
+    if annotate:
+        try:
+            return getAnnotatedFile(src,path,content_path)
+        except Exception as e:
+            if force:
+                raise e
+            else:
+                pass
+    stem,ftype = os.path.splitext(path)
+    fp = os.path.join(content_path,path)
+    with open(fp,'r') as f:
+        content = f.read()
+    #print(f'{os.path.basename(path)} | {stem} | {ftype}')
 
+    return File(src=src,file_name=os.path.basename(path),file_path=stem,file_type=ftype,contents=content)
 
 
 #TODO IMPLEMENT LOCAL CONFIGS TO ADD LOCAL CONFIGS TO GETREPO
+def getRepoDirect(repo_data,annotate=True,force=False,recursive=True):
+    print(f'{repo_data["name"]} | {recursive}')
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_path = ''
+    if 'path' in repo_data.keys():
+        local = True
+    elif 'repo' in repo_data.keys():
+        local = False
+    else:
+        raise ValueError(f'Invalid Config:\n {repo_data}')
+    
 
+    version = repo_data.get('lean','')
+    name = repo_data.get('name','')
+
+    if local:
+        path = repo_data.get('path','')
+        url = None
+        commit = None
+        project_path=path
+    else:
+        url = repo_data.get('repo','')
+        commit = repo_data.get('commit','')
+        path = None
+        project_path=os.path.join(root_path,'.lake','packages',name)
+
+    
+    #depedencies:
+    if recursive:
+        manifest_path = os.path.join(project_path,'lake-manifest.json')
+        toolchain_path = os.path.join(project_path,'lean-toolchain')
+        
+        with open(manifest_path,'r') as f:
+            manifest_data = json.load(f).get('packages',[])
+        with open(toolchain_path,'r') as f:
+            pack_version = f.read()
+        dependencies = []
+        for package in manifest_data:
+            dependency_names = [item.name for item in dependencies]
+            if package['name'] in dependency_names:
+                continue
+            if package['type'] == 'git':
+                subdata = {
+                    'repo': package['url'],
+                    'commit': package['rev'],
+                    "lean": pack_version,
+                    "name": package['name']
+                }
+            else:
+                subdata = {
+                    'path': package['path'],
+                    "lean": pack_version,
+                    "name": package['name']
+                }
+            dependencies.append(getRepoDirect(subdata,annotate=False,force=False,recursive=False))
+    else:
+        dependencies = []
+    #Files:
+    repo_files = []
+    ignore = ['.lake']
+
+    for root, dirs ,files in os.walk(project_path):
+        dirs[:] = [d for d in dirs if d not in ignore]
+        for file in files:
+            fp = os.path.join(root,file)
+            if fp.endswith('.lean') and name not in ignore:
+                repo_files.append(getFile(name,os.path.relpath(fp,project_path),project_path,annotate=annotate,force=force))
+    if local:
+        return Repo(type='local',path=path,version=version,name=name,dependencies=dependencies,files=repo_files)
+    else:
+        return Repo(type='git',url=url,commit=commit,version=version,name=name,dependencies=dependencies,files=repo_files)
+    
 
 def getRepo(src,config=None,annotate=True,force=False):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -168,30 +260,8 @@ def getRepo(src,config=None,annotate=True,force=False):
     if len(data) == 0:
         raise ValueError(f'{src} not in config file {config}')
     repo_data = data[0]
-    url = repo_data.get('repo','')
-    commit = repo_data.get('commit','')
-    version = repo_data.get('lean','')
-    name = repo_data.get('name','')
-    import_file = repo_data.get('import_file','')
-    imports = repo_data.get('imports',[])
 
-    #depedencies - assume in env (ie lake build has been run):
-    package_path = os.path.join(root_path,'.lake','packages')
-    dependency_names = [item for item in os.listdir(package_path) if os.path.isdir(os.path.join(package_path, item)) and item!=name]
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return getRepoDirect(repo_data,annotate=annotate,force=force)
 
 
 
@@ -404,7 +474,8 @@ if __name__ == '__main__':
     #thm = thms[0]
     #print(thm)
 
-    getRepo('Tests3','configs/config_test3_all.json')
+    r = getRepo('Tests','configs/config_test.json')
+    print(f'{r.name} : {[item.name for item in r.dependencies]}')
     # thm = Theorem(decl='example (h : ¬ (P ∨ Q)) : ¬ P ∧ ¬ Q ', declID='Tests3.Basic.5_0.rDUmICG12jdHPcg', src='Tests3', leanFile='Tests3/Basic', context='import Mathlib.Tactic\n\nvariable (P Q R S : Prop)', proof=[ProofStep(tactic='constructor'), ProofStep(tactic='intro p'), ProofStep(tactic='have duh : P ∨ Q := by { left; exact p }'), ProofStep(tactic='exact h duh'), ProofStep(tactic='intro q fail'), ProofStep(tactic='have duh : P ∨ Q := by { right; exact q }'), ProofStep(tactic='exact h duh')])
     # print(parseTheorem(thm))
     # out = annotateTheorem(thm,force=True)
