@@ -38,6 +38,7 @@ def run_file(project_path, file_path, commands_path = None,force_clone_at=None):
 
     cwd = os.getcwd()
     os.chdir(project_path)
+    print(project_path)
     
     if commands_path is None:
         commands_path = tempfile.NamedTemporaryFile(suffix='.in').name
@@ -54,7 +55,7 @@ def run_file(project_path, file_path, commands_path = None,force_clone_at=None):
 
 
 def run_text(text, project_path, commands_path = None,force_clone_at=None):
-    temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=project_path)
+    temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=project_path,delete=False)
     #print(text)
     with open(temp.name,'w') as f:
         f.write(text)

@@ -43,8 +43,8 @@ def process_theorem(thm, metric, model,method,annotation,rag):
 
     #print(out)
     original_correct,msg = eval_correctness(thm)
-    #if not original_correct:
-    #    raise ValueError(f'===CTX:===\n {thm.context}\n===DECL:===\n{thm.decl}\n\n ===msg:=== {msg.get("messages",msg)}\n\n===TEST===\n{parseTheorem(thm)}')
+    if not original_correct:
+        raise ValueError(f'===CTX:===\n {thm.context}\n===DECL:===\n{thm.decl}\n\n ===msg:=== {msg.get("messages",msg)}\n\n===TEST===\n{parseTheorem(thm)}')
     correct,msg = eval_correctness(out)
     #print(f'EVAL: {correct}\n {msg.get("messages",msg)}')
     old_m = metric.metric(thm)
@@ -294,12 +294,13 @@ if __name__ == "__main__":
     methods = ['BASIC']
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    proj_path=os.path.join(root_path,'.lake','packages','Tests3')
+   #proj_path=os.path.join(root_path,'.lake','packages','Tests3')
+    proj_path = '/Users/ahuja/Desktop/LeanTestData/Tests'
 
-    repo_data = benchmark_repo('Tests3', 'LENGTH', proj_path=proj_path,start='Tests3/all.lean',model='gpt-4-turbo',methods = methods,annotation=False)
-    save_to_csv(repo_data,methods=methods,raw=True,thm_path='theorem_data_anno.csv',file_path='file_data_anno.csv',repo_path='repo_data_anno.csv')
+    repo_data = benchmark_repo('Tests', 'LENGTH', proj_path=proj_path,start='Tests/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean',model='gpt-4-turbo',methods = methods)
+    save_to_csv(repo_data,methods=methods,raw=True)
     
-    repo_data2 = benchmark_repo('Tests3', 'LENGTH', proj_path=proj_path,start='Tests3/all.lean',model='gpt-4-turbo',methods = methods)
-    save_to_csv(repo_data2,methods=methods,raw=True)
+    #repo_data2 = benchmark_repo('Tests3', 'LENGTH', proj_path=proj_path,start='Tests3/all.lean',model='gpt-4-turbo',methods = methods)
+    #save_to_csv(repo_data2,methods=methods,raw=True)
     
 

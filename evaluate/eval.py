@@ -26,7 +26,7 @@ def eval_correctness(thm):
         print(f'Error {e} on original path: {og_path}\n retrying from root')
         output = run_text(thm_text,root_path)
     '''
-    output = run_text(thm_text,root_path)
+    output = run_text(thm_text,thm.project_path)
 
 
     if 'messages' in output.keys():
