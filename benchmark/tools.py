@@ -228,10 +228,10 @@ def benchmark_repo(src, metric_name, proj_path, annotation = True, rag=True, mod
         dirs[:] = [d for d in dirs if d not in rel_ignore]
         for file in files:
             path = os.path.relpath(os.path.join(root, file), start=src_path)
-            if get_stem(path) not in ignore and path.endswith('.jsonl'):
+            if get_stem(path) not in ignore and path.endswith('.json'):
                 file_names.append(path)
-    if os.path.isfile(get_stem(start_path)+'.jsonl'):
-        file_names=[get_stem(os.path.relpath(start_path, start=src_path))+'.jsonl']
+    if os.path.isfile(get_stem(start_path)+'.json'):
+        file_names=[get_stem(os.path.relpath(start_path, start=src_path))+'.json']
     if any([start.startswith(ig) for ig in ignore]):
         file_names=[]
     #print(file_names)

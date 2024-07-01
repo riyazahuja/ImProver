@@ -36,7 +36,7 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
         input_file=input_module,
         output_file=os.path.join(
             output_base_dir,
-            _get_stem(input_module, input_file_mode) + '.jsonl'
+            _get_stem(input_module, input_file_mode) + '.json'
         )
     )
 
