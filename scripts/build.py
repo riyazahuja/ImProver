@@ -118,7 +118,7 @@ def _setup(cwd,rebuild):
 
 def _import_file(name, import_file, old_version, local_path=None):
     name = name.replace('«', '').replace('»', '') 
-    if local is not None:
+    if local_path is not None:
         return os.path.join(local_path,import_file)
     else:
         if old_version:

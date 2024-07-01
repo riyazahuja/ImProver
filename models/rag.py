@@ -1,9 +1,7 @@
-# given (Annotated?)Theorem and Repo, parse Repo into documents and use document 
-# splitter to split each file in repo into theorems (if lean) and standard markdown split (if md)
-# Then embed into vector space and save for future vector search queries? This processing will probably want to be done in the build script?
 from __future__ import annotations
 from typing import Iterator
-
+from langchain.globals import set_verbose,set_debug
+set_debug(False)
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter,MarkdownHeaderTextSplitter
@@ -44,7 +42,6 @@ class RepoLoader(BaseLoader):
                             "file_path": f.file_path,
                             "file_type": f.file_type,
                             "decl": thm.decl,
-                            #"proof": [step.tactic for step in thm.proof],
                             "context": thm.context
                         }
                     metadata.update(location_data)
@@ -142,79 +139,27 @@ def get_TPiL4_vs(path = os.path.join(root_path,'TPiL4')):
 
 
 
-def get_retriever(vectorstore=None,k=6,persist_dir = os.path.join(root_path,'.chroma_db')):
+def get_retriever(vectorstore=None,k=6,filterDB = {}, persist_dir = os.path.join(root_path,'.chroma_db')):
 
     if vectorstore is None:
         vectordb = Chroma(persist_directory=persist_dir, embedding_function=OpenAIEmbeddings())
-        retriever = vectordb.as_retriever(search_type="similarity", search_kwargs={"k": k})
+        retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": k, 'filter': filterDB})
     else:
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": k})
+        retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k,'filter': filterDB})
     return retriever
 
 
 
 
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6) -> Theorem:
+def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
 
-    model = ChatOpenAI(model=model,temperature=0)
-
-    class trimmedTheorem(BaseModel):
-        decl : str = Field(description="Theorem declaration")
-        proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
-
-    # Define the output parser
-    parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
-
-    actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
-    prev_data_text = parse_prev_data(prev_data).replace('{',r'{{').replace('}',r'}}')
-    # Define the prompt template
-    prompt = PromptTemplate(
-        template=actual_prompt + "{data_str}\n\n"+prev_data_text+'\n'+"{format_instructions}",
-        input_variables=["data_str"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
-    )
-
-    # Create the chain
-    chain = prompt | model | parser
-
-    @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(retries))
-    def invoke_throttled(chain,config):
-        return chain.invoke(config)
-    
-    output=invoke_throttled(chain,{"data_str" : parseTheorem(thm,annotation=True,prompt=True)})
-    
-         
-    decl,pf = output.decl, output.proof
-    print(f'DECL: {decl}\nPF:\n {pf}')
-
-    def coerce_PS(step):
-        ProofStep.update_forward_refs()
-        if type(step) == str:
-            return ProofStep(tactic=step)
-        return ProofStep(tactic=coerce_trimmedThm(step))
-
-    def coerce_trimmedThm(curr):
-        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof])
-     
-    final = coerce_trimmedThm(output)
-    
-    #print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
-    #thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
-    return final
-
-
-
-
-
-def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6) -> Theorem:
-
-    retriever = get_retriever(k=4)
+    retriever = get_retriever(k=4,filterDB={'file':'tactics.md'})
 
 #    print("retriever recieved")
     model = ChatOpenAI(model=model,temperature=0)
 
     class trimmedTheorem(BaseModel):
-        decl : str = Field(description="Theorem declaration")
+        decl : str = Field(description="Theorem declaration.")
         proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
 
     # Define the output parser
@@ -236,7 +181,7 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
 
 
     def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
+        return "\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
 
 
     chain = (
@@ -246,15 +191,41 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
         | parser
     )
 
-    @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(retries))
+    @retry(
+    reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    after=after_log(logger, logging.INFO),
+    wait=wait_random_exponential(multiplier=1, max=60),
+    )
     def invoke_throttled(chain,data):
         return chain.invoke(data)
     
-    output=invoke_throttled(chain,parseTheorem(thm,annotation=True,prompt=True))
+    output=invoke_throttled(chain,parseTheorem(thm,annotation=annotation,prompt=True))
+
+    #optional regex preprocessing for case:
+    '''
+    def updateCase(tthm):
+        decl = tthm.decl
+        #pf = tthm.proof
+        pattern = re.compile(r'(case\s+\w+\b)(?!\s*=>)')
+        def add_arrow(match):
+            return f"{match.group(1)} =>"
+
+        modified_decl = pattern.sub(add_arrow, decl)
+        proof = tthm.proof
+        modified_proof = []
+        for step in proof:
+            if type(step)==str:
+                modified_proof.append(step)
+            else:
+                modified_proof.append(updateCase(step))
+        return trimmedTheorem(decl=modified_decl,proof=modified_proof)
     
-         
-    decl,pf = output.decl, output.proof
-    print(f'DECL: {decl}\nPF:\n {pf}')
+    output = updateCase(output)
+    '''
+        
+
+
 
     def coerce_PS(step):
         ProofStep.update_forward_refs()
@@ -263,7 +234,7 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
         return ProofStep(tactic=coerce_trimmedThm(step))
 
     def coerce_trimmedThm(curr):
-        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof])
+        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
      
     final = coerce_trimmedThm(output)
     
@@ -278,13 +249,20 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
 #prompt()
 
 repo = getRepo('Tests','configs/config_test.json')
-files = {f.file_name: f for f in repo.files}
-print(files.keys())
+
+files = {f.file_path: f for f in repo.files}
 file = files['Tests/Basic.lean']
 thms = file.theorems
 thm = thms[0]
 
 
-output = refinement(thm,length_metric(),1,promptfn=prompt_rag)
-print(output)
+#output = refinement(thm,length_metric(),1,promptfn=prompt_rag)
+output = prompt_rag(thm,length_metric())
 print(parseTheorem(output,context=False))
+
+#retriever = get_retriever(k=3)
+#docs = retriever.invoke('What is the syntax for the "case" tactic?')
+#def format_docs(docs):
+#        return "\n\n=======================\n".join(f"filename: {doc.metadata.get('file','Unknown')}\nContent:\n{doc.page_content}" for doc in docs)
+
+#print(format_docs(docs))

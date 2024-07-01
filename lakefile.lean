@@ -7,7 +7,8 @@ import Lake
 
     
 
-    require Tests from "/Users/ahuja/Desktop/LeanTestData/Tests"
+    require Tests3 from git
+    "https://github.com/riyazahuja/Tests3.git" @ "main"
 
     @[default_target]
     lean_lib TrainingData where

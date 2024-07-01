@@ -1,22 +1,25 @@
 from __future__ import annotations
 from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import List, Union,Optional
 import os
+from typing import List, Union,Optional
 import json
 import tempfile
 import subprocess 
 from textwrap import indent
+import re
+
 
 class ProofStep(BaseModel):
     tactic : Union[str,Theorem] = Field(description="One line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof")
 
 class Theorem(BaseModel):
-    decl : str = Field(description="Theorem declaration")
+    decl : Optional[str] = Field(description="Theorem declaration. Optional argument, if not provided, will default to being an implicit case statement using dot notation.",default=None)
     proof : List[ProofStep] = Field(..., description="Sequence of proofsteps for full proof of theorem.")
     declID : str = Field(description="Unique theorem declaration ID")
     src : str = Field(description="Source repo of the theorem")
     leanFile : str = Field(description="Lean file in which theorem is located")
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
+    project_path : str = Field(description="Local path to src repo contents")
     
 class File(BaseModel):
     src : str = Field(description="File source repo")
@@ -24,6 +27,7 @@ class File(BaseModel):
     file_path : str = Field(description="File path (stem) relative to src repo root")
     file_type : str = Field(description="File type")
     contents : str = Field(description= "File contents")
+    project_path : str = Field(description="Local path to src repo contents")
 
 class AnnotatedProofStep(BaseModel):
     prevState : List[str] = Field(description="Pretty printed tactic st ate before the tactic invocation")
@@ -41,6 +45,7 @@ class AnnotatedTheorem(BaseModel):
     leanFile : str = Field(description="Lean file in which theorem is located")
     context : str = Field(description="Context of the theorem (i.e. file contents up to decl)")
     proof : List[AnnotatedProofStep] = Field(..., description="Sequence of annotated proofsteps for full proof of theorem.")
+    project_path : str = Field(description="Local path to src repo contents")
 
 class AnnotatedFile(BaseModel):
     src : str = Field(description="File source repo")
@@ -49,6 +54,7 @@ class AnnotatedFile(BaseModel):
     file_type : str = Field(description="File type")
     contents : str = Field(description= "File contents")
     theorems : List[AnnotatedTheorem] = Field(..., description="List of all theorems in a file")
+    project_path : str = Field(description="Local path to src repo contents")
 
 class Repo(BaseModel):
     type: str = Field(description="Repository type (git or local)")
@@ -59,15 +65,11 @@ class Repo(BaseModel):
     name: str = Field(description= "Repo name")
     dependencies: List[Repo] = Field(description= "Repository dependencies")
     files: List[Union[AnnotatedFile,File]]= Field(description= "files in repository")
+    project_path : str = Field(description="Local path to src repo contents")
     
 
 
-
-
-
-
-
-def getTheorems(data,src, file) -> List[AnnotatedTheorem]:
+def getTheorems(data, src, path, project_path) -> List[AnnotatedTheorem]:
     temp = {}
     for step in data:
         ps = AnnotatedProofStep(prevState=step['prevState'],
@@ -100,7 +102,7 @@ def getTheorems(data,src, file) -> List[AnnotatedTheorem]:
             
     result = {}
     for ID,value in temp.items():
-        result[ID] = AnnotatedTheorem(leanFile=file,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'])
+        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path)
     return [v for _,v in result.items()]
         
 
@@ -112,58 +114,55 @@ def get_stem(path):
         return path[:-6]
     return path
 
-def getAnnotatedFile(src, file_name,content_path):
+def getAnnotatedFile(src, path, project_path):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f'.cache/{src}')
 
+    #content_path = os.path.join(root_path,'.lake','packages',src)
 
-    contents = None
-    data = None
+    #print(f'{project_path}|{path}')
 
-    file_stem = get_stem(file_name)
-    #print(f'{root_path}|.lake/packages/{src}|{file_name}.lean')
+    with open(os.path.join(project_path,path),'r') as f:
+        contents = f.read()
 
-    contents = ''
-    try:
-        with open(os.path.join(content_path,file_name),'r') as f:
-            contents = f.read()
-    except:
-        pass
-
-
-    with open(os.path.join(cache_path,file_stem+'.jsonl'),'r') as f:
+    stem,ftype = os.path.splitext(path)
+    with open(os.path.join(cache_path,stem+'.jsonl'),'r') as f:
         data = [json.loads(jline) for jline in f.read().splitlines()]
     
-    theorems = getTheorems(data,src, file_stem)
-    stem,ftype = os.path.splitext(file_name)
+    theorems = getTheorems(data, src, path,project_path)
 
-    return AnnotatedFile(src=src,file_name=file_name,contents = contents,theorems=theorems,file_path=stem,file_type=ftype)
+    return AnnotatedFile(src=src,file_name=os.path.basename(path),contents = contents,theorems=theorems,file_path=path,file_type=ftype,project_path=project_path)
     
 #if annotate + force, run annotateFile and if error quit
 #if annotate run annotateFile and if error, return File
 #if not annotate, return File
-def getFile(src,path,content_path, annotate=True,force=False):
+def getFile(src,path,project_path, annotate=True,force=False):
     #print(f'{src} | {path}')
     if annotate:
         try:
-            return getAnnotatedFile(src,path,content_path)
+            return getAnnotatedFile(src,path,project_path)
         except Exception as e:
             if force:
                 raise e
             else:
+                #print(f'ERROR: \n{e}\n\n')
                 pass
     stem,ftype = os.path.splitext(path)
-    fp = os.path.join(content_path,path)
-    with open(fp,'r') as f:
+    with open(os.path.join(project_path,path),'r') as f:
         content = f.read()
     #print(f'{os.path.basename(path)} | {stem} | {ftype}')
 
-    return File(src=src,file_name=os.path.basename(path),file_path=stem,file_type=ftype,contents=content)
+    return File(src=src,file_name=os.path.basename(path),file_path=path,file_type=ftype,contents=content,project_path=project_path)
+# file name is all.lean
+# file path is Tests3/all.lean
+# file type is .lean
+# project path is path to Tests3
+# src is Tests3
+
 
 
 #TODO IMPLEMENT LOCAL CONFIGS TO ADD LOCAL CONFIGS TO GETREPO
 def getRepoDirect(repo_data,annotate=True,force=False,recursive=True):
-    print(f'{repo_data["name"]} | {recursive}')
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     project_path = ''
     if 'path' in repo_data.keys():
@@ -230,9 +229,9 @@ def getRepoDirect(repo_data,annotate=True,force=False,recursive=True):
             if fp.endswith('.lean') and name not in ignore:
                 repo_files.append(getFile(name,os.path.relpath(fp,project_path),project_path,annotate=annotate,force=force))
     if local:
-        return Repo(type='local',path=path,version=version,name=name,dependencies=dependencies,files=repo_files)
+        return Repo(type='local',path=path,version=version,name=name,dependencies=dependencies,files=repo_files,project_path=project_path)
     else:
-        return Repo(type='git',url=url,commit=commit,version=version,name=name,dependencies=dependencies,files=repo_files)
+        return Repo(type='git',url=url,commit=commit,version=version,name=name,dependencies=dependencies,files=repo_files,project_path=project_path)
     
 
 def getRepo(src,config=None,annotate=True,force=False):
@@ -346,12 +345,27 @@ def parse_proof(thm,indent = 1,dot=False):
             output += indent*spaces + content + '\n'
             #single tactic
         else:
-            output += indent*spaces + content.decl+'\n'
-            output += parse_proof(content,indent=indent+1,dot=True)
+            # pattern = re.compile(r'(case\s+\w+\b)(?!\s*=>)')
+            #pattern = re.compile(r'^\s*case\s*\w+(?:\s*:\s*[^=\n]+)?\s*(?!=>)')
+            # case=False
+            # if re.match(pattern,content.decl):
+            #     case = True
+            # arrow = False
+            # if '=>' in content.decl:
+            #     arrow = True
+
+            #if not case:
+            hasDecl = content.decl is not None
+            if hasDecl:
+                output += indent*spaces + content.decl +'\n'#f"{' => ' if case and not arrow else ''}" +'\n'
+            output += parse_proof(content,indent=indent+1,dot=(not hasDecl))
             #subtheorem
-    if output[:len(spaces)] == spaces and dot:
-        depth = indent * len(spaces)
-        output = output[:depth] + output[depth: depth + 1].replace(' ', '.') + output[depth + 1:]
+    
+    depth = indent * len(spaces)
+    #print (f'PARSING PROOF: req {depth}, first [{output[:depth]}], dot? {dot}')
+    if output[:depth] == spaces*indent and dot:
+        #print('HELOO!!!!')
+        output = output[:depth-2] + '. '+ output[depth :]#output[depth: depth + 1].replace(' ', '.') + output[depth + 1:]
     return output
             
 
@@ -361,7 +375,7 @@ def parseTheoremBase(thm,context=True,prompt=False):
         context = thm.context
     else:
         context = ''
-    proof = parse_proof(thm,dot=True)
+    proof = parse_proof(thm,dot=False)
     
     if prompt:
         return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
@@ -382,6 +396,8 @@ def run_training_data(root_path,module_name):
     output = subprocess.run([cmd],shell=True,text=True,capture_output=True)
     data_raw = output.stdout
     data = [json.loads(item) for item in data_raw.splitlines()]
+    if data_raw == '':
+        raise KeyError(f'BAD DATA: {output}')
     return data_raw
 
 
@@ -393,51 +409,77 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
 
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    package_path = os.path.join(root_path,'.lake','packages',src,os.path.dirname(path))
-    cache_path = os.path.join(root_path,'.cache',src,os.path.dirname(path))
+    #project_path = os.path.join(root_path,'.lake','packages',src)
+    project_path = thm.project_path
+    
 
-    #print(cache_path)
-    #make tempfile at package_path containing text
-    #then chdir to root_path and run lake exe training_data {os.path.dirname(path).replace('/','.')+'.{file.name}'}
-    temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=package_path)
+    cache_path = os.path.join(root_path,'.cache',src)
+
+    path_dir = os.path.join(project_path,os.path.dirname(path))
+
+    temp = tempfile.NamedTemporaryFile(suffix='.lean',dir=path_dir)
     with open(temp.name,'w') as f:
         f.write(text)
+    temp_relpath = os.path.relpath(temp.name,project_path)
     
-    #print(f'{src} | {path} | {os.path.dirname(path)}')
-    mod_name = get_stem(os.path.dirname(path).replace('/','.') + f'.{os.path.basename(temp.name)}')
-    #print(mod_name)
+    mod_name = get_stem(temp_relpath.replace('/','.'))
     output = run_training_data(root_path,mod_name)
 
-    #json_path = get_stem(temp.name)+'.jsonl'
-    json_path = os.path.join(cache_path,get_stem(os.path.basename(temp.name))+'.jsonl')
-    lean_path = os.path.join(cache_path,os.path.basename(temp.name))
+
+    json_path = os.path.join(cache_path,get_stem(temp_relpath)+'.jsonl')
     with open(json_path,'w') as f:
         f.write(output)
-    with open(lean_path,'w') as f:
-        f.write("")
     
-    path = os.path.join(get_stem(os.path.dirname(path)), os.path.basename(temp.name))
-    #print(f'json_path = {json_path}\n {src}|{path}')
-    file = getAnnotatedFile(src,path)
+    
+
+    file = getAnnotatedFile(src,temp_relpath,project_path)
     thms = file.theorems
     os.remove(json_path)
-    os.remove(lean_path)
+
     if len(thms)==0:
-        raise NameError(f'No Theorems??\n {file}\n =|{output}|=\n\n =|{text}|=')
+        raise NameError(f'No Theorems??\n {file}\n =|{output}|=\n\n =|{text}|=\n\n=|{thm}|=\n\n=|{mod_name}|=')
     output = thms[-1]
     #print([s.tactic for s in output.proof])
     output.proof = elim_overlap(output.proof)
     #print([s.tactic for s in output.proof])
     first = None
+
+    
+    def flattenProof (proof):
+        new_proof=[]
+        for stepraw in proof:
+            step = stepraw.tactic
+            if type(step) == str:
+                new_proof.append(stepraw)
+            else:
+                decl = step.decl
+                if decl is not None:
+                    text = decl + '\n' + parse_proof(step)
+                    #new_proof.append(ProofStep(tactic=decl))
+                    new_proof.append(ProofStep(tactic=text))
+                else:
+                    new_proof.extend(flattenProof(step.proof))
+                #new_proof.extend(flattenProof(step.proof))
+        return new_proof
+
+
+
+    # print('===========================')
+    # print(thm.proof)
+    og_proof = flattenProof(thm.proof)
+    # print('+++++++++++++++++++++++++++')
+    # print(og_proof)
+    # print('===========================')
+
     #print('ENTERING FIRST CALC')
-    for idx in range(min(len(thm.proof),len(output.proof))):
-        if thm.proof[idx].tactic != output.proof[idx].tactic:
+    for idx in range(min(len(og_proof),len(output.proof))):
+        if og_proof[idx].tactic != output.proof[idx].tactic:
             #print(f'\n\nDIFF! {thm.proof[idx].tactic} vs {output.proof[idx].tactic}\n\n')
             first = idx-1
             break
     if first is None:
-        if len(thm.proof) != len(output.proof):
-            first = min(len(thm.proof),len(output.proof))-1
+        if len(og_proof) != len(output.proof):
+            first = min(len(og_proof),len(output.proof))-1
             #print(f'\n\nDIFF LENGTH! {thm.proof[first].tactic} vs {output.proof[first].tactic}\n\n')
     
     
@@ -446,18 +488,20 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
         max_pos = output.proof[first].end
         if force:
             def get_empty_annotated_proof_step(thm,i):
-                proofstep=thm.proof[i]
+                proofstep=og_proof[i]
+                #print(f'\nTactic: {proofstep.tactic} : {type(proofstep.tactic)}')
                 return AnnotatedProofStep(prevState=['ERROR'],tactic = proofstep.tactic, nextState=['ERROR'],srcUpToTactic='ERROR',declUpToTactic='ERROR',start=max_pos+i,end=max_pos+i)
-            proof = [get_empty_annotated_proof_step(thm,i) if i > idx else output.proof[i] for i in range(len(thm.proof))]
+            proof = [get_empty_annotated_proof_step(thm,i) if i > idx else output.proof[i] for i in range(len(og_proof))]
 
             return AnnotatedTheorem(decl=output.decl,
                                     declID=output.declID,
                                     src=output.src,
                                     leanFile=output.leanFile,
                                     context=output.context,
-                                    proof=proof)
+                                    proof=proof,
+                                    project_path=project_path)
         else:
-            raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{thm.proof}\n{output.proof}')
+            raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{output.proof}')
 
 
     return output

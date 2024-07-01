@@ -1,7 +1,8 @@
 import os
 import sys
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor,as_completed
 sys.path.append(str(Path(__file__).parent.parent))
 from evaluate.eval import *
 from evaluate.metrics import *
@@ -14,25 +15,28 @@ import pandas as pd
 import seaborn as sns
 import time
 import numpy as np
+from tqdm import tqdm
+from models.rag import *
 
 metrics = {'LENGTH': length_metric(), 'MODULARITY': modularity_metric()}
 
-def process_theorem(thm, metric, model,method):
+def process_theorem(thm, metric, model,method,annotation,rag):
     start_time = time.time()
+    promptfn = prompt_rag if rag else prompt_structured
     if method[0] == 'BASIC' or method == 'BASIC':
-        out = prompt_structured(thm,metric,model=model)
+        out = promptfn(thm,metric,model=model,annotation=annotation)
     elif method[0] == 'REFINEMENT':
         n = method[1]
         kwargs = {}
         if len(method) == 3:
             kwargs = method[2]
-        out = refinement(thm,metric,n,model=model,**kwargs)
+        out = refinement(thm,metric,n,model=model,promptfn=promptfn, annotation=annotation,**kwargs)
     elif method[0] == 'BEST':
         n = method[1]
         kwargs = {}
         if len(method) == 3:
             kwargs = method[2]
-        out = best_of_n(thm,metric,n,model=model,**kwargs)
+        out = best_of_n(thm,metric,n,model=model,annotation=annotation,**kwargs)
     else:
         raise ValueError(f"Invalid Method: {method}")
     
@@ -41,7 +45,8 @@ def process_theorem(thm, metric, model,method):
     original_correct,msg = eval_correctness(thm)
     #if not original_correct:
     #    raise ValueError(f'===CTX:===\n {thm.context}\n===DECL:===\n{thm.decl}\n\n ===msg:=== {msg.get("messages",msg)}\n\n===TEST===\n{parseTheorem(thm)}')
-    correct,_ = eval_correctness(out)
+    correct,msg = eval_correctness(out)
+    #print(f'EVAL: {correct}\n {msg.get("messages",msg)}')
     old_m = metric.metric(thm)
     if correct and original_correct:
         if metric.name == 'MODULARITY' and type(out) == Theorem:
@@ -77,10 +82,10 @@ def process_theorem(thm, metric, model,method):
     }
 
 
-def benchmark_file(src, name, metric_name, model='gpt-4-turbo', method_workers = None,theorem_workers=None, methods=[('BASIC')]):
-    print(f'{src}|{name}')
+def benchmark_file(src, name, project_path, metric_name, annotation=True, rag=True,model='gpt-4-turbo', method_workers = None,theorem_workers=None, methods=[('BASIC')]):
+    #print(f'{src}|{name}')
     start_time = time.time()
-    f = getAnnotatedFile(src, name)
+    f = getAnnotatedFile(src, name,project_path)
     thms = f.theorems
     metric = metrics[metric_name]
     file_benchmark = {'src': src, 'path': name, 'metric': metric_name, 'model': model, 'num_theorems' : len(thms)}
@@ -100,7 +105,17 @@ def benchmark_file(src, name, metric_name, model='gpt-4-turbo', method_workers =
     max_workers = method_workers * theorem_workers
     
     with ThreadPoolExecutor(max_workers=max(1,min(len(thms)*len(methods),max_workers))) as executor:
-        future_to_thm = {(thm.declID,method[0]) : executor.submit(process_theorem, thm, metric, model, method) for thm in thms for method in methods}
+        
+        #with tqdm(total=len(thms)*len(methods)) as pbar:
+        future_to_thm = {(thm.declID,method[0]) : executor.submit(process_theorem, thm, metric, model, method, annotation,rag) for thm in thms for method in methods}
+            # for pair,future in concurrent.futures.as_completed(future_to_thm):
+            #     pbar.update(1)
+            #     result = future.result()
+            #     ID, method = pair
+            #     if ID not in future_data.keys():
+            #         future_data[ID]={}
+            #     future_data[ID][method] = result
+        #print(f'Completed threads: {sum(1 for k in future_to_thm.keys() if future_to_thm[k].done())} / {len(future_to_thm.keys())}')
         for pair,future in future_to_thm.items():
             result = future.result()
             ID, method = pair
@@ -194,9 +209,13 @@ new: {parseTheorem(thm['new_raw'],False) if printAll else ''}
 # ('BASIC') is a standard, basic prompt.
 # ('REFINEMENT', n, {prev_num=1, keep_best=False}) is an n-shot iterative refinement
 # ('BEST', n, {max_workers=n}) is best of n with n workers
-def benchmark_repo(src, metric_name, model='gpt-4-turbo',start = '',ignore=[], methods = [('BASIC')],method_workers = None,theorem_workers=None):
+def benchmark_repo(src, metric_name, proj_path, annotation = True, rag=True, model='gpt-4-turbo',start = '',ignore=[], methods = [('BASIC')],method_workers = None,theorem_workers=None):
     start_time = time.time()
+
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    #proj_path=os.path.join(root_path,'.lake','packages','Tests3')
+
     cache_path = os.path.join(root_path, '.cache')
     src_path = os.path.join(cache_path, src)
     start_path = os.path.join(src_path,start)
@@ -215,17 +234,15 @@ def benchmark_repo(src, metric_name, model='gpt-4-turbo',start = '',ignore=[], m
         file_names=[get_stem(os.path.relpath(start_path, start=src_path))+'.jsonl']
     if any([start.startswith(ig) for ig in ignore]):
         file_names=[]
-    print(file_names)
+    #print(file_names)
 
     file_data = []
     for name in file_names: #TODO PARALLELIZE
-        result = benchmark_file(src, name, metric_name, model=model, methods=methods,method_workers=method_workers,theorem_workers=theorem_workers)
+        result = benchmark_file(src, get_stem(name)+'.lean', proj_path, metric_name, annotation=annotation,rag=rag, model=model, methods=methods,method_workers=method_workers,theorem_workers=theorem_workers)
         file_data.append(result)
     #print(results)
 
     total_time = time.time()-start_time
-
-    
 
     repo_data = {
         'name': src,
@@ -274,13 +291,15 @@ def save_to_csv(repo_data, methods=[('BASIC')], thm_path='theorem_data.csv', fil
 
 
 if __name__ == "__main__":
-    methods = [('BASIC')]
-    repo_data = benchmark_repo('Tests', 'LENGTH', model='gpt-4-turbo',methods = methods)
-    #for f in repo_data:
-    #    print(pretty_print(f,True))
-    #print('\n\nDATAFRAMING\n')
-    save_to_csv(repo_data,methods=methods,raw=True)
-    #save_repo_data_to_csv(repo_data)
-    #save_file_data_to_csv(repo_data)
-    #save_theorem_data_to_csv(repo_data)
+    methods = ['BASIC']
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    proj_path=os.path.join(root_path,'.lake','packages','Tests3')
+
+    repo_data = benchmark_repo('Tests3', 'LENGTH', proj_path=proj_path,start='Tests3/all.lean',model='gpt-4-turbo',methods = methods,annotation=False)
+    save_to_csv(repo_data,methods=methods,raw=True,thm_path='theorem_data_anno.csv',file_path='file_data_anno.csv',repo_path='repo_data_anno.csv')
     
+    repo_data2 = benchmark_repo('Tests3', 'LENGTH', proj_path=proj_path,start='Tests3/all.lean',model='gpt-4-turbo',methods = methods)
+    save_to_csv(repo_data2,methods=methods,raw=True)
+    
+
