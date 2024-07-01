@@ -279,3 +279,10 @@ def compileModule (mod : Name) : IO (List CompilationStep) := do
 def moduleInfoTrees (mod : Name) : IO (List InfoTree) := do
   let steps ← compileModule mod
   return steps.bind (fun c => c.trees)
+
+
+
+  /-- Compile the source file for the named module, returning all info trees. -/
+def moduleMessages (mod : Name) : IO (List Message) := do
+  let steps ← compileModule mod
+  return steps.bind (fun c => c.msgs)

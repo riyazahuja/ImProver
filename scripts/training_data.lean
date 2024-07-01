@@ -140,6 +140,15 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
     let trees ← getInvocationTrees module
     let hash ← generateRandomHash
 
+    --let msgs ← moduleMessages module
+    let mut msgs := []
+    let raw_msgs ← moduleMessages module
+
+    for msg in raw_msgs do
+      let s ← msg.toJson
+      msgs := s::msgs
+
+
     let mut idJsons : List (String × Json) := []
     for t in trees do
       for t in t.tactics_new do
@@ -152,8 +161,18 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
 
     let out := idJsons.reverse.map fun (_, j) => j
 
-    for item in out do
-      IO.println item.compress
+    let tactics := Json.arr out.toArray
+    let messages := Json.arr msgs.toArray
+    let output := Json.mkObj ([
+      ("tactics",tactics),
+      ("messages",messages)
+    ])
+
+    IO.println output.compress
+
+    -- for item in out do
+    --   IO.println item.compress
+    --   IO.println "====LINE===="
 
     return 0
 
