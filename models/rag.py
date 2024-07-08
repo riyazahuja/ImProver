@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Iterator
 from langchain.globals import set_verbose,set_debug
-set_debug(True)
+set_debug(False)
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter,MarkdownHeaderTextSplitter
@@ -89,6 +89,55 @@ def get_content_vs(repo:Repo):
     return vectorstore
 
 
+
+def get_mathlib_vs(path = os.path.join(root_path,'.lake','packages','mathlib','Mathlib')):
+    dirs = ['Init','Tactic']
+    all_files = []
+    for dir in dirs:
+        for root,_,files in os.walk(os.path.join(path,dir)):
+            for file in files:
+                fp = os.path.join(root,file)
+                #print(f'{fp}')
+                if fp.endswith('.lean') and fp not in all_files:
+                    all_files.append(fp)
+            #print(len(files))
+    files = all_files
+    print(len(files))
+
+
+    #lean_splitters = ['\nnamespace ','\ntheorem ','\nlemma ','\nexample ','\nstructure ', '\ndef ', '\n\tdef ', '\n\n', '\n', ' ', '']
+    lean_splitters = ['\ntheorem ','\nlemma ','\nexample ','\ndef ', '\n\n', '\n', ' ', '']
+    lean_splitter = RecursiveCharacterTextSplitter(separators=lean_splitters,
+                                                    chunk_size=1000,
+                                                    chunk_overlap=200,
+                                                    add_start_index=True,
+                                                    length_function=len,
+                                                    is_separator_regex=False,
+                                                    keep_separator=True
+                                                )
+
+    docs = []
+    for fp in files:
+        name = os.path.relpath(fp,path)
+        
+        with open(fp,'r') as f:
+            text = f.read()
+
+        splits = lean_splitter.split_text(text)
+
+        for doc in splits:
+            new = {}#doc.metadata
+            new.update({'file':name})
+            docs.append(Document(page_content=doc,metadata=new))
+    print(len(docs))
+        
+        
+
+    
+    vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.mathlib_chroma_db'))
+    return vectorstore
+
+
 def get_TPiL4_vs(path = os.path.join(root_path,'TPiL4')):
     print(f"TPIL\n\n\n\n{path}")
     files = []
@@ -127,7 +176,7 @@ def get_TPiL4_vs(path = os.path.join(root_path,'TPiL4')):
         docs.extend(splits)
 
     
-    vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.chroma_db'))
+    vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.TPiL_chroma_db'))
     return vectorstore
 
 
@@ -239,26 +288,36 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
 
 
 if __name__ == '__main__':
-    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    
+    # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    r = getRepo('Tests','configs/config_test.json')
-    files = {file.file_name:file for file in r.files}
-    #print(files.keys())
+    # r = getRepo('Tests','configs/config_test.json')
+    # files = {file.file_name:file for file in r.files}
+    # #print(files.keys())
 
 
-    f = files['Basic.lean']
-    thms = f.theorems
-    for thm in [thms[1]]:
-        #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
-        #out=prompt_rag(thm,length_metric())
-        out = best_of_n(thm,length_metric(),3,max_workers=3)
-        #out=refinement(thm,length_metric(),3,prev_data_num=3,promptfn=prompt_structured,keep_best=True)
-        #print(out)
+    # f = files['Basic.lean']
+    # thms = f.theorems
+    # for thm in [thms[1]]:
+    #     #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
+    #     #out=prompt_rag(thm,length_metric())
+    #     out = best_of_n(thm,length_metric(),3,max_workers=3)
+    #     #out=refinement(thm,length_metric(),3,prev_data_num=3,promptfn=prompt_structured,keep_best=True)
+    #     #print(out)
         
-        correct,msgs,anno = eval_correctness(out)
-        msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
-        print('\n')
-        print(parseTheorem(out,context=False))
-        print(f'CORRECT? {correct}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
-        print('=========\n\n\n=========')
-        #print(out)
+    #     correct,msgs,anno = eval_correctness(out)
+    #     msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
+    #     print('\n')
+    #     print(parseTheorem(out,context=False))
+    #     print(f'CORRECT? {correct}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
+    #     print('=========\n\n\n=========')
+    #     #print(out)
+
+    #get_mathlib_vs()
+    retriever = get_retriever(k=10,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
+    output = retriever.invoke('(P Q :Prop) : P ∨ Q → Q ∨ P')
+    for doc in output:
+        print(f'[{doc.metadata}]')
+        print(doc.page_content)
+        print('===============')
