@@ -291,13 +291,13 @@ def save_to_csv(repo_data, methods=[('BASIC')], thm_path='theorem_data.csv', fil
 
 
 if __name__ == "__main__":
-    methods = ['BASIC']
+    methods = ['BASIC',('BEST',3),('REFINEMENT',3)]
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
    #proj_path=os.path.join(root_path,'.lake','packages','Tests3')
     proj_path = '/Users/ahuja/Desktop/LeanTestData/Tests'
 
-    repo_data = benchmark_repo('Tests', 'LENGTH', proj_path=proj_path,start='Tests/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean',model='gpt-4-turbo',methods = methods)
+    repo_data = benchmark_repo('Tests', 'LENGTH', proj_path=proj_path,start='Tests/Basic.lean',model='gpt-4-turbo',methods = methods,rag=False)
     save_to_csv(repo_data,methods=methods,raw=True)
     
     #repo_data2 = benchmark_repo('Tests3', 'LENGTH', proj_path=proj_path,start='Tests3/all.lean',model='gpt-4-turbo',methods = methods)

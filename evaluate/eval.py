@@ -7,6 +7,17 @@ from models.structures import *
 from evaluate.metrics import *
 
 def eval_correctness(thm):
+
+    if type(thm) == AnnotatedTheorem:
+        new_thm = thm
+    elif type(thm) == Theorem:
+        new_thm = annotateTheorem(thm,force=True)
+    else:
+        raise ValueError(f"Input is not a Theorem/AnnotatedTheorem obj:\nthm:\n{thm}\ntype: {type(thm)}")
+    msgs = new_thm.messages
+    correct = sum(1 for msg in msgs if msg.severity=='error')==0
+    return (correct,msgs,new_thm)
+
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     src = thm.src
     lean_file = thm.leanFile

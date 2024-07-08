@@ -8,6 +8,8 @@ import subprocess
 from textwrap import indent
 import re
 
+#NOTE position encodings have top left as line 1, column 0 
+# -> we restandardize to line 1 column 1. makes more sense that way
 
 class ProofStep(BaseModel):
     tactic : Union[str,Theorem] = Field(description="One line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof")
@@ -35,8 +37,10 @@ class AnnotatedProofStep(BaseModel):
     nextState : List[str] = Field(description="Pretty printed tactic state after the tactic invocation")
     srcUpToTactic : str = Field(description="Source code from file start to current tactic")
     declUpToTactic : str = Field(description="Source code from theorem declaration to current tactic")
-    start : int = Field(description='start UTF-8 byte position of tactic invocation')
-    end : int = Field(description='end UTF-8 byte position of tactic invocation')
+    start: Tuple[Optional[int],Optional[int]]=Field(description='start coordinates from source file as (row,column)')
+    end: Tuple[Optional[int],Optional[int]]=Field(description='end coordinates from source file as (row,column)')
+    #start : int = Field(description='start UTF-8 byte position of tactic invocation')
+    #end : int = Field(description='end UTF-8 byte position of tactic invocation')
 
 class Message(BaseModel):
     severity:str = Field(description='Message severity')
@@ -74,48 +78,102 @@ class Repo(BaseModel):
     dependencies: List[Repo] = Field(description= "Repository dependencies")
     files: List[Union[AnnotatedFile,File]]= Field(description= "files in repository")
     project_path : str = Field(description="Local path to src repo contents")
+
+def getMessages(start,end,msgs,contents:str):
+    thm_start_row = start.get('line',None)
+    thm_start_col = start.get('col',None)
+    if end is not None:
+        thm_end_row = end.get('line',None)
+        thm_end_col = end.get('col',None)
+    else:
+        thm_end_row=0
+        thm_end_col=0
+
+    def msg_in_thm(msg):
+        start_row = msg.get('pos',{}).get('line',None) if msg.get('pos',None) is not None else None
+        end_row = msg.get('endPos',{}).get('line',None) if msg.get('endPos',None) is not None else None
+
+        if start_row is None:
+            return False
+        if thm_start_row <= start_row and end is not None and thm_end_row>= end_row:
+            #print(f'\nCASE 1 <================= {msg}\n')
+            return True
+        elif thm_start_row <= start_row and end is None:
+            #print(f'\nCASE 2 <================= {msg}\n')
+            return True
+        else:
+            return False
+
     
+    msgs2=[msg for msg in msgs if msg_in_thm(msg)]
+    #s = "\n".join(map(lambda x: f'{x[0]+1} | {x[1]}',list(enumerate(contents.splitlines()))))
+    #print(f'+++++++++++++++\nthm_start_row={thm_start_row}\nMSG CONTENTS:\n{s}\nMSGS:\n{msgs}\nMSGS2:\n{msgs2}\n+++++++++++++++\n')
+    msgs=msgs2
+    return [getMessage(msg,contents) for msg in msgs]
+
 def getMessage(msg,contents:str):
     severity = msg['severity']
-    start_row = msg['pos'].get('line',None)
-    start_col = msg['pos'].get('column',None)
-    end_row = msg['endPos'].get('line',None)
-    end_col = msg['endPos'].get('column',None)
 
-    lines = contents.splitlines()[start_row-1:end_row]
-    trimmed_lines = []
+    start_row = msg.get('pos',{}).get('line',None) if msg.get('pos',None) is not None else None
+    start_col = msg.get('pos',{}).get('column',None) if msg.get('pos',None) is not None else None
+    end_row = msg.get('endPos',{}).get('line',None) if msg.get('endPos',None) is not None else None
+    end_col = msg.get('endPos',{}).get('column',None) if msg.get('endPos',None) is not None else None
+
+    
 
     message_src = None
     if start_col is None:
         start_col=1
-        message_src = ''
+        #message_src = ''
     if end_col is None and end_row is not None:
         end_col=len(end_row)
-        message_src = ''
+        #message_src = ''
+
+    if end_row is None:
+        #s = "\n".join(map(lambda x: f'{x[0]} | {x[1]}',list(enumerate(contents.splitlines()))))
+        #print(f'~~~~~~~~~~~~~~~\nidx : {start_row-1}\n{s}\n~~~~~~~~~~~~~~~')
+        try:
+            lines = [contents.splitlines()[start_row-1]]
+        except:
+            lines = []
+
+    else:
+        lines = contents.splitlines()[start_row-1:end_row]
+    trimmed_lines = []
+    #s = "\n".join(map(lambda x: f'{x[0]+1} | {x[1]}',list(enumerate(lines))))
+    #print(f'******************\nMSG: {msg}\n\n{s}\n******************')
 
     for line in lines:
         if line == lines[0]:
-            trimmed_lines.append(line[start_col-1:])
+            if len(lines) == 1:
+                trimmed_lines.append(line)
+            else:
+                trimmed_lines.append(line[start_col:])
         elif line == lines[-1]:
-            trimmed_lines.append(line[:end_col])
+            if end_col is None:
+                trimmed_lines.append(line)
+            else:
+                trimmed_lines.append(line[:end_col+1])
+            
         else:
             trimmed_lines.append(line)
     content = msg['data']
 
-    if message_src is not None:
-        message_src = '\n'.join(trimmed_lines)
+    #if message_src is not None:
+    message_src = '\n'.join(trimmed_lines)
 
     return Message(severity=severity,start=(start_row,start_col),end=(end_row,end_col),message_src=message_src, content=content)
 
 
 
-def getTheorems(data, src, path, project_path,contents) -> List[AnnotatedTheorem]:
+def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[AnnotatedTheorem]:
     temp = {}
     #print(data)
     msgs = data['messages']
+    
     data = data['tactics']
     
-    messages = [getMessage(msg,contents) for msg in msgs]
+    #messages = [getMessage(msg,contents) for msg in msgs]
 
     for step in data:
         ps = AnnotatedProofStep(prevState=step['prevState'],
@@ -123,11 +181,20 @@ def getTheorems(data, src, path, project_path,contents) -> List[AnnotatedTheorem
                                         nextState=step['nextState'],
                                         srcUpToTactic=step['srcUpToTactic'],
                                         declUpToTactic=step['declUpToTactic'],
-                                        start = int(step['start']),
-                                        end= int(step['end']))
-        decl = step['decl']
-        declID = step['declId']
+                                        start = (step['startPos'].get('line',None),step['startPos'].get('column',None)),
+                                        end= (step['endPos'].get('line',None),step['endPos'].get('column',None))
+        )
+        def elim_by(text):
+            return re.sub(r'\s*:=\s*by\s*$','',text,flags=re.M)
 
+        decl = elim_by(step['decl'])
+        declID = step['declId']
+        thm_start,thm_end = step['thm_startPos'],step['thm_endPos']
+        if until_end:
+            thm_end=None
+        #print(f'\n###########\n{decl} : start -> {thm_start}\n################\n')
+        messages = getMessages(thm_start,thm_end,msgs,contents)
+        messages.reverse()
         lines_src = step['srcUpToTactic'].split('\n')
         decl_lines = decl.split('\n')
         #print(lines_src)
@@ -136,19 +203,20 @@ def getTheorems(data, src, path, project_path,contents) -> List[AnnotatedTheorem
         maybe_context = '\n'.join(lines_src[:-len(decl_lines)-1]).strip()
 
         if declID not in temp.keys():
-            temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context}
+            temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context,'messages':messages}
             #print(temp)
         else:
             #print(temp)
             curr_proof = temp[declID]['proof']
             curr_decl = temp[declID]['decl']
             curr_ctxt = temp[declID]['context']
+            curr_msgs = temp[declID]['messages']
             curr_proof.append(ps)
-            temp[declID] = {'proof':curr_proof, 'decl':curr_decl, 'context':curr_ctxt}
+            temp[declID] = {'proof':curr_proof, 'decl':curr_decl, 'context':curr_ctxt,'messages':curr_msgs}
             
     result = {}
     for ID,value in temp.items():
-        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path,messages=messages)
+        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path,messages=value['messages'])
     return [v for _,v in result.items()]
         
 
@@ -160,22 +228,24 @@ def get_stem(path):
         return path[:-5]
     return path
 
-def getAnnotatedFile(src, path, project_path):
+
+
+def getAnnotatedFile(src, path, project_path,until_end=False):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f'.cache/{src}')
 
     #content_path = os.path.join(root_path,'.lake','packages',src)
 
     #print(f'{project_path}|{path}')
-
     with open(os.path.join(project_path,path),'r') as f:
         contents = f.read()
+    
 
     stem,ftype = os.path.splitext(path)
     with open(os.path.join(cache_path,stem+'.json'),'r') as f:
         data = json.load(f)
     
-    theorems = getTheorems(data, src, path,project_path,contents)
+    theorems = getTheorems(data, src, path,project_path,contents,until_end=until_end)
 
     return AnnotatedFile(src=src,file_name=os.path.basename(path),contents = contents,theorems=theorems,file_path=path,file_type=ftype,project_path=project_path)
     
@@ -319,16 +389,34 @@ def parseAnnotatedTheorem(thm,context=True,annotation=False):
     return src
 
 def elim_overlap(pf: List[AnnotatedProofStep]):
-    ptr = 0
+    def pos_le(a,b):
+        a_line,a_col = a
+        b_line,b_col = b
+
+        if a_line < b_line:
+            return True
+        elif a_line == b_line and a_col <= b_col:
+            return True
+        else:
+            return False
+    def pos_max(a,b):
+        le = pos_le(a,b)
+        if le:
+            return b
+        else:
+            return a
+
+
+    ptr = (0,0)
     output = []
     for step in pf:
         start = step.start
         end = step.end
-        if start <= ptr and end <= ptr:
+        if pos_le(start, ptr) and pos_le(end, ptr):
             #this is inside a have
             pass
         else:
-            ptr = max(start,end)
+            ptr = pos_max(start,end)
             output.append(step)
     return output
 
@@ -449,6 +537,24 @@ def run_training_data(root_path,module_name):
 
 
 def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
+    '''
+    okurr heres the game plan yall
+    we gonna take our theorem, and its full path
+    (i.e. os.path.join(thm.project_path,thm.leanFile))
+    and then move up one directory. Then we make a temporary lean file
+    in that directory, and insert in parseTheorem(thm) into it.
+    we then get the module name of this by taking the relative path and replacing with dots.
+    Then we run training_data on this and then extract the outputted json and put into the cache
+    We then get this AnnotatedFile and from it, get the last theorem from its theorems.
+    Now we look at the messages. 
+    If there is an error, if force is false, raise error
+    else, we know that up until the line of the error, we good, 
+    so we navigate to the tactic that has that range in its range, and then copy over
+    tactics from thm for the rest of the proof.
+    then return.
+    '''
+
+
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
@@ -470,26 +576,30 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     
     mod_name = get_stem(temp_relpath.replace('/','.'))
     output = run_training_data(root_path,mod_name)
+    #print(f'{output} : {type(output)}')
 
 
-    json_path = os.path.join(cache_path,get_stem(temp_relpath)+'.json')
-    with open(json_path,'w') as f:
-        f.write(output)
+    #json_path = os.path.join(cache_path,get_stem(temp_relpath)+'.json')
+    #with open(json_path,'w') as f:
+    #    json.dump(output,f)#f.write(output)
+
     
+    #file = getAnnotatedFile(src,temp_relpath,project_path,until_end=True)
+    thms = getTheorems(output,src,temp_relpath,project_path,text,until_end=True)
     
-
-    file = getAnnotatedFile(src,temp_relpath,project_path)
-    thms = file.theorems
-    os.remove(json_path)
+    #thms = file.theorems
+    #os.remove(json_path)
 
     if len(thms)==0:
-        raise NameError(f'No Theorems??\n {file}\n =|{output}|=\n\n =|{text}|=\n\n=|{thm}|=\n\n=|{mod_name}|=')
+        raise NameError(f'No Theorems??\n =|{output}|=\n\n =|{text}|=\n\n=|{thm}|=\n\n=|{mod_name}|=')
+    
     output = thms[-1]
+    
     #print([s.tactic for s in output.proof])
     output.proof = elim_overlap(output.proof)
     #print([s.tactic for s in output.proof])
     first = None
-
+    #print(f'\n----------\n{list(enumerate([thm.decl for thm in thms]))}\ntext:\n{text}\nmsgs:\n{output.messages}\n\nog:\n{parseTheorem(thm,context=False)}\nnew:\n{parseTheorem(output,context=False)}\n----------\n')
     
     def flattenProof (proof):
         new_proof=[]
@@ -530,7 +640,7 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
         if force:
             def get_empty_annotated_proof_step(thm,i):
                 proofstep=og_proof[i]
-                return AnnotatedProofStep(prevState=['ERROR'],tactic = proofstep.tactic, nextState=['ERROR'],srcUpToTactic='ERROR',declUpToTactic='ERROR',start=max_pos+i,end=max_pos+i)
+                return AnnotatedProofStep(prevState=['ERROR'],tactic = proofstep.tactic, nextState=['ERROR'],srcUpToTactic='ERROR',declUpToTactic='ERROR',start=(max_pos[0]+i,max_pos[1]+i),end=(max_pos[0]+i,max_pos[1]+i))
             proof = [get_empty_annotated_proof_step(thm,i) if i > idx else output.proof[i] for i in range(len(og_proof))]
 
             return AnnotatedTheorem(decl=output.decl,
@@ -539,7 +649,8 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                     leanFile=output.leanFile,
                                     context=output.context,
                                     proof=proof,
-                                    project_path=project_path)
+                                    project_path=project_path,
+                                    messages=output.messages)
         else:
             raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{output.proof}')
 
@@ -553,15 +664,26 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
 if __name__ == '__main__':
 
 
-    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    r = getRepo('Tests','configs/config_test.json')
-    files = {file.file_name:file for file in r.files}
-    print(files.keys())
+    # r = getRepo('Tests','configs/config_test.json')
+    # #f = getAnnotatedFile('Tests','Tests/Basic.lean','/Users/ahuja/Desktop/LeanTestData/Tests')
+    # files = {file.file_name:file for file in r.files}
+    # #print(files.keys())
 
-    f = files['Basic.lean']
-    thms = f.theorems
-    for thm in thms:
-      print(parseTheorem(thm,context=False))  
-      print(thm.messages)
+    # #f = files['Solutions_S02_Functions.lean']
+    # f = files['Basic.lean']
+    # thms = f.theorems
+    # for thm in thms:
+    #   #print(parseTheorem(thm,context=False))  
+    #   print(thm)
+    #   print('')
+    #   print(thm.messages)
+    #   #print(thm)
+    ProofStep.update_forward_refs()
+    thm = Theorem(decl='theorem anddd (P Q : Prop) : P ∧ Q → Q ∧ P', proof=[ProofStep(tactic='intro hpq'), ProofStep(tactic='rcases hpq with ⟨hp, hq⟩'), ProofStep(tactic='constructor'), ProofStep(tactic='case intro.right => exact hp'), ProofStep(tactic='case intro.left => exact hq')], declID='Tests.Basic.1_0.pB8qUlrJF0ql2T1', src='Tests', leanFile='Tests/Basic.lean', context='', project_path='/Users/ahuja/Desktop/LeanTestData/Tests')
+    print(f'OG:\n{parseTheorem(thm,context=False)}')
+    print('')
+    anno = annotateTheorem(thm)
+    print(f'NEW:\n{parseTheorem(anno,context=False)}')
     

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Iterator
 from langchain.globals import set_verbose,set_debug
-set_debug(True)
+set_debug(False)
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter,MarkdownHeaderTextSplitter
@@ -147,9 +147,9 @@ def get_retriever(vectorstore=None,k=6,filterDB = {}, persist_dir = os.path.join
 
 
 
-def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
-    k=2
-    retriever = get_retriever(k=k)#,filterDB={'file':'tactics.md'})
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
+    k=4
+    retriever = get_retriever(k=k)
 
     model = ChatOpenAI(model=model)#,temperature=0)
 
@@ -160,14 +160,14 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
     parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
 
     actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
-    prev_data_parsed = parse_prev_data(prev_data)
+    prev_data = parse_prev_data(prev_data)
     
 
     prompt = ChatPromptTemplate.from_messages([
         ('system',f'''{actual_prompt}
          You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
          {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
-         Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. If there are any errors in the current theorem, You will be given {k} documents relevant to these errors to refer to for fixing these issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>.
+         Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. You will be given {k} documents relevant to the current theorem {"and most recent error messages" if len(prev_data)!= 0 else ""} to refer to for tricky and important syntax. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>.
          Output in a proof tree format that aligns with the pydantic output parsing object schema that splits off subproofs and subtheorems.
          {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
          '''),
@@ -179,30 +179,11 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
     ])
 
     def format_docs(docs):
-        return [('human',f'<SYNTAX_DOC>\n{doc.page_content}\n</SYNTAX_DOC>') for doc in docs]#"\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
+        return [('human',f'<SYNTAX_DOC>\nfilename: {doc.metadata["file"]}\nContent:\n{doc.page_content}\n</SYNTAX_DOC>') for doc in docs if 'file' in doc.metadata.keys()]#"\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
     
-    def get_rag_invocation(data):
-        #curr_thm = data['theorem']
-        if len(prev_data) != 0:
-            recent = prev_data[-1]
-            msgs = recent['messages']
-            
-            msg_text = '\n'.join([f"{msg.content} {msg.message_src}" for msg in msgs])
-        else:
-            msg_text = ''
-        err = f"\nCurrent Errors:\n{msg_text}" if msg_text != "" else ""
-        #prompt = f'Current Theorem:\n{curr_thm}{err}'
-        prompt = err
-        if msg_text == '':
-            return []
-        else:
-            out= format_docs(retriever.invoke(prompt))
-            print(f'==============\n{msgs}\n|\nv\n{out}\n================')
-            return out
-        
 
 
-    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions(),syntax_docs=get_rag_invocation)
+    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions())
              | prompt
              | model
              | parser)
@@ -216,7 +197,7 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
     def invoke_throttled(chain,config):
         return chain.invoke(config)
     
-    output=invoke_throttled(chain,{"context" : thm.context, 'prev_results' : prev_data_parsed, 'theorem':parseTheorem(thm,annotation=annotation,context=False)})
+    output=invoke_throttled(chain,{"context" : thm.context, 'prev_results' : prev_data, 'theorem':parseTheorem(thm,annotation=annotation,context=False)})
     
     def coerce_PS(step):
         ProofStep.update_forward_refs()
@@ -237,28 +218,103 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
 
 
 
+def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
 
-if __name__ == '__main__':
-    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    retriever = get_retriever(k=4)
 
-    r = getRepo('Tests','configs/config_test.json')
-    files = {file.file_name:file for file in r.files}
-    #print(files.keys())
+#    print("retriever recieved")
+    model = ChatOpenAI(model=model,temperature=0)
+
+    class trimmedTheorem(BaseModel):
+        decl : str = Field(description="Theorem declaration.")
+        proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
+
+    # Define the output parser
+    parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
 
 
-    f = files['Basic.lean']
-    thms = f.theorems
-    for thm in [thms[1]]:
-        #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
-        #out=prompt_rag(thm,length_metric())
-        out = best_of_n(thm,length_metric(),3,max_workers=3)
-        #out=refinement(thm,length_metric(),3,prev_data_num=3,promptfn=prompt_structured,keep_best=True)
-        #print(out)
-        
-        correct,msgs,anno = eval_correctness(out)
-        msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
-        print('\n')
-        print(parseTheorem(out,context=False))
-        print(f'CORRECT? {correct}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
-        print('=========\n\n\n=========')
-        #print(out)
+    # Define the prompt template
+    rag_prompt = "Here is some retrieved lean documentation content relevent for use in your new proof."
+    
+    actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
+    prev_data_text = parse_prev_data(prev_data).replace('{',r'{{').replace('}',r'}}')
+    # Define the prompt template
+    prompt = PromptTemplate(
+        template=actual_prompt + "{data_str}\n\n"+prev_data_text+'\n'+rag_prompt+'\n{rag}'+"format:\n{format_instructions}",
+        input_variables=["data_str","rag"],
+        partial_variables={"format_instructions": parser.get_format_instructions()},
+    )
+
+
+
+    def format_docs(docs):
+        return "\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
+
+
+    chain = (
+        {"rag": retriever | format_docs, "data_str": RunnablePassthrough()}
+        | prompt
+        | model
+        | parser
+    )
+
+    @retry(
+    reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    after=after_log(logger, logging.INFO),
+    wait=wait_random_exponential(multiplier=1, max=60),
+    )
+    def invoke_throttled(chain,data):
+        return chain.invoke(data)
+    
+    output=invoke_throttled(chain,parseTheorem(thm,annotation=annotation,prompt=True))
+
+    def coerce_PS(step):
+        ProofStep.update_forward_refs()
+        if type(step) == str:
+            return ProofStep(tactic=step)
+        return ProofStep(tactic=coerce_trimmedThm(step))
+
+    def coerce_trimmedThm(curr):
+        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
+     
+    final = coerce_trimmedThm(output)
+    
+    #print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
+    #thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
+    return final
+
+retriever = get_retriever(k=3)
+
+model = ChatOpenAI(model='gpt-4-turbo')
+
+parser = JsonOutputParser()
+
+template = ChatPromptTemplate.from_messages([('system','Your name is {name}.'),
+                                             ('system','Your job is two answer two questions, and output the answer to each question in a single json output. You may be provided some documents that may assist in answering these questions, each wrapped in <DOC>...</DOC>.\n{format}'),
+                                             ('placeholder','{docs}'),
+                                             ('human','Question 1: {user_q1}\nQuestion 2: {user_q2}')])
+
+#retriever = get_retriever(k=3)
+#docs = retriever.invoke('What is the syntax for the "case" tactic?')
+#def format_docs(docs):
+#        return "\n\n=======================\n".join(f"filename: {doc.metadata.get('file','Unknown')}\nContent:\n{doc.page_content}" for doc in docs)
+
+#print(format_docs(docs))
+
+def format_docs(docs):
+    output= []
+    for doc in docs:
+        msg = ('human',f'<DOC>\n{doc.page_content}\n</DOC>')
+        output.append(msg)
+    return output
+
+chain = (RunnablePassthrough().assign(format=lambda _: parser.get_format_instructions(), docs = lambda x : format_docs(retriever.invoke(x['user_q2'])))# | retriever | format_docs)
+             | template
+             | model
+             | parser)
+
+
+
+output = chain.invoke({'name':'Bob','user_q1':'What is your name?','user_q2':'What is the syntax for the "case" tactic?'})
+print(output)
