@@ -58,6 +58,7 @@ class AnnotatedTheorem(BaseModel):
     proof : List[AnnotatedProofStep] = Field(..., description="Sequence of annotated proofsteps for full proof of theorem.")
     project_path : str = Field(description="Local path to src repo contents")
     messages : List[Message] = Field(...,description="Messages from the lean server")
+    pretty_print : str = Field(description="Pretty printed (string) form of theorem.")
 
 class AnnotatedFile(BaseModel):
     src : str = Field(description="File source repo")
@@ -203,8 +204,13 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
         #lines = [line for line in lines_src if not line in decl_lines]
         maybe_context = '\n'.join(lines_src[:-len(decl_lines)-1]).strip()
 
+        if thm_end is not None:
+            pp= '\n'.join(contents.splitlines()[thm_start['line']-1:thm_end['line']])
+        else:
+            pp= '\n'.join(contents.splitlines()[thm_start['line']-1:])
+
         if declID not in temp.keys():
-            temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context,'messages':messages}
+            temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context,'messages':messages,'pretty_print':pp}
             #print(temp)
         else:
             #print(temp)
@@ -212,12 +218,13 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
             curr_decl = temp[declID]['decl']
             curr_ctxt = temp[declID]['context']
             curr_msgs = temp[declID]['messages']
+            curr_pp = temp[declID]['pretty_print']
             curr_proof.append(ps)
-            temp[declID] = {'proof':curr_proof, 'decl':curr_decl, 'context':curr_ctxt,'messages':curr_msgs}
+            temp[declID] = {'proof':curr_proof, 'decl':curr_decl, 'context':curr_ctxt,'messages':curr_msgs,'pretty_print':curr_pp}
             
     result = {}
     for ID,value in temp.items():
-        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path,messages=value['messages'])
+        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path,messages=value['messages'],pretty_print=value['pretty_print'])
     return [v for _,v in result.items()]
         
 
@@ -492,7 +499,7 @@ def parse_proof(thm,indent = 1,dot=False):
             #if not case:
             hasDecl = content.decl is not None
             if hasDecl:
-                output += indent*spaces + content.decl +'\n'#f"{' => ' if case and not arrow else ''}" +'\n'
+                output += indent*spaces + content.decl +('' if '.'==content.decl.strip() else '\n')#f"{' => ' if case and not arrow else ''}" +'\n'
             output += parse_proof(content,indent=indent+1,dot=(not hasDecl))
             #subtheorem
     
@@ -521,7 +528,8 @@ def parseTheoremBase(thm,context=True,prompt=False):
 
 def parseTheorem(thm,context=True,annotation=False,prompt=False):
     if type(thm) == AnnotatedTheorem:
-        return parseAnnotatedTheorem2(thm,context,annotation,prompt)
+        #return parseAnnotatedTheorem2(thm,context,annotation,prompt)
+        return thm.pretty_print
     else:
         return parseTheoremBase(thm,context,prompt)
 
@@ -656,7 +664,8 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                     context=output.context,
                                     proof=proof,
                                     project_path=project_path,
-                                    messages=output.messages)
+                                    messages=output.messages,
+                                    pretty_print=output.pretty_print)
 
             if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
                 raise ValueError(f'=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in output.proof]}\n{output.messages}\nfirst: {first}\n=============')
@@ -675,26 +684,29 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
 if __name__ == '__main__':
 
 
-    # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    # r = getRepo('Tests','configs/config_test.json')
-    # #f = getAnnotatedFile('Tests','Tests/Basic.lean','/Users/ahuja/Desktop/LeanTestData/Tests')
-    # files = {file.file_name:file for file in r.files}
-    # #print(files.keys())
+    r = getRepo('Tests','configs/config_test.json')
+    #f = getAnnotatedFile('Tests','Tests/Basic.lean','/Users/ahuja/Desktop/LeanTestData/Tests')
+    files = {file.file_name:file for file in r.files}
+    #print(files.keys())
 
-    # #f = files['Solutions_S02_Functions.lean']
-    # f = files['Basic.lean']
-    # thms = f.theorems
-    # for thm in thms:
-    #   #print(parseTheorem(thm,context=False))  
+    #f = files['Solutions_S02_Functions.lean']
+    f = files['Basic.lean']
+    thms = f.theorems
+    for thm in thms:
+      print(parseAnnotatedTheorem2(thm,context=False))
+      print('=============')
+      print(parseTheorem(thm,context=False))  
+      print('++++++++++++++++++++')
     #   print(thm)
     #   print('')
     #   print(thm.messages)
-    #   #print(thm)
-    ProofStep.update_forward_refs()
-    thm = Theorem(decl='theorem anddd (P Q : Prop) : P ∧ Q → Q ∧ P', proof=[ProofStep(tactic='intro hpq'), ProofStep(tactic='rcases hpq with ⟨hp, hq⟩'), ProofStep(tactic='constructor'), ProofStep(tactic='case intro.right => exact hp'), ProofStep(tactic='case intro.left => exact hq')], declID='Tests.Basic.1_0.pB8qUlrJF0ql2T1', src='Tests', leanFile='Tests/Basic.lean', context='', project_path='/Users/ahuja/Desktop/LeanTestData/Tests')
-    print(f'OG:\n{parseTheorem(thm,context=False)}')
-    print('')
-    anno = annotateTheorem(thm)
-    print(f'NEW:\n{parseTheorem(anno,context=False)}')
+      #print(thm)
+    # ProofStep.update_forward_refs()
+    # thm = Theorem(decl='theorem anddd (P Q : Prop) : P ∧ Q → Q ∧ P', proof=[ProofStep(tactic='intro hpq'), ProofStep(tactic='rcases hpq with ⟨hp, hq⟩'), ProofStep(tactic='constructor'), ProofStep(tactic='case intro.right => exact hp'), ProofStep(tactic='case intro.left => exact hq')], declID='Tests.Basic.1_0.pB8qUlrJF0ql2T1', src='Tests', leanFile='Tests/Basic.lean', context='', project_path='/Users/ahuja/Desktop/LeanTestData/Tests')
+    # print(f'OG:\n{parseTheorem(thm,context=False)}')
+    # print('')
+    # anno = annotateTheorem(thm)
+    # print(f'NEW:\n{parseTheorem(anno,context=False)}')
     
