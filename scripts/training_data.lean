@@ -110,11 +110,14 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
   let next_state := ((← i.goalStateAfter).map (fun x => x.pretty)).toArray
   let tactic ← tacticPP module i
   let decl ← ppDeclWithoutProof module elabDeclInfo.snd
-  let start := (i.info.stx.getPos?.getD 0).byteIdx
-  let tail := (i.info.stx.getTailPos?.getD 0).byteIdx
+  let (start, tail) := i.range
+
+  let (thm_start, thm_tail) := elabDeclInfo.fst
+  --(i.info.stx.getPos?.getD 0).byteIdx
+  -- let tail := (i.info.stx.getTailPos?.getD 0).byteIdx
 
 
-  let json : Json :=
+  let pf_json : Json :=
     Json.mkObj [
       ("declId", Json.str declId),
       ("decl", Json.str decl),
@@ -123,11 +126,14 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
       ("prevState", Json.arr (prev_state.map (fun x => Json.str x))),
       ("nextState", Json.arr (next_state.map (fun x => Json.str x))),
       ("tactic", Json.str tactic),
-      ("start", Json.str <| toString start),
-      ("end", Json.str <| toString tail)
+      ("startPos", Json.mkObj [("line", start.line),("column",start.column)]),
+      ("endPos", Json.mkObj [("line", tail.line),("column",tail.column)]),
+      ("thm_startPos", Json.mkObj [("line", thm_start.line),("column",thm_start.column)]),
+      ("thm_endPos", Json.mkObj [("line", thm_tail.line),("column",thm_tail.column)])
 
     ]
-  return (declId, json)
+
+  return (declId, pf_json)
 
 end Lean.Elab.TacticInvocation
 

@@ -10,6 +10,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import PromptTemplate
+from concurrent.futures import ThreadPoolExecutor
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -67,12 +68,8 @@ class RepoLoader(BaseLoader):
                 
                 yield Document(page_content=f.contents, metadata=metadata)
         
-        # for dependency in self.repo.dependencies:
-        #     loader = RepoLoader(dependency)
-        #     data = loader.lazy_load()
-        #     for doc in data:
-        #         yield doc
-        
+
+
 
 def get_content_vs(repo:Repo):
     lean_splitters = ['\nnamespace ','\ntheorem ','\nlemma ','\nexample ','\nstructure ', '\ndef ', '\n\tdef ', '\n\n', '\n', ' ', '']
@@ -89,6 +86,75 @@ def get_content_vs(repo:Repo):
     split = lean_splitter.split_documents(docs)
 
     vectorstore = Chroma.from_documents(documents=split, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.chroma_db'))
+    
+    return vectorstore
+
+
+
+def get_mathlib_vs(path = os.path.join(root_path,'.lake','packages','mathlib','Mathlib')):
+    #dirs = ['Init','Tactic']
+    dirs = ['']
+    all_files = []
+    for dir in dirs:
+        for root,_,files in os.walk(os.path.join(path,dir)):
+            for file in files:
+                fp = os.path.join(root,file)
+                #print(f'{fp}')
+                if fp.endswith('.lean') and fp not in all_files:
+                    all_files.append(fp)
+            #print(len(files))
+    
+    files = all_files
+    print(len(files))
+
+
+    #lean_splitters = ['\nnamespace ','\ntheorem ','\nlemma ','\nexample ','\nstructure ', '\ndef ', '\n\tdef ', '\n\n', '\n', ' ', '']
+    lean_splitters = ['\ntheorem ','\nlemma ','\nexample ','\ndef ', '\n\n', '\n', ' ', '']
+    lean_splitter = RecursiveCharacterTextSplitter(separators=lean_splitters,
+                                                    chunk_size=1000,
+                                                    chunk_overlap=200,
+                                                    add_start_index=True,
+                                                    length_function=len,
+                                                    is_separator_regex=False,
+                                                    keep_separator=True
+                                                )
+
+    docs = []
+    for fp in files:
+        name = os.path.relpath(fp,path)
+        
+        with open(fp,'r') as f:
+            text = f.read()
+
+        splits = lean_splitter.split_text(text)
+
+        for doc in splits:
+            new = {}#doc.metadata
+            new.update({'file':name})
+            docs.append(Document(page_content=doc,metadata=new))
+    print(len(docs))
+        
+    n=5000
+    docs_chunked = [docs[i * n:(i + 1) * n] for i in range((len(docs) + n - 1) // n )]  
+
+    #print('Getting Embeddings...')
+    embeddings = OpenAIEmbeddings(show_progress_bar=True)
+    #print('Got Embeddings!')
+    
+    vectorstore = Chroma.from_documents(documents=docs_chunked[0], embedding=embeddings,persist_directory=os.path.join(root_path,'.mathlib_chroma_db'))
+    print(f'==========Chunk 1/{len(docs_chunked)} successfully downloaded==========')
+
+
+    #for i in range(1,len(docs_chunked)):
+    num_done = 1
+    def add_vs(i):
+        vectorstore.add_documents(docs_chunked[i])
+        print(f'==========Chunk {num_done}/{len(docs_chunked)} successfully downloaded==========')
+        num_done = num_done+1
+        return None
+
+    with ThreadPoolExecutor(max_workers=len(docs_chunked)/4) as executor:
+        future_to_thm = [executor.submit(add_vs,i) for i in range(1,len(docs_chunked))]
     
     return vectorstore
 
@@ -131,7 +197,7 @@ def get_TPiL4_vs(path = os.path.join(root_path,'TPiL4')):
         docs.extend(splits)
 
     
-    vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.chroma_db'))
+    vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.TPiL_chroma_db'))
     return vectorstore
 
 
@@ -143,126 +209,33 @@ def get_retriever(vectorstore=None,k=6,filterDB = {}, persist_dir = os.path.join
 
     if vectorstore is None:
         vectordb = Chroma(persist_directory=persist_dir, embedding_function=OpenAIEmbeddings())
-        retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": k, 'filter': filterDB})
+        retriever = vectordb.as_retriever(search_type="mmr",search_kwargs={'k':k,'filter': filterDB})
     else:
-        retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k,'filter': filterDB})
+        retriever = vectorstore.as_retriever(search_type="mmr",search_kwargs={'k':k,'filter': filterDB})
     return retriever
 
 
 
 
-def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
-
-    retriever = get_retriever(k=4,filterDB={'file':'tactics.md'})
-
-#    print("retriever recieved")
-    model = ChatOpenAI(model=model,temperature=0)
-
-    class trimmedTheorem(BaseModel):
-        decl : str = Field(description="Theorem declaration.")
-        proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
-
-    # Define the output parser
-    parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
 
 
-    # Define the prompt template
-    rag_prompt = "Here is some retrieved lean documentation content relevent for use in your new proof."
+
+
+
+if __name__ == '__main__':
     
-    actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
-    prev_data_text = parse_prev_data(prev_data).replace('{',r'{{').replace('}',r'}}')
-    # Define the prompt template
-    prompt = PromptTemplate(
-        template=actual_prompt + "{data_str}\n\n"+prev_data_text+'\n'+rag_prompt+'\n{rag}'+"format:\n{format_instructions}",
-        input_variables=["data_str","rag"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
-    )
+    #get_mathlib_vs()
+    db = Chroma(persist_directory=os.path.join(root_path,'.mathlib_chroma_db'), embedding_function=OpenAIEmbeddings())
 
-
-
-    def format_docs(docs):
-        return "\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
-
-
-    chain = (
-        {"rag": retriever | format_docs, "data_str": RunnablePassthrough()}
-        | prompt
-        | model
-        | parser
-    )
-
-    @retry(
-    reraise=True,
-    before_sleep=before_sleep_log(logger, logging.INFO),
-    after=after_log(logger, logging.INFO),
-    wait=wait_random_exponential(multiplier=1, max=60),
-    )
-    def invoke_throttled(chain,data):
-        return chain.invoke(data)
-    
-    output=invoke_throttled(chain,parseTheorem(thm,annotation=annotation,prompt=True))
-
-    #optional regex preprocessing for case:
-    '''
-    def updateCase(tthm):
-        decl = tthm.decl
-        #pf = tthm.proof
-        pattern = re.compile(r'(case\s+\w+\b)(?!\s*=>)')
-        def add_arrow(match):
-            return f"{match.group(1)} =>"
-
-        modified_decl = pattern.sub(add_arrow, decl)
-        proof = tthm.proof
-        modified_proof = []
-        for step in proof:
-            if type(step)==str:
-                modified_proof.append(step)
-            else:
-                modified_proof.append(updateCase(step))
-        return trimmedTheorem(decl=modified_decl,proof=modified_proof)
-    
-    output = updateCase(output)
-    '''
-        
-
-
-
-    def coerce_PS(step):
-        ProofStep.update_forward_refs()
-        if type(step) == str:
-            return ProofStep(tactic=step)
-        return ProofStep(tactic=coerce_trimmedThm(step))
-
-    def coerce_trimmedThm(curr):
-        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
-     
-    final = coerce_trimmedThm(output)
-    
-    #print(f'Running:\n{parseTheorem(thm,annotation=True)}\n')
-    #thm = Theorem(decl=thm.decl,declID=thm.declID, proof=proof, leanFile=thm.leanFile, src=thm.src, context = thm.context)
-    return final
-
-
-
-
-
-#prompt()
-
-repo = getRepo('Tests','configs/config_test.json')
-
-files = {f.file_path: f for f in repo.files}
-file = files['Tests/Basic.lean']
-thms = file.theorems
-thm = thms[0]
-
-
-#output = refinement(thm,length_metric(),1,promptfn=prompt_rag)
-output = prompt_rag(thm,length_metric())
-print(parseTheorem(output,context=False))
-
-#retriever = get_retriever(k=3)
-#docs = retriever.invoke('What is the syntax for the "case" tactic?')
-#def format_docs(docs):
-#        return "\n\n=======================\n".join(f"filename: {doc.metadata.get('file','Unknown')}\nContent:\n{doc.page_content}" for doc in docs)
-
-#print(format_docs(docs))
+    retriever = get_retriever(k=3,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
+    output = retriever.invoke('''theorem orrr (P Q :Prop):P∨ Q → Q∨ P:= by
+  intro hpq
+  rcases hpq with hp|hq
+  . right
+    exact hp
+  . left
+    exact hq''')
+    for doc in output:
+        print(f'[{doc.metadata}]')
+        print(doc.page_content)
+        print('===============')
