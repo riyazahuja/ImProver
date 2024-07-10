@@ -2,7 +2,6 @@ import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from repl.repl import *
 from models.structures import *
 from evaluate.metrics import *
 

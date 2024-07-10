@@ -10,6 +10,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import PromptTemplate
+from concurrent.futures import ThreadPoolExecutor
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -91,7 +92,8 @@ def get_content_vs(repo:Repo):
 
 
 def get_mathlib_vs(path = os.path.join(root_path,'.lake','packages','mathlib','Mathlib')):
-    dirs = ['Init','Tactic']
+    #dirs = ['Init','Tactic']
+    dirs = ['']
     all_files = []
     for dir in dirs:
         for root,_,files in os.walk(os.path.join(path,dir)):
@@ -101,6 +103,7 @@ def get_mathlib_vs(path = os.path.join(root_path,'.lake','packages','mathlib','M
                 if fp.endswith('.lean') and fp not in all_files:
                     all_files.append(fp)
             #print(len(files))
+    
     files = all_files
     print(len(files))
 
@@ -131,10 +134,28 @@ def get_mathlib_vs(path = os.path.join(root_path,'.lake','packages','mathlib','M
             docs.append(Document(page_content=doc,metadata=new))
     print(len(docs))
         
-        
+    n=5000
+    docs_chunked = [docs[i * n:(i + 1) * n] for i in range((len(docs) + n - 1) // n )]  
 
+    #print('Getting Embeddings...')
+    embeddings = OpenAIEmbeddings(show_progress_bar=True)
+    #print('Got Embeddings!')
     
-    vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings(),persist_directory=os.path.join(root_path,'.mathlib_chroma_db'))
+    vectorstore = Chroma.from_documents(documents=docs_chunked[0], embedding=embeddings,persist_directory=os.path.join(root_path,'.mathlib_chroma_db'))
+    print(f'==========Chunk 1/{len(docs_chunked)} successfully downloaded==========')
+
+
+    #for i in range(1,len(docs_chunked)):
+    num_done = 1
+    def add_vs(i):
+        vectorstore.add_documents(docs_chunked[i])
+        print(f'==========Chunk {num_done}/{len(docs_chunked)} successfully downloaded==========')
+        num_done = num_done+1
+        return None
+
+    with ThreadPoolExecutor(max_workers=len(docs_chunked)/4) as executor:
+        future_to_thm = [executor.submit(add_vs,i) for i in range(1,len(docs_chunked))]
+    
     return vectorstore
 
 
@@ -188,97 +209,11 @@ def get_retriever(vectorstore=None,k=6,filterDB = {}, persist_dir = os.path.join
 
     if vectorstore is None:
         vectordb = Chroma(persist_directory=persist_dir, embedding_function=OpenAIEmbeddings())
-        retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": k, 'filter': filterDB})
+        retriever = vectordb.as_retriever(search_type="mmr",search_kwargs={'k':k,'filter': filterDB})
     else:
-        retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k,'filter': filterDB})
+        retriever = vectorstore.as_retriever(search_type="mmr",search_kwargs={'k':k,'filter': filterDB})
     return retriever
 
-
-
-
-def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
-    k=2
-    retriever = get_retriever(k=k)#,filterDB={'file':'tactics.md'})
-
-    model = ChatOpenAI(model=model)#,temperature=0)
-
-    class trimmedTheorem(BaseModel):
-        decl : str = Field(description="Theorem declaration (does not include \":= by\")")
-        proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
-
-    parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
-
-    actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
-    prev_data_parsed = parse_prev_data(prev_data)
-    
-
-    prompt = ChatPromptTemplate.from_messages([
-        ('system',f'''{actual_prompt}
-         You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
-         {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
-         Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. If there are any errors in the current theorem, You will be given {k} documents relevant to these errors to refer to for fixing these issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>.
-         Output in a proof tree format that aligns with the pydantic output parsing object schema that splits off subproofs and subtheorems.
-         {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
-         '''),
-         ('system','{format_instructions}'),
-         ('human','<CONTEXT>\n{context}\n</CONTEXT>'),
-         ("placeholder", "{prev_results}"),
-         ("placeholder", "{syntax_docs}"),
-         ('human','<CURRENT>\n{theorem}\n</CURRENT>')
-    ])
-
-    def format_docs(docs):
-        return [('human',f'<SYNTAX_DOC>\n{doc.page_content}\n</SYNTAX_DOC>') for doc in docs]#"\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
-    
-    def get_rag_invocation(data):
-        #curr_thm = data['theorem']
-        if len(prev_data) != 0:
-            recent = prev_data[-1]
-            msgs = recent['messages']
-            
-            msg_text = '\n'.join([f"{msg.content} {msg.message_src}" for msg in msgs])
-        else:
-            msg_text = ''
-        err = f"\nCurrent Errors:\n{msg_text}" if msg_text != "" else ""
-        #prompt = f'Current Theorem:\n{curr_thm}{err}'
-        prompt = err
-        if msg_text == '':
-            return []
-        else:
-            out= format_docs(retriever.invoke(prompt))
-            print(f'==============\n{msgs}\n|\nv\n{out}\n================')
-            return out
-        
-
-
-    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions(),syntax_docs=get_rag_invocation)
-             | prompt
-             | model
-             | parser)
-    
-    @retry(
-    reraise=True,
-    before_sleep=before_sleep_log(logger, logging.INFO),
-    after=after_log(logger, logging.INFO),
-    wait=wait_random_exponential(multiplier=1, max=60),
-    )
-    def invoke_throttled(chain,config):
-        return chain.invoke(config)
-    
-    output=invoke_throttled(chain,{"context" : thm.context, 'prev_results' : prev_data_parsed, 'theorem':parseTheorem(thm,annotation=annotation,context=False)})
-    
-    def coerce_PS(step):
-        ProofStep.update_forward_refs()
-        if type(step) == str:
-            return ProofStep(tactic=step)
-        return ProofStep(tactic=coerce_trimmedThm(step))
-
-    def coerce_trimmedThm(curr):
-        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
-     
-    final = coerce_trimmedThm(output)
-    
-    return final
 
 
 
@@ -289,34 +224,17 @@ def prompt_rag(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_
 
 if __name__ == '__main__':
     
-    
-    # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    # r = getRepo('Tests','configs/config_test.json')
-    # files = {file.file_name:file for file in r.files}
-    # #print(files.keys())
-
-
-    # f = files['Basic.lean']
-    # thms = f.theorems
-    # for thm in [thms[1]]:
-    #     #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
-    #     #out=prompt_rag(thm,length_metric())
-    #     out = best_of_n(thm,length_metric(),3,max_workers=3)
-    #     #out=refinement(thm,length_metric(),3,prev_data_num=3,promptfn=prompt_structured,keep_best=True)
-    #     #print(out)
-        
-    #     correct,msgs,anno = eval_correctness(out)
-    #     msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
-    #     print('\n')
-    #     print(parseTheorem(out,context=False))
-    #     print(f'CORRECT? {correct}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
-    #     print('=========\n\n\n=========')
-    #     #print(out)
-
     #get_mathlib_vs()
-    retriever = get_retriever(k=10,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
-    output = retriever.invoke('(P Q :Prop) : P ∨ Q → Q ∨ P')
+    db = Chroma(persist_directory=os.path.join(root_path,'.mathlib_chroma_db'), embedding_function=OpenAIEmbeddings())
+
+    retriever = get_retriever(k=3,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
+    output = retriever.invoke('''theorem orrr (P Q :Prop):P∨ Q → Q∨ P:= by
+  intro hpq
+  rcases hpq with hp|hq
+  . right
+    exact hp
+  . left
+    exact hq''')
     for doc in output:
         print(f'[{doc.metadata}]')
         print(doc.page_content)

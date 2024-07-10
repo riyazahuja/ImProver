@@ -140,8 +140,9 @@ def getMessage(msg,contents:str):
     else:
         lines = contents.splitlines()[start_row-1:end_row]
     trimmed_lines = []
-    #s = "\n".join(map(lambda x: f'{x[0]+1} | {x[1]}',list(enumerate(lines))))
-    #print(f'******************\nMSG: {msg}\n\n{s}\n******************')
+    #s = "\n".join(map(lambda x: f'{x[0]+1} | {x[1]}',list(enumerate(contents.splitlines()))))
+    #if severity=='error':
+        #print(f'******************\nMSG: {msg}\n\n{s}\n******************')
 
     for line in lines:
         if line == lines[0]:
@@ -609,13 +610,14 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                 new_proof.append(stepraw)
             else:
                 decl = step.decl
-                if decl is not None:
-                    text = decl + '\n' + parse_proof(step)
-                    #new_proof.append(ProofStep(tactic=decl))
-                    new_proof.append(ProofStep(tactic=text))
-                else:
-                    new_proof.extend(flattenProof(step.proof))
-                #new_proof.extend(flattenProof(step.proof))
+                # if decl is not None:
+                #     text = decl + '\n' + parse_proof(step)
+                #     #new_proof.append(ProofStep(tactic=decl))
+                #     new_proof.append(ProofStep(tactic=text))
+                # else:
+                #     new_proof.extend(flattenProof(step.proof))
+                new_proof.append(ProofStep(tactic=decl))
+                new_proof.extend(flattenProof(step.proof))
         return new_proof
 
 
@@ -627,23 +629,27 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     #print('ENTERING FIRST CALC')
     for idx in range(min(len(og_proof),len(output.proof))):
         if og_proof[idx].tactic != output.proof[idx].tactic:
-
-            first = idx-1
+            first = idx
             break
+
     if first is None:
         if len(og_proof) != len(output.proof):
-            first = min(len(og_proof),len(output.proof))-1
+            first = min(len(og_proof),len(output.proof))
     
     
     if first is not None:
-        max_pos = output.proof[first].end
+        if first != 0:
+            max_pos = output.proof[first-1].end
+        else:
+            max_pos = (1,1)
+
         if force:
-            def get_empty_annotated_proof_step(thm,i):
+            def get_empty_annotated_proof_step(i):
                 proofstep=og_proof[i]
                 return AnnotatedProofStep(prevState=['ERROR'],tactic = proofstep.tactic, nextState=['ERROR'],srcUpToTactic='ERROR',declUpToTactic='ERROR',start=(max_pos[0]+i,max_pos[1]+i),end=(max_pos[0]+i,max_pos[1]+i))
-            proof = [get_empty_annotated_proof_step(thm,i) if i > idx else output.proof[i] for i in range(len(og_proof))]
-
-            return AnnotatedTheorem(decl=output.decl,
+            proof = [get_empty_annotated_proof_step(i) if i >= first else output.proof[i] for i in range(len(og_proof))]
+            
+            final = AnnotatedTheorem(decl=output.decl,
                                     declID=output.declID,
                                     src=output.src,
                                     leanFile=output.leanFile,
@@ -651,10 +657,15 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                     proof=proof,
                                     project_path=project_path,
                                     messages=output.messages)
+
+            if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
+                raise ValueError(f'=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in output.proof]}\n{output.messages}\nfirst: {first}\n=============')
+
+            return final
         else:
             raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{output.proof}')
 
-
+   
     return output
    
     

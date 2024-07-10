@@ -1,6 +1,6 @@
 from __future__ import annotations
 from langchain.globals import set_verbose,set_debug
-set_debug(True)
+set_debug(False)
 from langchain_core.output_parsers import JsonOutputParser, PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate,PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
+from models.rag import *
 from evaluate.metrics import *
 from evaluate.eval import eval_correctness
 from concurrent.futures import ThreadPoolExecutor
@@ -155,34 +156,135 @@ def parse_prev_data(data):
         output.append(('human',msg))
     return output
 
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
+# def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,annotation=True) -> Theorem:
 
-    model = ChatOpenAI(model=model)#,temperature=0)
+#     model = ChatOpenAI(model=model)#,temperature=0)
+
+#     class trimmedTheorem(BaseModel):
+#         decl : str = Field(description="Theorem declaration (does not include \":= by\")")
+#         proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
+
+#     parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
+
+#     actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
+#     prev_data = parse_prev_data(prev_data)
+    
+
+#     prompt = ChatPromptTemplate.from_messages([
+#         ('system',f'''{actual_prompt}
+#          You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
+#          {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
+#          Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. Output in a proof tree format that aligns with the pydantic output parsing object schema that splits off subproofs and subtheorems.
+#          {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
+#          '''),
+#          ('system','{format_instructions}'),
+#          ('human','<CONTEXT>\n{context}\n</CONTEXT>'),
+#          ("placeholder", "{prev_results}"),
+#          ('human','<CURRENT>\n{theorem}\n</CURRENT>')
+#     ])
+
+#     chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions())
+#              | prompt
+#              | model
+#              | parser)
+    
+#     @retry(
+#     reraise=True,
+#     before_sleep=before_sleep_log(logger, logging.INFO),
+#     after=after_log(logger, logging.INFO),
+#     wait=wait_random_exponential(multiplier=1, max=60),
+#     )
+#     def invoke_throttled(chain,config):
+#         return chain.invoke(config)
+    
+#     output=invoke_throttled(chain,{"context" : thm.context, 'prev_results' : prev_data, 'theorem':parseTheorem(thm,annotation=annotation,context=False)})
+    
+#     def coerce_PS(step):
+#         ProofStep.update_forward_refs()
+#         if type(step) == str:
+#             return ProofStep(tactic=step)
+#         return ProofStep(tactic=coerce_trimmedThm(step))
+
+#     def coerce_trimmedThm(curr):
+#         return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
+     
+#     final = coerce_trimmedThm(output)
+    
+#     return final
+
+
+
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],retries=6,n=None,annotation=True,syntax_search=False,mathlib_search=False) -> Theorem:
+    syntax_k=2
+    mathlib_k=3
+
+
+    model = ChatOpenAI(model=model)
 
     class trimmedTheorem(BaseModel):
-        decl : str = Field(description="Theorem declaration (does not include \":= by\")")
+        decl : str = Field(description="(sub)Theorem declaration (does not include \":= by\") For example, a \"have\" statement would be the decl, and the proof of the have statement would be the (sub)proof. Similarly, a \"case [Name] =>\" statement would be the decl, and the case proof would be the proof.")
         proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
 
     parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
 
     actual_prompt=metric.prompt.replace('{',r'{{').replace('}',r'}}')
-    prev_data = parse_prev_data(prev_data)
+    prev_data_parsed = parse_prev_data(prev_data)
     
 
     prompt = ChatPromptTemplate.from_messages([
         ('system',f'''{actual_prompt}
          You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
          {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
-         Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. Output in a proof tree format that aligns with the pydantic output parsing object schema that splits off subproofs and subtheorems.
+         Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. {f"To assist with the syntax relating to the current theorem and current error messages, you will be given {syntax_k} documents to refer to for fixing these syntax issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>." if syntax_search else ""}
+         {f"You will also recieve {mathlib_k} documents relevant to the current theorem to help with formulating your modified proof. Each of these will be wrapped with <CONTENT_DOC>...<CONTENT_DOC>" if mathlib_search else ""}
+         Output in a proof tree format that aligns with the pydantic output parsing object schema that splits off subproofs and subtheorems.
          {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
          '''),
          ('system','{format_instructions}'),
          ('human','<CONTEXT>\n{context}\n</CONTEXT>'),
          ("placeholder", "{prev_results}"),
+         ("placeholder", "{syntax_docs}"),
+         ("placeholder", "{mathlib_docs}"),
          ('human','<CURRENT>\n{theorem}\n</CURRENT>')
     ])
 
-    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions())
+    def format_docs(docs,wrapper):
+        return [('human',f'<{wrapper}>\n{doc.page_content}\n</{wrapper}>') for doc in docs]#"\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
+    
+    def get_syntax(data):
+        if not syntax_search:
+            return []
+        retriever = get_retriever(k=syntax_k,persist_dir=os.path.join(root_path,'.TPiL_chroma_db'))
+        curr_thm = data['theorem']
+        if len(prev_data) != 0:
+            recent = prev_data[-1]
+            msgs = recent['messages']
+            
+            msg_text = '\n'.join([f"{msg.content} {msg.message_src}" for msg in msgs])
+        else:
+            msg_text = ''
+        err = f"\nCurrent Errors:\n{msg_text}" if msg_text != "" else ""
+        prompt = f'Current Theorem:\n{curr_thm}{err}'
+        #prompt = err
+        # if msg_text == '':
+        #     print('\n'*50)
+        #     return []
+        # else:
+        out= format_docs(retriever.invoke(prompt),'SYNTAX_DOC')
+            #print(f'==============\n{msgs}\n|\nv\n{out}\n================')
+        return out
+    
+    def get_mathlib(data):
+        if not mathlib_search:
+            return []
+        retriever = get_retriever(k=mathlib_k,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
+        curr_thm = data['theorem']
+    
+        out= format_docs(retriever.invoke(curr_thm),'CONTENT_DOC')
+        return out
+
+
+    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions(),syntax_docs=get_syntax,mathlib_docs=get_mathlib)
              | prompt
              | model
              | parser)
@@ -196,7 +298,7 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
     def invoke_throttled(chain,config):
         return chain.invoke(config)
     
-    output=invoke_throttled(chain,{"context" : thm.context, 'prev_results' : prev_data, 'theorem':parseTheorem(thm,annotation=annotation,context=False)})
+    output=invoke_throttled(chain,{"context" : thm.context, 'prev_results' : prev_data_parsed, 'theorem':parseTheorem(thm,annotation=annotation,context=False)})
     
     def coerce_PS(step):
         ProofStep.update_forward_refs()
@@ -204,10 +306,14 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
             return ProofStep(tactic=step)
         return ProofStep(tactic=coerce_trimmedThm(step))
 
-    def coerce_trimmedThm(curr):
-        return Theorem(decl=curr.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
+    def coerce_trimmedThm(curr,force_decl=None):
+        if force_decl is not None:
+            decl = force_decl
+        else:
+            decl = curr.decl
+        return Theorem(decl=decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
      
-    final = coerce_trimmedThm(output)
+    final = coerce_trimmedThm(output,force_decl=thm.decl)
     
     return final
 
@@ -215,16 +321,18 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
 
 
-def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1,promptfn = prompt_structured,annotation=True) -> Theorem:
+
+def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1,annotation=True,syntax_search=True,mathlib_search=True,mixup=0) -> Theorem:
     thms = []
     if max_workers == 1:
         for i in range(n):
-            output = promptfn(thm,metric,model=model,annotation=annotation)
+            output = prompt_structured(thm,metric,model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search)
             correct,_,_ = eval_correctness(output)
             thms.append((output,correct))
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(promptfn, thm, metric, model=model,annotation=annotation) for _ in range(n)]
+            futures = [executor.submit(prompt_structured, thm, metric, model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search) if i>=mixup*n 
+                       else executor.submit(prompt_structured, thm, metric, model=model,annotation=annotation) for i in range(n)]
             for future in futures:
                 output = future.result()
                 correct, _, _ = eval_correctness(output)
@@ -241,13 +349,13 @@ def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo
 
 
 
-def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = False,promptfn=prompt_structured,annotation=True) -> Theorem:
+def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = False,annotation=True,syntax_search=True,mathlib_search=True) -> Theorem:
     curr = thm
     prev_data = []
 
     for i in range(n):
         #print(f'=== i: {i} ===\n curr:\n {parseTheorem(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
-        output = promptfn(curr,metric,model=model,prev_data=prev_data[-prev_data_num:],annotation=annotation) 
+        output = prompt_structured(curr,metric,model=model,prev_data=prev_data[-prev_data_num:],annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search) 
         correct,messages,new_thm = eval_correctness(output)
 
         # if type(output) == Theorem:
@@ -301,24 +409,17 @@ if __name__ == '__main__':
     thms = f.theorems
     for thm in [thms[1]]:
         #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
-        #out=prompt_structured(thm,length_metric())
-        #out = best_of_n(thm,length_metric(),3,max_workers=3)
-        out=refinement(thm,length_metric(),3,prev_data_num=3)
+        #out=prompt_structured(thm,length_metric(),mathlib_search=True)
+        metric = length_metric()
+        #out = best_of_n(thm,metric,10,max_workers=3,mixup=0.5)
+        out=refinement(thm,length_metric(),3,prev_data_num=3,syntax_search=True,mathlib_search=True)
         #print(out)
         
         correct,msgs,anno = eval_correctness(out)
+        score = metric.metric(anno) if correct else None
         msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
         print('\n')
         print(parseTheorem(out,context=False))
-        print(f'CORRECT? {correct}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
+        print(f'CORRECT? {correct}\nSCORE: {score}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
         print('=========\n\n\n=========')
-        #print(out)
-
-        
-
-
-
-
-
-
 
