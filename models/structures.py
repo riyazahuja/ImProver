@@ -39,8 +39,6 @@ class AnnotatedProofStep(BaseModel):
     declUpToTactic : str = Field(description="Source code from theorem declaration to current tactic")
     start: Tuple[Optional[int],Optional[int]]=Field(description='start coordinates from source file as (row,column)')
     end: Tuple[Optional[int],Optional[int]]=Field(description='end coordinates from source file as (row,column)')
-    #start : int = Field(description='start UTF-8 byte position of tactic invocation')
-    #end : int = Field(description='end UTF-8 byte position of tactic invocation')
 
 class Message(BaseModel):
     severity:str = Field(description='Message severity')
@@ -79,6 +77,20 @@ class Repo(BaseModel):
     dependencies: List[Repo] = Field(description= "Repository dependencies")
     files: List[Union[AnnotatedFile,File]]= Field(description= "files in repository")
     project_path : str = Field(description="Local path to src repo contents")
+
+
+# takes in json data of the form:
+'''
+{
+context:
+statement:
+proof:
+}
+'''
+
+
+
+
 
 def getMessages(start,end,msgs,contents:str):
     thm_start_row = start.get('line',None)
@@ -599,10 +611,21 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     #thms = file.theorems
     #os.remove(json_path)
 
-    if len(thms)==0:
-        raise NameError(f'No Theorems??\n =|{output}|=\n\n =|{text}|=\n\n=|{thm}|=\n\n=|{mod_name}|=')
+    #if len(thms)==0:
+    #    raise NameError(f'No Theorems??\n =|{output}|=\n\n =|{text}|=\n\n=|{thm}|=\n\n=|{mod_name}|=')
     
-    output = thms[-1]
+    if len(thms) == 0:
+        output = AnnotatedTheorem(decl=thm.decl,
+                                  declID=thm.declID,
+                                  src = thm.src,
+                                  leanFile=thm.leanFile,
+                                  context=thm.context,
+                                  proof=[],
+                                  project_path=thm.project_path,
+                                  messages=[],
+                                  pretty_print=parseTheorem(thm,context=False))
+    else:
+        output = thms[-1]
     
     #print([s.tactic for s in output.proof])
     output.proof = elim_overlap(output.proof)
@@ -683,22 +706,24 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
 
 if __name__ == '__main__':
 
+    name = 'temp.lean'
 
-    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    r = getRepo('Tests','configs/config_test.json')
-    #f = getAnnotatedFile('Tests','Tests/Basic.lean','/Users/ahuja/Desktop/LeanTestData/Tests')
-    files = {file.file_name:file for file in r.files}
-    #print(files.keys())
+    # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    #f = files['Solutions_S02_Functions.lean']
-    f = files['Basic.lean']
-    thms = f.theorems
-    for thm in thms:
-      print(parseAnnotatedTheorem2(thm,context=False))
-      print('=============')
-      print(parseTheorem(thm,context=False))  
-      print('++++++++++++++++++++')
+    # r = getRepo('Tests','configs/config_test.json')
+    # #f = getAnnotatedFile('Tests','Tests/Basic.lean','/Users/ahuja/Desktop/LeanTestData/Tests')
+    # files = {file.file_name:file for file in r.files}
+    # #print(files.keys())
+
+    # #f = files['Solutions_S02_Functions.lean']
+    # f = files['Basic.lean']
+    # thms = f.theorems
+    # for thm in thms:
+    #   print(parseAnnotatedTheorem2(thm,context=False))
+    #   print('=============')
+    #   print(parseTheorem(thm,context=False))  
+    #   print('++++++++++++++++++++')
     #   print(thm)
     #   print('')
     #   print(thm.messages)

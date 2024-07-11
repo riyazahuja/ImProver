@@ -5,7 +5,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
 from evaluate.metrics import *
 
-def eval_correctness(thm):
+def eval_correctness(thm,sorries_are_errors=True):
 
     if type(thm) == AnnotatedTheorem:
         new_thm = thm
@@ -14,7 +14,10 @@ def eval_correctness(thm):
     else:
         raise ValueError(f"Input is not a Theorem/AnnotatedTheorem obj:\nthm:\n{thm}\ntype: {type(thm)}")
     msgs = new_thm.messages
-    correct = sum(1 for msg in msgs if msg.severity=='error')==0
+    
+    correct = (sum(1 for msg in msgs if msg.severity=='error') + sum(1 for msg in msgs 
+                if msg.severity=='warning' and 'sorry' in msg.content and sorries_are_errors))==0
+    
     return (correct,msgs,new_thm)
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
