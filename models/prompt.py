@@ -1,8 +1,9 @@
 from __future__ import annotations
 from langchain.globals import set_verbose,set_debug
-set_debug(True)
-from langchain_core.output_parsers import JsonOutputParser, PydanticOutputParser, StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate,PromptTemplate
+#set_debug(True)
+from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate,FewShotPromptTemplate
+from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI
 import sys
@@ -22,9 +23,10 @@ from tenacity import (
 ) 
 import logging
 from typing import Final
+import tiktoken
 
-#logger: Final = logging.getLogger(__name__)
-#logging.basicConfig(level=logging.INFO)
+logger: Final = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 from tenacity import (
     after_log,
@@ -34,6 +36,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+
+
 
 
 def parse_prev_data(data):
@@ -63,63 +67,20 @@ def parse_prev_data(data):
         output.append(('human',msg))
     return output
 
-
-# def prompt_basic(text:str, metric:Metric, model = 'gpt-4-turbo'):
-#     model = ChatOpenAI(model=model)
-
-#     parser = StrOutputParser()
-
-#     def fix_prompt(prompt):
-#         return (prompt[0],prompt[1].replace('{',r'{{').replace('}',r'}}'))
-    
-#     system_prompts = [fix_prompt(prompt) for prompt in metric.prompt if prompt[0]=='system']
-#     user_prompts = [fix_prompt(prompt) for prompt in metric.prompt if prompt[0]=='human']
-
     
 
-#     prompt = ChatPromptTemplate.from_messages([
-#         ('placeholder','{system_prompts}'),
-#         ('system',f'''Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. Output a plaintext version of the formalized lean4 code.
-#          For example, if the input is \"The triangular numbers is defined via $T(0)=0$, $T(n)=T(n-1)+n$.\", then a correct output is the plaintext: \"\ndef triangular : Nat → Nat\n  | 0 => 0\n  | Nat.succ n => triangular (n) + Nat.succ (n)\n\"
-#          The current input will be wrapped in <CURRENT>...</CURRENT>
-#          '''),
-#          ('placeholder', '{user_prompts}'),
-#          ('human','<CURRENT>\n{theorem}\n</CURRENT>')
-#     ])
-
-
-
-#     chain =  (prompt
-#              | model
-#              | parser)
-    
-#     @retry(
-#     reraise=True,
-#     before_sleep=before_sleep_log(logger, logging.INFO),
-#     after=after_log(logger, logging.INFO),
-#     wait=wait_random_exponential(multiplier=1, max=60),
-#     )
-#     def invoke_throttled(chain,config):
-#         return chain.invoke(config)
-    
-#     output=invoke_throttled(chain,{'theorem': text,
-#                                     'system_prompts':system_prompts,
-#                                     'user_prompts':user_prompts})
-#     if output[:3] == "\'\'\'" and output[-3:] == "\'\'\'":
-#         output = output[3:-3]
-#     return output
-
-def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],n=None,annotation=True,syntax_search=False,mathlib_search=False) -> Theorem:
+def prompt_raw(thm:AnnotatedTheorem, metric:Metric, obj=str, model = 'gpt-4-turbo', prev_data=[],n=None,annotation=True,syntax_search=False,mathlib_search=False,examples = 0,token=False):
     syntax_k=2
     mathlib_k=3
-
+    model_name = model
 
     model = ChatOpenAI(model=model)
 
-    class Proof(BaseModel):
-        proof : List[str] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof")
-
-    parser = PydanticOutputParser(pydantic_object= Proof)
+    str_output = obj == str
+    if obj == str:
+        parser = StrOutputParser()
+    else:
+        parser = PydanticOutputParser(pydantic_object= obj)
 
     def fix_prompt(prompt):
         return (prompt[0],prompt[1].replace('{',r'{{').replace('}',r'}}'))
@@ -128,6 +89,45 @@ def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev
     user_prompts = [fix_prompt(prompt) for prompt in metric.prompt if prompt[0]=='human']
 
     prev_data_parsed = parse_prev_data(prev_data)
+    
+
+    # #example_selector = metric.get_example_selector()
+    # if examples != 0:
+    #     ex = [
+    #             {
+    #                 "input": example['input'].replace(r'{',r'{{').replace(r'}',r'}}'),
+    #                 "output": example['output'].replace(r'{',r'{{').replace(r'}',r'}}')
+    #             }
+    #             for example in metric.examples
+    #         ]
+
+    #     example_selector = SemanticSimilarityExampleSelector.from_examples(
+    #         ex,
+    #         OpenAIEmbeddings(),
+    #         Chroma,
+    #         k=examples,
+    #     )
+
+    #     example_prompt = PromptTemplate(
+    #         input_variables=["input", "output"],
+    #         template="<EXAMPLE>\nInput:\n{input}\n\nOutput:\n{output}\n</EXAMPLE>",
+    #     )
+    #     #example_selector.k = examples
+
+    #     examples_prompt = FewShotPromptTemplate(
+    #         example_selector=example_selector,
+    #         example_prompt=example_prompt,
+    #         suffix="",
+    #         input_variables=["item"],
+    #     )
+    # else:
+    #     example_prompt=None
+
+
+    #out = examples_prompt.format(item='Set')
+    #print(out)
+    #return -1
+
     
 
     prompt = ChatPromptTemplate.from_messages([
@@ -139,10 +139,11 @@ def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev
          {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
          '''),
          ('system','{format_instructions}'),
-         ('human','<CONTEXT>\n{context}\n</CONTEXT>'),
-         ("placeholder", "{prev_results}"),
          ("placeholder", "{syntax_docs}"),
          ("placeholder", "{mathlib_docs}"),
+         ("placeholder", "{examples}"),
+         ('human','<CONTEXT>\n{context}\n</CONTEXT>'),
+         ("placeholder", "{prev_results}"),
          ('placeholder', '{user_prompts}'),
          ('human','<CURRENT>\n{theorem}\n</CURRENT>')
     ])
@@ -153,7 +154,7 @@ def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev
     def get_syntax(data):
         if not syntax_search:
             return []
-        retriever = get_retriever(k=syntax_k,persist_dir=os.path.join(root_path,'.TPiL_chroma_db'))
+        retriever = get_retriever(k=syntax_k,persist_dir=os.path.join(root_path,'.db','.TPiL_chroma_db'))
         curr_thm = data['theorem']
         if len(prev_data) != 0:
             recent = prev_data[-1]
@@ -171,37 +172,98 @@ def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev
     def get_mathlib(data):
         if not mathlib_search:
             return []
-        retriever = get_retriever(k=mathlib_k,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
+        retriever = get_retriever(k=mathlib_k,persist_dir=os.path.join(root_path,'.db','.mathlib_chroma_db'))
         curr_thm = data['theorem']
     
         out= format_docs(retriever.invoke(curr_thm),'CONTENT_DOC')
         return out
+    
+    def get_examples(data):
+        if examples == 0:
+            return []
+        retriever = get_retriever(k=examples,persist_dir=os.path.join(root_path,'.db','metrics',f'.{metric.name}_chroma_db'))
+        curr_thm = data['theorem']
+    
+        out= format_docs(retriever.invoke(curr_thm),'EXAMPLE')
+        return out
+        
 
 
-    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions(),syntax_docs=get_syntax,mathlib_docs=get_mathlib)
+    if token:
+        chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions() if not str_output else '',
+                                              syntax_docs=get_syntax,
+                                              mathlib_docs=get_mathlib,
+                                              examples = get_examples)
+             | prompt)
+    
+    
+        input_str= chain.invoke({"context" : thm.context,
+                                            'prev_results' : prev_data_parsed,
+                                            'theorem':parseTheorem(thm,annotation=annotation,context=False),
+                                            'system_prompts':system_prompts,
+                                            'user_prompts':user_prompts}).to_string()
+        
+        encoding = tiktoken.encoding_for_model(model_name)
+        #print(f'{input_str[:100]}\n\n{type(input_str)}')
+        num_tokens = len(encoding.encode(input_str))
+        return num_tokens
+
+
+
+    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions() if not str_output else '',
+                                          syntax_docs=get_syntax,
+                                          mathlib_docs=get_mathlib,
+                                          examples = get_examples)
              | prompt
              | model
              | parser)
     
     @retry(
     reraise=True,
-    #before_sleep=before_sleep_log(logger, logging.INFO),
-    #after=after_log(logger, logging.INFO),
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    after=after_log(logger, logging.INFO),
     wait=wait_random_exponential(multiplier=1, max=60),
     )
     def invoke_throttled(chain,config):
         return chain.invoke(config)
     
 
-    try:
-        output=invoke_throttled(chain,{"context" : thm.context,
-                                        'prev_results' : prev_data_parsed,
-                                        'theorem':parseTheorem(thm,annotation=annotation,context=False),
-                                        'system_prompts':system_prompts,
-                                        'user_prompts':user_prompts})
-    except:
-        output = Proof(proof=['sorry'])    
+
+    output=invoke_throttled(chain,{"context" : thm.context,
+                                    'prev_results' : prev_data_parsed,
+                                    'theorem':parseTheorem(thm,annotation=annotation,context=False),
+                                    'system_prompts':system_prompts,
+                                    'user_prompts':user_prompts})
+    return output
     
+
+
+def prompt_basic(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],n=None,annotation=True,syntax_search=False,mathlib_search=False,examples = 0,token=False):
+    
+    class strProof(BaseModel):
+        content : str = Field(description='The entire proof of the given theorem, without the declaration or context. begin after the \":= by\".')
+
+    output = prompt_raw(thm,metric,strProof,model=model,prev_data=prev_data,n=n,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
+
+
+    def coerce_Thm(curr):
+        ProofStep.update_forward_refs()
+        return Theorem(decl=thm.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[ProofStep(tactic=curr.content)],project_path=thm.project_path)
+     
+    final = coerce_Thm(output)
+    
+    return final
+
+
+
+
+def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],n=None,annotation=True,syntax_search=False,mathlib_search=False,examples = 0,token=False):
+    
+    class Proof(BaseModel):
+        proof : List[str] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof")
+
+    
+    output = prompt_raw(thm,metric,Proof,model=model,prev_data=prev_data,n=n,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
 
     def coerce_trimmedThm(curr):
         ProofStep.update_forward_refs()
@@ -211,99 +273,15 @@ def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev
     
     return final
 
-def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],n=None,annotation=True,syntax_search=False,mathlib_search=False) -> Theorem:
-    syntax_k=2
-    mathlib_k=3
 
 
-    model = ChatOpenAI(model=model)
 
+def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev_data=[],n=None,annotation=True,syntax_search=False,mathlib_search=False,examples = 0,token=False):
     class trimmedTheorem(BaseModel):
         decl : str = Field(description="(sub)Theorem declaration (does not include \":= by\") For example, a \"have\" statement would be the decl, and the proof of the have statement would be the (sub)proof. Similarly, a \"case [Name] =>\" statement would be the decl, and the case proof would be the proof.")
         proof : List[Union[str,trimmedTheorem]] = Field(..., description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)")
 
-    parser = PydanticOutputParser(pydantic_object= trimmedTheorem)
-
-    def fix_prompt(prompt):
-        return (prompt[0],prompt[1].replace('{',r'{{').replace('}',r'}}'))
-    
-    system_prompts = [fix_prompt(prompt) for prompt in metric.prompt if prompt[0]=='system']
-    user_prompts = [fix_prompt(prompt) for prompt in metric.prompt if prompt[0]=='human']
-
-    prev_data_parsed = parse_prev_data(prev_data)
-    
-
-    prompt = ChatPromptTemplate.from_messages([
-        ('placeholder','{system_prompts}'),
-        ('system',f'''You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
-         {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
-         Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. {f"To assist with the syntax relating to the current theorem and current error messages, you will be given {syntax_k} documents to refer to for fixing these syntax issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>." if syntax_search else ""}
-         {f"You will also recieve {mathlib_k} documents relevant to the current theorem to help with formulating your modified proof. Each of these will be wrapped with <CONTENT_DOC>...<CONTENT_DOC>" if mathlib_search else ""}
-         Output in a proof tree format that aligns with the pydantic output parsing object schema that splits off subproofs and subtheorems.
-         {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
-         '''),
-         ('system','{format_instructions}'),
-         ('human','<CONTEXT>\n{context}\n</CONTEXT>'),
-         ("placeholder", "{prev_results}"),
-         ("placeholder", "{syntax_docs}"),
-         ("placeholder", "{mathlib_docs}"),
-         ('placeholder', '{user_prompts}'),
-         ('human','<CURRENT>\n{theorem}\n</CURRENT>')
-    ])
-
-    def format_docs(docs,wrapper):
-        return [('human',f'<{wrapper}>\n{doc.page_content}\n</{wrapper}>') for doc in docs]#"\n\n=======================\n".join(f"filename: {doc.metadata['file']}\nContent:\n{doc.page_content}" for doc in docs if 'file' in doc.metadata.keys())
-    
-    def get_syntax(data):
-        if not syntax_search:
-            return []
-        retriever = get_retriever(k=syntax_k,persist_dir=os.path.join(root_path,'.TPiL_chroma_db'))
-        curr_thm = data['theorem']
-        if len(prev_data) != 0:
-            recent = prev_data[-1]
-            msgs = recent['messages']
-            
-            msg_text = '\n'.join([f"{msg.content} {msg.message_src}" for msg in msgs])
-        else:
-            msg_text = ''
-        err = f"\nCurrent Errors:\n{msg_text}" if msg_text != "" else ""
-        prompt = f'Current Theorem:\n{curr_thm}{err}'
-
-        out= format_docs(retriever.invoke(prompt),'SYNTAX_DOC')
-        return out
-    
-    def get_mathlib(data):
-        if not mathlib_search:
-            return []
-        retriever = get_retriever(k=mathlib_k,persist_dir=os.path.join(root_path,'.mathlib_chroma_db'))
-        curr_thm = data['theorem']
-    
-        out= format_docs(retriever.invoke(curr_thm),'CONTENT_DOC')
-        return out
-
-
-    chain = (RunnablePassthrough().assign(format_instructions=lambda _: parser.get_format_instructions(),syntax_docs=get_syntax,mathlib_docs=get_mathlib)
-             | prompt
-             | model
-             | parser)
-    
-    @retry(
-    reraise=True,
-    #before_sleep=before_sleep_log(logger, logging.INFO),
-    #after=after_log(logger, logging.INFO),
-    wait=wait_random_exponential(multiplier=1, max=60),
-    )
-    def invoke_throttled(chain,config):
-        return chain.invoke(config)
-    
-    try:
-        output=invoke_throttled(chain,{"context" : thm.context,
-                                        'prev_results' : prev_data_parsed,
-                                        'theorem':parseTheorem(thm,annotation=annotation,context=False),
-                                        'system_prompts':system_prompts,
-                                        'user_prompts':user_prompts})
-    except:
-        output = trimmedTheorem(decl=thm.decl,proof=['sorry'])    
+    output = prompt_raw(thm,metric,trimmedTheorem,model=model,prev_data=prev_data,n=n,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
     
     def coerce_PS(step):
         ProofStep.update_forward_refs()
@@ -319,7 +297,6 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
         return Theorem(decl=decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[coerce_PS(step) for step in curr.proof],project_path=thm.project_path)
      
     final = coerce_trimmedThm(output,force_decl=thm.decl)
-    #final = coerce_trimmedThm(output,force_decl=None)
     
     return final
 
@@ -376,17 +353,22 @@ def prompt_recursive_gen(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-tur
 
 def best_of_n(prompt_fn):
 
-    def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1,annotation=True,syntax_search=True,mathlib_search=True,mixup=0) -> Theorem:
+    def best_of_n(thm:AnnotatedTheorem, metric: Metric, n: int, model = 'gpt-4-turbo', max_workers=1,annotation=True,syntax_search=True,mathlib_search=True,mixup=0,examples=0,token=False) :
         thms = []
+
+        if token:
+            return prompt_fn(thm,metric,model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)*n
+
+
         if max_workers == 1:
             for i in range(n):
-                output = prompt_fn(thm,metric,model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search)
+                output = prompt_fn(thm,metric,model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples)
                 correct,_,_ = eval_correctness(output)
                 thms.append((output,correct))
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = [executor.submit(prompt_structured, thm, metric, model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search) if i>=mixup*n 
-                        else executor.submit(prompt_structured, thm, metric, model=model,annotation=annotation) for i in range(n)]
+                futures = [executor.submit(prompt_structured, thm, metric, model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples = examples) if i>=mixup*n 
+                        else executor.submit(prompt_structured, thm, metric, model=model,annotation=annotation,examples = examples) for i in range(n)]
                 for future in futures:
                     output = future.result()
                     correct, _, _ = eval_correctness(output)
@@ -408,21 +390,27 @@ def best_of_n(prompt_fn):
 
 def refinement(prompt_fn):
 
-    def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = True,annotation=True,syntax_search=True,mathlib_search=True) -> Theorem:
+    def refinement(thm:AnnotatedTheorem,metric:Metric,n:int,model='gpt-4-turbo', prev_data_num = 1, keep_best = True,annotation=True,syntax_search=True,mathlib_search=True,examples = 0,token=False) :
+        
+        if token:
+            cost_one = prompt_fn(thm,metric,model=model,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples = examples,token=token)
+            encoding = tiktoken.encoding_for_model(model)
+            cost_prev_data = 2*len(encoding.encode(parseTheorem(thm,context=False)))
+            total = 0
+            for i in range(n):
+                total += cost_one + min(prev_data_num,i)*cost_prev_data
+            return total
+
+        
+        
+        
         curr = thm
         prev_data = []
 
         for i in range(n):
             #print(f'=== i: {i} ===\n curr:\n {parseTheorem(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
-            output = prompt_fn(curr,metric,model=model,prev_data=prev_data[-prev_data_num:],annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search) 
+            output = prompt_fn(curr,metric,model=model,prev_data=prev_data[-prev_data_num:],annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples = examples) 
             correct,messages,new_thm = eval_correctness(output)
-
-            # if type(output) == Theorem:
-            #     try:
-            #         output = annotateTheorem(output,force=True)
-            #     except Exception as e:
-            #         print(output)
-            #         raise e
 
             curr_data = {'input':curr,'output':new_thm}
             curr_data['correct'] = correct
@@ -442,7 +430,6 @@ def refinement(prompt_fn):
                 # if old incorrect and new correct, new
                 # if both incorrect, one with less messages.
 
-
                 if old_correct and new_correct:
                     curr = metric.cmp(curr,new_thm)
                 elif old_correct and not new_correct:
@@ -459,26 +446,25 @@ def refinement(prompt_fn):
 if __name__ == '__main__':
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    r = getRepo('Tests','configs/config_test.json')
-    files = {file.file_name:file for file in r.files}
-    #print(files.keys())
-
-
-    f = files['Basic.lean']
+    repo = getRepo('Tests','configs/config_test.json')
+    files = {file.file_name:file for file in repo.files}
+    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    
     thms = f.theorems
-    for thm in [thms[1]]:
+    for thm in [thms[0]]:
         #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
         #out=prompt_structured(thm,length_metric(),mathlib_search=True)
         metric = length_metric()
+        out=prompt_structured(thm,length_metric(),model='gpt-4o',examples=1)
         #out = best_of_n(thm,metric,10,max_workers=3,mixup=0.5)
-        out=refinement(thm,length_metric(),3,prev_data_num=3,syntax_search=True,mathlib_search=True)
+        #out=refinement(thm,length_metric(),3,prev_data_num=3,syntax_search=True,mathlib_search=True)
         #print(out)
         
-        correct,msgs,anno = eval_correctness(out)
-        score = metric.metric(anno) if correct else None
-        msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
+        #correct,msgs,anno = eval_correctness(out)
+        #score = metric.metric(anno) if correct else None
+        #msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
         print('\n')
         print(parseTheorem(out,context=False))
-        print(f'CORRECT? {correct}\nSCORE: {score}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
-        print('=========\n\n\n=========')
+        #print(f'CORRECT? {correct}\nSCORE: {score}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
+        #print('=========\n\n\n=========')
 

@@ -1,21 +1,19 @@
-import os
 import sys
 from pathlib import Path
 import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor,as_completed
+from concurrent.futures import ThreadPoolExecutor
 sys.path.append(str(Path(__file__).parent.parent))
 from evaluate.eval import *
 from evaluate.metrics import *
 from models.structures import *
 from models.prompt import *
 from evaluate.build_prooftree import *
-import shutil
 import pandas as pd 
-import seaborn as sns
 import time
 from models.rag import *
 import itertools
 from tqdm import tqdm
+
 
 
 def process_instance(thm:AnnotatedTheorem,method):
@@ -60,6 +58,7 @@ def process_instance(thm:AnnotatedTheorem,method):
         'annotation': kwargs.get('annotation',True),
         'syntax_search': kwargs.get('syntax_search',False),
         'mathlib_search': kwargs.get('mathlib_search',False),
+        'examples': kwargs.get('examples',0),
         'og_correct': og_correct,
         'og_errors': og_errors,
         'og_score': og_score,
@@ -146,99 +145,150 @@ def get_methods(fn=[prompt_structured],
                 model=['gpt-4-turbo'],
                 n=[1],
                 syntax_search=[False],
-                mathlib_search=[False]):
-    dl = [fn,annotation,model,n,syntax_search,mathlib_search,metric]
+                mathlib_search=[False],
+                examples = [0]):
+    dl = [fn,annotation,model,n,syntax_search,mathlib_search,metric,examples]
     prod = list(itertools.product(*dl))
     return [
         (i[0],i[6],{'annotation':i[1],
                 'model':i[2],
                 'n':i[3],
                 'syntax_search':i[4],
-                'mathlib_search':i[5]
+                'mathlib_search':i[5],
+                'examples':i[7]
                 })
         for i in prod
     ]
 
-# def parse_informal_thm(data,src='',leanFile='',project_path='',context_preparsing=False):
-#     context = '/-<INFORMAL PROOF>-/\n'+data.get('context','')
-#     statement = data.get('statement','')
-#     proof = data.get('proof','')
 
-#     if context_preparsing:
-#         print('==== Preparsing context ====')
-#         def temp_metric ():  
-#             def num_errors(thm):
-#                 if type(thm) == Theorem:
-#                     thm = annotateTheorem(thm)
-#                 errors = sum(1 for msg in thm.messages if msg.severity=='error')
-#                 return errors
 
-#             sys_prompt = ('system','You are an AI assistant who automatically formalizes LaTeX context, proofs, and definitions into Lean 4 context, proofs, and definitions and ensures their correctness. You will recieve a string form of this latex document and you will have to return a correct lean 4 parsed version.')
-#             user_prompt = ('human','Return a correct lean4 formatted version of the current input.')
-
-#             return Metric('TEMP', [sys_prompt,user_prompt], num_errors, 'MIN')
-        
-#         context = prompt_basic(context,temp_metric(),model='gpt-4o')
-#         print(f'==== DONE Preparsing context ====\n{context}\n=================')
+def get_cost(obj,methods):
+    price_pt = {
+        'gpt-4o': (5/1000000,15/1000000),
+        'gpt-4-turbo': (10/1000000,30/1000000),
+        'gpt-3.5-turbo-0125': (0.5/1000000,1.5/1000000),
+    }
     
+    if type(obj) == Repo:
+        anno_files = [f for f in obj.files if type(f)==AnnotatedFile]
+        # with tqdm(total=len(anno_files),desc='Files: ') as pbar:
+        #     with ThreadPoolExecutor(max_workers=max(1,len(anno_files))) as executor:
+        #         futures = [executor.submit(get_cost,f,methods) for f in anno_files]
+        #         for future in concurrent.futures.as_completed(futures):
+        #             pbar.update(1)
+            
+        # return sum(future.result() for future in futures)
+        thms = [thm for f in anno_files for thm in f.theorems]
+
+    elif type(obj) == AnnotatedFile:
+        thms = obj.theorems
+        # with tqdm(total=len(thms),desc='Thms: ') as pbar:
+        #     with ThreadPoolExecutor(max_workers=max(1,len(thms))) as executor:
+        #         futures = [executor.submit(get_cost,thm,methods) for thm in thms]
+        #         for future in concurrent.futures.as_completed(futures):
+        #             pbar.update(1)
+        # return sum(future.result() for future in futures)
+    elif type(obj) == AnnotatedTheorem:
+        thms  = [obj]
+    else:
+        raise ValueError('uhoh')
+    
+    #assert(type(obj) == AnnotatedTheorem)
+
+    def get_instance_cost(obj,method):
+        model = method[2].get('model','gpt-4-turbo')
+        fn, metric, kwargs = method
+
+        inp_tok = fn(obj,metric,**kwargs,token=True)    
+        encoding = tiktoken.encoding_for_model(model)
+        output_tok = len(encoding.encode(parseTheorem(obj,context=False)))
+         
+
+        inp_cost,out_cost = price_pt[model]
+        price = inp_tok*inp_cost+output_tok*out_cost
+        return price
+    
+    total=0
+    with tqdm(total=len(thms)*len(methods),desc='instances: ') as pbar:
+        # for thm in thms:
+        #     for method in methods:
+        #         total+=get_instance_cost(thm,method)
+        #     pbar.update(1)
+        with ThreadPoolExecutor(max_workers=min(24,len(methods)*len(thms))) as executor:
+           
+            futures = [executor.submit(get_instance_cost,thm,method) for method in methods for thm in thms]
+            for future in concurrent.futures.as_completed(futures):
+                pbar.update(1)
 
 
-#     return AnnotatedTheorem(decl=statement,
-#                             declID='',
-#                             src=src,
-#                             leanFile=leanFile,
-#                             context=context,
-#                             proof=[AnnotatedProofStep(prevState=[],tactic=proof,nextState=[],srcUpToTactic='',declUpToTactic='',start=(None,None),end=(None,None))],
-#                             project_path=project_path,
-#                             messages=[],
-#                             pretty_print=context+'\n'+statement+'\n'+proof)
+            #for thm in thms:
+                
+                
+                    
+    #return total
+    return sum(future.result() for future in futures)
 
 
 
-
-#Methods look like (fn:callable, kwargs : dict)
 if __name__ == "__main__":
 
-    
-    #DEMO methods:
-    # files -> MIL Set theory
-    # Baseline performance (1 shot, gpt 4o, gpt 4 turbo, no annotation, no rag, no fn, both metrics,flat) - 14:24
-    # Annotation+structure performance (1 shot, gpt-4o, annotation, flat/structured, both metrics) - ~10
-    # Method Performance (gpt 4o, annotation, flat + refinement + best of n, n=5,10, (keep best) both metrics?) - 4 hours???
-    # RAG Performance
-    # Completion performance (bonus)
-    # (Fake) autoformalization example
 
-
+    #Research questions:
 
 
 
     methods = get_methods(model=['gpt-4o'],
-                          fn=[refinement(prompt_flat)],
-                          n=[5],
-                          metric=[completion_metric()],
-                          mathlib_search=[True],
-                          syntax_search=[True]
+                          fn=[prompt_flat],#best_of_n(prompt_flat),refinement(prompt_flat),prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
+                          metric=[length_metric()],#,modularity_metric()],
+                          examples=[3]
                           )
+    
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_name:file for file in repo.files}
     #file = files['Basic.lean']
     #keys= [k for k in files.keys() if 'Solutions_' in k]
     keys = ['Solutions_S06_Sequences_and_Convergence.lean', 'Solutions_S03_Negation.lean', 'Solutions_S01_Implication_and_the_Universal_Quantifier.lean', 'Solutions_S04_Conjunction_and_Iff.lean', 'Solutions_S05_Disjunction.lean', 'Solutions_S02_The_Existential_Quantifier.lean']
     #files = [files[k] for k in keys]
-    print([f'{k} : {len(files[k].theorems)}\n' for k in keys])
-    f = files['S01_Implication_and_the_Universal_Quantifier.lean']
+    #print([f'{k} : {len(files[k].theorems)}\n' for k in keys])
+    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+
+    #data = benchmark_file(f,methods)
+
+    data = benchmark_file(f,methods,show_theorem_progress=True)
+    # thms = f.theorems
+    # for thm in [thms[0]]:
+    #     #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
+    #     #out=prompt_structured(thm,length_metric(),mathlib_search=True)
+    #     #metric = length_metric()
+    #     #out=prompt_flat(thm,length_metric(),model='gpt-4o',examples=1)
+    #     data = benchmark_theorem(thm,methods)
+    #     #out = best_of_n(thm,metric,10,max_workers=3,mixup=0.5)
+    #     #out=refinement(thm,length_metric(),3,prev_data_num=3,syntax_search=True,mathlib_search=True)
+    #     #print(out)
+        
+    #     #correct,msgs,anno = eval_correctness(out)
+    #     #score = metric.metric(anno) if correct else None
+    #     #msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
+    #     print('\n')
+    #     #print(parseTheorem(out,context=False))
+    #     #print(f'CORRECT? {correct}\nSCORE: {score}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
+    #     #print('=========\n\n\n=========')
+
+
     
-    data = []
+    #cost = get_cost(f,methods)
+    #print(f'${cost}')
+
     #with tqdm(total=len(files),desc='Files: ') as pbar:
         #for f in files:
             #data.extend(benchmark_file(f,methods,theorem_workers=4,method_workers=None,show_theorem_progress=True,show_method_progress=True))
             #pbar.update(1)
-    data.extend(benchmark_file(f,methods,theorem_workers=6,method_workers=None,show_theorem_progress=True,show_method_progress=True))
+    #data.extend(benchmark_file(f,methods,theorem_workers=6,method_workers=None,show_theorem_progress=True,show_method_progress=True))
+    #get_cost(repo,methods)
     
-    #data.extend(benchmark_file(f2,methods,show_theorem_progress=True))
+    #data = benchmark_file(f,methods,show_theorem_progress=True,show_method_progress=True)
     #data = benchmark_repo(repo,methods,file_workers=1,theorem_workers=6,show_file_progress=True)
-    save_to_csv(data,path='completion_data.csv')
+    save_to_csv(data,path='data.csv')
 
     
 

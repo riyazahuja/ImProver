@@ -1,7 +1,7 @@
 import math
 import json
 import matplotlib
-matplotlib.use('agg')
+#matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import sys
@@ -38,7 +38,7 @@ def build_graph(data):
     r = 10  # Set radius for the circle
 
     for index, (node_info, children_indices) in enumerate(data):
-        node_label = f"{node_info['node']}\nbefore: {node_info['before']}\nafter: {node_info['after']}"
+        node_label = f"idx={index}\n{node_info['node']}\nbefore: {node_info['before']}\nafter: {node_info['after']}"
         G.add_node(index, label=node_label)
         labels[index] = node_label
         # Set positions in a circle
@@ -48,15 +48,31 @@ def build_graph(data):
         for child_index in children_indices:
             if child_index < len(data):  # Ensure child index is valid
                 G.add_edge(index, child_index)
+    #print(data)
+    children = list(set([child for (_,children) in data for child in children]))
+    roots = [index for index in range(len(data)) if index not in children]#[child for (_,children) in data for child in children]]
+    print(roots)
+    print(children)
 
+
+    for root in roots:
+        if root != 0:
+            child_idx = max([child for child in children if child < root])
+            #G.add_edge(child_idx,root)
+        
+
+    
+
+    return G, positions, labels
+
+def depth(G,root_idx = 0):
     # Calculate the depth of the graph as the longest path
     if G.number_of_nodes() > 0:
-        lengths = nx.single_source_shortest_path_length(G, 0)  # Assuming the root node is 0
+        lengths = nx.single_source_shortest_path_length(G, root_idx)  # Assuming the root node is 0
         depth = max(lengths.values()) if lengths else 0
     else:
         depth = 0
-
-    return G, positions, labels, depth
+    return depth
 
 # Visualization function
 def visualize_tree(G, positions, labels):
@@ -85,16 +101,16 @@ def getProofTree(thm:AnnotatedTheorem, visualize=False):
 
     adj = build(contents)
     data = list(zip(contents, adj))
-    G, positions, labels, depth = build_graph(data)
+    G, positions, labels = build_graph(data)
 
     if visualize:
         visualize_tree(G, positions, labels)
-    return G, positions, labels, depth
+    return G, positions, labels
 
 def save_tree(G,positions,labels,save_path):
     matplotlib.use('agg')
     plt.figure(figsize=(12, 8))
-    nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=8, font_color="black", node_color="skyblue", edge_color="gray")
+    nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=5, font_color="black", node_color="skyblue", edge_color="gray")
     plt.title('Proof Tree Visualization')
     plt.axis('off')  # Turn off the axis
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -102,11 +118,12 @@ def save_tree(G,positions,labels,save_path):
 
 
 if __name__ == '__main__':
-    src = 'Tests3'
-    file = 'Tests3/Basic.lean'
-    f = getAnnotatedFile(src, file)
+    repo = getRepo('Tests','configs/config_test.json')
+    files = {file.file_name:file for file in repo.files}
+    f = files['Solutions_S06_Sequences_and_Convergence.lean']
+    #f = files['Solutions_S03_Negation.lean']
     thms = f.theorems
-    thm_annotated = thms[0]
+    thm = thms[1]
 
-    G, p, l, depth = getProofTree(thm_annotated, visualize=True)
-    print("Depth of the proof tree:", depth)
+    G, p, l = getProofTree(thm, visualize=True)
+    #print("Depth of the proof tree:", depth)
