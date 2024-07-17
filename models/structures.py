@@ -1,7 +1,7 @@
 from __future__ import annotations
 from langchain_core.pydantic_v1 import BaseModel, Field
 import os
-from typing import List, Union,Optional,Tuple
+from typing import List, Union,Optional,Tuple,Dict
 import json
 import tempfile
 import subprocess 
@@ -39,6 +39,12 @@ class AnnotatedProofStep(BaseModel):
     declUpToTactic : str = Field(description="Source code from theorem declaration to current tactic")
     start: Tuple[Optional[int],Optional[int]]=Field(description='start coordinates from source file as (row,column)')
     end: Tuple[Optional[int],Optional[int]]=Field(description='end coordinates from source file as (row,column)')
+
+    goalsBefore : List[str] = Field(description="goalIDs before the tactic invocation")
+    goalsAfter : List[str]= Field(description="goalIDs after the tactic invocation")
+    mctxBefore : Dict[str,str]= Field(description="(Expr) metavariable context before the tactic invocation")
+    mctxAfter : Dict[str,str]= Field(description="(Expr) metavariable context after the tactic invocation")
+    children : List[int]= Field(description="(Infotree) Children indices")
 
 class Message(BaseModel):
     severity:str = Field(description='Message severity')
@@ -185,18 +191,53 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
     #print(data)
     msgs = data['messages']
     
-    data = data['tactics']
+
+    def remove_dupes(tacs):
+        output = []
+        for i,step in enumerate(tacs):
+            dupe = any([step['startPos'] == other['startPos'] and step['endPos'] == other['endPos'] for j,other in enumerate(tacs) if j<i])
+            if not dupe:
+                output.append(step)
+        return output
+
+    data = remove_dupes(data['tactics'])
     
     #messages = [getMessage(msg,contents) for msg in msgs]
+    all_tacs = [re.sub(r'\s','',step['tactic']) for step in data]
+    #print([step['tactic'] for step in data])
+    
+    def process_children(data):
+        output = []
+        for child in data:
+            if child.get('kind',None) == 'TacticInfo':
+                pp = child.get('node',{}).get('stx',{}).get('pp','')
+                trim_pp = re.sub(r'\s','',pp)
+                if trim_pp in all_tacs:
+                    idx = [i for i,tac in list(enumerate(all_tacs)) if trim_pp==tac][-1]
+                    output.append(idx)
+                    grandchildren = child.get('children',[])
+                    output.extend(process_children(grandchildren))
+                #else:
+                    #print(f'Uh OH: {pp}')
+        return output
+
 
     for step in data:
+        children = process_children(step['children'])
+        #print(f"{step['tactic']} : {children}")
         ps = AnnotatedProofStep(prevState=step['prevState'],
                                         tactic = step['tactic'],
                                         nextState=step['nextState'],
                                         srcUpToTactic=step['srcUpToTactic'],
                                         declUpToTactic=step['declUpToTactic'],
                                         start = (step['startPos'].get('line',None),step['startPos'].get('column',None)),
-                                        end= (step['endPos'].get('line',None),step['endPos'].get('column',None))
+                                        end= (step['endPos'].get('line',None),step['endPos'].get('column',None)),
+
+                                        goalsBefore= step['goalsBefore'],
+                                        goalsAfter= step['goalsAfter'],
+                                        mctxBefore = {pair['key']:pair['value'] for pair in step['mctxBefore']},
+                                        mctxAfter = {pair['key']:pair['value'] for pair in step['mctxAfter']},
+                                        children = children
         )
         def elim_by(text):
             return re.sub(r'\s*:=\s*by\s*$','',text,flags=re.M)
@@ -466,27 +507,27 @@ def annotate(step : AnnotatedProofStep, prev_goal=False):
         return indent(text,'  ', lambda x: True)
     
 
-def parseAnnotatedTheorem2(thm,context=True,annotation=False,prompt=False):
-    statement = thm.decl
-    if context:
-        context = thm.context
-    else:
-        context = ''
+# def parseAnnotatedTheorem2(thm,context=True,annotation=False,prompt=False):
+#     statement = thm.decl
+#     if context:
+#         context = thm.context
+#     else:
+#         context = ''
 
-    psteps = elim_overlap(thm.proof)
+#     psteps = elim_overlap(thm.proof)
 
-    proof = ''
-    for i in range(len(psteps)):
-        if annotation:
-            text = annotate(psteps[i],i==0)
-        else:
-            text = psteps[i].tactic
-        proof = proof + '  ' + text + '\n'
+#     proof = ''
+#     for i in range(len(psteps)):
+#         if annotation:
+#             text = annotate(psteps[i],i==0)
+#         else:
+#             text = psteps[i].tactic
+#         proof = proof + '  ' + text + '\n'
         
-    if prompt:
-        return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
-    else:
-        return f'{context}\n\n{statement} := by\n{proof}'
+#     if prompt:
+#         return f'CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}'
+#     else:
+#         return f'{context}\n\n{statement} := by\n{proof}'
 
 
 def parse_proof(thm,indent = 1,dot=False):
@@ -558,35 +599,16 @@ def run_training_data(root_path,module_name):
 
 
 def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
-    '''
-    okurr heres the game plan yall
-    we gonna take our theorem, and its full path
-    (i.e. os.path.join(thm.project_path,thm.leanFile))
-    and then move up one directory. Then we make a temporary lean file
-    in that directory, and insert in parseTheorem(thm) into it.
-    we then get the module name of this by taking the relative path and replacing with dots.
-    Then we run training_data on this and then extract the outputted json and put into the cache
-    We then get this AnnotatedFile and from it, get the last theorem from its theorems.
-    Now we look at the messages. 
-    If there is an error, if force is false, raise error
-    else, we know that up until the line of the error, we good, 
-    so we navigate to the tactic that has that range in its range, and then copy over
-    tactics from thm for the rest of the proof.
-    then return.
-    '''
-
-
+    
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
 
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    #project_path = os.path.join(root_path,'.lake','packages',src)
+
     project_path = thm.project_path
     
-
-    cache_path = os.path.join(root_path,'.cache',src)
 
     path_dir = os.path.join(project_path,os.path.dirname(path))
 
@@ -597,22 +619,9 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     
     mod_name = get_stem(temp_relpath.replace('/','.'))
     output = run_training_data(root_path,mod_name)
-    #print(f'{output} : {type(output)}')
 
-
-    #json_path = os.path.join(cache_path,get_stem(temp_relpath)+'.json')
-    #with open(json_path,'w') as f:
-    #    json.dump(output,f)#f.write(output)
-
-    
-    #file = getAnnotatedFile(src,temp_relpath,project_path,until_end=True)
     thms = getTheorems(output,src,temp_relpath,project_path,text,until_end=True)
     
-    #thms = file.theorems
-    #os.remove(json_path)
-
-    #if len(thms)==0:
-    #    raise NameError(f'No Theorems??\n =|{output}|=\n\n =|{text}|=\n\n=|{thm}|=\n\n=|{mod_name}|=')
     
     if len(thms) == 0:
         output = AnnotatedTheorem(decl=thm.decl,
@@ -627,11 +636,11 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     else:
         output = thms[-1]
     
-    #print([s.tactic for s in output.proof])
-    output.proof = elim_overlap(output.proof)
-    #print([s.tactic for s in output.proof])
+
+    clean_proof = elim_overlap(output.proof)
+
     first = None
-    #print(f'\n----------\n{list(enumerate([thm.decl for thm in thms]))}\ntext:\n{text}\nmsgs:\n{output.messages}\n\nog:\n{parseTheorem(thm,context=False)}\nnew:\n{parseTheorem(output,context=False)}\n----------\n')
+
     
     def flattenProof (proof):
         new_proof=[]
@@ -641,12 +650,7 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                 new_proof.append(stepraw)
             else:
                 decl = step.decl
-                # if decl is not None:
-                #     text = decl + '\n' + parse_proof(step)
-                #     #new_proof.append(ProofStep(tactic=decl))
-                #     new_proof.append(ProofStep(tactic=text))
-                # else:
-                #     new_proof.extend(flattenProof(step.proof))
+
                 new_proof.append(ProofStep(tactic=decl))
                 new_proof.extend(flattenProof(step.proof))
         return new_proof
@@ -677,7 +681,19 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
         if force:
             def get_empty_annotated_proof_step(i):
                 proofstep=og_proof[i]
-                return AnnotatedProofStep(prevState=['ERROR'],tactic = proofstep.tactic, nextState=['ERROR'],srcUpToTactic='ERROR',declUpToTactic='ERROR',start=(max_pos[0]+i,max_pos[1]+i),end=(max_pos[0]+i,max_pos[1]+i))
+                return AnnotatedProofStep(prevState=['ERROR'],
+                                          tactic = proofstep.tactic, 
+                                          nextState=['ERROR'],
+                                          srcUpToTactic='ERROR',
+                                          declUpToTactic='ERROR',
+                                          start=(max_pos[0]+i,max_pos[1]+i),
+                                          end=(max_pos[0]+i,max_pos[1]+i),
+                                          goalsBefore=[],
+                                          goalsAfter=[],
+                                          mctxBefore={},
+                                          mctxAfter={},
+                                          children=[])
+            
             proof = [get_empty_annotated_proof_step(i) if i >= first else output.proof[i] for i in range(len(og_proof))]
             
             final = AnnotatedTheorem(decl=output.decl,
