@@ -22,20 +22,20 @@ def process_instance(thm:AnnotatedTheorem,method):
     
     og_correct,og_messages,_ = eval_correctness(thm)
     og_score = None
-    if og_correct:
-        og_score=metric.metric(thm)
+    if og_correct and metric.score_fn != None:
+        og_score=metric.score(thm)
     
     output_thm = fn(thm,metric,**kwargs)
 
     new_correct,new_messages,output_anno_thm = eval_correctness(output_thm)
     processing_time = time.time()-start_time
     new_score = None
-    if new_correct:
-        new_score=metric.metric(output_anno_thm)
+    if new_correct and metric.score_fn != None:
+        new_score=metric.score(output_anno_thm)
     
-    delta = None
-    if new_score is not None and og_score is not None and og_score != 0:
-        delta = ((new_score-og_score)/og_score) * 100
+    delta = metric.metric(thm,output_anno_thm)
+    #if new_score is not None and og_score is not None and og_score != 0:
+    #    delta = metric.metric#((new_score-og_score)/og_score) * 100
 
     og_raw = parseTheorem(thm,context=False)
     new_raw = parseTheorem(output_thm,context=False)

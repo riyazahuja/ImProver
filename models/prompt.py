@@ -50,6 +50,8 @@ def parse_prev_data(data):
         msgs = curr['messages']
         msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
         score = curr['score']
+        delta = curr['delta']
+        minmax = curr['minmax']
 
 
         msg = f'''<PREV I={idx}>
@@ -63,6 +65,8 @@ def parse_prev_data(data):
         {msgs_txt}
 
         Metric Score: {None if score is None else f"{score[1]} ({score[0]})"}
+        Metric Delta: {None if delta is None else f"{delta[1]} ({delta[0]})"}
+        {"(Bigger is Better)" if minmax == "MAX" else "(Smaller is Better)" if minmax=='MIN' else ""}
         </PREV I={idx}>'''
         output.append(('human',msg))
     return output
@@ -415,29 +419,33 @@ def refinement(prompt_fn):
             curr_data = {'input':curr,'output':new_thm}
             curr_data['correct'] = correct
             curr_data['messages'] = messages
-            curr_data['score'] = (metric.name, metric.metric(new_thm)) if correct else None
+            curr_data['score'] = (metric.name, metric.score(new_thm)) if correct and metric.score_fn is not None else None
+            curr_data['delta'] = (metric.name, metric.metric(curr,new_thm)) if correct else None
+            curr_data['minmax'] = metric.minmax
 
             prev_data.append(curr_data)
 
-            if not keep_best:
-                curr = new_thm
-            else:
-                old_correct = eval_correctness(curr)[0]
-                new_correct = correct
 
-                #if old correct and new incorrect, old
-                # if old correct, and new correct, min
-                # if old incorrect and new correct, new
-                # if both incorrect, one with less messages.
-
-                if old_correct and new_correct:
-                    curr = metric.cmp(curr,new_thm)
-                elif old_correct and not new_correct:
-                    pass
-                elif not old_correct and new_correct:
+            if not metric.lock_refinement_state:
+                if not keep_best:
                     curr = new_thm
                 else:
-                    curr = new_thm#min(curr,new_thm,key=lambda x:len(x.messages))
+                    old_correct = eval_correctness(curr)[0]
+                    new_correct = correct
+
+                    #if old correct and new incorrect, old
+                    # if old correct, and new correct, min
+                    # if old incorrect and new correct, new
+                    # if both incorrect, one with less messages.
+
+                    if old_correct and new_correct:
+                        curr = metric.cmp(curr,new_thm)
+                    elif old_correct and not new_correct:
+                        pass
+                    elif not old_correct and new_correct:
+                        curr = new_thm
+                    else:
+                        curr = new_thm#min(curr,new_thm,key=lambda x:len(x.messages))
         
         return curr
             

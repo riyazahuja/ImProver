@@ -637,7 +637,7 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
         output = thms[-1]
     
 
-    clean_proof = elim_overlap(output.proof)
+    elim_pf = elim_overlap(output.proof)
 
     first = None
 
@@ -661,20 +661,19 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
     og_proof = flattenProof(thm.proof)
 
 
-    #print('ENTERING FIRST CALC')
-    for idx in range(min(len(og_proof),len(output.proof))):
-        if og_proof[idx].tactic != output.proof[idx].tactic:
+    for idx in range(min(len(og_proof),len(elim_pf))):
+        if og_proof[idx].tactic != elim_pf[idx].tactic:
             first = idx
             break
 
     if first is None:
-        if len(og_proof) != len(output.proof):
-            first = min(len(og_proof),len(output.proof))
+        if len(og_proof) != len(elim_pf):
+            first = min(len(og_proof),len(elim_pf))
     
     
     if first is not None:
         if first != 0:
-            max_pos = output.proof[first-1].end
+            max_pos = elim_pf[first-1].end
         else:
             max_pos = (1,1)
 
@@ -694,7 +693,7 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                           mctxAfter={},
                                           children=[])
             
-            proof = [get_empty_annotated_proof_step(i) if i >= first else output.proof[i] for i in range(len(og_proof))]
+            proof = [get_empty_annotated_proof_step(i) if i >= first else elim_pf[i] for i in range(len(og_proof))]
             
             final = AnnotatedTheorem(decl=output.decl,
                                     declID=output.declID,
@@ -707,11 +706,11 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                     pretty_print=output.pretty_print)
 
             if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
-                raise ValueError(f'=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in output.proof]}\n{output.messages}\nfirst: {first}\n=============')
+                raise ValueError(f'=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in elim_pf]}\n{output.messages}\nfirst: {first}\n=============')
 
             return final
         else:
-            raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{output.proof}')
+            raise ValueError(f'input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{elim_pf}')
 
    
     return output

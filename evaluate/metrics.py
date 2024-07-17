@@ -8,55 +8,69 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import PromptTemplate,FewShotPromptTemplate
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_openai import OpenAIEmbeddings
-import json
+import re
+
+
+
 class Metric():
-    def __init__(self, name, prompt, metric_fn, examples, minmax):
+    def __init__(self, name, prompt, examples, minmax,score_fn=None, metric_fn=None, cmp=None,lock_refinement_state = False):
+        if score_fn is None and metric_fn is None:
+            raise ValueError('Need either score or metric fn')
+        if score_fn is None and cmp is None:
+            raise ValueError('Need either score or cmp fn')
         self.name = name
         self.prompt = prompt
-        self.metric_fn = metric_fn
         self.examples=examples
         self.minmax = minmax
         self.vs = self.get_example_selector()
-    
-    def metric(self,thm) -> int:
-        return self.metric_fn(thm)
+        self.score_fn = score_fn
+        self.lock_refinement_state=False
+        
+        if cmp is not None:
+            self.cmp=cmp
+        else:
+            self.cmp = self.get_cmp()
+
+        if metric_fn is None:
+            self.metric_fn = self.delta
+        
+        
+    def score(self,thm):
+        return self.score_fn(thm)
+
+    def metric(self,thm1,thm2):
+        return self.metric_fn(thm1,thm2)
     
     def delta(self, old_thm, new_thm):
-        old = self.metric(old_thm)
-        new = self.metric(new_thm)
-        return ((new-old)/old) * 100
+        if self.score_fn!=None:
+            old = self.score(old_thm)
+            new = self.score(new_thm)
+            return ((new-old)/old) if old!=0 else None
+        else:
+            return None
+        
     
     def get_example_selector(self):
         vs = get_metric_vs(self.examples,self.name)
         return vs
-        # ex = [
-        #     {
-        #         "input": example['input'].replace(r'{',r'{{').replace(r'}',r'}}'),
-        #         "output": example['output'].replace(r'{',r'{{').replace(r'}',r'}}')
-        #     }
-        #     for example in self.examples
-        # ]
-
-        # example_selector = SemanticSimilarityExampleSelector.from_examples(
-        #     ex,
-        #     OpenAIEmbeddings(),
-        #     Chroma,
-        #     k=len(self.examples),
-        # )
-        # return example_selector
-
     
-    
-    def cmp(self,*thms):
-        scores = [(t,self.metric(t)) for t in thms]
-        if self.minmax=='MIN':
-            #smaller is better
-            return min(*scores,key=lambda x:x[1])[0]
-        elif self.minmax=='MAX':
-            return max(*scores,key=lambda x:x[1])[0]
-        else:
-            return None
+    def get_cmp(self):
+        if self.score_fn is not None:
+
+            def cmp(self,*thms):
+                scores = [(x,self.score(x)) for x in thms]
+                if self.minmax=='MIN':
+                    #smaller is better
+                    return min(*scores,key=lambda x:x[1])[0]
+                elif self.minmax=='MAX':
+                    return max(*scores,key=lambda x:x[1])[0]
+                else:
+                    return None
+            return cmp
         
+        else:
+            raise ValueError('called get_cmp on fn without scorefn')
+            
 
 
 def length_metric ():
@@ -64,7 +78,9 @@ def length_metric ():
     def len_fn(thm):
         if type(thm) == Theorem:
             thm = annotateTheorem(thm,force=True)
+        #thm.proof = elim_overlap(thm.proof)
         num_lines = len(thm.proof)
+        return num_lines
         #dont count semicolons
         semicolons = 0
         for line in thm.proof:
@@ -127,69 +143,101 @@ def length_metric ():
     ]
 
 
-    return Metric('LENGTH', [sys_prompt,user_prompt], lambda thm: len_fn,examples,'MIN')
+    return Metric('LENGTH', [sys_prompt,user_prompt], examples,'MIN',score_fn=len_fn)
 
-
-# def length_metric ():
-#     def len_fn(thm):
-#         if type(thm) == Theorem:
-#             thm = annotateTheorem(thm,force=True)
-#         num_lines = len(thm.proof)
-#         #dont count semicolons
-#         semicolons = 0
-#         for line in thm.proof:
-#             #ignore <;>'s and ;'s at end of line
-#             content = line.tactic.replace('<;>','')[:-1]
-#             semicolons += content.count(';')
-#         return num_lines+semicolons
-
-#     sys_prompt = ('system','''You are an AI assistant who shortens Lean 4 proofs while ensuring their correctness. 
-#                   You will aim to reduce the number of tactic invocations in the tactic proof - as in, decrease the number of lines in the proof, without simply moving everything to one line using semicolons - while ensuring that it properly compiles in lean 4. ''')
-    
-#     user_prompt = ('human','''Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short in length - measured in 
-#                    the number of tactic invocations in the proof (lines + number of semicolons-1) - as possible, while also ensuring that the output is still syntactically correct.''')
-#     return Metric('LENGTH', [sys_prompt,user_prompt], len_fn,'MIN')
 
 
 def modularity_metric ():
+
+    def get_haves(anno_thm:AnnotatedTheorem):
+        haves = [(idx,step) for idx,step in enumerate(anno_thm.proof) if 'have' in step.tactic]
+        def get_name(line):
+            pattern = r'have\s+(\w+)(?=\s*:)'
+            match = re.search(pattern, line)
+            if match:
+                return match.group(1)
+            return None
+        def get_instances(name,ignore_def=True,start_idx=0):
+            tactics = [step.tactic for idx,step in enumerate(elim_overlap(anno_thm.proof)) if idx>=start_idx]
+            cnt= sum(1 for tac in tactics if name in tac)
+            if ignore_def:
+                return cnt-1
+            else:
+                return cnt
+
+        haves_with_name = {step[name] : (idx,get_name(step[name])) for idx,step in haves if get_name(step[name]) is not None}
+
+        num_haves = len(haves)
+        avg_reuse = (sum(get_instances(haves_with_name[tac][0],start_idx=haves_with_name[tac][1]) for tac in haves_with_name.keys())) / num_haves
+        return (num_haves,avg_reuse)
+
 
     def mod_fn(thm):
         if type(thm) == Theorem:
             thm = annotateTheorem(thm,force=True)
         G,_,_ = getProofTree(thm)
-        return depth(G)
+        tree_depth = depth(G)
+        tree_breadth = breadth(G)
+        num_haves,avg_reuse_cnt = get_haves(thm)
+        normalized_depth = (1-tree_depth/len(thm.proof)) #shorter is better
+        normalized_breadth = tree_breadth/len(thm.proof) #bigger is better
+        normalized_haves = num_haves/len(thm.proof) #bigger is better
+        normalized_reuse = avg_reuse_cnt/len(thm.proof) #bigger is better
+        vals = [normalized_depth,normalized_breadth,normalized_haves,normalized_reuse]
+        weights = [0.25,0.25,0.25,0.25]
+
+        return sum(weights[i]*vals[i] for i in range(len(weights)))
+
     
     sys_prompt = ('system','''You are an AI assistant who rewrites Lean 4 proofs to be more modular while ensuring their correctness. 
-                  We say a proof is more modular if the proof structure is moreso made up of independent subproofs 
-                  rather than a sequential list of tactics. The metric we\'re using measures the depth of the proof tree, which strongly 
-                  favors proofs that use many independent subproofs as the depth of the proof tree is the maximum of the depths of these branches.''')
+                  We measure modularity by considering the depth of the proof tree (less is better), the breadth of the proof tree (greater is better),
+                  the number of have statements (more is better), and the avg number of times these have statements are reused (more is better).''')
     
     user_prompt = ('human','''Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is more modular. Any lemmas or 
-                   independent subproofs you wish to make, put them as a \"have\" statement proofstep within the tactic proof rather than an external lemma.''')
+                   independent subproofs you wish to make, put them as a \"have\" statement proofstep within the tactic proof rather than an external lemma.
+                   Rewrite the current theorem to be as modular as possible, in that it has as many have statements as possible that are reused often, and the proof tree is broad and not deep - while ensuring the output is still syntactically correct.''')
     
     examples = []
 
-    return Metric('MODULARITY', [sys_prompt,user_prompt], mod_fn,examples,'MIN')
+    return Metric('MODULARITY', [sys_prompt,user_prompt],examples,'MIN',score_fn=mod_fn)
 
+
+#I Dont think this satisfies the triangle inequality, so refinement state is locked to always compare with original thm.
+#Therefore, it is essentially just best of n, with some error message forwarding
 def similarity_metric ():
 
-    def mod_fn(thm):
-        if type(thm) == Theorem:
-            thm = annotateTheorem(thm,force=True)
-        _,_,_,depth = getProofTree(thm)
-        return depth
+    def diff_fn(thm1,thm2):
+        if type(thm1) == Theorem:
+            thm1 = annotateTheorem(thm1,force=True)
+        if type(thm2) == Theorem:
+            thm2 = annotateTheorem(thm2,force=True)
+        G1,_,_ = getProofTree(thm1)
+        G2,_,_ = getProofTree(thm2)
+
+        return tree_edit_distance(G1,G2)
     
-    sys_prompt = ('system','''You are an AI assistant who rewrites Lean 4 proofs to be more modular while ensuring their correctness. 
-                  We say a proof is more modular if the proof structure is moreso made up of independent subproofs 
-                  rather than a sequential list of tactics. The metric we\'re using measures the depth of the proof tree, which strongly 
-                  favors proofs that use many independent subproofs as the depth of the proof tree is the maximum of the depths of these branches.''')
-    
-    user_prompt = ('human','''Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is more modular. Any lemmas or 
-                   independent subproofs you wish to make, put them as a \"have\" statement proofstep within the tactic proof rather than an external lemma.''')
-    
+    def cmp_fn(*thms):
+        if len(thms) == 0:
+            return None
+        elif len(thms) == 1:
+            return thms[0]
+        else:
+            main = thms[0]
+            rest = thms[1:]
+            scores = [(other,diff_fn(main,other)) for other in rest]
+            scores.append((main,0))
+            return max(*scores,key=lambda x:x[1])[0]
 
 
-
+    
+    sys_prompt = ('system','''You are an AI assistant who rewrites a given Lean 4 proof to be as different as possible while ensuring its correctness. 
+                  We calculate the similarity of two proofs via the number of insertions, deletions, and modifications (string edit distance) to convert one proof tree to the other.
+                  That means that simply reordering some independent steps of a proof will not yield a vastly different proof, rather, one should focus 
+                  on creating a proof that is both correct, and structurally and syntactically different than the original''')
+    
+    user_prompt = ('human','''Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it both correct and the new proof is as different as possible 
+                   from the original proof.''')
+    
     examples = [
         {
             'input':'''theorem add_zero (a : Nat) : a + 0 = a := by
@@ -244,16 +292,36 @@ def similarity_metric ():
     ]
 
 
-    return Metric('SIMILARITY', [sys_prompt,user_prompt], mod_fn,examples,'MIN')
+    return Metric('SIMILARITY', [sys_prompt,user_prompt], examples, 'MAX',metric_fn=diff_fn,cmp=cmp_fn,lock_refinement_state=True)
+
+
+
 
 def readability_metric ():
     def readability_fn (thm):
-        return 0
-    
-    sys_prompt = ('system','You are an AI assistant who automatically formalizes LaTeX/lean4 proofs into Lean 4 proofs and ensures their correctness. You will either recieve a human-readable LaTeX proof (denoted with a <INFORMAL PROOF> header in the context), upon which you should aim to construct a formal lean 4 proof that compiles as correct. Namely, the context, decl, and proof will all be in latex, and will each need to be converted into lean4 proofs, theorem declarations, and tactic proofs respectively. Or you may recieve a lean 4 proof you must modify to eliminate any errors so that it compiles as correct.')
-    user_prompt = ('human','Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is a formal Lean 4 proof (if it is not already), and moreover, a correct formal proof. If the context has the heading <INFORMAL PROOF> then be sure to convert the decl and proof to both be valid lean 4 as they are both currently latex.')
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm,force=True)
+        proof = elim_overlap(thm.proof)
+        num_lines = len(proof)
+        mean_line_length = sum(step.tactic.splitlines()[0] for step in proof)/num_lines
+        max_line_length = max(step.tactic.splitlines()[0] for step in proof)
+        mod = modularity_metric()
+        mod_score = mod.metric(thm)
+        norm_line_length = mean_line_length/max_line_length
+        weights = [0.33,0.67]
+        vals = [mod_score,norm_line_length]
+        return sum(weights[i]*vals[i] for i in range(len(vals)))
     
 
+
+    
+    sys_prompt = ('system','''You are an AI assistant who rewrites a given Lean 4 proof to be as readable as possible while ensuring its correctness. 
+                  We calculate the readability of a given proof  of two metrics via considering the average length of lines/tactics (shorter is better),
+                  as well as the modularity of the proof, as given by structure of the proof tree. Specifically, we say a proof is 
+                  modular if it has low proof tree depth, high breadth, and a relatively high number of independent subproofs that are reused often.''')
+    
+    user_prompt = ('human','''Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is more readable to a human - while also ensuring it is syntactically correct.''')
+    
     examples = [
         {
             'input':'''theorem not_imp (P Q : Prop) : ¬ (P → Q) → P ∧ ¬ Q := by
@@ -315,21 +383,12 @@ def readability_metric ():
         }
     ]
 
-    return Metric('READABILITY', [sys_prompt,user_prompt], readability_fn,examples,'MAX')
+    return Metric('READABILITY', [sys_prompt,user_prompt],examples,'MAX',score_fn=readability_fn)
 
-def formalization_metric ():
-    
-  def num_errors(thm):
-      if type(thm) == Theorem:
-          thm = annotateTheorem(thm)
-      errors = sum(1 for msg in thm.messages if msg.severity=='error')
-      return errors
 
-  sys_prompt = ('system','You are an AI assistant who automatically formalizes LaTeX/lean4 proofs into Lean 4 proofs and ensures their correctness. You will either recieve a human-readable LaTeX proof (denoted with a <INFORMAL PROOF> header in the context), upon which you should aim to construct a formal lean 4 proof that compiles as correct. Namely, the context, decl, and proof will all be in latex, and will each need to be converted into lean4 proofs, theorem declarations, and tactic proofs respectively. Or you may recieve a lean 4 proof you must modify to eliminate any errors so that it compiles as correct.')
-  user_prompt = ('human','Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is a formal Lean 4 proof (if it is not already), and moreover, a correct formal proof. If the context has the heading <INFORMAL PROOF> then be sure to convert the decl and proof to both be valid lean 4 as they are both currently latex.')
-  
 
-  return Metric('FORMALIZATION', [sys_prompt,user_prompt], num_errors, 'MIN')
+
+
 
 
 
@@ -343,7 +402,7 @@ def completion_metric ():
   sys_prompt = ('system','You are an AI assistant who automatically solves Lean 4 proofs (as in, generates the tactic proof) and ensures its correctness. You will recieve a Lean 4 proof you must modify to eliminate any errors so that it compiles as correct and, and elimanate any \"sorry\"s with full proofs.')
   user_prompt = ('human','Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is a formal, complete, and correct Lean 4 proof by filling in its tactic proof.')
 
-  return Metric('COMPLETION', [sys_prompt,user_prompt], num_errors, 'MIN')
+  return Metric('COMPLETION', [sys_prompt,user_prompt], 'MIN',score_fn=num_errors)
   
 
 

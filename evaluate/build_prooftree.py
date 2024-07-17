@@ -1,13 +1,17 @@
 import math
 import json
 import matplotlib
-#matplotlib.use('agg')
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
+import zss
+from zss import Node
+import Levenshtein
+
 
 def build(nodes):
     adj = [None for _ in range(len(nodes))]
@@ -52,7 +56,7 @@ def build_graph(data):
 
     for index, (node_info, children_indices) in enumerate(data):
         after = [f'{iden} : {node_info["mctxAfter"][iden]}' for iden in node_info['before'] if iden in node_info['mctxAfter'].keys()]
-        node_label = f"idx={index}\n{node_info['node']}"#\nbefore: {node_info['before']}\nafter: {node_info['after']}\nmctxAfter:{after}\ninfo_children: {node_info['kids']}"
+        node_label = f"{node_info['node']}"#\nbefore: {node_info['before']}\nafter: {node_info['after']}\nmctxAfter:{after}\ninfo_children: {node_info['kids']}"
         G.add_node(index, label=node_label)
         labels[index] = node_label
         # Set positions in a circle
@@ -75,7 +79,9 @@ def build_graph(data):
             if node not in reachable_nodes:
                 reachable_nodes.add(node)
                 queue.extend(list(G.successors(node)))
-    main_tree = find_reachable_nodes(G)
+        return reachable_nodes
+
+    main_tree = list(find_reachable_nodes(G))
 
 
     for root in roots:
@@ -88,15 +94,6 @@ def build_graph(data):
     
 
     return G, positions, labels
-
-def depth(G,root_idx = 0):
-    # Calculate the depth of the graph as the longest path
-    if G.number_of_nodes() > 0:
-        lengths = nx.single_source_shortest_path_length(G, root_idx)  # Assuming the root node is 0
-        depth = max(lengths.values()) if lengths else 0
-    else:
-        depth = 0
-    return depth
 
 # Visualization function
 def visualize_tree(G, positions, labels):
@@ -142,18 +139,7 @@ def getProofTree(thm:AnnotatedTheorem, visualize=False):
                             'after': step.goalsAfter,
                             'mctxBefore':step.mctxBefore,
                             'mctxAfter':step.mctxAfter,
-                            'kids':children})
-
-    # Logic to trim off unused goals
-    # new_contents = []
-    # for node in contents:
-    #     old_before = node['before']
-    #     old_after = node['after']
-    #     delete = [goal for goal in old_before if goal in old_after]
-    #     new_before = [goal for goal in old_before if goal not in delete]
-    #     new_after = [goal for goal in old_after if goal not in delete]
-    #     new_contents.append({'node': node['node'], 'before': new_before, 'after': new_after})
-    # contents = new_contents        
+                            'kids':children})   
 
     adj = build(contents)
     data = list(zip(contents, adj))
@@ -164,6 +150,56 @@ def getProofTree(thm:AnnotatedTheorem, visualize=False):
     if visualize:
         visualize_tree(G, positions, labels)
     return G, positions, labels
+
+
+def depth(G,root_idx = 0):
+    # Calculate the depth of the graph as the longest path
+    if G.number_of_nodes() > 0:
+        lengths = nx.single_source_shortest_path_length(G, root_idx)  # Assuming the root node is 0
+        depth = max(lengths.values()) if lengths else 0
+    else:
+        depth = 0
+    return depth
+
+def breadth(G):
+    # Calculate the breadth of the graph as the number of leaf nodes
+    leaf_nodes = [node for node in G.nodes if G.out_degree(node) == 0]
+    return len(leaf_nodes)
+
+def tree_edit_distance(G1, G2,normalize=True):
+    def nx_to_zss(G, node, label_func):
+        zss_node = Node(label_func(node))
+        for child in G.successors(node):
+            zss_node.addkid(nx_to_zss(G, child, label_func))
+        return zss_node
+
+    def label_fn(G):
+        return lambda n: G.nodes[n]['label']
+    
+    zss_tree1 = nx_to_zss(G1, 0, label_fn(G1))
+    zss_tree2 = nx_to_zss(G2, 0, label_fn(G2))
+
+    def insert_cost(node):
+        return 1#len(node.label)
+
+    def remove_cost(node):
+        return 1#len(node.label)
+
+    def update_cost(node1, node2):
+        dist = Levenshtein.distance(node1.label, node2.label)
+        max_dist = max(Levenshtein.distance('',node1.label),Levenshtein.distance('',node2.label))
+        #print(f'{node1.label} -> {node2.label} : {dist} / {max_dist} = {dist/max_dist}')
+        return dist/max_dist
+    #dist = zss.simple_distance(zss_tree1,zss_tree2)
+    dist = zss.distance(zss_tree1, zss_tree2, get_children=Node.get_children, insert_cost=insert_cost, remove_cost=remove_cost, update_cost=update_cost)
+    if normalize:
+        num_nodes = G1.number_of_nodes()+G2.number_of_nodes()
+        #print(num_nodes)
+        dist = dist/num_nodes
+    return dist
+
+
+
 
 def save_tree(G,positions,labels,save_path):
     matplotlib.use('agg')
@@ -178,11 +214,20 @@ def save_tree(G,positions,labels,save_path):
 if __name__ == '__main__':
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_name:file for file in repo.files}
-    #f = files['Basic.lean']
+    f = files['Basic.lean']
     #f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
-    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    #f = files['Solutions_S01_Sets.lean']
     thms = f.theorems
-    thm = thms[0]
+    thm1 = thms[1]
+    thm2 = thms[2]
 
-    G, p, l = getProofTree(thm, visualize=True)
+
+    G1, p1, l1 = getProofTree(thm1, visualize=False)
+    G2, p2, l2 = getProofTree(thm2, visualize=False)
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    save_tree(G1,p1,l1,os.path.join(root_path,'.trees','test1.png'))
+    save_tree(G2,p2,l2,os.path.join(root_path,'.trees','test2.png'))
+
+    print(tree_edit_distance(G1,G2))
+
     #print("Depth of the proof tree:", depth)
