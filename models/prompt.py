@@ -95,45 +95,6 @@ def prompt_raw(thm:AnnotatedTheorem, metric:Metric, obj=str, model = 'gpt-4-turb
     prev_data_parsed = parse_prev_data(prev_data)
     
 
-    # #example_selector = metric.get_example_selector()
-    # if examples != 0:
-    #     ex = [
-    #             {
-    #                 "input": example['input'].replace(r'{',r'{{').replace(r'}',r'}}'),
-    #                 "output": example['output'].replace(r'{',r'{{').replace(r'}',r'}}')
-    #             }
-    #             for example in metric.examples
-    #         ]
-
-    #     example_selector = SemanticSimilarityExampleSelector.from_examples(
-    #         ex,
-    #         OpenAIEmbeddings(),
-    #         Chroma,
-    #         k=examples,
-    #     )
-
-    #     example_prompt = PromptTemplate(
-    #         input_variables=["input", "output"],
-    #         template="<EXAMPLE>\nInput:\n{input}\n\nOutput:\n{output}\n</EXAMPLE>",
-    #     )
-    #     #example_selector.k = examples
-
-    #     examples_prompt = FewShotPromptTemplate(
-    #         example_selector=example_selector,
-    #         example_prompt=example_prompt,
-    #         suffix="",
-    #         input_variables=["item"],
-    #     )
-    # else:
-    #     example_prompt=None
-
-
-    #out = examples_prompt.format(item='Set')
-    #print(out)
-    #return -1
-
-    
-
     prompt = ChatPromptTemplate.from_messages([
         ('placeholder','{system_prompts}'),
         ('system',f'''You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
