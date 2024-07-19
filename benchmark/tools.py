@@ -33,7 +33,10 @@ def process_instance(thm:AnnotatedTheorem,method):
     if new_correct and metric.score_fn != None:
         new_score=metric.score(output_anno_thm)
     
-    delta = metric.metric(thm,output_anno_thm)
+    if new_correct and og_correct:
+        delta = metric.metric(thm,output_anno_thm)
+    else:
+        delta = None
     #if new_score is not None and og_score is not None and og_score != 0:
     #    delta = metric.metric#((new_score-og_score)/og_score) * 100
 
@@ -239,55 +242,20 @@ if __name__ == "__main__":
 
     methods = get_methods(model=['gpt-4o'],
                           fn=[prompt_flat],#best_of_n(prompt_flat),refinement(prompt_flat),prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
-                          metric=[length_metric()],#,modularity_metric()],
+                          metric=[length_metric(),modularity_metric(),similarity_metric(),readability_metric()],#,modularity_metric()],
                           examples=[3]
                           )
     
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_name:file for file in repo.files}
-    #file = files['Basic.lean']
-    #keys= [k for k in files.keys() if 'Solutions_' in k]
-    keys = ['Solutions_S06_Sequences_and_Convergence.lean', 'Solutions_S03_Negation.lean', 'Solutions_S01_Implication_and_the_Universal_Quantifier.lean', 'Solutions_S04_Conjunction_and_Iff.lean', 'Solutions_S05_Disjunction.lean', 'Solutions_S02_The_Existential_Quantifier.lean']
-    #files = [files[k] for k in keys]
-    #print([f'{k} : {len(files[k].theorems)}\n' for k in keys])
     f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
 
-    #data = benchmark_file(f,methods)
-
-    data = benchmark_file(f,methods,show_theorem_progress=True)
-    # thms = f.theorems
-    # for thm in [thms[0]]:
-    #     #print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
-    #     #out=prompt_structured(thm,length_metric(),mathlib_search=True)
-    #     #metric = length_metric()
-    #     #out=prompt_flat(thm,length_metric(),model='gpt-4o',examples=1)
-    #     data = benchmark_theorem(thm,methods)
-    #     #out = best_of_n(thm,metric,10,max_workers=3,mixup=0.5)
-    #     #out=refinement(thm,length_metric(),3,prev_data_num=3,syntax_search=True,mathlib_search=True)
-    #     #print(out)
-        
-    #     #correct,msgs,anno = eval_correctness(out)
-    #     #score = metric.metric(anno) if correct else None
-    #     #msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
-    #     print('\n')
-    #     #print(parseTheorem(out,context=False))
-    #     #print(f'CORRECT? {correct}\nSCORE: {score}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
-    #     #print('=========\n\n\n=========')
-
+    
 
     
     #cost = get_cost(f,methods)
     #print(f'${cost}')
-
-    #with tqdm(total=len(files),desc='Files: ') as pbar:
-        #for f in files:
-            #data.extend(benchmark_file(f,methods,theorem_workers=4,method_workers=None,show_theorem_progress=True,show_method_progress=True))
-            #pbar.update(1)
-    #data.extend(benchmark_file(f,methods,theorem_workers=6,method_workers=None,show_theorem_progress=True,show_method_progress=True))
-    #get_cost(repo,methods)
-    
-    #data = benchmark_file(f,methods,show_theorem_progress=True,show_method_progress=True)
-    #data = benchmark_repo(repo,methods,file_workers=1,theorem_workers=6,show_file_progress=True)
+    data = benchmark_file(f,methods,theorem_workers=3,show_theorem_progress=True,show_method_progress=True)
     save_to_csv(data,path='data.csv')
 
     

@@ -1,7 +1,7 @@
 import math
 import json
 import matplotlib
-matplotlib.use('agg')
+#matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import sys
@@ -214,15 +214,16 @@ def save_tree(G,positions,labels,save_path):
 if __name__ == '__main__':
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_name:file for file in repo.files}
-    f = files['Basic.lean']
-    #f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    #f = files['Basic.lean']
+    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
     #f = files['Solutions_S01_Sets.lean']
     thms = f.theorems
-    thm1 = thms[1]
-    thm2 = thms[2]
+    thm1 = thms[0]
+    #thm2 = thms[2]
 
 
-    G1, p1, l1 = getProofTree(thm1, visualize=False)
+    G1, p1, l1 = getProofTree(thm1, visualize=True)
+    '''
     G2, p2, l2 = getProofTree(thm2, visualize=False)
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     save_tree(G1,p1,l1,os.path.join(root_path,'.trees','test1.png'))
@@ -231,3 +232,4 @@ if __name__ == '__main__':
     print(tree_edit_distance(G1,G2))
 
     #print("Depth of the proof tree:", depth)
+    '''

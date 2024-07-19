@@ -12,7 +12,7 @@ def _get_stem(input_module, input_file_mode):
         stem = Path(input_module).stem.replace('.', '/')
     else:
         stem = input_module.replace('.', '/')
-    return stem
+    return stem.replace('«', '').replace('»', '') 
 
 def _run_cmd(cmd, cwd, input_file, output_file):
     #print(f'cmd: {cmd}\n input: {input_file}\n output {output_file}')
@@ -132,6 +132,8 @@ if __name__ == '__main__':
         input_file_mode = args.input_file is not None
         #print(f'{input_modules} | {input_file_mode} | {[_get_stem(mod, input_file_mode) for mod in input_modules]}')
         input_modules = [mod for mod in input_modules if _get_stem(mod, input_file_mode) + '.lean' in files_in_path]
+        #print(f'Input Modules: {input_modules}')
+        #print('-----------------')
         futures = [
             executor.submit(
                 _extract_module,

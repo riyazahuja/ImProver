@@ -33,6 +33,8 @@ class Metric():
 
         if metric_fn is None:
             self.metric_fn = self.delta
+        else:
+            self.metric_fn = metric_fn
         
         
     def score(self,thm):
@@ -51,6 +53,8 @@ class Metric():
         
     
     def get_example_selector(self):
+        if len(self.examples)==0:
+            return None
         vs = get_metric_vs(self.examples,self.name)
         return vs
     
@@ -80,7 +84,7 @@ def length_metric ():
             thm = annotateTheorem(thm,force=True)
         #thm.proof = elim_overlap(thm.proof)
         num_lines = len(thm.proof)
-        return num_lines
+        #return num_lines
         #dont count semicolons
         semicolons = 0
         for line in thm.proof:
@@ -165,10 +169,10 @@ def modularity_metric ():
             else:
                 return cnt
 
-        haves_with_name = {step[name] : (idx,get_name(step[name])) for idx,step in haves if get_name(step[name]) is not None}
+        haves_with_name = {step.tactic : (idx,get_name(step.tactic)) for idx,step in haves if get_name(step.tactic) is not None}
 
         num_haves = len(haves)
-        avg_reuse = (sum(get_instances(haves_with_name[tac][0],start_idx=haves_with_name[tac][1]) for tac in haves_with_name.keys())) / num_haves
+        avg_reuse = (sum(get_instances(haves_with_name[tac][1],start_idx=haves_with_name[tac][0]) for tac in haves_with_name.keys())) / num_haves if num_haves != 0 else 0
         return (num_haves,avg_reuse)
 
 
@@ -199,7 +203,7 @@ def modularity_metric ():
     
     examples = []
 
-    return Metric('MODULARITY', [sys_prompt,user_prompt],examples,'MIN',score_fn=mod_fn)
+    return Metric('MODULARITY', [sys_prompt,user_prompt],examples,'MAX',score_fn=mod_fn)
 
 
 #I Dont think this satisfies the triangle inequality, so refinement state is locked to always compare with original thm.
@@ -303,10 +307,10 @@ def readability_metric ():
             thm = annotateTheorem(thm,force=True)
         proof = elim_overlap(thm.proof)
         num_lines = len(proof)
-        mean_line_length = sum(step.tactic.splitlines()[0] for step in proof)/num_lines
-        max_line_length = max(step.tactic.splitlines()[0] for step in proof)
+        mean_line_length = sum(len(step.tactic.splitlines()[0]) for step in proof)/num_lines
+        max_line_length = max(len(step.tactic.splitlines()[0]) for step in proof)
         mod = modularity_metric()
-        mod_score = mod.metric(thm)
+        mod_score = mod.score(thm)
         norm_line_length = mean_line_length/max_line_length
         weights = [0.33,0.67]
         vals = [mod_score,norm_line_length]

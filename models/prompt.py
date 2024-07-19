@@ -210,6 +210,8 @@ def prompt_basic(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', pre
 
     output = prompt_raw(thm,metric,strProof,model=model,prev_data=prev_data,n=n,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
 
+    if token:
+        return output
 
     def coerce_Thm(curr):
         ProofStep.update_forward_refs()
@@ -230,6 +232,9 @@ def prompt_flat(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo', prev
     
     output = prompt_raw(thm,metric,Proof,model=model,prev_data=prev_data,n=n,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
 
+    if token:
+        return output
+
     def coerce_trimmedThm(curr):
         ProofStep.update_forward_refs()
         return Theorem(decl=thm.decl,declID=thm.declID,src=thm.src,leanFile=thm.leanFile,context=thm.context,proof=[ProofStep(tactic=step) for step in curr.proof],project_path=thm.project_path)
@@ -248,6 +253,9 @@ def prompt_structured(thm:AnnotatedTheorem, metric:Metric, model = 'gpt-4-turbo'
 
     output = prompt_raw(thm,metric,trimmedTheorem,model=model,prev_data=prev_data,n=n,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
     
+    if token:
+        return output
+
     def coerce_PS(step):
         ProofStep.update_forward_refs()
         if type(step) == str:
