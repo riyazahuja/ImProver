@@ -142,7 +142,7 @@ def _run(cwd, name, import_file, old_version, max_workers,start,local_path):
     flags += ' --start %s --proj-path %s' % (start_path, proj_path)
     subprocess.Popen(['python3 %s/scripts/run_pipeline.py --output-base-dir .cache/%s --cwd %s --import-file %s %s' % (
         cwd,
-        name.capitalize(),
+        name,#.capitalize(),
         cwd,
         _import_file(name, import_file, old_version,local_path),
         flags
@@ -176,6 +176,12 @@ if __name__ == '__main__':
         help='runs lake build on imported module'
         )
     parser.add_argument(
+        '--setup', 
+        action=argparse.BooleanOptionalAction, 
+        default=True,
+        help='runs setup scripts'
+        )
+    parser.add_argument(
         '--start', 
         default='',
         help="Start path in file tree of packages to be run"
@@ -186,7 +192,8 @@ if __name__ == '__main__':
         sources = json.load(f)
 
     for source in sources:
-        print("=== %s ===" % (source['name']))
+        name = source['name']
+        print("=== %s ===" % (name))
         print(source)
         if 'repo' in source.keys():
             local = False
@@ -197,14 +204,14 @@ if __name__ == '__main__':
         if local:
             _lakefile_local(
                 path=source['path'],
-                name=source['name'],
+                name=name,
                 cwd=args.cwd
             )
         else:
             _lakefile_remote(
                 repo=source['repo'],
                 commit=source['commit'],
-                name=source['name'],
+                name=name,
                 cwd=args.cwd
             )
         _examples(
@@ -215,20 +222,22 @@ if __name__ == '__main__':
             lean=source['lean'],
             cwd=args.cwd
         )
-        _setup(
-            cwd=args.cwd,
-            rebuild = args.rebuild
-        )
+        if args.setup:
+            _setup(
+                cwd=args.cwd,
+                rebuild = args.rebuild
+            )
         
 
         if args.run:
-            src_dir = os.path.join(args.cwd,'.cache',source['name'])
+            name = name.replace('«','').replace('»','')
+            src_dir = os.path.join(args.cwd,'.cache',name)
             if os.path.isdir(src_dir):
                 shutil.rmtree(src_dir)
 
             _run(
                 cwd=args.cwd,
-                name=source['name'],
+                name=name,
                 import_file=source['import_file'],
                 old_version=False if 'old_version' not in source else source['old_version'],
                 max_workers=args.max_workers,

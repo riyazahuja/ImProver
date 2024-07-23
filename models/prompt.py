@@ -25,8 +25,11 @@ import logging
 from typing import Final
 import tiktoken
 
-logger: Final = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+log_req_info =  True
+
+if log_req_info:
+    logger: Final = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
 
 from tenacity import (
     after_log,
@@ -185,8 +188,8 @@ def prompt_raw(thm:AnnotatedTheorem, metric:Metric, obj=str, model = 'gpt-4-turb
     
     @retry(
     reraise=True,
-    before_sleep=before_sleep_log(logger, logging.INFO),
-    after=after_log(logger, logging.INFO),
+    before_sleep=before_sleep_log(logger, logging.INFO) if log_req_info else None,
+    after=after_log(logger, logging.INFO) if log_req_info else None,
     wait=wait_random_exponential(multiplier=1, max=60),
     )
     def invoke_throttled(chain,config):

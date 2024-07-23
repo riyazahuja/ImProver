@@ -24,7 +24,7 @@ class Metric():
         self.minmax = minmax
         self.vs = self.get_example_selector()
         self.score_fn = score_fn
-        self.lock_refinement_state=False
+        self.lock_refinement_state=lock_refinement_state
         
         if cmp is not None:
             self.cmp=cmp
@@ -61,7 +61,7 @@ class Metric():
     def get_cmp(self):
         if self.score_fn is not None:
 
-            def cmp(self,*thms):
+            def cmp(*thms):
                 scores = [(x,self.score(x)) for x in thms]
                 if self.minmax=='MIN':
                     #smaller is better
@@ -83,7 +83,7 @@ def length_metric ():
         if type(thm) == Theorem:
             thm = annotateTheorem(thm,force=True)
         #thm.proof = elim_overlap(thm.proof)
-        num_lines = len(thm.proof)
+        num_lines = len(elim_overlap(thm.proof))
         #return num_lines
         #dont count semicolons
         semicolons = 0

@@ -167,6 +167,7 @@ def get_methods(fn=[prompt_structured],
 
 def get_cost(obj,methods):
     price_pt = {
+        'gpt-4o-mini' : (0.150/1000000,0.600/1000000),
         'gpt-4o': (5/1000000,15/1000000),
         'gpt-4-turbo': (10/1000000,30/1000000),
         'gpt-3.5-turbo-0125': (0.5/1000000,1.5/1000000),
@@ -194,7 +195,7 @@ def get_cost(obj,methods):
     elif type(obj) == AnnotatedTheorem:
         thms  = [obj]
     else:
-        raise ValueError('uhoh')
+        raise ValueError(f'uhoh: type is \n{type(obj)}')
     
     #assert(type(obj) == AnnotatedTheorem)
 
@@ -240,23 +241,57 @@ if __name__ == "__main__":
 
 
 
+    # methods = get_methods(model=['gpt-4o','gpt-4o-mini'],
+    #                       fn=[prompt_flat,best_of_n(prompt_flat),refinement(prompt_flat)],
+    #                       n=[5],#prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
+    #                       metric=[length_metric()],#,modularity_metric(),similarity_metric()],#,modularity_metric()],
+    #                       examples=[4]
+    #                       )
+    # methods.extend(get_methods(model=['gpt-4o-mini'],
+    #                       fn=[best_of_n(prompt_flat),refinement(prompt_flat)],
+    #                       n=[10],#prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
+    #                       metric=[length_metric()],#,modularity_metric(),similarity_metric()],#,modularity_metric()],
+    #                       examples=[4]
+    #                       )
+    #             )
     methods = get_methods(model=['gpt-4o'],
-                          fn=[prompt_flat],#best_of_n(prompt_flat),refinement(prompt_flat),prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
-                          metric=[length_metric(),modularity_metric(),similarity_metric(),readability_metric()],#,modularity_metric()],
-                          examples=[3]
-                          )
+                          fn = [best_of_n(prompt_flat)],
+                          n=[3],
+                          metric=[length_metric(),modularity_metric(),similarity_metric()],
+                          examples=[4])
     
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_name:file for file in repo.files}
-    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    fs = [
+            files['Solutions_S01_Sets.lean'],
+            files['Solutions_S02_Functions.lean'],
+            files['Solutions_S03_The_Schroeder_Bernstein_Theorem.lean']
+    ]
+    # repo = getRepo('mathlib','configs/config.json')
+    # files = {file.file_path:file for file in repo.files}
+    # f = files['Mathlib/Algebra/Algebra/Basic.lean']
+    #print(f.contents)
+    #print(len(f.theorems))
+    #print(list(files.keys())[:100])   
+
+    # repo = getRepo('flt-regular','configs/config_FLTreg.json')
+    # files = {file.file_name:file for file in repo.files}
+    # files = {f:files[f] for f in files.keys() if type(files[f])==AnnotatedFile}
+    # print(files.keys())
+    # f = files['FltRegular.lean']
+
+
 
     
 
     
+    #cost = sum(get_cost(f,methods) for f in fs)
     #cost = get_cost(f,methods)
     #print(f'${cost}')
-    data = benchmark_file(f,methods,theorem_workers=3,show_theorem_progress=True,show_method_progress=True)
-    save_to_csv(data,path='data.csv')
+    data = []
+    for f in fs:
+        data.extend(benchmark_file(f,methods,theorem_workers=10,show_theorem_progress=True,show_method_progress=True))
+    save_to_csv(data,path='metrics_data_new.csv')
 
     
 

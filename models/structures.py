@@ -7,7 +7,7 @@ import tempfile
 import subprocess 
 from textwrap import indent
 import re
-
+from tqdm import tqdm
 #NOTE position encodings have top left as line 1, column 0 
 # -> we restandardize to line 1 column 1. makes more sense that way
 
@@ -397,14 +397,22 @@ def getRepoDirect(repo_data,annotate=True,force=False,recursive=True):
         dependencies = []
     #Files:
     repo_files = []
+    files_list = []
     ignore = ['.lake']
+
 
     for root, dirs ,files in os.walk(project_path):
         dirs[:] = [d for d in dirs if d not in ignore]
         for file in files:
             fp = os.path.join(root,file)
             if fp.endswith('.lean') and name not in ignore:
-                repo_files.append(getFile(name,os.path.relpath(fp,project_path),project_path,annotate=annotate,force=force))
+                files_list.append((name,os.path.relpath(fp,project_path)))
+    
+    #with tqdm(total=len(files_list)) as pbar:
+    for name,rel in files_list:
+        repo_files.append(getFile(name,rel,project_path,annotate=annotate,force=force))
+            #pbar.update(1)
+
     if local:
         return Repo(type='local',path=path,version=version,name=name,dependencies=dependencies,files=repo_files,project_path=project_path)
     else:
@@ -432,10 +440,12 @@ def getRepo(src,config=None,annotate=True,force=False):
     config_path = os.path.join(root_path,config)
     with open(config_path,'r') as f:
         data = json.load(f)
-    data = [item for item in data if src==item.get('name','')]
+    data = [item for item in data if src.replace('«','').replace('»','')==item.get('name','').replace('«','').replace('»','')]
     if len(data) == 0:
         raise ValueError(f'{src} not in config file {config}')
     repo_data = data[0]
+    repo_data['name']=repo_data['name'].replace('«','').replace('»','')
+    #print(repo_data)
 
     return getRepoDirect(repo_data,annotate=annotate,force=force)
 
