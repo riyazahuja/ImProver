@@ -159,7 +159,7 @@ def get_mathlib_vs(path = os.path.join(root_path,'.lake','packages','mathlib','M
     return vectorstore
 
 
-def get_TPiL4_vs(path = os.path.join(root_path,'TPiL4')):
+def get_TPiL4_vs(path = os.path.join(root_path,'.db','src','TPiL4')):
     print(f"TPIL\n\n\n\n{path}")
     files = []
     for fp in os.listdir(path):
