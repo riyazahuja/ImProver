@@ -132,6 +132,7 @@ def post_process_graph(G):
 
 # Main function to handle the proof tree creation and visualization
 def getProofTree(thm:AnnotatedTheorem, visualize=False):
+    """
     contents = []
 
     for idx,step in enumerate(thm.proof):
@@ -147,7 +148,8 @@ def getProofTree(thm:AnnotatedTheorem, visualize=False):
 
     adj = build(contents)
     data = list(zip(contents, adj))
-    G, positions, labels = build_graph(data)
+    """
+    G, positions, labels = build_graph2(thm.proof_tree)
 
     G = post_process_graph(G)
 

@@ -146,103 +146,8 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
 
   return (declId, pf_json)
 
-
-
-
 end Lean.Elab.TacticInvocation
 
-/-
-def getProofTrees (data : List (String × Json)) : IO (List (String × List (Nat × Nat))):= do
-
-  let split_thms : List (String × (List Json)) := data.foldl
-    (fun acc (s, j) =>
-      match acc.find? (fun (t, _) => t = s) with
-      | some (_,_) =>
-        acc.map (fun (t, js') => if t = s then (t, js' ++ [j]) else (t, js'))
-      | none => acc ++ [(s, [j])]
-    )
-    []
-
-
-
-  let extractJsonStr (json:Json) := match json with
-        | Json.str s => some s
-        | _ => none
-
-  let deJsonifyStrArr (json: Json):=
-    match json with
-    | Json.arr elems => some (elems.map (fun x => extractJsonStr x |>.getD ""))
-    | _ => none
-
-  let deJsonifyStrStrArr (json: Json):=
-    match json with
-    | Json.arr elems => (
-      let extract (elem:Json) :=
-        match elem with
-        | Json.obj kvpairs => (
-          let kvpairs := kvpairs.find compare
-          let key := kvpairs "key" |>.getD (Json.null)
-          let value := kvpairs "value" |>.getD (Json.null)
-          some (extractJsonStr key |>.getD "",extractJsonStr value |>.getD "")
-        )
-        | _ => none
-      some (elems.map (fun x => extract x |>.getD ("","")))
-    )
-    | _ => none
-
-  let get_tactic (elem:Json) :=
-    match elem with
-        | Json.obj kvpairs => (
-          let kvpairs := kvpairs.find compare
-          let tactic := kvpairs "tactic" |>.getD ""
-          some (extractJsonStr tactic |>.getD "")
-        )
-        | _ => none
-  IO.println <| split_thms.map (fun (s,js) => (s,js.map (fun js => get_tactic js |>.getD "")))
-
-  let deJsonify (elem : Json) :=
-    match elem with
-        | Json.obj kvpairs => (
-          let kvpairs := kvpairs.find compare
-          let before := kvpairs "goalsBefore" |>.getD (Json.null)
-          let after := kvpairs "goalsAfter" |>.getD (Json.null)
-          let mctxAfter := kvpairs "mctxAfter" |>.getD (Json.null)
-          some (deJsonifyStrArr before |>.getD Array.empty,deJsonifyStrArr after|>.getD Array.empty,deJsonifyStrStrArr mctxAfter|>.getD Array.empty)
-        )
-        | _ => none
-
-
-  let mctxInside (old : Nat × Json) (new : Nat × Json) : Bool :=
-    let old_data := (old.1,deJsonify (old.2) |>.getD (Array.empty,Array.empty,Array.empty))
-    let new_data := (new.1,deJsonify (new.2) |>.getD (Array.empty,Array.empty,Array.empty))
-
-    let old_before := old_data.2.1
-    let mctxAfter := old_data.2.2.2
-    let search (db : Array (String × String)) (key : String) : Option String :=
-      let filtered := db.filter (fun (k,_) => key == k)
-      if filtered.toList.isEmpty then none
-      else some (filtered.get! 0).2
-
-    let after_ctx := old_before.filterMap (fun b4txt => search mctxAfter b4txt)
-    let before := new_data.2.1
-
-    before.any (fun a => after_ctx.any (fun b => b.containsSubstr a))
-
-  let enum_thms := split_thms.map (fun (s,js) => (s,js.enum))
-  let get_combos (nodes : List (Nat × Json)) :=
-    let prod := nodes.bind (fun a => nodes.map (fun b=> (a,b)))
-    prod.filter (fun (a,b) => a == b)
-
-  let get_insides (nodes : List (Nat × Json)) :=
-    let combos := get_combos nodes
-    combos.filterMap (fun (old,new) => if mctxInside old new then some (old.1,new.1) else none)
-
-  let node1 := ((enum_thms.head!).2.get! 1)
-  let node2 := ((enum_thms.head!).2.get! 3)
-  IO.println node1.1
-  IO.println (mctxInside node1 node2)
-  return enum_thms.map (fun (s,js)=>(s,get_insides js))
--/
 
 
 def trainingData (args : Cli.Parsed) : IO UInt32 := do
@@ -253,7 +158,6 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
     let trees ← getInvocationTrees module
     let hash ← generateRandomHash
 
-    --let msgs ← moduleMessages module
     let mut msgs := []
     let raw_msgs ← moduleMessages module
 
@@ -277,58 +181,21 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
           idJsons := json :: idJsons
         | none => pure ()
 
+
     let thmAnnotatedTrees : List (String × List InfoTree) := thmAnnotatedTrees_enum.map (fun (s,ts) => (s,ts.map (fun (_,t) =>t) |>.reverse))
-
-
-
     let parsedTrees : List (String × (IO (List Result))) := thmAnnotatedTrees.map (fun (s,ts) => (s,ts.filterMapM (BetterParser)))
-
-
-    --let stepsJson (res : Result) := Json.arr <| res.steps.map (fun ps => toJson ps) |>.toArray
 
     let mut PTs := []
     for (s,results) in parsedTrees do
       let results ← results
       let steps := results.bind (fun result => result.steps)
-      /-
-      let getgoalBefore (step:ProofStep) := step.goalBefore.hyps.map (fun hyp => hyp.id)
-      let getgoalsAfter (step:ProofStep) := step.goalsAfter.bind (fun goal => goal.hyps.map (fun hyp => hyp.id))
-      let getgoalsSpawned (step:ProofStep) := step.spawnedGoals.bind (fun goal => goal.hyps.map (fun hyp => hyp.id))
-      let parsed := steps.enum.map (fun (idx,step) => s!"[{idx}] Tactic: {step.tacticString}\ngoalsBefore: {getgoalBefore step}\ndependencies: {step.tacticDependsOn}\ngoalsAfter: {getgoalsAfter step}\nspawnedGoals:{getgoalsSpawned step}\n")
-      -/
-
       let PT : List (String × List Nat) := getProofTree steps
       let PTJson := Json.arr <| PT.map (fun (s,xs) => Json.mkObj ([("tactic",s),("children",Json.arr <| xs.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray)])) |>.toArray
       PTs := (s,PTJson) :: PTs
     let PTsJson := Json.mkObj PTs
-    --let goalsJson (res : Result) := Json.arr <| res.allGoals.toArray.map (fun gi => toJson gi)--Json.arr <| res.steps.map (fun ps => toJson ps) |>.toArray
-
-    --
-    --let duh2 := Json.arr <| parsedTrees.map goalsJson |>.toArray
-    --IO.println duh
-    --IO.println "========="
-    --IO.println duh2
-    let rev := idJsons.reverse
-    --let PTs ← getProofTrees rev
 
 
-
-
-    --IO.println (rev.map (fun (_,j) => deJsonify j |>.get!))
-    --IO.println PTs
-    /-
-    let PTs_json :=
-      PTs.map (fun (s,data) => Json.mkObj ([
-        ("declID", Json.str s),
-        ("mctxChildren", Json.arr (data.map (fun (old,new) =>
-          Json.mkObj ([
-          ("oldIdx", Json.num (JsonNumber.fromNat old)),
-          ("newIdx", Json.num (JsonNumber.fromNat new))
-          ])) |>.toArray)
-        )
-      ]))
-    -/
-    let out := rev.map fun (_, j) => j
+    let out := idJsons.reverse.map fun (_, j) => j
 
     let tactics := Json.arr out.toArray
     let messages := Json.arr msgs.toArray

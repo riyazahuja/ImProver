@@ -1,4 +1,4 @@
-
+--CREDIT: PAPERPROOF
 import Lean
 import Lean.Meta.Basic
 import Lean.Meta.CollectMVars
@@ -208,10 +208,6 @@ partial def BetterParser (i : InfoTree) := i.visitM (postNode := postNode)
 
 
 
-inductive ProofTree where
-  | empty : ProofTree
-  | node : String → List ProofTree → ProofTree
-  deriving Inhabited, ToJson
 
 def filter_universe_hyp (gi : GoalInfo) : GoalInfo :=
     ⟨gi.username,
@@ -228,32 +224,7 @@ def existsArrow (nodeA : ProofStep) (nodeB : ProofStep) : Bool :=
   let inputGoalsB := (nodeB.goalBefore.hyps.map (fun hyp => hyp.id)) ++ nodeB.tacticDependsOn
   inputGoalsB.all (fun id => outputGoalsA.any (fun id' => id == id'))
 
-partial def buildTree (child_list : List (List Nat)) (label_list : List String) (root_idx : Nat) : ProofTree :=
-      let curr_children := child_list.get! root_idx
-      let curr_str := label_list.get! root_idx
 
-      if curr_children.isEmpty then
-        ProofTree.node curr_str []
-      else
-        let parsed_children := curr_children.map (fun child_idx => buildTree child_list label_list child_idx)
-        ProofTree.node curr_str parsed_children
-
-
-partial def trim_children' (child_list : List (List Nat)) (start : Nat) (visited : List Nat) : List (List Nat):=
-  let children := child_list.get! start
-  let unvisited_children := children.filter (fun i => not <| visited.any (fun j => i==j))
-  if unvisited_children.isEmpty then child_list.enum.map (fun (i,xs) => if start == i then [] else xs)
-  else
-    let visited' := start :: visited
-    let lists := unvisited_children.map (fun child => trim_children' child_list child visited')
-    let intersect (listA) (listB) := listA.filter (fun x => listB.any (fun y => x==y))
-    let merged_list := lists.foldl (fun listA listB => (List.range (listA.length)).map (fun i => intersect (listA.get! i) (listB.get! i))) child_list
-    merged_list
-
-
-
-def trim_children (child_list : List (List Nat)) (start : Nat) : List (List Nat):=
-  trim_children' child_list start []
 
 def getProofTree (steps : List ProofStep) : List (String × (List Nat)) :=
 
@@ -270,8 +241,5 @@ def getProofTree (steps : List ProofStep) : List (String × (List Nat)) :=
     let combos := steps.enum.bind (fun (i,a) => steps.enum.filterMap (fun (j,b) => if i != j then some ((i,a),(j,b)) else none))
     let arrow_idx : List (Nat × Nat):= combos.filterMap (fun (nodeA,nodeB) => if existsArrow nodeA.2 nodeB.2 then some (nodeA.1,nodeB.1) else none)
     let base_nodes : List (List Nat) := List.range (steps.length) |>.map (fun i => arrow_idx.filterMap (fun (j,k) => if i == j then some k else none))
-    --let trim_nodes : List (List Nat) := trim_children base_nodes 0
     let idx_map := steps.map (fun ps => ps.tacticString)
-    --IO.println base_nodes.enum
-    --buildTree base_nodes idx_map 0
     base_nodes.enum.map (fun (i,xs) => (idx_map.get! i, xs))

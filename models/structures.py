@@ -40,11 +40,11 @@ class AnnotatedProofStep(BaseModel):
     start: Tuple[Optional[int],Optional[int]]=Field(description='start coordinates from source file as (row,column)')
     end: Tuple[Optional[int],Optional[int]]=Field(description='end coordinates from source file as (row,column)')
 
-    goalsBefore : List[str] = Field(description="goalIDs before the tactic invocation")
-    goalsAfter : List[str]= Field(description="goalIDs after the tactic invocation")
-    mctxBefore : Dict[str,str]= Field(description="(Expr) metavariable context before the tactic invocation")
-    mctxAfter : Dict[str,str]= Field(description="(Expr) metavariable context after the tactic invocation")
-    children : List[int]= Field(description="(Infotree) Children indices")
+    #goalsBefore : List[str] = Field(description="goalIDs before the tactic invocation")
+    #goalsAfter : List[str]= Field(description="goalIDs after the tactic invocation")
+    #mctxBefore : Dict[str,str]= Field(description="(Expr) metavariable context before the tactic invocation")
+    #mctxAfter : Dict[str,str]= Field(description="(Expr) metavariable context after the tactic invocation")
+    #children : List[int]= Field(description="(Infotree) Children indices")
 
 class Message(BaseModel):
     severity:str = Field(description='Message severity')
@@ -85,15 +85,6 @@ class Repo(BaseModel):
     files: List[Union[AnnotatedFile,File]]= Field(description= "files in repository")
     project_path : str = Field(description="Local path to src repo contents")
 
-
-# takes in json data of the form:
-'''
-{
-context:
-statement:
-proof:
-}
-'''
 
 
 
@@ -233,11 +224,11 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
                                         start = (step['startPos'].get('line',None),step['startPos'].get('column',None)),
                                         end= (step['endPos'].get('line',None),step['endPos'].get('column',None)),
 
-                                        goalsBefore= step['goalsBefore'],
-                                        goalsAfter= step['goalsAfter'],
-                                        mctxBefore = {pair['key']:pair['value'] for pair in step['mctxBefore']},
-                                        mctxAfter = {pair['key']:pair['value'] for pair in step['mctxAfter']},
-                                        children = children
+                                        #goalsBefore= step['goalsBefore'],
+                                        #goalsAfter= step['goalsAfter'],
+                                        #mctxBefore = {pair['key']:pair['value'] for pair in step['mctxBefore']},
+                                        #mctxAfter = {pair['key']:pair['value'] for pair in step['mctxAfter']},
+                                        #children = children
         )
         def elim_by(text):
             return re.sub(r'\s*:=\s*by\s*$','',text,flags=re.M)
@@ -701,12 +692,12 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                           srcUpToTactic='ERROR',
                                           declUpToTactic='ERROR',
                                           start=(max_pos[0]+i,max_pos[1]+i),
-                                          end=(max_pos[0]+i,max_pos[1]+i),
-                                          goalsBefore=[],
-                                          goalsAfter=[],
-                                          mctxBefore={},
-                                          mctxAfter={},
-                                          children=[])
+                                          end=(max_pos[0]+i,max_pos[1]+i))
+                                          #goalsBefore=[],
+                                          #goalsAfter=[],
+                                          #mctxBefore={},
+                                          #mctxAfter={},
+                                          #children=[])
             
             proof = [get_empty_annotated_proof_step(i) if i >= first else elim_pf[i] for i in range(len(og_proof))]
             
@@ -718,7 +709,8 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                     proof=proof,
                                     project_path=project_path,
                                     messages=output.messages,
-                                    pretty_print=output.pretty_print)
+                                    pretty_print=output.pretty_print,
+                                    proof_tree=output.proof_tree)
 
             if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
                 raise ValueError(f'=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in elim_pf]}\n{output.messages}\nfirst: {first}\n=============')
