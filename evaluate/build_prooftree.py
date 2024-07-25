@@ -29,7 +29,11 @@ def build(nodes):
             kids = node['kids']
             match_before = j in kids
 
-            inside = any([item in ctx for ctx in after_ctx for item in before])
+            insideArr = [item in ctx for ctx in after_ctx for item in before]
+            inside = any(insideArr)
+            if inside:
+                print(f'OLD : {idx} NEW: {j}')
+            #print(f'================\ncurr_before : {curr_before}\nafter_ctx : {after_ctx}\n inside : {insideArr}\n================')
 
             if set(before).issubset(set(after)) or inside or match_before:
                 children.append(j)
@@ -105,10 +109,10 @@ def visualize_tree(G, positions, labels):
 
 def post_process_graph(G):
     # Remove bidirectional edges
-    for u, v in list(G.edges):
-        if G.has_edge(v, u):
-            G.remove_edge(u, v)
-            G.remove_edge(v, u)
+    # for u, v in list(G.edges):
+    #     if G.has_edge(v, u):
+    #         G.remove_edge(u, v)
+    #         G.remove_edge(v, u)
 
     # Ensure each node has a unique path from root
     root = 0
@@ -199,6 +203,28 @@ def tree_edit_distance(G1, G2,normalize=True):
     return dist
 
 
+def build_graph2(data):
+    G = nx.DiGraph()
+    positions = {}
+    labels = {}
+
+    n = len(data)
+    theta = (2 * math.pi) / n  # Calculate the angle between nodes
+    r = 10  # Set radius for the circle
+
+    for index, (tactic, children_indices) in enumerate(data):
+        G.add_node(index, label=tactic)
+        labels[index] = tactic
+        # Set positions in a circle
+        positions[index] = (r * math.cos(index * theta), r * math.sin(index * theta))
+
+        # Add edges based on children indices
+        for child_index in children_indices:
+            if child_index < len(data):  # Ensure child index is valid
+                G.add_edge(index, child_index)    
+
+    return G, positions, labels
+
 
 
 def save_tree(G,positions,labels,save_path):
@@ -207,7 +233,7 @@ def save_tree(G,positions,labels,save_path):
     nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=5, font_color="black", node_color="skyblue", edge_color="gray")
     plt.title('Proof Tree Visualization')
     plt.axis('off')  # Turn off the axis
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
     plt.savefig(save_path, format='png', bbox_inches='tight')  # Save the figure as a PNG file
 
 
@@ -220,9 +246,13 @@ if __name__ == '__main__':
     thms = f.theorems
     thm1 = thms[0]
     #thm2 = thms[2]
+    print(thm1.proof_tree)
 
-
-    G1, p1, l1 = getProofTree(thm1, visualize=True)
+    save_tree(*getProofTree(thm1),save_path='old_tree.png')
+    G,p,l = build_graph2(thm1.proof_tree)
+    save_tree(G,p,l,save_path='new_tree.png')
+    save_tree(post_process_graph(G),p,l,save_path='new_tree2.png')
+    #G1, p1, l1 = getProofTree(thm1, visualize=True)
     '''
     G2, p2, l2 = getProofTree(thm2, visualize=False)
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

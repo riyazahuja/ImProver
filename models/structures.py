@@ -63,7 +63,8 @@ class AnnotatedTheorem(BaseModel):
     project_path : str = Field(description="Local path to src repo contents")
     messages : List[Message] = Field(...,description="Messages from the lean server")
     pretty_print : str = Field(description="Pretty printed (string) form of theorem.")
-
+    proof_tree : List[Tuple[str,List[int]]] = Field(description="data for efficient proof tree construction")
+    
 class AnnotatedFile(BaseModel):
     src : str = Field(description="File source repo")
     file_name : str = Field(description="File Name")
@@ -190,6 +191,7 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
     temp = {}
     #print(data)
     msgs = data['messages']
+    trees = data['proofTrees']
     
 
     def remove_dupes(tacs):
@@ -217,8 +219,6 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
                     output.append(idx)
                     grandchildren = child.get('children',[])
                     output.extend(process_children(grandchildren))
-                #else:
-                    #print(f'Uh OH: {pp}')
         return output
 
 
@@ -262,8 +262,12 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
         else:
             pp= '\n'.join(contents.splitlines()[thm_start['line']-1:])
 
+        PT = trees.get(declID,None)
+        if PT is not None:
+            PT = [(node["tactic"],node["children"]) for node in PT]
+
         if declID not in temp.keys():
-            temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context,'messages':messages,'pretty_print':pp}
+            temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context,'messages':messages,'pretty_print':pp,'proof_tree':PT}
             #print(temp)
         else:
             #print(temp)
@@ -272,12 +276,13 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
             curr_ctxt = temp[declID]['context']
             curr_msgs = temp[declID]['messages']
             curr_pp = temp[declID]['pretty_print']
+            curr_pt = temp[declID]['proof_tree']
             curr_proof.append(ps)
-            temp[declID] = {'proof':curr_proof, 'decl':curr_decl, 'context':curr_ctxt,'messages':curr_msgs,'pretty_print':curr_pp}
+            temp[declID] = {'proof':curr_proof, 'decl':curr_decl, 'context':curr_ctxt,'messages':curr_msgs,'pretty_print':curr_pp,'proof_tree':curr_pt}
             
     result = {}
     for ID,value in temp.items():
-        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path,messages=value['messages'],pretty_print=value['pretty_print'])
+        result[ID] = AnnotatedTheorem(leanFile=path,src=src,decl=value['decl'],declID=ID,proof=value['proof'],context = value['context'],project_path=project_path,messages=value['messages'],pretty_print=value['pretty_print'],proof_tree=value['proof_tree'])
     return [v for _,v in result.items()]
         
 
