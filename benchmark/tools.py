@@ -255,18 +255,30 @@ if __name__ == "__main__":
     #                       )
     #             )
     methods = get_methods(model=['gpt-4o'],
-                          fn = [best_of_n(prompt_flat)],
+                          fn = [refinement(prompt_flat)],
                           n=[3],
                           metric=[length_metric(),modularity_metric(),similarity_metric()],
-                          examples=[4])
+                          examples=[4],
+                          syntax_search=[True],
+                          mathlib_search=[True])
     
-    repo = getRepo('Tests','configs/config_test.json')
+    repo = getRepo('Tests','configs/config_MIL.json')
     files = {file.file_name:file for file in repo.files}
+    #print(files.keys())
     fs = [
+            #files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean'],
+            #files['Solutions_S02_The_Existential_Quantifier.lean'],
+            #files['Solutions_S03_Negation.lean'],
+            #files['Solutions_S04_Conjunction_and_Iff.lean'],
+            #files['Solutions_S05_Disjunction.lean'],
+            #files['Solutions_S06_Sequences_and_Convergence.lean'],
             files['Solutions_S01_Sets.lean'],
             files['Solutions_S02_Functions.lean'],
-            files['Solutions_S03_The_Schroeder_Bernstein_Theorem.lean']
+            files['Solutions_S03_The_Schroeder_Bernstein_Theorem.lean'],
+
     ]
+    if not all([type(f)==AnnotatedFile for f in fs]):
+        raise KeyError(f'unannotated:\n{ {f.file_name : type(f)==AnnotatedFile for f in fs} }')
     # repo = getRepo('mathlib','configs/config.json')
     # files = {file.file_path:file for file in repo.files}
     # f = files['Mathlib/Algebra/Algebra/Basic.lean']
@@ -291,7 +303,7 @@ if __name__ == "__main__":
     data = []
     for f in fs:
         data.extend(benchmark_file(f,methods,theorem_workers=10,show_theorem_progress=True,show_method_progress=True))
-    save_to_csv(data,path='metrics_data_new.csv')
+    save_to_csv(data,path='benchmark/data/thurs/MIL.csv')
 
     
 

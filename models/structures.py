@@ -214,7 +214,7 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
 
 
     for step in data:
-        children = process_children(step['children'])
+        #children = process_children(step['children'])
         #print(f"{step['tactic']} : {children}")
         ps = AnnotatedProofStep(prevState=step['prevState'],
                                         tactic = step['tactic'],

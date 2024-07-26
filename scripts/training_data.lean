@@ -113,13 +113,13 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
   let (thm_start, thm_tail) := elabDeclInfo.fst
 
 
-  let goalsBefore : Array String := i.info.goalsBefore.map (fun x => x.name.toString) |>.toArray
-  let goalsAfter : Array String := i.info.goalsAfter.map (fun x => x.name.toString) |>.toArray
-  let mctxBefore : Array (String × String):= i.info.mctxBefore.eAssignment.toList.map (fun (k,v) => (k.name.toString,v.dbgToString)) |>.toArray
-  let mctxAfter : Array (String × String):= i.info.mctxAfter.eAssignment.toList.map (fun (k,v) => (k.name.toString,v.dbgToString)) |>.toArray
+  --let goalsBefore : Array String := i.info.goalsBefore.map (fun x => x.name.toString) |>.toArray
+  --let goalsAfter : Array String := i.info.goalsAfter.map (fun x => x.name.toString) |>.toArray
+  --let mctxBefore : Array (String × String):= i.info.mctxBefore.eAssignment.toList.map (fun (k,v) => (k.name.toString,v.dbgToString)) |>.toArray
+  --let mctxAfter : Array (String × String):= i.info.mctxAfter.eAssignment.toList.map (fun (k,v) => (k.name.toString,v.dbgToString)) |>.toArray
 
 
-  let childrenJson ← i.children.toList.mapM (fun x=> x.toJson (some i.ctx))
+  --let childrenJson ← i.children.toList.mapM (fun x=> x.toJson (some i.ctx))
 
 
 
@@ -136,12 +136,12 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
       ("startPos", Json.mkObj [("line", start.line),("column",start.column)]),
       ("endPos", Json.mkObj [("line", tail.line),("column",tail.column)]),
       ("thm_startPos", Json.mkObj [("line", thm_start.line),("column",thm_start.column)]),
-      ("thm_endPos", Json.mkObj [("line", thm_tail.line),("column",thm_tail.column)]),
-      ("goalsBefore",Json.arr (goalsBefore.map (fun x => Json.str x))),
-      ("goalsAfter",Json.arr (goalsAfter.map (fun x => Json.str x))),
-      ("mctxBefore", Json.arr (mctxBefore.map (fun (x,y) => Json.mkObj [("key",Json.str x),("value",Json.str y)])) ),
-      ("mctxAfter", Json.arr (mctxAfter.map (fun (x,y) => Json.mkObj [("key",Json.str x),("value",Json.str y)])) ),
-      ("children", Json.arr childrenJson.toArray),
+      ("thm_endPos", Json.mkObj [("line", thm_tail.line),("column",thm_tail.column)])--,
+      --("goalsBefore",Json.arr (goalsBefore.map (fun x => Json.str x))),
+      --("goalsAfter",Json.arr (goalsAfter.map (fun x => Json.str x))),
+      --("mctxBefore", Json.arr (mctxBefore.map (fun (x,y) => Json.mkObj [("key",Json.str x),("value",Json.str y)])) ),
+      --("mctxAfter", Json.arr (mctxAfter.map (fun (x,y) => Json.mkObj [("key",Json.str x),("value",Json.str y)])) ),
+      --("children", Json.arr childrenJson.toArray),
     ]
 
   return (declId, pf_json)
@@ -189,6 +189,9 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
     for (s,results) in parsedTrees do
       let results ← results
       let steps := results.bind (fun result => result.steps)
+      --IO.println s!"{s}:\n "
+      --IO.println <| toJson steps
+      --IO.println "==============="
       let PT : List (String × List Nat) := getProofTree steps
       let PTJson := Json.arr <| PT.map (fun (s,xs) => Json.mkObj ([("tactic",s),("children",Json.arr <| xs.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray)])) |>.toArray
       PTs := (s,PTJson) :: PTs

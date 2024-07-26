@@ -151,7 +151,7 @@ def getProofTree(thm:AnnotatedTheorem, visualize=False):
     """
     G, positions, labels = build_graph2(thm.proof_tree)
 
-    G = post_process_graph(G)
+    #G = post_process_graph(G)
 
     if visualize:
         visualize_tree(G, positions, labels)
@@ -250,10 +250,10 @@ if __name__ == '__main__':
     #thm2 = thms[2]
     print(thm1.proof_tree)
 
-    save_tree(*getProofTree(thm1),save_path='old_tree.png')
-    G,p,l = build_graph2(thm1.proof_tree)
-    save_tree(G,p,l,save_path='new_tree.png')
-    save_tree(post_process_graph(G),p,l,save_path='new_tree2.png')
+    save_tree(*getProofTree(thm1,visualize=True),save_path='old_tree.png')
+    #G,p,l = build_graph2(thm1.proof_tree)
+    #save_tree(G,p,l,save_path='new_tree.png')
+    #save_tree(post_process_graph(G),p,l,save_path='new_tree2.png')
     #G1, p1, l1 = getProofTree(thm1, visualize=True)
     '''
     G2, p2, l2 = getProofTree(thm2, visualize=False)
