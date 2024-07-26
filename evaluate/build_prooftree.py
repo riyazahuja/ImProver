@@ -1,5 +1,4 @@
 import math
-import json
 import matplotlib
 #matplotlib.use('agg')
 import matplotlib.pyplot as plt
@@ -55,22 +54,21 @@ def build_graph(data):
     labels = {}
 
     n = len(data)
-    theta = (2 * math.pi) / n  # Calculate the angle between nodes
-    r = 10  # Set radius for the circle
+    theta = (2 * math.pi) / n 
+    r = 10 
 
     for index, (node_info, children_indices) in enumerate(data):
-        after = [f'{iden} : {node_info["mctxAfter"][iden]}' for iden in node_info['before'] if iden in node_info['mctxAfter'].keys()]
-        node_label = f"{node_info['node']}"#\nbefore: {node_info['before']}\nafter: {node_info['after']}\nmctxAfter:{after}\ninfo_children: {node_info['kids']}"
+        node_label = f"{node_info['node']}"
         G.add_node(index, label=node_label)
         labels[index] = node_label
-        # Set positions in a circle
+
         positions[index] = (r * math.cos(index * theta), r * math.sin(index * theta))
 
-        # Add edges based on children indices
+
         for child_index in children_indices:
-            if child_index < len(data):  # Ensure child index is valid
+            if child_index < len(data):  
                 G.add_edge(index, child_index)
-    #print(data)
+
     children = list(set([child for (_,children) in data for child in children]))
     roots = [index for index in range(len(data)) if index not in children]#[child for (_,children) in data for child in children]]
     
@@ -132,27 +130,7 @@ def post_process_graph(G):
 
 # Main function to handle the proof tree creation and visualization
 def getProofTree(thm:AnnotatedTheorem, visualize=False):
-    """
-    contents = []
-
-    for idx,step in enumerate(thm.proof):
-
-        children = [child for child in step.children if child not in [kid for other in [thm.proof[i] for i in range(len(thm.proof)) if i>idx ] for kid in other.children]]
-
-        contents.append({'node': step.tactic,
-                          'before': step.goalsBefore,
-                            'after': step.goalsAfter,
-                            'mctxBefore':step.mctxBefore,
-                            'mctxAfter':step.mctxAfter,
-                            'kids':children})   
-
-    adj = build(contents)
-    data = list(zip(contents, adj))
-    """
     G, positions, labels = build_graph2(thm.proof_tree)
-
-    #G = post_process_graph(G)
-
     if visualize:
         visualize_tree(G, positions, labels)
     return G, positions, labels
@@ -186,10 +164,10 @@ def tree_edit_distance(G1, G2,normalize=True):
     zss_tree2 = nx_to_zss(G2, 0, label_fn(G2))
 
     def insert_cost(node):
-        return 1#len(node.label)
+        return 1
 
     def remove_cost(node):
-        return 1#len(node.label)
+        return 1
 
     def update_cost(node1, node2):
         dist = Levenshtein.distance(node1.label, node2.label)
@@ -241,10 +219,10 @@ def save_tree(G,positions,labels,save_path):
 
 if __name__ == '__main__':
     repo = getRepo('Tests','configs/config_test.json')
-    files = {file.file_path:file for file in repo.files}
+    files = {file.file_name:file for file in repo.files}
     #f = files['Basic.lean']
-    #f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
-    f = files['Tests/IMO/alphaproof/P1.lean']
+    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    #f = files['Tests/IMO/alphaproof/P1.lean']
     #f = files['Solutions_S01_Sets.lean']
     thms = f.theorems
     thm1 = thms[0]

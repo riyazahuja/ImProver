@@ -37,12 +37,10 @@ def process_instance(thm:AnnotatedTheorem,method):
         delta = metric.metric(thm,output_anno_thm)
     else:
         delta = None
-    #if new_score is not None and og_score is not None and og_score != 0:
-    #    delta = metric.metric#((new_score-og_score)/og_score) * 100
+    
 
     og_raw = parseTheorem(thm,context=False)
     new_raw = parseTheorem(output_thm,context=False)
-    #print(parseTheorem(output_thm,context=False))
 
     def parse_msg(message):
         return f'{message.content}\n\tat: {message.message_src}'
@@ -175,29 +173,15 @@ def get_cost(obj,methods):
     
     if type(obj) == Repo:
         anno_files = [f for f in obj.files if type(f)==AnnotatedFile]
-        # with tqdm(total=len(anno_files),desc='Files: ') as pbar:
-        #     with ThreadPoolExecutor(max_workers=max(1,len(anno_files))) as executor:
-        #         futures = [executor.submit(get_cost,f,methods) for f in anno_files]
-        #         for future in concurrent.futures.as_completed(futures):
-        #             pbar.update(1)
-            
-        # return sum(future.result() for future in futures)
         thms = [thm for f in anno_files for thm in f.theorems]
 
     elif type(obj) == AnnotatedFile:
         thms = obj.theorems
-        # with tqdm(total=len(thms),desc='Thms: ') as pbar:
-        #     with ThreadPoolExecutor(max_workers=max(1,len(thms))) as executor:
-        #         futures = [executor.submit(get_cost,thm,methods) for thm in thms]
-        #         for future in concurrent.futures.as_completed(futures):
-        #             pbar.update(1)
-        # return sum(future.result() for future in futures)
     elif type(obj) == AnnotatedTheorem:
         thms  = [obj]
     else:
         raise ValueError(f'uhoh: type is \n{type(obj)}')
     
-    #assert(type(obj) == AnnotatedTheorem)
 
     def get_instance_cost(obj,method):
         model = method[2].get('model','gpt-4-turbo')
@@ -212,48 +196,22 @@ def get_cost(obj,methods):
         price = inp_tok*inp_cost+output_tok*out_cost
         return price
     
-    total=0
     with tqdm(total=len(thms)*len(methods),desc='instances: ') as pbar:
-        # for thm in thms:
-        #     for method in methods:
-        #         total+=get_instance_cost(thm,method)
-        #     pbar.update(1)
+
         with ThreadPoolExecutor(max_workers=min(24,len(methods)*len(thms))) as executor:
            
             futures = [executor.submit(get_instance_cost,thm,method) for method in methods for thm in thms]
             for future in concurrent.futures.as_completed(futures):
                 pbar.update(1)
 
-
-            #for thm in thms:
                 
                 
-                    
-    #return total
     return sum(future.result() for future in futures)
 
 
 
 if __name__ == "__main__":
 
-
-    #Research questions:
-
-
-
-    # methods = get_methods(model=['gpt-4o','gpt-4o-mini'],
-    #                       fn=[prompt_flat,best_of_n(prompt_flat),refinement(prompt_flat)],
-    #                       n=[5],#prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
-    #                       metric=[length_metric()],#,modularity_metric(),similarity_metric()],#,modularity_metric()],
-    #                       examples=[4]
-    #                       )
-    # methods.extend(get_methods(model=['gpt-4o-mini'],
-    #                       fn=[best_of_n(prompt_flat),refinement(prompt_flat)],
-    #                       n=[10],#prompt_structured,best_of_n(prompt_structured),refinement(prompt_structured)],
-    #                       metric=[length_metric()],#,modularity_metric(),similarity_metric()],#,modularity_metric()],
-    #                       examples=[4]
-    #                       )
-    #             )
     methods = get_methods(model=['gpt-4o'],
                           fn = [refinement(prompt_flat),refinement(prompt_structured)],
                           n=[7],
@@ -261,17 +219,9 @@ if __name__ == "__main__":
                           examples=[5],
                           syntax_search=[True],
                           mathlib_search=[True])
-    # methods.extend(get_methods(model=['gpt-4o-mini'],
-    #                       fn = [refinement(prompt_flat)],
-    #                       n=[15],
-    #                       metric=[completion_metric()],
-    #                       examples=[5],
-    #                       syntax_search=[True],
-    #                       mathlib_search=[True]))
-    
+
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_path:file for file in repo.files}
-    #print(files.keys())
 
     fs = [
             #files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean'],
@@ -290,22 +240,7 @@ if __name__ == "__main__":
     ]
     if not all([type(f)==AnnotatedFile for f in fs]):
         raise KeyError(f'unannotated:\n{ {f.file_name : type(f)==AnnotatedFile for f in fs} }')
-    # repo = getRepo('mathlib','configs/config.json')
-    # files = {file.file_path:file for file in repo.files}
-    # f = files['Mathlib/Algebra/Algebra/Basic.lean']
-    #print(f.contents)
-    #print(len(f.theorems))
-    #print(list(files.keys())[:100])   
 
-    # repo = getRepo('flt-regular','configs/config_FLTreg.json')
-    # files = {file.file_name:file for file in repo.files}
-    # files = {f:files[f] for f in files.keys() if type(files[f])==AnnotatedFile}
-    # print(files.keys())
-    # f = files['FltRegular.lean']
-
-
-
-    
 
     
     #cost = sum(get_cost(f,methods) for f in fs)
