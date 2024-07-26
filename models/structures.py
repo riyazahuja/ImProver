@@ -638,7 +638,8 @@ def annotateTheorem(thm:Theorem, force=False) -> AnnotatedTheorem:
                                   proof=[],
                                   project_path=thm.project_path,
                                   messages=[],
-                                  pretty_print=parseTheorem(thm,context=False))
+                                  pretty_print=parseTheorem(thm,context=False),
+                                  proof_tree=[])
     else:
         output = thms[-1]
     

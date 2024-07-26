@@ -55,6 +55,9 @@ class Metric():
     def get_example_selector(self):
         if len(self.examples)==0:
             return None
+        print(type(self.examples))
+        print(self.examples)
+
         vs = get_metric_vs(self.examples,self.name)
         return vs
     
@@ -307,8 +310,8 @@ def readability_metric ():
             thm = annotateTheorem(thm,force=True)
         proof = elim_overlap(thm.proof)
         num_lines = len(proof)
-        mean_line_length = sum(len(step.tactic.splitlines()[0]) for step in proof)/num_lines
-        max_line_length = max(len(step.tactic.splitlines()[0]) for step in proof)
+        mean_line_length = sum(len(step.tactic.splitlines()[0]) if step.tactic.splitlines() != [] else 1 for step in proof)/num_lines
+        max_line_length = max(len(step.tactic.splitlines()[0]) if step.tactic.splitlines() != [] else 1 for step in proof)
         mod = modularity_metric()
         mod_score = mod.score(thm)
         norm_line_length = mean_line_length/max_line_length
@@ -321,8 +324,8 @@ def readability_metric ():
     
     sys_prompt = ('system','''You are an AI assistant who rewrites a given Lean 4 proof to be as readable as possible while ensuring its correctness. 
                   We calculate the readability of a given proof  of two metrics via considering the average length of lines/tactics (shorter is better),
-                  as well as the modularity of the proof, as given by structure of the proof tree. Specifically, we say a proof is 
-                  modular if it has low proof tree depth, high breadth, and a relatively high number of independent subproofs that are reused often.''')
+                  as well as the modularity of the proof, as given by structure of the proof tree. Additionally, a proof's readability is higher if the variable names are descriptive and complex and abstract proof terms are replaced with more understandable tactic applications.
+                    Specifically, we say a proof is modular if it has low proof tree depth, high breadth, and a relatively high number of independent subproofs that are reused often.''')
     
     user_prompt = ('human','''Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is more readable to a human - while also ensuring it is syntactically correct.''')
     
@@ -397,16 +400,65 @@ def readability_metric ():
 
 
 def completion_metric ():
-  def num_errors(thm):
-    if type(thm) == Theorem:
-        thm = annotateTheorem(thm)
-    errors = sum(1 for msg in thm.messages if msg.severity=='error')
-    return errors
+    def num_errors(thm):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm)
+        errors = sum(1 for msg in thm.messages if msg.severity=='error')
+        return errors
 
-  sys_prompt = ('system','You are an AI assistant who automatically solves Lean 4 proofs (as in, generates the tactic proof) and ensures its correctness. You will recieve a Lean 4 proof you must modify to eliminate any errors so that it compiles as correct and, and elimanate any \"sorry\"s with full proofs.')
-  user_prompt = ('human','Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is a formal, complete, and correct Lean 4 proof by filling in its tactic proof.')
+    sys_prompt = ('system','You are an AI assistant who automatically solves Lean 4 proofs (as in, generates the tactic proof) and ensures its correctness. You will recieve a Lean 4 proof you must modify to eliminate any errors so that it compiles as correct and, and elimanate any \"sorry\"s with full proofs.')
+    user_prompt = ('human','Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is a formal, complete, and correct Lean 4 proof by filling in its tactic proof.')
 
-  return Metric('COMPLETION', [sys_prompt,user_prompt], 'MIN',score_fn=num_errors)
+    examples = [
+            {
+                'input':'''theorem not_imp (P Q : Prop) : ¬ (P → Q) → P ∧ ¬ Q := by
+    sorry''',
+                'output':'''theorem not_imp (P Q : Prop) : ¬ (P → Q) → P ∧ ¬ Q := by
+    intro h
+    push_neg at h
+    exact h'''
+            },
+            {
+                'input':'''theorem double_negation (P : Prop) : P → ¬¬P := by
+   sorry''',
+                'output':'''theorem double_negation (P : Prop) : P → ¬¬P := by
+    --directly
+    intro h h1
+    exact h1 h'''
+            },
+            {
+                'input':'''theorem contraposition (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+   sorry''',
+                'output':'''theorem contraposition (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+    intro h nq p
+    exact nq (h p)'''
+            },
+            {
+                'input':'''theorem inter_self {α : Type*} (s : Set α) : s ∩ s = s := by
+    sorry''',
+                'output':'''theorem inter_self {α : Type*} (s : Set α) : s ∩ s = s := by
+    ext x
+    constructor
+    . intro h
+        rcases h with ⟨hs,_⟩
+        exact hs
+    . intro h
+        constructor
+        . exact h
+        . exact h'''
+            },
+            {
+                'input':'''theorem comp_assoc {α β γ δ : Type*} (f : γ → δ) (g : β → γ) (h : α → β) : (f ∘ g) ∘ h = f ∘ (g ∘ h) := by
+    sorry''',
+                'output':'''theorem comp_assoc {α β γ δ : Type*} (f : γ → δ) (g : β → γ) (h : α → β) : (f ∘ g) ∘ h = f ∘ (g ∘ h) := by
+    ext x
+    unfold Function.comp
+    exact rfl'''
+            }
+        ]
+
+
+    return Metric('COMPLETION', [sys_prompt,user_prompt],examples, 'MIN',score_fn=num_errors)
   
 
 

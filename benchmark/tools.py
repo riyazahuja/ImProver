@@ -255,16 +255,24 @@ if __name__ == "__main__":
     #                       )
     #             )
     methods = get_methods(model=['gpt-4o'],
-                          fn = [refinement(prompt_flat)],
-                          n=[3],
-                          metric=[length_metric(),modularity_metric(),similarity_metric()],
-                          examples=[4],
+                          fn = [refinement(prompt_flat),refinement(prompt_structured)],
+                          n=[7],
+                          metric=[length_metric(),readability_metric()],
+                          examples=[5],
                           syntax_search=[True],
                           mathlib_search=[True])
+    # methods.extend(get_methods(model=['gpt-4o-mini'],
+    #                       fn = [refinement(prompt_flat)],
+    #                       n=[15],
+    #                       metric=[completion_metric()],
+    #                       examples=[5],
+    #                       syntax_search=[True],
+    #                       mathlib_search=[True]))
     
-    repo = getRepo('Tests','configs/config_MIL.json')
-    files = {file.file_name:file for file in repo.files}
+    repo = getRepo('Tests','configs/config_test.json')
+    files = {file.file_path:file for file in repo.files}
     #print(files.keys())
+
     fs = [
             #files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean'],
             #files['Solutions_S02_The_Existential_Quantifier.lean'],
@@ -272,9 +280,12 @@ if __name__ == "__main__":
             #files['Solutions_S04_Conjunction_and_Iff.lean'],
             #files['Solutions_S05_Disjunction.lean'],
             #files['Solutions_S06_Sequences_and_Convergence.lean'],
-            files['Solutions_S01_Sets.lean'],
-            files['Solutions_S02_Functions.lean'],
-            files['Solutions_S03_The_Schroeder_Bernstein_Theorem.lean'],
+            #files['Solutions_S01_Sets.lean'],
+            #files['Solutions_S02_Functions.lean'],
+            #files['Solutions_S03_The_Schroeder_Bernstein_Theorem.lean'],
+            #files['Tests/IMO/alphaproof/P1.lean'],
+            files['Tests/IMO/alphaproof/P2.lean'],
+            #files['Tests/IMO/alphaproof/P6.lean'],
 
     ]
     if not all([type(f)==AnnotatedFile for f in fs]):
@@ -302,8 +313,8 @@ if __name__ == "__main__":
     #print(f'${cost}')
     data = []
     for f in fs:
-        data.extend(benchmark_file(f,methods,theorem_workers=10,show_theorem_progress=True,show_method_progress=True))
-    save_to_csv(data,path='benchmark/data/thurs/MIL.csv')
+        data = benchmark_file(f,methods,theorem_workers=1,show_theorem_progress=True,show_method_progress=True)
+        save_to_csv(data,path=f'benchmark/data/alphaproof/readability2_{f.file_name}.csv')
 
     
 

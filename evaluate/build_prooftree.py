@@ -211,7 +211,7 @@ def build_graph2(data):
     labels = {}
 
     n = len(data)
-    theta = (2 * math.pi) / n  # Calculate the angle between nodes
+    theta = (2 * math.pi) / n  if n!= 0 else math.pi/4# Calculate the angle between nodes
     r = 10  # Set radius for the circle
 
     for index, (tactic, children_indices) in enumerate(data):
@@ -241,9 +241,10 @@ def save_tree(G,positions,labels,save_path):
 
 if __name__ == '__main__':
     repo = getRepo('Tests','configs/config_test.json')
-    files = {file.file_name:file for file in repo.files}
+    files = {file.file_path:file for file in repo.files}
     #f = files['Basic.lean']
-    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    #f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    f = files['Tests/IMO/alphaproof/P1.lean']
     #f = files['Solutions_S01_Sets.lean']
     thms = f.theorems
     thm1 = thms[0]
