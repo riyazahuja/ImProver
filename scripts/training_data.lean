@@ -189,9 +189,7 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
     for (s,results) in parsedTrees do
       let results ← results
       let steps := results.bind (fun result => result.steps)
-      --IO.println s!"{s}:\n "
-      --IO.println <| toJson steps
-      --IO.println "==============="
+
       let PT : List (String × List Nat × List Nat) := getProofTree steps
       let PTJson := Json.arr <| PT.map (fun (s,xs) => Json.mkObj (
           [("tactic",s),
