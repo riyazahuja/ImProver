@@ -1,78 +1,113 @@
-# ntp-training-data
+# ImProof: Agent-Based Automated Proof Optimization
 
-This repository is a modified version of Kim Morrison's [lean-training-data](https://github.com/semorrison/lean-training-data).
+## Overview
+ImProof is a language model-powered AI agent for proof rewriting tasks, built around a general-purpose neural theorem proving framework. It allows for arbitrary Lean 4 code to be optimized for an arbitrary metric, enabling users to automatically optimize their formal proofs by providing a lambda and prompt. ImProof leverages advanced techniques in Lean metaprogramming, machine learning, and formal methods to deliver optimized proofs that meet user-defined criteria.
 
+ImProof automates the process of optimizing Lean 4 proofs through the following steps:
+1. **Configuration and Setup**: Define configuration files specifying Lean projects.
+2. **Building Process**: Use Lean metaprogramming to generate proof data and cache it in JSON format.
+3. **Prompt Generation**: Construct prompts using templates refined with theorem and metric data.
+4. **Retrieval-Augmented Generation (RAG)**: Enhance prompts with relevant examples and documentation.
+5. **Proof Generation and Refinement**: Generate and iteratively refine proofs using language models.
+6. **Evaluation**: Assess the correctness and quality of proofs using predefined and user-defined metrics.
+7. **Benchmarking**: Compare different optimization strategies to determine the most effective approach.
 
-We provide tools for extracting training data based on Lean source code, and for creating instruction-tuning data for language models.
-
-
-## Running extraction
-To run the full pipeline on all repositories in `configs/config.json`:
+## Repository Structure
 ```
-python scripts/extract_repos.py --cwd {filepath_of_this_repo}
+root/
+├── .cache/ # Build Cache
+├── .db/ # Vector DB Cache
+├── .lake/ # Lean Environment
+├── .trees/ # Proof tree export images
+├── benchmark/ # Benchmarking tools
+│ └── data/ # Benchmarking output
+├── configs/ # Build configurations
+├── evaluate/ # Correctness and metric evaluation
+├── models/ # LLM interface
+├── scripts/ # Build scripts
+├── TrainingData/ # Metaprogramming
+├── lake-manifest.json # Dependency info
+├── lakefile.lean # Lean config
+├── lean-toolchain # Lean version
+└── README.md
 ```
 
-On a Macbook Pro (M3 Max, 14 CPU) it takes around 2 hours to run the extractions on mathlib.
+## Key Files
+- **scripts/build.py**: Build environment and cache
+- **benchmark/tools.py**: Run benchmarks with file-specified configuration.
+- **models/prompt.py**: All prompting chains
+- **models/rag.py**: All RAG code
+- **models/structures.py**: All objects and datastructures
+- **evaluate/metrics**: Metric definitions.
+- **evaluate/build_prooftree**: Proof tree generation
 
+## Configuration
+Configuration files specify the details of the Lean projects to be built. They are JSON arrays of objects, each representing a Lean project. Here is an example configuration file:
 
-To run a tool individually, use `lake exe <tool>`. \
-The `run_pipeline.py` script uses Python to call tools in this way and organize the resulting files.
-
-
-
-#### Extraction tools:
-### `training_data`
-
-This produces a `.jsonl` file where each line is an example of the following form:
 ```json
-{
-   "state": "{tactic state}",
-   "nextTactic" : "{pretty-printed next tactic}",
-   "srcUpToTactic" : "{source code in the file up to the tactic invocation}",
-   "declUpToTactic" : "{source code in the declaration up to the tactic invocation}",
-   "decl": "{declaration without proof (e.g., statement of a theorem)}",
-   "declId": "{unique identifier of the declaration}"
-}
+[
+    {
+        "path": "/Users/user/Desktop/lean-project",
+        "lean": "leanprover/lean4:v4.9.0",
+        "name": "LeanProject",
+        "import_file": "LeanProject.lean",
+        "imports": ["LeanProject"]
+    },
+    {
+        "repo": "https://github.com/leanprover-community/mathlib4",
+        "commit": "v4.9.0",
+        "lean": "leanprover/lean4:v4.9.0",
+        "name": "mathlib",
+        "import_file": "Mathlib.lean",
+        "imports": ["Mathlib"],
+        "build": false
+    }
+]
 ```
 
-### `full_proof_training_data`
+## Metrics
+ImProof comes with several preinstalled metrics for evaluating proofs:
 
-This produces a `.jsonl` file where each line is an example of the following form:
-```json
-{
-   "srcUpToDecl":"{source code in the file up to the declaration}",
-   "decl": "{declaration without proof (e.g., statement of a theorem)}",
-   "declId": "{unique identifier of the declaration}",
-   "proof":"{proof}"
-}
+- **Length Metric**: Measures the length of the proof in terms of the number of steps.
+- **Modularity Metric**: Evaluates the degree of modularity by analyzing the proof tree for reusable, independent subproofs.
+- **Readability Metric**: Assesses the readability of the proof by evaluating the average length of lines/tactics and modularity.
+- **Similarity Metric**: Measures the structural and syntactic differences between two proofs.
+- **Completion Metric**: Measures the completeness of a proof by evaluating the number of errors present. This is essentially used for full proof generation
+### Adding Custom Metrics
+To add a new metric, create an instance of the `Metric` class by defining the following parameters:
+
+```python
+Metric(name="Metric Name",
+      prompts=prompts,
+      examples=examples,
+      minmax="minimize or maximize",
+      score_fn=score_fn, #default = None; unary
+      metric_fn=metric_fn, #default = None; binary
+      cmp=comparison_fn, #default = None
+      lock_refinement_state=False #default = False; Refinement compares to orginal or most recent instance
+      )
 ```
 
-### `state_comments`
+## Usage
+- **Setup the Environment**: Clone the repository and set up the Lean environment by defining configuration files. Set the `OPENAI_API_KEY` environment variable.
+- **Build and Cache Proof Data**: Run the build scripts to generate and cache proof data in JSON format.
+   - `python scripts/build.py --config CONFIG_PATH`
+- **Setup Run Configuration**: Use the provided tools and models to generate the parameter tuning for your desired tests.
+- **Evaluate and Benchmark**: Assess the correctness and quality of the generated proofs using the evaluation and benchmarking tools.
+   - `python benchmark/tools.py`
 
-This produces Lean source files with proof states interleaved as comments after each tactic.
+## Acknowledgements
+We would like to thank Kim Morrison for the [Training Data repository](https://github.com/semorrison/lean-training-data) and Sean Welleck for the [Neural Theorem Proving (NTP) toolkit repository](https://github.com/cmu-l3/ntp-toolkit), which served as foundational resources for this project. Additionally, we would like to thank the Paperproof team for the [Paperproof repository](https://github.com/Paper-Proof/paperproof), which paved the way for our own prooftree generation and analysis system. We also greatly appreciate the support and guidance from the Hoskinson Center for Formal Mathematics at Carnegie Mellon University.
 
-## Running instruction tuning data generation
-After extraction, you can generate various forms of (prompt, completion) examples for fine-tuning language models.
+## Contributing
+We welcome contributions from the community. If you have suggestions, bug reports, or want to contribute code, please open an issue or submit a pull request.
 
-To do so, run:
-```
-python scripts/instruction_tuning.py --prompt context_state_tactic
-```
-See `python scripts/instruction_tuning.py -h` for other options for `--prompt` or other settings.
+## License
+This project is licensed under the MIT License.
 
-The prompt includes a natural language description of the task, commonly referred to as an "instruction" (hence the name instruction tuning data).
-
-
-## Other setup docs from `lean-training-data`
-
-You may find these useful during setup.
-
-* Install [`elan`](https://github.com/leanprover/elan) by running
-
-```shell
-curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-```
-* Run `lake exe cache get` (this downloads precompiled binaries for `Mathlib`).
-* Run `lake build`
-* Run `lake exe <tool>`, where `<tool>` is one of the programs documented below.
-
+## Contact
+For any questions or inquiries, please contact:
+- Riyaz Ahuja: [riyaza@andrew.cmu.edu](mailto:riyaza@andrew.cmu.edu)
+- Jeremy Avigad: [avigad@cmu.edu](mailto:avigad@cmu.edu)
+- Prasad Tetali: [ptetali@cmu.edu](mailto:ptetali@cmu.edu)
+- Sean Welleck: [swelleck@andrew.cmu.edu](mailto:swelleck@andrew.cmu.edu)
