@@ -158,6 +158,49 @@ def breadth(G):
     return len(leaf_nodes)
 
 
+def calculate_modularity(G, edge_list):
+    # Create a subgraph based on the specified edge list
+    subgraph = nx.DiGraph()
+    subgraph.add_edges_from(edge_list)
+
+    # Find the communities in the subgraph
+    communities = list(nx.connected_components(subgraph.to_undirected()))
+
+    # Create a mapping from nodes to community indices
+    node_to_community = {}
+    for idx, community in enumerate(communities):
+        for node in community:
+            node_to_community[node] = idx
+
+    # Create a list of sets, where each set represents a community
+    community_list = [set() for _ in range(len(communities))]
+    for node, community in node_to_community.items():
+        community_list[community].add(node)
+
+    # Calculate modularity using NetworkX's built-in function
+    modularity = nx.algorithms.community.quality.modularity(
+        G.to_undirected(), community_list
+    )
+
+    return modularity
+
+
+def calculate_efficiency(G):
+    # Calculate the global efficiency of the subgraph
+    undirected = G.to_undirected()
+    efficiency = nx.global_efficiency(undirected)
+
+    return efficiency
+
+
+def get_modular_edges(G):
+    return [
+        (u, v)
+        for u, v in G.edges()
+        if G[u][v].get("spawned") or G[u][v].get("bifurcation")
+    ]
+
+
 def tree_edit_distance(G1, G2, normalize=True):
     def nx_to_zss(G, node, label_func):
         zss_node = Node(label_func(node))

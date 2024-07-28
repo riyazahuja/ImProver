@@ -160,7 +160,7 @@ def length_metric():
     return Metric("LENGTH", [sys_prompt, user_prompt], examples, "MIN", score_fn=len_fn)
 
 
-def modularity_metric():
+def modularity_metric_old():
 
     def get_haves(anno_thm: AnnotatedTheorem):
         haves = [
@@ -230,6 +230,35 @@ def modularity_metric():
         weights = [0.25, 0.25, 0.25, 0.25]
 
         return sum(weights[i] * vals[i] for i in range(len(weights)))
+
+    sys_prompt = (
+        "system",
+        """You are an AI assistant who rewrites Lean 4 proofs to be more modular while ensuring their correctness. 
+                  We measure modularity by considering the depth of the proof tree (less is better), the breadth of the proof tree (greater is better),
+                  the number of have statements (more is better), and the avg number of times these have statements are reused (more is better).""",
+    )
+
+    user_prompt = (
+        "human",
+        """Rewrite the current theorem (wrapped in <CURRENT>...</CURRENT>) so it is more modular. Any lemmas or 
+                   independent subproofs you wish to make, put them as a \"have\" statement proofstep within the tactic proof rather than an external lemma.
+                   Rewrite the current theorem to be as modular as possible, in that it has as many have statements as possible that are reused often, and the proof tree is broad and not deep - while ensuring the output is still syntactically correct.""",
+    )
+
+    examples = []
+
+    return Metric(
+        "MODULARITY", [sys_prompt, user_prompt], examples, "MAX", score_fn=mod_fn
+    )
+
+
+def modularity_metric():
+
+    def mod_fn(thm):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm, force=True)
+        G, _, _ = getProofTree(thm)
+        return calculate_modularity(G, get_modular_edges(G))
 
     sys_prompt = (
         "system",
