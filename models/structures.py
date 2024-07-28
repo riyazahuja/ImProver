@@ -63,7 +63,7 @@ class AnnotatedTheorem(BaseModel):
     project_path : str = Field(description="Local path to src repo contents")
     messages : List[Message] = Field(...,description="Messages from the lean server")
     pretty_print : str = Field(description="Pretty printed (string) form of theorem.")
-    proof_tree : List[Tuple[str,List[int]]] = Field(description="data for efficient proof tree construction")
+    proof_tree : List[Tuple[str,List[int],List[int]]] = Field(description="data for efficient proof tree construction")
     
 class AnnotatedFile(BaseModel):
     src : str = Field(description="File source repo")
@@ -255,7 +255,7 @@ def getTheorems(data, src, path, project_path,contents,until_end=False) -> List[
 
         PT = trees.get(declID,None)
         if PT is not None:
-            PT = [(node["tactic"],node["children"]) for node in PT]
+            PT = [(node["tactic"],node["children"],node["spawned_children"]) for node in PT]
 
         if declID not in temp.keys():
             temp[declID] = {'proof':[ps], 'decl':decl,'context' : maybe_context,'messages':messages,'pretty_print':pp,'proof_tree':PT}

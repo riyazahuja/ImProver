@@ -192,8 +192,12 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
       --IO.println s!"{s}:\n "
       --IO.println <| toJson steps
       --IO.println "==============="
-      let PT : List (String × List Nat) := getProofTree steps
-      let PTJson := Json.arr <| PT.map (fun (s,xs) => Json.mkObj ([("tactic",s),("children",Json.arr <| xs.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray)])) |>.toArray
+      let PT : List (String × List Nat × List Nat) := getProofTree steps
+      let PTJson := Json.arr <| PT.map (fun (s,xs) => Json.mkObj (
+          [("tactic",s),
+          ("children",Json.arr <| xs.1.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray),
+          ("spawned_children",Json.arr <| xs.2.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray)]
+        )) |>.toArray
       PTs := (s,PTJson) :: PTs
     let PTsJson := Json.mkObj PTs
 

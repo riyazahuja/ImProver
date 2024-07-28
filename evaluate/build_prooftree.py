@@ -67,7 +67,7 @@ def build_graph(data):
 
         for child_index in children_indices:
             if child_index < len(data):  
-                G.add_edge(index, child_index)
+                G.add_edge(index, child_index)     
 
     children = list(set([child for (_,children) in data for child in children]))
     roots = [index for index in range(len(data)) if index not in children]#[child for (_,children) in data for child in children]]
@@ -98,9 +98,13 @@ def build_graph(data):
     return G, positions, labels
 
 # Visualization function
-def visualize_tree(G, positions, labels):
+def visualize_tree(G, positions, labels, show_mod=False):
     plt.figure(figsize=(12, 8))
     nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=8, font_color="black", node_color="skyblue", edge_color="gray")
+    if show_mod:
+        mod_edges = [(u, v) for u, v in G.edges() if G[u][v].get('spawned') or G[u][v].get('bifurcation')]
+        nx.draw_networkx_edges(G, pos=positions, edgelist=mod_edges, edge_color='green', arrows=True, arrowstyle='-|>', arrowsize=12, width=1.5)
+    
     plt.title('Proof Tree Visualization')
     plt.axis('off')  # Turn off the axis
     plt.show()
@@ -129,10 +133,10 @@ def post_process_graph(G):
     return G
 
 # Main function to handle the proof tree creation and visualization
-def getProofTree(thm:AnnotatedTheorem, visualize=False):
+def getProofTree(thm:AnnotatedTheorem, visualize=False,show_mod=True):
     G, positions, labels = build_graph2(thm.proof_tree)
     if visualize:
-        visualize_tree(G, positions, labels)
+        visualize_tree(G, positions, labels, show_mod=show_mod)
     return G, positions, labels
 
 
@@ -192,27 +196,40 @@ def build_graph2(data):
     theta = (2 * math.pi) / n  if n!= 0 else math.pi/4# Calculate the angle between nodes
     r = 10  # Set radius for the circle
 
-    for index, (tactic, children_indices) in enumerate(data):
+    for index, (tactic, children_indices,spawned_children_indices) in enumerate(data):
         G.add_node(index, label=tactic)
         labels[index] = tactic
         # Set positions in a circle
         positions[index] = (r * math.cos(index * theta), r * math.sin(index * theta))
 
         # Add edges based on children indices
+        
+        pure_bifurcation = True if len(children_indices) > 1 and len(spawned_children_indices)==0 else False
+        
         for child_index in children_indices:
             if child_index < len(data):  # Ensure child index is valid
-                G.add_edge(index, child_index)    
+                G.add_edge(index, child_index,bifurcation=pure_bifurcation)    
+        
+        for child_index in spawned_children_indices:
+            if child_index < len(data):  # Ensure child index is valid
+                G.add_edge(index, child_index, spawned=True)   
 
     return G, positions, labels
 
 
 
-def save_tree(G,positions,labels,save_path):
+def save_tree(G,positions,labels,save_path,show_mod=False):
     matplotlib.use('agg')
+    
     plt.figure(figsize=(12, 8))
-    nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=5, font_color="black", node_color="skyblue", edge_color="gray")
+    nx.draw(G, pos=positions, labels=labels, with_labels=True, node_size=100, arrows=True, arrowstyle='-|>', arrowsize=12, font_size=8, font_color="black", node_color="skyblue", edge_color="gray")
+    if show_mod:
+        mod_edges = [(u, v) for u, v in G.edges() if G[u][v].get('spawned') or G[u][v].get('bifurcation')]
+        nx.draw_networkx_edges(G, pos=positions, edgelist=mod_edges, edge_color='green', arrows=True, arrowstyle='-|>', arrowsize=12, width=1.5)
+    
     plt.title('Proof Tree Visualization')
     plt.axis('off')  # Turn off the axis
+    
     os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
     plt.savefig(save_path, format='png', bbox_inches='tight')  # Save the figure as a PNG file
 
@@ -220,27 +237,15 @@ def save_tree(G,positions,labels,save_path):
 if __name__ == '__main__':
     repo = getRepo('Tests','configs/config_test.json')
     files = {file.file_name:file for file in repo.files}
-    #f = files['Basic.lean']
-    f = files['Solutions_S01_Implication_and_the_Universal_Quantifier.lean']
+    f = files['Basic.lean']
+    #f = files['Solutions_S02_Functions.lean']
+    
     #f = files['Tests/IMO/alphaproof/P1.lean']
     #f = files['Solutions_S01_Sets.lean']
     thms = f.theorems
-    thm1 = thms[0]
-    #thm2 = thms[2]
+    thm1 = thms[3]
+    thm2 = thms[4]
     print(thm1.proof_tree)
 
-    save_tree(*getProofTree(thm1,visualize=True),save_path='old_tree.png')
-    #G,p,l = build_graph2(thm1.proof_tree)
-    #save_tree(G,p,l,save_path='new_tree.png')
-    #save_tree(post_process_graph(G),p,l,save_path='new_tree2.png')
-    #G1, p1, l1 = getProofTree(thm1, visualize=True)
-    '''
-    G2, p2, l2 = getProofTree(thm2, visualize=False)
-    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    save_tree(G1,p1,l1,os.path.join(root_path,'.trees','test1.png'))
-    save_tree(G2,p2,l2,os.path.join(root_path,'.trees','test2.png'))
-
-    print(tree_edit_distance(G1,G2))
-
-    #print("Depth of the proof tree:", depth)
-    '''
+    save_tree(*getProofTree(thm1,visualize=False),save_path='ex.png',show_mod=True)
+    save_tree(*getProofTree(thm2,visualize=False),save_path='ex2.png',show_mod=True)

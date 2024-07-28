@@ -220,15 +220,16 @@ def filter_universe_hyp (gi : GoalInfo) : GoalInfo :=
 --   let mut
 
 def existsArrow (nodeA : ProofStep) (nodeB : ProofStep) : Bool :=
-  let outputGoalsA := nodeA.goalsAfter ++ nodeA.spawnedGoals |>.map (fun goal=>goal.id)--.bind (fun goal => goal.hyps.map (fun hyp => hyp.id))
-  --let inputGoalsB := (nodeB.goalBefore.hyps.map (fun hyp => hyp.id)) ++ nodeB.tacticDependsOn
+  let outputGoalsA := nodeA.goalsAfter ++ nodeA.spawnedGoals |>.map (fun goal=>goal.id)
   let inputGoalB := nodeB.goalBefore.id
-  --inputGoalsB.all (fun id => outputGoalsA.any (fun id' => id == id'))
   outputGoalsA.any (fun id => id==inputGoalB)
 
+def existsSpawnedArrow (nodeA : ProofStep) (nodeB : ProofStep) : Bool :=
+  let outputGoalsA := nodeA.spawnedGoals.map (fun goal=>goal.id)
+  let inputGoalB := nodeB.goalBefore.id
+  outputGoalsA.any (fun id => id==inputGoalB)
 
-
-def getProofTree (steps : List ProofStep) : List (String × (List Nat)) :=
+def getProofTree (steps : List ProofStep) : List (String × (List Nat) × (List Nat)) :=
 
   let steps : List ProofStep := steps.map (fun step =>
     ⟨step.tacticString,
@@ -242,31 +243,11 @@ def getProofTree (steps : List ProofStep) : List (String × (List Nat)) :=
   else
     let combos := steps.enum.bind (fun (i,a) => steps.enum.filterMap (fun (j,b) => if i != j then some ((i,a),(j,b)) else none))
     let arrow_idx : List (Nat × Nat):= combos.filterMap (fun (nodeA,nodeB) => if existsArrow nodeA.2 nodeB.2 then some (nodeA.1,nodeB.1) else none)
-    let base_nodes : List (List Nat) := List.range (steps.length) |>.map (fun i => arrow_idx.filterMap (fun (j,k) => if i == j then some k else none))
+    let spawned_arrow_idx : List (Nat × Nat):= combos.filterMap (fun (nodeA,nodeB) => if existsSpawnedArrow nodeA.2 nodeB.2 then some (nodeA.1,nodeB.1) else none)
+    --let base_nodes : List (List Nat) := List.range (steps.length) |>.map (fun i => arrow_idx.filterMap (fun (j,k) => if i == j then some k else none))
+    let base_nodes : List ((List Nat) × (List Nat)) := List.range (steps.length) |>.map
+      (fun i => (arrow_idx.filterMap (fun (j,k) => if i == j then some k else none),
+        spawned_arrow_idx.filterMap (fun (j,k) => if i == j then some k else none)))
+
     let idx_map := steps.map (fun ps => ps.tacticString)
     base_nodes.enum.map (fun (i,xs) => (idx_map.get! i, xs))
-
-
-/-
-def getProofTreeRaw (steps : List ProofStep) : List (String × (List Nat)) :=
-
-  let steps : List ProofStep := steps.map (fun step =>
-    ⟨step.tacticString,
-      filter_universe_hyp step.goalBefore,
-      step.goalsAfter.map filter_universe_hyp,
-      step.tacticDependsOn,
-      step.spawnedGoals.map filter_universe_hyp,
-      ⟩)
-
-  if steps.isEmpty then []
-  else
-    let getInfo (ps : ProofStep) :=
-      let goalBefore := ps.goalBefore.
-
-    let combos := steps.enum.bind (fun (i,a) => steps.enum.filterMap (fun (j,b) => if i != j then some ((i,a),(j,b)) else none))
-    let arrow_idx : List (Nat × Nat):= combos.filterMap (fun (nodeA,nodeB) => if existsArrow nodeA.2 nodeB.2 then some (nodeA.1,nodeB.1) else none)
-    let base_nodes : List (List Nat) := List.range (steps.length) |>.map (fun i => arrow_idx.filterMap (fun (j,k) => if i == j then some k else none))
-    let idx_map := steps.map (fun ps => ps.tacticString)
-    base_nodes.enum.map (fun (i,xs) => (idx_map.get! i, xs))
-
--/
