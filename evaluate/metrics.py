@@ -59,8 +59,6 @@ class Metric:
     def get_example_selector(self):
         if len(self.examples) == 0:
             return None
-        # print(type(self.examples))
-        # print(self.examples)
 
         vs = get_metric_vs(self.examples, self.name)
         return vs
