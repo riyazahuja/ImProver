@@ -19,7 +19,7 @@ import logging
 from typing import Final
 import tiktoken
 
-log_req_info = True
+log_req_info = False
 
 if log_req_info:
     logger: Final = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ def prompt_raw(
          {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
          Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. {f"To assist with the syntax relating to the current theorem and current error messages, you will be given {syntax_k} documents to refer to for fixing these syntax issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>." if syntax_search else ""}
          {f"You will also recieve {mathlib_k} documents relevant to the current theorem to help with formulating your modified proof. Each of these will be wrapped with <CONTENT_DOC>...<CONTENT_DOC>" if mathlib_search else ""}
-         {"You will be given the tactic states as comments for reference." if annotation else ""} The current theorem will be wrapped in <CURRENT>...</CURRENT>
+         {"You will be given the tactic states as comments for reference." if annotation else ""} Return only the proof of the theorem, starting at the first tactic. Do not include the theorem statement or hypotheses. The current theorem will be wrapped in <CURRENT>...</CURRENT>
          """,
             ),
             ("system", "{format_instructions}"),
@@ -235,6 +235,7 @@ def prompt_raw(
             "user_prompts": user_prompts,
         },
     )
+
     return output
 
 
@@ -565,15 +566,13 @@ def best_of_n(prompt_fn):
     return best_of_n
 
 
-def refinement(prompt_fn):
+def refinement(prompt_fn, prev_data_num=1, keep_best=True):
 
     def refinement(
         thm: AnnotatedTheorem,
         metric: Metric,
         n: int,
         model="gpt-4-turbo",
-        prev_data_num=1,
-        keep_best=True,
         annotation=True,
         syntax_search=True,
         mathlib_search=True,
@@ -603,7 +602,7 @@ def refinement(prompt_fn):
         prev_data = []
 
         for i in range(n):
-            # print(f'=== i: {i} ===\n curr:\n {parseTheorem(curr,context=False)}\n prev_data = {parse_prev_data(prev_data[-prev_data_num:])}\n\n========')
+
             output = prompt_fn(
                 curr,
                 metric,
@@ -615,7 +614,6 @@ def refinement(prompt_fn):
                 examples=examples,
             )
             correct, messages, new_thm = eval_correctness(output)
-
             curr_data = {"input": curr, "output": new_thm}
             curr_data["correct"] = correct
             curr_data["messages"] = messages
@@ -666,18 +664,7 @@ if __name__ == "__main__":
 
     thms = f.theorems
     for thm in [thms[0]]:
-        # print(f"RAW: \n\n {parseTheorem(thm,context=False)} \n\nSending to GPT:\n")
-        # out=prompt_structured(thm,length_metric(),mathlib_search=True)
         metric = length_metric()
         out = prompt_structured(thm, length_metric(), model="gpt-4o", examples=1)
-        # out = best_of_n(thm,metric,10,max_workers=3,mixup=0.5)
-        # out=refinement(thm,length_metric(),3,prev_data_num=3,syntax_search=True,mathlib_search=True)
-        # print(out)
-
-        # correct,msgs,anno = eval_correctness(out)
-        # score = metric.metric(anno) if correct else None
-        # msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
         print("\n")
         print(parseTheorem(out, context=False))
-        # print(f'CORRECT? {correct}\nSCORE: {score}\nMSGS:\n{msgs_txt}')#\nMSGS_RAW:\n{msgs}\nOUT_RAW:\n{anno}')
-        # print('=========\n\n\n=========')

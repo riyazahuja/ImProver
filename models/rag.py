@@ -32,7 +32,6 @@ def get_mathlib_vs(
                     all_files.append(fp)
 
     files = all_files
-    print(len(files))
 
     lean_splitters = [
         "\ntheorem ",
@@ -67,14 +66,11 @@ def get_mathlib_vs(
             new = {}  # doc.metadata
             new.update({"file": name})
             docs.append(Document(page_content=doc, metadata=new))
-    print(len(docs))
 
     n = 5000
     docs_chunked = [docs[i * n : (i + 1) * n] for i in range((len(docs) + n - 1) // n)]
 
-    # print('Getting Embeddings...')
     embeddings = OpenAIEmbeddings(show_progress_bar=True)
-    # print('Got Embeddings!')
 
     vectorstore = Chroma.from_documents(
         documents=docs_chunked[0],
@@ -103,12 +99,10 @@ def get_mathlib_vs(
 
 
 def get_TPiL4_vs(path=os.path.join(root_path, ".db", "src", "TPiL4")):
-    print(f"TPIL\n\n\n\n{path}")
     files = []
     for fp in os.listdir(path):
         if fp.endswith(".md"):
             files.append(fp)
-    print(f"{files} | {len(files)}")
     docs = []
     headers_to_split_on = [
         ("#", "Header 1"),

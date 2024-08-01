@@ -7,7 +7,6 @@ from evaluate.metrics import *
 
 
 def eval_correctness(thm, sorries_are_errors=True):
-
     if type(thm) == AnnotatedTheorem:
         new_thm = thm
     elif type(thm) == Theorem:
@@ -28,5 +27,4 @@ def eval_correctness(thm, sorries_are_errors=True):
             and sorries_are_errors
         )
     ) == 0
-
     return (correct, msgs, new_thm)

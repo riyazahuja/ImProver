@@ -248,7 +248,6 @@ if __name__ == "__main__":
     thms = f.theorems
     thm1 = thms[3]
     thm2 = thms[4]
-    print(thm1.proof_tree)
 
     save_tree(*getProofTree(thm1, visualize=False), save_path="ex.png", show_mod=True)
     save_tree(*getProofTree(thm2, visualize=False), save_path="ex2.png", show_mod=True)

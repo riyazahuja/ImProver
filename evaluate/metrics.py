@@ -59,8 +59,8 @@ class Metric:
     def get_example_selector(self):
         if len(self.examples) == 0:
             return None
-        print(type(self.examples))
-        print(self.examples)
+        # print(type(self.examples))
+        # print(self.examples)
 
         vs = get_metric_vs(self.examples, self.name)
         return vs
@@ -160,7 +160,7 @@ def length_metric():
     return Metric("LENGTH", [sys_prompt, user_prompt], examples, "MIN", score_fn=len_fn)
 
 
-def modularity_metric_old():
+def modularity_metric():
 
     def get_haves(anno_thm: AnnotatedTheorem):
         haves = [
@@ -252,7 +252,7 @@ def modularity_metric_old():
     )
 
 
-def modularity_metric():
+def modularity_metric2():
 
     def mod_fn(thm):
         if type(thm) == Theorem:

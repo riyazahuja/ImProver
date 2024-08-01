@@ -93,7 +93,7 @@ class AnnotatedTheorem(BaseModel):
     )
     project_path: str = Field(description="Local path to src repo contents")
     messages: List[Message] = Field(..., description="Messages from the lean server")
-    pretty_print: str = Field(description="Pretty printed (string) form of theorem.")
+    pretty_print: str = Field(description="Content of theorem src file.")
     proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
         description="data for efficient proof tree construction"
     )
@@ -150,17 +150,13 @@ def getMessages(start, end, msgs, contents: str):
         if start_row is None:
             return False
         if thm_start_row <= start_row and end is not None and thm_end_row >= end_row:
-            # print(f'\nCASE 1 <================= {msg}\n')
             return True
         elif thm_start_row <= start_row and end is None:
-            # print(f'\nCASE 2 <================= {msg}\n')
             return True
         else:
             return False
 
     msgs2 = [msg for msg in msgs if msg_in_thm(msg)]
-    # s = "\n".join(map(lambda x: f'{x[0]+1} | {x[1]}',list(enumerate(contents.splitlines()))))
-    # print(f'+++++++++++++++\nthm_start_row={thm_start_row}\nMSG CONTENTS:\n{s}\nMSGS:\n{msgs}\nMSGS2:\n{msgs2}\n+++++++++++++++\n')
     msgs = msgs2
     return [getMessage(msg, contents) for msg in msgs]
 
@@ -240,7 +236,6 @@ def getTheorems(
     data, src, path, project_path, contents, until_end=False
 ) -> List[AnnotatedTheorem]:
     temp = {}
-    # print(data)
     msgs = data["messages"]
     trees = data["proofTrees"]
 
@@ -261,25 +256,9 @@ def getTheorems(
 
     data = remove_dupes(data["tactics"])
 
-    # messages = [getMessage(msg,contents) for msg in msgs]
     all_tacs = [re.sub(r"\s", "", step["tactic"]) for step in data]
-    # print([step['tactic'] for step in data])
 
-    def process_children(data):
-        output = []
-        for child in data:
-            if child.get("kind", None) == "TacticInfo":
-                pp = child.get("node", {}).get("stx", {}).get("pp", "")
-                trim_pp = re.sub(r"\s", "", pp)
-                if trim_pp in all_tacs:
-                    idx = [i for i, tac in list(enumerate(all_tacs)) if trim_pp == tac][
-                        -1
-                    ]
-                    output.append(idx)
-                    grandchildren = child.get("children", [])
-                    output.extend(process_children(grandchildren))
-        return output
-
+    tactic_start_line = data[0]["startPos"]["line"] if len(data) != 0 else None
     for step in data:
 
         ps = AnnotatedProofStep(
@@ -303,22 +282,15 @@ def getTheorems(
         thm_start, thm_end = step["thm_startPos"], step["thm_endPos"]
         if until_end:
             thm_end = None
-        # print(f'\n###########\n{decl} : start -> {thm_start}\n################\n')
+
         messages = getMessages(thm_start, thm_end, msgs, contents)
         messages.reverse()
         lines_src = step["srcUpToTactic"].split("\n")
         decl_lines = decl.split("\n")
-        # print(lines_src)
 
-        # lines = [line for line in lines_src if not line in decl_lines]
         maybe_context = "\n".join(lines_src[: -len(decl_lines) - 1]).strip()
 
-        if thm_end is not None:
-            pp = "\n".join(
-                contents.splitlines()[thm_start["line"] - 1 : thm_end["line"]]
-            )
-        else:
-            pp = "\n".join(contents.splitlines()[thm_start["line"] - 1 :])
+        pp = contents
 
         PT = trees.get(declID, None)
         if PT is not None:
@@ -336,9 +308,7 @@ def getTheorems(
                 "pretty_print": pp,
                 "proof_tree": PT,
             }
-            # print(temp)
         else:
-            # print(temp)
             curr_proof = temp[declID]["proof"]
             curr_decl = temp[declID]["decl"]
             curr_ctxt = temp[declID]["context"]
@@ -373,7 +343,7 @@ def getTheorems(
 
 
 def get_stem(path):
-    # print(f'{path} : {path[-5:]} : {path[:-5]}')
+
     if path[-5:] == ".lean":
         return path[:-5]
     elif path[-5:] == ".json":
@@ -385,9 +355,6 @@ def getAnnotatedFile(src, path, project_path, until_end=False):
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f".cache/{src}")
 
-    # content_path = os.path.join(root_path,'.lake','packages',src)
-
-    # print(f'{project_path}|{path}')
     with open(os.path.join(project_path, path), "r") as f:
         contents = f.read()
 
@@ -409,7 +376,7 @@ def getAnnotatedFile(src, path, project_path, until_end=False):
 
 
 def getFile(src, path, project_path, annotate=True, force=False):
-    # print(f'{src} | {path}')
+
     if annotate:
         try:
             return getAnnotatedFile(src, path, project_path)
@@ -417,12 +384,10 @@ def getFile(src, path, project_path, annotate=True, force=False):
             if force:
                 raise e
             else:
-                # print(f'ERROR: \n{e}\n\n')
                 pass
     stem, ftype = os.path.splitext(path)
     with open(os.path.join(project_path, path), "r") as f:
         content = f.read()
-    # print(f'{os.path.basename(path)} | {stem} | {ftype}')
 
     return File(
         src=src,
@@ -564,18 +529,88 @@ def getRepo(src, config=None, annotate=True, force=False):
         raise ValueError(f"{src} not in config file {config}")
     repo_data = data[0]
     repo_data["name"] = repo_data["name"].replace("«", "").replace("»", "")
-    # print(repo_data)
 
     return getRepoDirect(repo_data, annotate=annotate, force=force)
 
 
-def parseAnnotatedTheorem(thm, context=True, annotation=False):
-    last_pstep = thm.proof[-1]
-    if context:
-        src = last_pstep.srcUpToTactic + last_pstep.tactic
+def get_tactic_str(step: AnnotatedProofStep, content: str, annotation=False):
+    content = content.splitlines()
+
+
+def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False):
+    context_str = thm.context
+    decl = thm.decl
+    proof = thm.proof
+    tactics_start_pos = proof[0].start
+    thm_end_pos = proof[-1].end
+    contents = thm.pretty_print.splitlines()
+    if thm_end_pos is None:
+        thm_end_pos = len(contents) - 1
+
+    if annotation:
+        tactic_line_positions = [(step.start[0], step.end[0], step) for step in proof]
+        tactic_line_positions = [
+            (
+                pos[0] - 1 if pos[0] is not None else None,
+                pos[1] - 1 if pos[1] is not None else None,
+                pos[2],
+            )
+            for pos in tactic_line_positions
+        ]
+        tactic_line_positions = [
+            pos
+            for pos in tactic_line_positions
+            if pos[1] is not None and pos[0] is not None
+        ]
+        tactic_line_positions.sort(key=lambda x: x[0])
+
+        # state_text to print after line n:
+        state_text_after_line = {}
+        for pos in tactic_line_positions:
+            line_after = pos[1]
+            text = pos[2].nextState
+            text = (
+                "/-\n" + "\n".join(text) + "\n-/"
+                if len(text) != 0
+                else "/-\nGoals Solved!\n-/"
+            )
+            # Add indentation stuff
+            # if line_after not in state_text_after_line.keys():
+            state_text_after_line[line_after] = text
+        proof_text = []
+        for curr_line in range(
+            tactics_start_pos[0] - 1, min(thm_end_pos[0], len(contents) - 1)
+        ):
+            try:
+                line_text = contents[curr_line]
+            except:
+                enum_cont = "\n".join(
+                    [f"{i}\t|{contents[i]}" for i in range(len(contents))]
+                )
+                print(
+                    f"len contents: {len(contents)}\ncurr_line = {curr_line}\nstart:{tactics_start_pos[0] - 1}\nend:{thm_end_pos[0]-1}\nthm:{decl}\npp:{enum_cont}"
+                )
+                raise KeyError("")
+
+            try:
+                line_one = line_text.splitlines()[0]
+                indent_cnt = len(line_one) - len(line_one.lstrip(" "))
+            except:
+                indent_cnt = 0
+
+            proof_text.append(line_text)
+            if curr_line in state_text_after_line.keys():
+                state_text = indent(state_text_after_line[curr_line], indent_cnt * " ")
+                proof_text.append(state_text)
+        proof_text = "\n".join(proof_text)
+
     else:
-        src = last_pstep.declUpToTactic + last_pstep.tactic
-    return src
+        if thm_end_pos is not None and thm_end_pos[0] is not None:
+            proof_text = "\n".join(contents[tactics_start_pos[0] - 1 : thm_end_pos[0]])
+        else:
+            proof_text = "\n".join(contents[tactics_start_pos[0] - 1 :])
+    return f"{context_str if context else ''}\n{decl} := by\n{proof_text}"
+    # return f"{context_str if context else ''}\n{proof_text}"
 
 
 def elim_overlap(pf: List[AnnotatedProofStep]):
@@ -611,31 +646,31 @@ def elim_overlap(pf: List[AnnotatedProofStep]):
     return output
 
 
-def annotate(step: AnnotatedProofStep, prev_goal=False):
-    prev = step.prevState
-    tactic = step.tactic
-    next = step.nextState
+# def annotate(step: AnnotatedProofStep, prev_goal=False):
+#     prev = step.prevState
+#     tactic = step.tactic
+#     next = step.nextState
 
-    def pp_state(state):
-        if state == []:
-            return "No Goals Left!"
-        return "\n".join(state)
+#     def pp_state(state):
+#         if state == []:
+#             return "No Goals Left!"
+#         return "\n".join(state)
 
-    prev_text = f"""
-/-
-{pp_state(prev)}
--/
-"""
-    text = f"""
-{tactic}
-/-
-{pp_state(next)}
--/
-"""
-    if prev_goal:
-        return indent(prev_text + text, "  ", lambda x: True)
-    else:
-        return indent(text, "  ", lambda x: True)
+#     prev_text = f"""
+# /-
+# {pp_state(prev)}
+# -/
+# """
+#     text = f"""
+# {tactic}
+# /-
+# {pp_state(next)}
+# -/
+# """
+#     if prev_goal:
+#         return indent(prev_text + text, "  ", lambda x: True)
+#     else:
+#         return indent(text, "  ", lambda x: True)
 
 
 def parse_proof(thm, indent=1, dot=False):
@@ -659,16 +694,14 @@ def parse_proof(thm, indent=1, dot=False):
             # subtheorem
 
     depth = indent * len(spaces)
-    # print (f'PARSING PROOF: req {depth}, first [{output[:depth]}], dot? {dot}')
     if output[:depth] == spaces * indent and dot:
-        # print('HELOO!!!!')
         output = (
             output[: depth - 2] + ". " + output[depth:]
         )  # output[depth: depth + 1].replace(' ', '.') + output[depth + 1:]
     return output
 
 
-def parseTheoremBase(thm, context=True, prompt=False):
+def parseTheoremBase(thm, context=True):
     statement = thm.decl
     if context:
         context = thm.context
@@ -676,17 +709,14 @@ def parseTheoremBase(thm, context=True, prompt=False):
         context = ""
     proof = parse_proof(thm, dot=False)
 
-    if prompt:
-        return f"CONTEXT:\n {context}\n\n THEOREM: {statement} := by\n{proof}"
-    else:
-        return f"{context}\n\n{statement} := by\n{proof}"
+    return f"{context}\n\n{statement} := by\n{proof}"
 
 
 def parseTheorem(thm, context=True, annotation=False, prompt=False):
     if type(thm) == AnnotatedTheorem:
-        return thm.pretty_print
+        return parseAnnotatedTheorem(thm, context, annotation)  # thm.pretty_print
     else:
-        return parseTheoremBase(thm, context, prompt)
+        return parseTheoremBase(thm, context)
 
 
 def run_training_data(root_path, module_name):
@@ -731,8 +761,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             context=thm.context,
             proof=[],
             project_path=thm.project_path,
-            messages=[],
-            pretty_print=parseTheorem(thm, context=False),
+            messages=[getMessage(msg, text) for msg in output["messages"]],
+            pretty_print=text,
             proof_tree=[],
         )
     else:
@@ -816,3 +846,16 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             )
 
     return output
+
+
+if __name__ == "__main__":
+    repo = getRepo("Tests", "configs/config_test.json")
+    files = {file.file_path: file for file in repo.files}
+    print(files.keys())
+    fs = [files["Tests/Basic.lean"]]
+
+    for f in fs:
+        print(f"{f.file_name}|==================================")
+        for thm in f.theorems:
+            print(parseTheorem(thm, annotation=True, context=False))
+            print("-------------------------")
