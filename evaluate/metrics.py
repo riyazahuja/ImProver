@@ -153,6 +153,15 @@ def length_metric():
             "output": """theorem comp_assoc {α β γ δ : Type*} (f : γ → δ) (g : β → γ) (h : α → β) : (f ∘ g) ∘ h = f ∘ (g ∘ h) := by
   exact (funext fun x => id rfl)""",
         },
+        {
+            "input": """example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
+  apply h3
+  apply h2
+  apply h1
+  apply h4""",
+            "output": """example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
+    exact h3 (h2 (h1 h4))""",
+        },
     ]
 
     return Metric("LENGTH", [sys_prompt, user_prompt], examples, "MIN", score_fn=len_fn)
@@ -256,7 +265,9 @@ def modularity_metric2():
         if type(thm) == Theorem:
             thm = annotateTheorem(thm, force=True)
         G, _, _ = getProofTree(thm)
-        return calculate_modularity(G, get_modular_edges(G))
+        partition = nx.algorithms.community.greedy_modularity_communities(G)
+        score = nx.algorithms.community.modularity(G, partition)
+        return score
 
     sys_prompt = (
         "system",
@@ -564,4 +575,24 @@ def completion_metric():
 
 
 if __name__ == "__main__":
-    metric = length_metric()
+
+    repo = getRepo("Tests", "configs/config_test.json")
+    files = {file.file_name: file for file in repo.files}
+
+    f = files["Basic.lean"]
+    thms = f.theorems
+    for i, thm in enumerate(thms):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm, force=True)
+        G, p, l = getProofTree(thm)
+        partition = nx.algorithms.community.greedy_modularity_communities(G)
+        score = nx.algorithms.community.modularity(G, partition)
+        save_tree2(
+            G,
+            p,
+            l,
+            os.path.join(root_path, ".trees", "mod", f"thm_{i}.png"),
+            partition=partition,
+        )
+
+        print(f"{thm.decl}:{score}\n=========")

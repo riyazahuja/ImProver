@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import sys
 from pathlib import Path
+import numpy as np
 
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
@@ -97,7 +98,60 @@ def build_graph2(data):
     return G, positions, labels
 
 
-def save_tree(G, positions, labels, save_path, show_mod=False):
+def save_tree2(G, positions, labels, save_path, show_mod=False, partition=None):
+    matplotlib.use("agg")
+    plt.figure(figsize=(12, 8))
+
+    # Assign colors to nodes based on their community in the partition
+    if partition is not None:
+        color_map = plt.get_cmap("tab20")
+        node_colors = {}
+        for idx, community in enumerate(partition):
+            for node in community:
+                node_colors[node] = color_map(idx % 20)
+        node_colors = [node_colors[node] for node in G.nodes()]
+    else:
+        node_colors = "skyblue"
+
+    nx.draw(
+        G,
+        pos=positions,
+        labels=labels,
+        with_labels=True,
+        node_size=100,
+        arrows=True,
+        arrowstyle="-|>",
+        arrowsize=12,
+        font_size=8,
+        font_color="black",
+        node_color=node_colors,
+        edge_color="gray",
+    )
+
+    if show_mod:
+        mod_edges = [
+            (u, v)
+            for u, v in G.edges()
+            if G[u][v].get("spawned") or G[u][v].get("bifurcation")
+        ]
+        nx.draw_networkx_edges(
+            G,
+            pos=positions,
+            edgelist=mod_edges,
+            edge_color="green",
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=12,
+            width=1.5,
+        )
+
+    plt.title("Proof Tree Visualization")
+    plt.axis("off")
+    os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
+    plt.savefig(save_path, format="png", bbox_inches="tight")
+
+
+def save_tree(G, positions, labels, save_path, show_mod=False, partition=None):
     matplotlib.use("agg")
     plt.figure(figsize=(12, 8))
     nx.draw(
@@ -137,7 +191,7 @@ def save_tree(G, positions, labels, save_path, show_mod=False):
     plt.savefig(save_path, format="png", bbox_inches="tight")
 
 
-def getProofTree(thm: AnnotatedTheorem, visualize=False, show_mod=True):
+def getProofTree(thm: AnnotatedTheorem, visualize=False, show_mod=False):
     G, positions, labels = build_graph2(thm.proof_tree)
     if visualize:
         visualize_tree(G, positions, labels, show_mod=show_mod)
@@ -158,31 +212,173 @@ def breadth(G):
     return len(leaf_nodes)
 
 
-def calculate_modularity(G, edge_list):
-    # Create a subgraph based on the specified edge list
-    subgraph = nx.DiGraph()
-    subgraph.add_edges_from(edge_list)
+def calculate_modularity(G: nx.DiGraph, resolution=1):
+    G = G.to_undirected()
 
-    # Find the communities in the subgraph
-    communities = list(nx.connected_components(subgraph.to_undirected()))
+    def all_partitions(nodes):
+        nodes = list(nodes)
+        if len(nodes) == 0:
+            yield []
+            return
+        for i in range(2 ** (len(nodes) - 1)):
+            parts = [set(), set()]
+            for item in nodes:
+                parts[i & 1].add(item)
+                i >>= 1
+            for b in all_partitions(parts[1]):
+                yield [parts[0]] + b
 
-    # Create a mapping from nodes to community indices
-    node_to_community = {}
-    for idx, community in enumerate(communities):
-        for node in community:
-            node_to_community[node] = idx
+    def partition_modularity(G, partition):
+        return nx.algorithms.community.modularity(G, partition, resolution=resolution)
 
-    # Create a list of sets, where each set represents a community
-    community_list = [set() for _ in range(len(communities))]
-    for node, community in node_to_community.items():
-        community_list[community].add(node)
+    nodes = list(G.nodes)
+    max_mod = float("-inf")
+    best_partition = None
 
-    # Calculate modularity using NetworkX's built-in function
-    modularity = nx.algorithms.community.quality.modularity(
-        G.to_undirected(), community_list
-    )
+    for partition in all_partitions(nodes):
+        if len(partition) == 1:  # Skip the trivial partition
+            continue
+        mod = partition_modularity(G, partition)
+        if mod > max_mod:
+            max_mod = mod
+            best_partition = partition
 
-    return modularity
+    return max_mod, best_partition
+
+
+# def calculate_modularity_efficient(G: nx.DiGraph, resolution=1):
+#     G = G.to_undirected()
+
+#     def all_partitions(nodes):
+#         nodes = list(nodes)
+#         if len(nodes) == 0:
+#             yield []
+#             return
+#         for i in range(2 ** (len(nodes) - 1)):
+#             parts = [set(), set()]
+#             for item in nodes:
+#                 parts[i & 1].add(item)
+#                 i >>= 1
+#             for b in all_partitions(parts[1]):
+#                 yield [parts[0]] + b
+
+#     def partition_modularity(G, partition):
+#         return nx.algorithms.community.modularity(G, partition, resolution=resolution)
+
+#     nodes = list(G.nodes)
+#     max_mod = float("-inf")
+#     best_partition = None
+
+#     for partition in all_partitions(nodes):
+#         if len(partition) == 1:  # Skip the trivial partition
+#             continue
+#         mod = partition_modularity(G, partition)
+#         if mod > max_mod:
+#             max_mod = mod
+#             best_partition = partition
+
+#     return max_mod, best_partition
+
+
+# def calculate_modularity_spectral(G: nx.DiGraph, resolution=1):
+#     G = G.to_undirected()
+#     # partition = []
+
+#     def modularity_matrix(G):
+#         """Calculate the modularity matrix of the graph G."""
+#         A = nx.adjacency_matrix(G).todense()
+#         k = np.sum(A, axis=1)
+#         m = np.sum(k) / 2
+#         B = A - np.outer(k, k) / (2 * m)
+#         return B, m
+
+#     def leading_eigenvector(B):
+#         """Compute the leading eigenvector of the modularity matrix B."""
+#         eigenvalues, eigenvectors = np.linalg.eigh(B)
+#         idx = np.argmax(eigenvalues)
+#         return eigenvectors[:, idx]
+
+#     def partition_from_eigenvector(v):
+#         """Partition nodes based on the sign of the leading eigenvector."""
+#         return [set(np.where(v > 0)[0]), set(np.where(v <= 0)[0])]
+
+#     def refined_modularity_matrix(B, group):
+#         """Construct the refined modularity matrix B^{(g)} for a given group."""
+#         B_g = B[np.ix_(group, group)]
+#         for i in range(B_g.shape[0]):
+#             B_g[i, i] -= np.sum(B_g[i, :])
+#         return B_g
+
+#     def recursive_partition(G, nodes, B, m):
+#         # nodes = sorted(nodes)
+#         print(f"N:{nodes}\nB:{B}\nm:{m}")
+#         """Recursively partition the graph to maximize modularity."""
+#         if len(nodes) <= 1:
+#             return [nodes]
+
+#         leading_v = leading_eigenvector(B)
+#         partition = partition_from_eigenvector(leading_v)
+#         # partition = [set([nodes[i] for i in part]) for part in partition]
+#         print(f"partition:{partition}")
+
+#         s = np.array([1 if i in partition[0] else -1 for i in range(len(nodes))])
+#         delta_Q = (s.T @ B @ s) / (4 * m)
+#         print(f"dQ:{delta_Q}")
+#         if delta_Q <= 0:
+#             print(f"output:{[nodes]}\n======")
+#             return [nodes]
+
+#         sub_partitions = []
+#         for part in partition:
+#             if len(part) < 2:
+#                 sub_partitions.append(part)
+#                 continue
+
+#             subgraph = G.subgraph(part).copy()
+#             sub_nodes = list(subgraph.nodes)
+#             print(f"subnodes:{sub_nodes}")
+#             B_sub = refined_modularity_matrix(B, sub_nodes)
+#             print("--[RECURSION]--")
+#             sub_partitions.extend(recursive_partition(subgraph, sub_nodes, B_sub, m))
+#             print("--===========--")
+#         print(f"output:{sub_partitions}\n======")
+#         return sub_partitions
+
+#     B, m = modularity_matrix(G)
+#     nodes = sorted(list(G.nodes))
+#     best_partition = recursive_partition(G, nodes, B, m)
+#     max_mod = nx.algorithms.community.modularity(G, best_partition)
+#     return max_mod, best_partition
+
+#     B, m = modularity_matrix(G)
+#     best_partition = recursive_partition(G, B, m)
+#     max_mod = nx.algorithms.community.modularity(G, best_partition)
+#     return max_mod, best_partition
+
+#     # def get_best_partition(group=set(range(len(G))),partitions = []):
+#     #     B,m = modularity_matrix(G,group)
+#     #     leading_v=leading_eigenvector(B)
+#     #     partition = partition_from_eigenvector(leading_v)
+#     #     s = np.array([1 if i in partition[0] else -1 for i in range(len(G))])
+#     #     dQ = (s.T @ B @ s) / (4 * m)
+#     #     if dQ <= 0:
+#     #         partitions.append(group)
+#     #     else:
+#     #         for part in partitions:
+#     #             get_best_partition(part,)
+
+#     B, m = modularity_matrix(G)
+#     print(B)
+#     leading_v = leading_eigenvector(B)
+#     print(leading_v)
+#     initial_partition = partition_from_eigenvector(leading_v)
+#     print(initial_partition)
+#     best_partition, _ = _recursive_partition(G, initial_partition, B, m)
+#     print(best_partition)
+
+#     print(nx.algorithms.community.modularity(G, [set([0, 1, 2, 3, 4, 5])]))
+#     # max_mod = nx.algorithms.community.modularity(G, best_partition)
+#     # return max_mod, best_partition
 
 
 def calculate_efficiency(G):

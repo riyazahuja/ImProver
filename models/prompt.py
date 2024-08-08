@@ -476,18 +476,16 @@ def prompt_recursive_gen(
         pass
 
 
-def best_of_n(prompt_fn):
+def best_of_n(prompt_fn, max_workers=1, mixup=0):
 
     def best_of_n(
         thm: AnnotatedTheorem,
         metric: Metric,
         n: int,
         model="gpt-4-turbo",
-        max_workers=1,
         annotation=True,
         syntax_search=True,
         mathlib_search=True,
-        mixup=0,
         examples=0,
         token=False,
     ):
@@ -566,7 +564,7 @@ def best_of_n(prompt_fn):
     return best_of_n
 
 
-def refinement(prompt_fn, prev_data_num=1, keep_best=True):
+def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
     def refinement(
         thm: AnnotatedTheorem,
@@ -654,6 +652,20 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=True):
 
     return refinement
 
+
+# def best_of_refined(prompt_fn, n_best,n_ref,prev_data_num=1, keep_best=False,max_workers=1):
+#     def best_of_refined(
+#         thm: AnnotatedTheorem,
+#         metric: Metric,
+#         n: int,
+#         model="gpt-4-turbo",
+#         annotation=True,
+#         syntax_search=True,
+#         mathlib_search=True,
+#         examples=0,
+#         token=False,
+#     ):
+#         best_of_n(prompt_fn=prompt_fn)(thm,metric,n_best,model=model,max_workers=max_workers,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
 
 if __name__ == "__main__":
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

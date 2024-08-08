@@ -24,7 +24,7 @@ def process_instance(thm: AnnotatedTheorem, method):
     if og_correct and metric.score_fn != None:
         og_score = metric.score(thm)
     output_thm = fn(thm, metric, **kwargs)
-    steps = "\n".join([step.tactic for step in output_thm.proof])
+
     new_correct, new_messages, output_anno_thm = eval_correctness(output_thm)
     processing_time = time.time() - start_time
     new_score = None
@@ -283,35 +283,59 @@ if __name__ == "__main__":
 
     methods = get_methods(
         model=["gpt-4o"],
-        fn=[refinement(prompt_flat, 4, False)],
+        # fn=[prompt_flat],
+        fn=[
+            # best_of_n(prompt_fn=prompt_flat, max_workers=7)
+            refinement(prompt_flat, prev_data_num=7, keep_best=True),
+        ],
         n=[7],
-        metric=[readability_metric()],
+        annotation=[True],
         examples=[5],
-        syntax_search=[True],
+        metric=[length_metric()],
         mathlib_search=[True],
+        syntax_search=[True],
     )
+    # methods.extend(
+    #     get_methods(
+    #         model=["gpt-4o"],
+    #         # fn=[prompt_basic, prompt_flat, prompt_structured],
+    #         fn=[refinement(prompt_flat)],
+    #         n=[7],
+    #         annotation=[True],
+    #         examples=[5],
+    #         metric=[length_metric()],
+    #     )
+    # )
+
     repo = getRepo("Tests", "configs/config_test.json")
     files = {file.file_path: file for file in repo.files}
     fs = [
-        # files["Tests/IMO/sorried/P1.lean"],
-        # files["Tests/IMO/sorried/P2.lean"],
-        files["Tests/IMO/alphaproof/P1_seperated.lean"]
+        files[name]
+        for name in files.keys()
+        if ("C03" in name or "C04" in name or (False and "C05" in name))
+        and ("Solutions" in name)
     ]
+    # fs = [files["Tests/IMO/alphaproof/P1_seperated.lean"]]
+    print([f.file_path for f in fs])
     if not all([type(f) == AnnotatedFile for f in fs]):
         raise KeyError(
             f"unannotated:\n{ {f.file_name : type(f)==AnnotatedFile for f in fs} }"
         )
-    # cost = sum(get_cost(f,methods) for f in fs)
-    # cost = get_cost(f,methods)
-    # print(f'${cost}')
+    cost = sum(get_cost(f, methods) for f in fs)
+    # cost = get_cost(f, methods)
+    print(f"${cost}")
+    print(len(fs))
+    """
     data = []
     for f in fs:
-        data = benchmark_file(
-            f,
-            methods,
-            show_theorem_progress=True,
-            show_method_progress=True,
+        data.extend(
+            benchmark_file(
+                f,
+                methods,
+                theorem_workers=5,
+                show_theorem_progress=True,
+                show_method_progress=True,
+            )
         )
-        save_to_csv(
-            data, path=f"benchmark/data/alphaproof/readability3_{f.file_name}.csv"
-        )
+    save_to_csv(data, path=f"benchmark/data/final/basic.csv")
+    """
