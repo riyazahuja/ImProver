@@ -169,80 +169,17 @@ def length_metric():
 
 def modularity_metric():
 
-    def get_haves(anno_thm: AnnotatedTheorem):
-        haves = [
-            (idx, step)
-            for idx, step in enumerate(anno_thm.proof)
-            if "have" in step.tactic
-        ]
-
-        def get_name(line):
-            pattern = r"have\s+(\w+)(?=\s*:)"
-            match = re.search(pattern, line)
-            if match:
-                return match.group(1)
-            return None
-
-        def get_instances(name, ignore_def=True, start_idx=0):
-            tactics = [
-                step.tactic
-                for idx, step in enumerate(elim_overlap(anno_thm.proof))
-                if idx >= start_idx
-            ]
-            cnt = sum(1 for tac in tactics if name in tac)
-            if ignore_def:
-                return cnt - 1
-            else:
-                return cnt
-
-        haves_with_name = {
-            step.tactic: (idx, get_name(step.tactic))
-            for idx, step in haves
-            if get_name(step.tactic) is not None
-        }
-
-        num_haves = len(haves)
-        avg_reuse = (
-            (
-                sum(
-                    get_instances(
-                        haves_with_name[tac][1], start_idx=haves_with_name[tac][0]
-                    )
-                    for tac in haves_with_name.keys()
-                )
-            )
-            / num_haves
-            if num_haves != 0
-            else 0
-        )
-        return (num_haves, avg_reuse)
-
     def mod_fn(thm):
         if type(thm) == Theorem:
             thm = annotateTheorem(thm, force=True)
         G, _, _ = getProofTree(thm)
-        tree_depth = depth(G)
-        tree_breadth = breadth(G)
-        num_haves, avg_reuse_cnt = get_haves(thm)
-        normalized_depth = 1 - tree_depth / len(thm.proof)  # shorter is better
-        normalized_breadth = tree_breadth / len(thm.proof)  # bigger is better
-        normalized_haves = num_haves / len(thm.proof)  # bigger is better
-        normalized_reuse = avg_reuse_cnt / len(thm.proof)  # bigger is better
-        vals = [
-            normalized_depth,
-            normalized_breadth,
-            normalized_haves,
-            normalized_reuse,
-        ]
-        weights = [0.25, 0.25, 0.25, 0.25]
-
-        return sum(weights[i] * vals[i] for i in range(len(weights)))
+        return calculate_modularity(G)
 
     sys_prompt = (
         "system",
         """You are an AI assistant who rewrites Lean 4 proofs to be more modular while ensuring their correctness. 
-                  We measure modularity by considering the depth of the proof tree (less is better), the breadth of the proof tree (greater is better),
-                  the number of have statements (more is better), and the avg number of times these have statements are reused (more is better).""",
+                Modularity is measured by first simplifying the proof tree by removing all edges that represent "pure bifurcation" or "spawned" connections. Pure bifurcations come from tactics that split the goal into multiple cases, such as constructors, cases, etc. Spawned connections come from new subproofs produced by tactics like have statements, calc statements, etc.
+                After simplifying the proof tree into multiple connected components, we identify all the remaining subtrees and quantify the modularity by determining the size of the largest connected component, measured by the number of nodes it contains.""",
     )
 
     user_prompt = (
@@ -585,14 +522,14 @@ if __name__ == "__main__":
         if type(thm) == Theorem:
             thm = annotateTheorem(thm, force=True)
         G, p, l = getProofTree(thm)
-        partition = nx.algorithms.community.greedy_modularity_communities(G)
-        score = nx.algorithms.community.modularity(G, partition)
-        save_tree2(
+        score = calculate_modularity(G)
+
+        save_tree(
             G,
             p,
             l,
             os.path.join(root_path, ".trees", "mod", f"thm_{i}.png"),
-            partition=partition,
+            show_mod=True,
         )
 
-        print(f"{thm.decl}:{score}\n=========")
+        print(f"{thm.decl}\n {score}\n=========")

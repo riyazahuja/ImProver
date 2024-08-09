@@ -151,7 +151,7 @@ def save_tree2(G, positions, labels, save_path, show_mod=False, partition=None):
     plt.savefig(save_path, format="png", bbox_inches="tight")
 
 
-def save_tree(G, positions, labels, save_path, show_mod=False, partition=None):
+def save_tree(G, positions, labels, save_path, show_mod=False):
     matplotlib.use("agg")
     plt.figure(figsize=(12, 8))
     nx.draw(
@@ -212,38 +212,51 @@ def breadth(G):
     return len(leaf_nodes)
 
 
-def calculate_modularity(G: nx.DiGraph, resolution=1):
-    G = G.to_undirected()
+def calculate_modularity(G: nx.DiGraph):
+    G = G.copy()
+    G.remove_edges_from(get_modular_edges(G))
 
-    def all_partitions(nodes):
-        nodes = list(nodes)
-        if len(nodes) == 0:
-            yield []
-            return
-        for i in range(2 ** (len(nodes) - 1)):
-            parts = [set(), set()]
-            for item in nodes:
-                parts[i & 1].add(item)
-                i >>= 1
-            for b in all_partitions(parts[1]):
-                yield [parts[0]] + b
+    # Get all connected components in the modified graph
+    connected_components = list(nx.connected_components(G.to_undirected()))
 
-    def partition_modularity(G, partition):
-        return nx.algorithms.community.modularity(G, partition, resolution=resolution)
+    # Find the maximum number of nodes in any connected component
+    max_component_size = max(len(component) for component in connected_components)
 
-    nodes = list(G.nodes)
-    max_mod = float("-inf")
-    best_partition = None
+    return max_component_size
 
-    for partition in all_partitions(nodes):
-        if len(partition) == 1:  # Skip the trivial partition
-            continue
-        mod = partition_modularity(G, partition)
-        if mod > max_mod:
-            max_mod = mod
-            best_partition = partition
 
-    return max_mod, best_partition
+# def calculate_modularity(G: nx.DiGraph, resolution=1):
+#     G = G.to_undirected()
+
+#     def all_partitions(nodes):
+#         nodes = list(nodes)
+#         if len(nodes) == 0:
+#             yield []
+#             return
+#         for i in range(2 ** (len(nodes) - 1)):
+#             parts = [set(), set()]
+#             for item in nodes:
+#                 parts[i & 1].add(item)
+#                 i >>= 1
+#             for b in all_partitions(parts[1]):
+#                 yield [parts[0]] + b
+
+#     def partition_modularity(G, partition):
+#         return nx.algorithms.community.modularity(G, partition, resolution=resolution)
+
+#     nodes = list(G.nodes)
+#     max_mod = float("-inf")
+#     best_partition = None
+
+#     for partition in all_partitions(nodes):
+#         if len(partition) == 1:  # Skip the trivial partition
+#             continue
+#         mod = partition_modularity(G, partition)
+#         if mod > max_mod:
+#             max_mod = mod
+#             best_partition = partition
+
+#     return max_mod, best_partition
 
 
 # def calculate_modularity_efficient(G: nx.DiGraph, resolution=1):
