@@ -66,7 +66,7 @@ def _lakefile_remote(repo, commit, name, cwd):
 
     mathlib_text = ""
     if "require mathlib from git" not in text and name != "mathlib":
-        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "v4.9.0"'
+        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "600a5fa3828fef53b2fa20d30dc8e1fb51ce0f98"'
     contents = """import Lake
     open Lake DSL
 

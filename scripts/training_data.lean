@@ -8,6 +8,7 @@ import Mathlib.Lean.CoreM
 import Batteries.Lean.Util.Path
 import Batteries.Data.String.Basic
 import Mathlib.Tactic.Change
+import Examples
 import Cli
 
 open Lean Elab IO Meta
@@ -23,7 +24,7 @@ def addToMap (map : DeclIdMap) (declId : String) (jsonObj : Json) : DeclIdMap :=
 
 def groupByDecl (idJsons : List (String × Json)) : IO DeclIdMap := do
   let mut map : DeclIdMap := HashMap.empty
-  for ⟨declId, json⟩ in idJsons do
+  for (declId, json) in idJsons do
     map := addToMap map declId json
   return map
 
@@ -57,7 +58,7 @@ def getElabDeclInfo (trees : List InfoTree) : IO (List ElabDeclInfo) := do
     let mut out  := []
     for tree in trees do
       let infos := findCommandInfo tree
-      for ⟨cmdInfo, ctxInfo⟩ in infos do
+      for (cmdInfo, ctxInfo) in infos do
         out := (FileMap.stxRange ctxInfo.fileMap cmdInfo.stx, cmdInfo) :: out
     return out
 
@@ -66,11 +67,13 @@ def ppCommandInfo (info : CommandInfo) : String :=
 
 def getElabDeclOfTacticInvocation (elabDeclInfo : List ElabDeclInfo) (ti: TacticInvocation) :
   Option ElabDeclInfo := do
-    let ⟨s, e⟩ := FileMap.stxRange ti.ctx.fileMap ti.info.stx
-    elabDeclInfo.find? fun ⟨⟨s', e'⟩, _⟩ => s' <= s && e <= e'
+    let (s, e) := FileMap.stxRange ti.ctx.fileMap ti.info.stx
+    elabDeclInfo.find? fun ⟨(s', e'), _⟩ => s' <= s && e <= e'
 
 def makeElabDeclId (info: ElabDeclInfo) (module: Name) (hash: String) : String :=
-  let ⟨x, y⟩ := info.fst.fst
+  --let ⟨x, y⟩ := info.fst.fst
+  let x := info.fst.fst.line
+  let y := info.fst.fst.column
   let declId := s!"{module}.{x}_{y}.{hash}"
   declId
 
