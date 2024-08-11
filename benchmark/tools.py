@@ -285,15 +285,14 @@ if __name__ == "__main__":
         model=["gpt-4o"],
         # fn=[prompt_flat],
         fn=[
+            prompt_basic,
+            prompt_flat,
+            prompt_structured,
             # best_of_n(prompt_fn=prompt_flat, max_workers=7)
-            refinement(prompt_flat, prev_data_num=7, keep_best=True),
+            # refinement(prompt_flat, prev_data_num=7, keep_best=True),
         ],
-        n=[7],
-        annotation=[True],
-        examples=[5],
+        annotation=[True, False],
         metric=[length_metric()],
-        mathlib_search=[True],
-        syntax_search=[True],
     )
     # methods.extend(
     #     get_methods(
@@ -321,11 +320,11 @@ if __name__ == "__main__":
         raise KeyError(
             f"unannotated:\n{ {f.file_name : type(f)==AnnotatedFile for f in fs} }"
         )
-    cost = sum(get_cost(f, methods) for f in fs)
-    # cost = get_cost(f, methods)
-    print(f"${cost}")
-    print(len(fs))
-    """
+    # cost = sum(get_cost(f, methods) for f in fs)
+    # # cost = get_cost(f, methods)
+    # print(f"${cost}")
+    # print(len(fs))
+
     data = []
     for f in fs:
         data.extend(
@@ -338,4 +337,3 @@ if __name__ == "__main__":
             )
         )
     save_to_csv(data, path=f"benchmark/data/final/basic.csv")
-    """
