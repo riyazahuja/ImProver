@@ -87,27 +87,29 @@ def length_metric():
     def len_fn(thm):
         if type(thm) == Theorem:
             thm = annotateTheorem(thm, force=True)
-        # thm.proof = elim_overlap(thm.proof)
-        num_lines = len(elim_overlap(thm.proof))
-        # return num_lines
-        # dont count semicolons
-        semicolons = 0
-        for line in thm.proof:
-            # ignore <;>'s and ;'s at end of line
-            content = line.tactic.replace("<;>", "")[:-1]
-            semicolons += content.count(";")
-        return num_lines + semicolons
+        G, _, _ = getProofTree(thm)
+        return G.number_of_nodes()
+        # # thm.proof = elim_overlap(thm.proof)
+        # num_lines = len(elim_overlap(thm.proof))
+        # # return num_lines
+        # # dont count semicolons
+        # semicolons = 0
+        # for line in thm.proof:
+        #     # ignore <;>'s and ;'s at end of line
+        #     content = line.tactic.replace("<;>", "")[:-1]
+        #     semicolons += content.count(";")
+        # return num_lines + semicolons
 
     sys_prompt = (
         "system",
         """You are an AI assistant who shortens Lean 4 proofs while ensuring their correctness. 
-                  You will aim to reduce the number of lines of the tactic proof while ensuring that it properly compiles in lean 4.""",
+                  You will aim to reduce the length of the tactic proof (measured by the number of tactics invoked) while ensuring that it is correct and properly compiles in lean 4.""",
     )
 
     user_prompt = (
         "human",
-        """Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short in length - measured in 
-                   the number of lines of the proof - as possible, while also ensuring that the output is still syntactically correct.""",
+        """Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in 
+                   the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.""",
     )
 
     examples = [
@@ -161,6 +163,63 @@ def length_metric():
   apply h4""",
             "output": """example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
     exact h3 (h2 (h1 h4))""",
+        },
+        {
+            "input": """example (P Q :Prop): P ∨ Q → Q ∨ P := by
+  intro h
+  cases h with
+  | inl hp => exact Or.inr hp
+  | inr hq => exact Or.inl hq""",
+            "output": """example (P Q :Prop): P ∨ Q → Q ∨ P := by
+  rintro (hp | hq)
+  . exact Or.inr hp
+  . exact Or.inl hq""",
+        },
+        {
+            "input": """example (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  intro h nq
+  have nhq := by
+    exact not_or_of_imp h
+  rcases nhq with hnp | hq
+  . exact hnp
+  . exfalso
+    contradiction""",
+            "output": """example (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  intro h nq p
+  exact nq (h p)""",
+        },
+        {
+            "input": """example : (P → Q) ∧ (Q → R) → P → R := by
+  intro h p
+  rcases h with ⟨a,b⟩
+  apply b
+  apply a
+  exact p""",
+            "output": """example : (P → Q) ∧ (Q → R) → P → R := by
+  rintro (⟨hpq,hqr⟩) hp
+  exact hqr (hpq hp)""",
+        },
+        {
+            "input": """example (h : P → Q) (h1 : P ∧ R) : Q ∧ R := by
+  rcases h1 with ⟨p,r⟩
+  constructor
+  exact h p
+  exact r""",
+            "output": """example (h : P → Q) (h1 : P ∧ R) : Q ∧ R := by
+  exact And.imp_left h h1""",
+        },
+        {
+            "input": """example (h : ¬ (P ∧ Q)) : P → ¬ Q := by
+  intro p opp
+  have duh : P ∧ Q := by
+    constructor
+    exact p
+    exact opp
+  exact h duh""",
+            "output": """example (h : ¬ (P ∧ Q)) : P → ¬ Q := by
+  intro hp hq
+  apply h
+  exact ⟨hp,hq⟩""",
         },
     ]
 

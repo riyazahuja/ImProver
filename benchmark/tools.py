@@ -34,6 +34,10 @@ def process_instance(thm: AnnotatedTheorem, method):
         delta = metric.metric(thm, output_anno_thm)
     else:
         delta = None
+    # print(
+    #     f"=============\n(METHOD : {method[2].get('examples',0)})\nOUTPUT: \n{output_thm}\n\nANNOT:\n{output_anno_thm}\n=============="
+    # )
+
     og_raw = parseTheorem(thm, context=False)
     new_raw = parseTheorem(output_thm, context=False)
 
@@ -282,44 +286,29 @@ def get_cost(obj, methods):
 if __name__ == "__main__":
 
     methods = get_methods(
-        model=["gpt-4o"],
+        model=["gpt-4o-mini"],
         # fn=[prompt_flat],
         fn=[
-            prompt_basic,
-            prompt_flat,
-            prompt_structured,
-            # best_of_n(prompt_fn=prompt_flat, max_workers=7)
-            # refinement(prompt_flat, prev_data_num=7, keep_best=True),
+            # refinement(prompt_flat),
+            best_of_n(prompt_flat, max_workers=5),
         ],
-        annotation=[True, False],
+        n=[5],
+        annotation=[True],
+        examples=[10],
         metric=[length_metric()],
     )
-    # methods.extend(
-    #     get_methods(
-    #         model=["gpt-4o"],
-    #         # fn=[prompt_basic, prompt_flat, prompt_structured],
-    #         fn=[refinement(prompt_flat)],
-    #         n=[7],
-    #         annotation=[True],
-    #         examples=[5],
-    #         metric=[length_metric()],
-    #     )
-    # )
 
-    repo = getRepo("Tests", "configs/config_test.json")
+    repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
+
     fs = [
         files[name]
         for name in files.keys()
-        if ("C03" in name or "C04" in name or (False and "C05" in name))
-        and ("Solutions" in name)
+        if ("C03" in name or "C04" in name or "C05" in name) and ("Solutions" in name)
     ]
-    # fs = [files["Tests/IMO/alphaproof/P1_seperated.lean"]]
-    print([f.file_path for f in fs])
-    if not all([type(f) == AnnotatedFile for f in fs]):
-        raise KeyError(
-            f"unannotated:\n{ {f.file_name : type(f)==AnnotatedFile for f in fs} }"
-        )
+
+    # print([f.file_path for f in fs])
+
     # cost = sum(get_cost(f, methods) for f in fs)
     # # cost = get_cost(f, methods)
     # print(f"${cost}")
@@ -331,9 +320,9 @@ if __name__ == "__main__":
             benchmark_file(
                 f,
                 methods,
-                theorem_workers=5,
+                theorem_workers=1,
                 show_theorem_progress=True,
                 show_method_progress=True,
             )
         )
-    save_to_csv(data, path=f"benchmark/data/final/basic.csv")
+        save_to_csv(data, path=f"benchmark/data/final/methods_best.csv")

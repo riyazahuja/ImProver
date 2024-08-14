@@ -254,7 +254,7 @@ def prompt_basic(
 
     class strProof(BaseModel):
         content: str = Field(
-            description='The entire proof of the given theorem, without the declaration or context. begin after the ":= by".'
+            description='The entire proof of the given theorem, without the declaration or context. begin after the ":= by" at the first tactic.'
         )
 
     output = prompt_raw(
@@ -524,7 +524,7 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                 futures = [
                     (
                         executor.submit(
-                            prompt_structured,
+                            prompt_fn,
                             thm,
                             metric,
                             model=model,
@@ -535,7 +535,7 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                         )
                         if i >= mixup * n
                         else executor.submit(
-                            prompt_structured,
+                            prompt_fn,
                             thm,
                             metric,
                             model=model,
@@ -561,6 +561,7 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
             best = metric.cmp(best, t)
         return best
 
+    best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
     return best_of_n
 
 
@@ -650,6 +651,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
         return curr
 
+    refinement.__name__ = f"{refinement.__name__}({prompt_fn.__name__}, prev_data_num={prev_data_num}, keep_best={keep_best})"
     return refinement
 
 

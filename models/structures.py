@@ -149,7 +149,11 @@ def getMessages(start, end, msgs, contents: str):
 
         if start_row is None:
             return False
-        if thm_start_row <= start_row and end is not None and thm_end_row >= end_row:
+        if (
+            thm_start_row <= start_row
+            and end is not None
+            and (end_row is None or thm_end_row >= end_row)
+        ):
             return True
         elif thm_start_row <= start_row and end is None:
             return True
@@ -735,6 +739,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
+    og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
+    og_thm_end = len(text.splitlines())
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -748,9 +754,13 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     temp_relpath = os.path.relpath(temp.name, project_path)
 
     mod_name = get_stem(temp_relpath.replace("/", "."))
-    output = run_training_data(root_path, mod_name)
-
-    thms = getTheorems(output, src, temp_relpath, project_path, text, until_end=True)
+    output_data = run_training_data(root_path, mod_name)
+    # print(
+    #     f"-----------------\n(s,e)=({og_thm_start}, {og_thm_end})\nOutput:\n{output_data}\n-----------------"
+    # )
+    thms = getTheorems(
+        output_data, src, temp_relpath, project_path, text, until_end=True
+    )
 
     if len(thms) == 0:
         output = AnnotatedTheorem(
@@ -761,91 +771,121 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             context=thm.context,
             proof=[],
             project_path=thm.project_path,
-            messages=[getMessage(msg, text) for msg in output["messages"]],
+            messages=[getMessage(msg, text) for msg in output_data["messages"]],
             pretty_print=text,
             proof_tree=[],
         )
     else:
         output = thms[-1]
 
+    output.messages = getMessages(
+        {"line": og_thm_start, "col": None},
+        {"line": og_thm_end, "col": None},
+        output_data["messages"],
+        text,
+    )
     elim_pf = elim_overlap(output.proof)
 
-    first = None
+    if len(output.messages) == 0:
+        output.proof = elim_pf
+        return output
+    else:
+        # pretty print value is original theorem's text.
+        # use first calculations to do partial annotation, and for the rest do all of the original
 
-    def flattenProof(proof):
-        new_proof = []
-        for stepraw in proof:
-            step = stepraw.tactic
-            if type(step) == str:
-                new_proof.append(stepraw)
+        first = None
+
+        def flattenProof(proof):
+            new_proof = []
+            for stepraw in proof:
+                step = stepraw.tactic
+                if type(step) == str:
+                    new_proof.append(stepraw)
+                else:
+                    decl = step.decl
+
+                    new_proof.append(ProofStep(tactic=decl))
+                    new_proof.extend(flattenProof(step.proof))
+            return new_proof
+
+        og_proof = flattenProof(thm.proof)
+        # print(
+        #     f"+++++++++++++++\nRAW:{thm.proof}\nOG:\n{og_proof}\n\nelim\n{[step.tactic for step in elim_pf]}\nout\n{[step.tactic for step in output.proof]}\n++++++++++++++++++="
+        # )
+        # print(thm.proof)
+        for idx in range(min(len(og_proof), len(elim_pf))):
+            if og_proof[idx].tactic != elim_pf[idx].tactic:
+                first = idx
+                break
+            # print(f"[[[\nOG: {og_proof[idx].tactic}\nNEW: {elim_pf[idx].tactic}\n]]]")
+
+        if first is None:
+            if len(og_proof) != len(elim_pf):
+                first = min(len(og_proof), len(elim_pf))
+
+        if first is not None:
+            if first != 0:
+                max_pos = elim_pf[first - 1].end
             else:
-                decl = step.decl
+                max_pos = (1, 1)
 
-                new_proof.append(ProofStep(tactic=decl))
-                new_proof.extend(flattenProof(step.proof))
-        return new_proof
+            if force:
 
-    og_proof = flattenProof(thm.proof)
+                def get_empty_annotated_proof_step(i):
+                    proofstep = og_proof[i]
+                    return AnnotatedProofStep(
+                        prevState=["ERROR"],
+                        tactic=proofstep.tactic,
+                        nextState=["ERROR"],
+                        srcUpToTactic="ERROR",
+                        declUpToTactic="ERROR",
+                        start=(max_pos[0] + i, max_pos[1] + i),
+                        end=(max_pos[0] + i, max_pos[1] + i),
+                    )
 
-    for idx in range(min(len(og_proof), len(elim_pf))):
-        if og_proof[idx].tactic != elim_pf[idx].tactic:
-            first = idx
-            break
+                proof = [
+                    get_empty_annotated_proof_step(i) if i >= first else elim_pf[i]
+                    for i in range(len(og_proof))
+                ]
 
-    if first is None:
-        if len(og_proof) != len(elim_pf):
-            first = min(len(og_proof), len(elim_pf))
+                # if len(output.messages) == 0:
+                #     msgs = [
+                #         Message(
+                #             severity="error",
+                #             start=(None, None),
+                #             end=(None, None),
+                #             message_src=elim_pf[first - 1].tactic,
+                #             content="UNKNOWN",
+                #         )
+                #     ]
+                # else:
+                #     msgs = output.messages
 
-    if first is not None:
-        if first != 0:
-            max_pos = elim_pf[first - 1].end
-        else:
-            max_pos = (1, 1)
-
-        if force:
-
-            def get_empty_annotated_proof_step(i):
-                proofstep = og_proof[i]
-                return AnnotatedProofStep(
-                    prevState=["ERROR"],
-                    tactic=proofstep.tactic,
-                    nextState=["ERROR"],
-                    srcUpToTactic="ERROR",
-                    declUpToTactic="ERROR",
-                    start=(max_pos[0] + i, max_pos[1] + i),
-                    end=(max_pos[0] + i, max_pos[1] + i),
+                final = AnnotatedTheorem(
+                    decl=output.decl,
+                    declID=output.declID,
+                    src=output.src,
+                    leanFile=output.leanFile,
+                    context=output.context,
+                    proof=proof,
+                    project_path=project_path,
+                    messages=output.messages,
+                    pretty_print=output.pretty_print,
+                    proof_tree=output.proof_tree,
                 )
 
-            proof = [
-                get_empty_annotated_proof_step(i) if i >= first else elim_pf[i]
-                for i in range(len(og_proof))
-            ]
+                if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
+                    raise ValueError(
+                        f"=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in elim_pf]}\n{output.messages}\nfirst: {first}\n============="
+                    )
 
-            final = AnnotatedTheorem(
-                decl=output.decl,
-                declID=output.declID,
-                src=output.src,
-                leanFile=output.leanFile,
-                context=output.context,
-                proof=proof,
-                project_path=project_path,
-                messages=output.messages,
-                pretty_print=output.pretty_print,
-                proof_tree=output.proof_tree,
-            )
-
-            if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
+                return final
+            else:
                 raise ValueError(
-                    f"=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in elim_pf]}\n{output.messages}\nfirst: {first}\n============="
+                    f"input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{elim_pf}"
                 )
-
-            return final
-        else:
-            raise ValueError(
-                f"input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{elim_pf}"
-            )
-
-    return output
+        output.proof = elim_pf
+        return output
 
 
 if __name__ == "__main__":
