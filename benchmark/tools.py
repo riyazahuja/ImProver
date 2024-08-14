@@ -286,11 +286,12 @@ def get_cost(obj, methods):
 if __name__ == "__main__":
 
     methods = get_methods(
-        model=["gpt-4o-mini"],
+        model=["gpt-4o"],
         # fn=[prompt_flat],
         fn=[
             # refinement(prompt_flat),
             best_of_n(prompt_flat, max_workers=5),
+            # prompt_flat
         ],
         n=[5],
         annotation=[True],
@@ -304,7 +305,17 @@ if __name__ == "__main__":
     fs = [
         files[name]
         for name in files.keys()
-        if ("C03" in name or "C04" in name or "C05" in name) and ("Solutions" in name)
+        if (
+            "C03" in name
+            or (
+                "C04" in name
+                and "S03" not in name
+                and "S01" not in name
+                and "S02" not in name
+            )
+            or "C05" in name
+        )
+        and ("Solutions" in name)
     ]
 
     # print([f.file_path for f in fs])
@@ -325,4 +336,4 @@ if __name__ == "__main__":
                 show_method_progress=True,
             )
         )
-        save_to_csv(data, path=f"benchmark/data/final/methods_best.csv")
+        save_to_csv(data, path=f"benchmark/data/final/methods_final.csv")

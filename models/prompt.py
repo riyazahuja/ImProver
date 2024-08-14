@@ -1,5 +1,6 @@
 from __future__ import annotations
 from langchain.globals import set_debug
+import time
 
 # set_debug(True)
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
@@ -14,7 +15,7 @@ from models.structures import *
 from models.rag import *
 from evaluate.metrics import *
 from evaluate.eval import eval_correctness
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import logging
 from typing import Final
 import tiktoken
@@ -225,6 +226,7 @@ def prompt_raw(
     def invoke_throttled(chain, config):
         return chain.invoke(config)
 
+    st = time.time()
     output = invoke_throttled(
         chain,
         {
@@ -235,6 +237,8 @@ def prompt_raw(
             "user_prompts": user_prompts,
         },
     )
+    if log_req_info:
+        print(f"API Call completed in {time.time()-st}s")
 
     return output
 
@@ -326,6 +330,7 @@ def prompt_flat(
 
     if token:
         return output
+    st = time.time()
 
     def coerce_trimmedThm(curr):
         ProofStep.update_forward_refs()
@@ -340,7 +345,8 @@ def prompt_flat(
         )
 
     final = coerce_trimmedThm(output)
-
+    if log_req_info:
+        print(f"Flat obj coersion completed in {time.time()-st}s")
     return final
 
 
@@ -520,6 +526,7 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                 correct, _, _ = eval_correctness(output)
                 thms.append((output, correct))
         else:
+            st = time.time()
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [
                     (
@@ -545,11 +552,13 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                     )
                     for i in range(n)
                 ]
+                stt = time.time()
                 for future in futures:
                     output = future.result()
                     correct, _, _ = eval_correctness(output)
                     thms.append((output, correct))
-
+                print(f"Evaluation competed in {time.time()-stt}s")
+        print(f"Threadpool competed in {time.time()-st}s")
         correct_thms = [item for item in thms if item[1]]
         if len(correct_thms) == 0:
             return thms[0][0]
