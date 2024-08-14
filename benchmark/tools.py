@@ -286,7 +286,7 @@ def get_cost(obj, methods):
 if __name__ == "__main__":
 
     methods = get_methods(
-        model=["gpt-4o"],
+        model=["gpt-4o-mini"],
         # fn=[prompt_flat],
         fn=[
             # refinement(prompt_flat),
@@ -305,18 +305,14 @@ if __name__ == "__main__":
     fs = [
         files[name]
         for name in files.keys()
-        if (
-            "C03" in name
-            or (
-                "C04" in name
-                and "S03" not in name
-                and "S01" not in name
-                and "S02" not in name
-            )
-            or "C05" in name
-        )
-        and ("Solutions" in name)
+        if ("C03" in name and "S02" in name) and ("Solutions" in name)
     ]
+    # for f in fs:
+    #     print(f"==============")
+    #     print(f"{f.file_path}:")
+    #     print(f"\tNum_theorems: {len(f.theorems)}")
+    #     print(f"\tNum instances: {len(f.theorems)*len(methods)}")
+    #     print("===================")
 
     # print([f.file_path for f in fs])
 
@@ -327,13 +323,12 @@ if __name__ == "__main__":
 
     data = []
     for f in fs:
-        data.extend(
-            benchmark_file(
-                f,
-                methods,
-                theorem_workers=1,
-                show_theorem_progress=True,
-                show_method_progress=True,
+        for thm in f.theorems:
+            data.extend(
+                benchmark_theorem(
+                    thm,
+                    methods,
+                    show_method_progress=True,
+                )
             )
-        )
-        save_to_csv(data, path=f"benchmark/data/final/methods_final.csv")
+            save_to_csv(data, path=f"benchmark/data/final/methods_final.csv")

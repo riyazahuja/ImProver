@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import time
 
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
@@ -7,6 +8,7 @@ from evaluate.metrics import *
 
 
 def eval_correctness(thm, sorries_are_errors=True):
+    st = time.time()
     if type(thm) == AnnotatedTheorem:
         new_thm = thm
     elif type(thm) == Theorem:
@@ -27,4 +29,5 @@ def eval_correctness(thm, sorries_are_errors=True):
             and sorries_are_errors
         )
     ) == 0
+    print(f"Eval_correctness completed in {time.time()-st}s")
     return (correct, msgs, new_thm)

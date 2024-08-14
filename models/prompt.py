@@ -19,8 +19,9 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import logging
 from typing import Final
 import tiktoken
+from multiprocessing import cpu_count
 
-log_req_info = False
+log_req_info = True
 
 if log_req_info:
     logger: Final = logging.getLogger(__name__)
@@ -417,69 +418,73 @@ def prompt_structured(
 # TODO Must fix output parsing to strict syntaxtree/tactic information. Then we can at least know for sure that we are splitting into two cases after an rcases etc.
 
 
-def prompt_recursive_gen(
-    thm: AnnotatedTheorem,
-    metric: Metric,
-    model="gpt-4-turbo",
-    prev_data=[],
-    n=None,
-    annotation=True,
-    syntax_search=False,
-    mathlib_search=False,
-) -> Theorem:
-    output = prompt_structured(
-        thm, metric, model, prev_data, n, annotation, syntax_search, mathlib_search
-    )
+# def prompt_recursive_gen(
+#     thm: AnnotatedTheorem,
+#     metric: Metric,
+#     model="gpt-4-turbo",
+#     prev_data=[],
+#     n=None,
+#     annotation=True,
+#     syntax_search=False,
+#     mathlib_search=False,
+# ) -> Theorem:
+#     output = prompt_structured(
+#         thm, metric, model, prev_data, n, annotation, syntax_search, mathlib_search
+#     )
 
-    real_correct, real_msgs, real_anno_output = eval_correctness(
-        output, sorries_are_errors=True
-    )
-    if real_correct:
-        return output
+#     real_correct, real_msgs, real_anno_output = eval_correctness(
+#         output, sorries_are_errors=True
+#     )
+#     if real_correct:
+#         return output
 
-    def sorry_replacement(thm: Theorem):
-        new_proof = [
-            (
-                step
-                if type(step.tactic) == str
-                else ProofStep(
-                    tactic=Theorem(
-                        decl=step.decl,
-                        proof=[ProofStep(tactic="sorry")],
-                        declID=step.declID,
-                        leanFile=step.leanFile,
-                        context=step.context,
-                        project_path=step.project_path,
-                    )
-                )
-            )
-            for step in thm.proof
-        ]
-        return Theorem(
-            decl=thm.decl,
-            proof=new_proof,
-            declID=thm.declID,
-            src=thm.src,
-            leanFile=thm.leanFile,
-            context=thm.context,
-            project_path=thm.project_path,
-        )
+#     def sorry_replacement(thm: Theorem):
+#         new_proof = [
+#             (
+#                 step
+#                 if type(step.tactic) == str
+#                 else ProofStep(
+#                     tactic=Theorem(
+#                         decl=step.decl,
+#                         proof=[ProofStep(tactic="sorry")],
+#                         declID=step.declID,
+#                         leanFile=step.leanFile,
+#                         context=step.context,
+#                         project_path=step.project_path,
+#                     )
+#                 )
+#             )
+#             for step in thm.proof
+#         ]
+#         return Theorem(
+#             decl=thm.decl,
+#             proof=new_proof,
+#             declID=thm.declID,
+#             src=thm.src,
+#             leanFile=thm.leanFile,
+#             context=thm.context,
+#             project_path=thm.project_path,
+#         )
 
-    sorry_output = sorry_replacement(output)
-    sorry_correct, sorry_msgs, sorry_anno_output = eval_correctness(sorry_output)
+#     sorry_output = sorry_replacement(output)
+#     sorry_correct, sorry_msgs, sorry_anno_output = eval_correctness(sorry_output)
 
-    if sorry_correct:
-        # if sorry is correct (i.e. base structure WILL solve the theorem), then we want to convert the goal state of said sorry
-        # (extracted either directly from lean via a "sorries" attribute in json like repl, or taken from the annotatedThm)
-        # into a full fledged theorem. Then we recurse on each of these subtheorems (in parallel?)
-        #
-        # if sorry is not correct (i.e. base structure WONT solve the theorem), then we will recurse the whole thing
-        # but basically either fix it or redo (best of n on og thm, or refinement on output, idk)
-        # then we keep doing this until we are correct up until sorries and we chilling.
+#     if sorry_correct:
+#         # if sorry is correct (i.e. base structure WILL solve the theorem), then we want to convert the goal state of said sorry
+#         # (extracted either directly from lean via a "sorries" attribute in json like repl, or taken from the annotatedThm)
+#         # into a full fledged theorem. Then we recurse on each of these subtheorems (in parallel?)
+#         #
+#         # if sorry is not correct (i.e. base structure WONT solve the theorem), then we will recurse the whole thing
+#         # but basically either fix it or redo (best of n on og thm, or refinement on output, idk)
+#         # then we keep doing this until we are correct up until sorries and we chilling.
 
-        pass
-    else:
-        pass
+
+#         pass
+#     else:
+#         pass
+def process_one(item):
+    correct, _, _ = eval_correctness(item)
+    return (item, correct)
 
 
 def best_of_n(prompt_fn, max_workers=1, mixup=0):
@@ -553,12 +558,25 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                     for i in range(n)
                 ]
                 stt = time.time()
-                for future in futures:
-                    output = future.result()
-                    correct, _, _ = eval_correctness(output)
-                    thms.append((output, correct))
-                print(f"Evaluation competed in {time.time()-stt}s")
-        print(f"Threadpool competed in {time.time()-st}s")
+                # for future in futures:
+                #     output = future.result()
+                #     correct, _, _ = eval_correctness(output)
+                #     thms.append((output, correct))
+
+                with ProcessPoolExecutor(
+                    max_workers=min(math.floor(cpu_count()), n)
+                ) as proc_executor:
+                    proc_futures = [
+                        proc_executor.submit(process_one, future.result())
+                        for future in futures
+                    ]
+
+                thms = [pf.result() for pf in proc_futures]
+
+                if log_req_info:
+                    print(f"Evaluation competed in {time.time()-stt}s")
+        if log_req_info:
+            print(f"Threadpool competed in {time.time()-st}s")
         correct_thms = [item for item in thms if item[1]]
         if len(correct_thms) == 0:
             return thms[0][0]
