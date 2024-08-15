@@ -14,6 +14,7 @@ import time
 from models.rag import *
 import itertools
 from tqdm import tqdm
+from multiprocessing import cpu_count
 
 
 def process_instance(thm: AnnotatedTheorem, method):
@@ -86,125 +87,62 @@ def process_instance(thm: AnnotatedTheorem, method):
     }
 
 
-def benchmark_theorem(
-    thm: AnnotatedTheorem, methods, method_workers=None, show_method_progress=False
-):
-    if method_workers is None:
-        method_workers = len(methods)
-    if show_method_progress:
-        with tqdm(total=len(methods), desc="Methods: ") as pbar:
+def process_instances(instances, max_workers=None, show_progress=False):
+    if max_workers is None:
+        max_workers = len(instances)
+
+    if show_progress:
+        with tqdm(total=len(instances), desc="Instances: ") as pbar:
             with ThreadPoolExecutor(
-                max_workers=min(method_workers, len(methods))
+                max_workers=min(max_workers, len(instances))
             ) as executor:
                 futures = [
-                    executor.submit(process_instance, thm, method) for method in methods
+                    executor.submit(process_instance, i[0], i[1]) for i in instances
                 ]
                 for future in concurrent.futures.as_completed(futures):
                     pbar.update(1)
     else:
         with ThreadPoolExecutor(
-            max_workers=min(method_workers, len(methods))
+            max_workers=min(max_workers, len(instances))
         ) as executor:
-            futures = [
-                executor.submit(process_instance, thm, method) for method in methods
-            ]
-    data = [future.result() for future in futures]
+            futures = [executor.submit(process_instance, i[0], i[1]) for i in instances]
+    data = [future.result(timeout=1) for future in futures]
     return data
+
+
+def benchmark_theorem(
+    thm: AnnotatedTheorem, methods, max_workers=None, show_progress=False
+):
+    instances = [(thm, m) for m in methods]
+    return process_instances(
+        instances, max_workers=max_workers, show_progress=show_progress
+    )
 
 
 def benchmark_file(
     file: AnnotatedFile,
     methods,
-    theorem_workers=None,
-    method_workers=None,
-    show_theorem_progress=False,
-    show_method_progress=False,
+    max_workers=None,
+    show_progress=False,
 ):
     thms = file.theorems
-    if theorem_workers is None:
-        theorem_workers = len(thms)
-    if show_theorem_progress:
-        with tqdm(total=len(thms), desc="Theorems: ") as pbar:
-            with ThreadPoolExecutor(
-                max_workers=min(theorem_workers, len(thms))
-            ) as executor:
-                futures = [
-                    executor.submit(
-                        benchmark_theorem,
-                        thm,
-                        methods,
-                        method_workers=method_workers,
-                        show_method_progress=show_method_progress,
-                    )
-                    for thm in thms
-                ]
-                for future in concurrent.futures.as_completed(futures):
-                    pbar.update(1)
-    else:
-        with ThreadPoolExecutor(
-            max_workers=min(theorem_workers, len(thms))
-        ) as executor:
-            futures = [
-                executor.submit(
-                    benchmark_theorem,
-                    thm,
-                    methods,
-                    method_workers=method_workers,
-                    show_method_progress=show_method_progress,
-                )
-                for thm in thms
-            ]
-    data = [x for future in futures for x in future.result()]
-    return data
+
+    instances = [(t, m) for t in thms for m in methods]
+    return process_instances(
+        instances, max_workers=max_workers, show_progress=show_progress
+    )
 
 
-def benchmark_repo(
-    repo: Repo,
-    methods,
-    file_workers=None,
-    theorem_workers=None,
-    method_workers=None,
-    show_file_progress=False,
-    show_theorem_progress=False,
-):
+def benchmark_repo(repo: Repo, methods, max_workers=None, show_progress=False):
     anno_files = [f for f in repo.files if type(f) == AnnotatedFile]
-    if file_workers is None:
-        file_workers = len(anno_files)
-    if show_file_progress:
-        with tqdm(total=len(anno_files), desc="Files: ") as pbar:
-            with ThreadPoolExecutor(
-                max_workers=min(file_workers, len(anno_files))
-            ) as executor:
-                futures = [
-                    executor.submit(
-                        benchmark_file,
-                        f,
-                        methods,
-                        theorem_workers=theorem_workers,
-                        method_workers=method_workers,
-                        show_theorem_progress=show_theorem_progress,
-                    )
-                    for f in anno_files
-                ]
-                for future in concurrent.futures.as_completed(futures):
-                    pbar.update(1)
-    else:
-        with ThreadPoolExecutor(
-            max_workers=min(file_workers, len(anno_files))
-        ) as executor:
-            futures = [
-                executor.submit(
-                    benchmark_file,
-                    f,
-                    methods,
-                    theorem_workers=theorem_workers,
-                    method_workers=method_workers,
-                    show_theorem_progress=show_theorem_progress,
-                )
-                for f in anno_files
-            ]
-    data = [x for future in futures for x in future.result()]
-    return data
+    thms = []
+    for f in anno_files:
+        thms.extend(f.theorems)
+
+    instances = [(t, m) for t in thms for m in methods]
+    return process_instances(
+        instances, max_workers=max_workers, show_progress=show_progress
+    )
 
 
 def save_to_csv(data, path="data.csv"):
@@ -286,17 +224,35 @@ def get_cost(obj, methods):
 if __name__ == "__main__":
 
     methods = get_methods(
-        model=["gpt-4o-mini"],
+        model=["gpt-4o"],
         # fn=[prompt_flat],
         fn=[
-            # refinement(prompt_flat),
-            best_of_n(prompt_flat, max_workers=5),
+            # best_of_n(refinement(prompt_flat)),
+            # refinement_all
+            best_of_n(prompt_flat, max_workers=5, max_cpus=cpu_count()),
             # prompt_flat
         ],
-        n=[5],
+        n=[3, 7],
         annotation=[True],
         examples=[10],
         metric=[length_metric()],
+    )
+
+    methods.extend(
+        get_methods(
+            model=["gpt-4o-mini"],
+            # fn=[prompt_flat],
+            fn=[
+                # best_of_n(refinement(prompt_flat)),
+                # refinement_all
+                best_of_n(prompt_flat, max_workers=5, max_cpus=cpu_count()),
+                # prompt_flat
+            ],
+            n=[3, 5, 7, 15, 20],
+            annotation=[True],
+            examples=[10],
+            metric=[length_metric()],
+        )
     )
 
     repo = getRepo("Tests", "configs/config_MIL.json")
@@ -305,8 +261,9 @@ if __name__ == "__main__":
     fs = [
         files[name]
         for name in files.keys()
-        if ("C03" in name and "S02" in name) and ("Solutions" in name)
+        if ("C03" in name or "C04" in name or "C05" in name) and ("Solutions" in name)
     ]
+    # fs = [fs[i] for i in range(len(fs)) if i % 2 != 0]
     # for f in fs:
     #     print(f"==============")
     #     print(f"{f.file_path}:")
@@ -323,12 +280,12 @@ if __name__ == "__main__":
 
     data = []
     for f in fs:
-        for thm in f.theorems:
-            data.extend(
-                benchmark_theorem(
-                    thm,
-                    methods,
-                    show_method_progress=True,
-                )
+        data.extend(
+            benchmark_file(
+                f,
+                methods,
+                max_workers=1,
+                show_progress=True,
             )
-            save_to_csv(data, path=f"benchmark/data/final/methods_final.csv")
+        )
+        save_to_csv(data, path=f"benchmark/data/final/n_final.csv")

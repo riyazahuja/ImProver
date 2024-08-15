@@ -1,29 +1,270 @@
 repo,file,decl,method,n,metric,model,annotation,syntax_search,mathlib_search,examples,og_correct,og_errors,og_score,new_correct,new_errors,new_score,delta,og_raw,new_raw,time
-Tests,Tests/MIL/C03_Logic/solutions/Solutions_S02_The_Existential_Quantifier.lean,example (lbf : FnHasLb f) (lbg : FnHasLb g) : FnHasLb fun x ↦ f x + g x ,best_of_n(prompt_flat),5,LENGTH,gpt-4o-mini,True,False,False,10,True,,5,True,,5,0.0,"
-example (lbf : FnHasLb f) (lbg : FnHasLb g) : FnHasLb fun x ↦ f x + g x  := by
-  rcases lbf with ⟨a, lbfa⟩
-  rcases lbg with ⟨b, lbgb⟩
-  use a + b
-  intro x
-  exact add_le_add (lbfa x) (lbgb x)","
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,theorem convergesTo_const (a : ℝ) : ConvergesTo (fun x : ℕ ↦ a) a ,"best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,5,True,,3.0,-0.4,"
+theorem convergesTo_const (a : ℝ) : ConvergesTo (fun x : ℕ ↦ a) a  := by
+  intro ε εpos
+  use 0
+  intro n nge
+  rw [sub_self, abs_zero]
+  apply εpos","
+theorem convergesTo_const (a : ℝ) : ConvergesTo (fun x : ℕ ↦ a) a       := by
+  intro ε εpos
+  use 0
+  simp [εpos]",30.68880295753479
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,"theorem convergesTo_add {s t : ℕ → ℝ} {a b : ℝ}
+      (cs : ConvergesTo s a) (ct : ConvergesTo t b) :
+    ConvergesTo (fun n ↦ s n + t n) (a + b) ","best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,14,True,,10.0,-0.2857142857142857,"
+theorem convergesTo_add {s t : ℕ → ℝ} {a b : ℝ}
+      (cs : ConvergesTo s a) (ct : ConvergesTo t b) :
+    ConvergesTo (fun n ↦ s n + t n) (a + b)  := by
+  intro ε εpos
+  dsimp
+  have ε2pos : 0 < ε / 2 := by linarith
+  rcases cs (ε / 2) ε2pos with ⟨Ns, hs⟩
+  rcases ct (ε / 2) ε2pos with ⟨Nt, ht⟩
+  use max Ns Nt
+  intro n hn
+  have ngeNs : n ≥ Ns := le_of_max_le_left hn
+  have ngeNt : n ≥ Nt := le_of_max_le_right hn
+  calc
+    |s n + t n - (a + b)| = |s n - a + (t n - b)| := by
+      congr
+      ring
+    _ ≤ |s n - a| + |t n - b| := (abs_add _ _)
+    _ < ε / 2 + ε / 2 := (add_lt_add (hs n ngeNs) (ht n ngeNt))
+    _ = ε := by norm_num","
+theorem convergesTo_add {s t : ℕ → ℝ} {a b : ℝ}
+      (cs : ConvergesTo s a) (ct : ConvergesTo t b) :
+    ConvergesTo (fun n ↦ s n + t n) (a + b)       := by
+  intro ε εpos
+  rcases cs (ε / 2) (by linarith) with ⟨Ns, hs⟩
+  rcases ct (ε / 2) (by linarith) with ⟨Nt, ht⟩
+  use max Ns Nt
+  intro n hn
+  calc
+  |s n + t n - (a + b)| = |s n - a + (t n - b)| := by ring_nf
+  _ ≤ |s n - a| + |t n - b| := abs_add _ _
+  _ < ε := by linarith [hs n (le_of_max_le_left hn), ht n (le_of_max_le_right hn)]",46.71038603782654
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,"theorem convergesTo_mul_const {s : ℕ → ℝ} {a : ℝ} (c : ℝ) (cs : ConvergesTo s a) :
+    ConvergesTo (fun n ↦ c * s n) (c * a) ","best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,16,False,"tactic 'rewrite' failed, did not find instance of the pattern in the target expression
+  |?a| * |?b|
+case h
+s : ℕ → ℝ
+a c : ℝ
+cs : ConvergesTo s a
+h : ¬c = 0
+ε : ℝ
+εpos : ε > 0
+εcpos : 0 < ε / |c|
+Ns : ℕ
+hs : ∀ n ≥ Ns, |s n - a| < ε / |c|
+n : ℕ
+ngt : n ≥ Ns
+⊢ |(fun n => c * s n) n - c * a| < ε
+	at:   rw [← abs_mul, mul_sub]",,,"
+theorem convergesTo_mul_const {s : ℕ → ℝ} {a : ℝ} (c : ℝ) (cs : ConvergesTo s a) :
+    ConvergesTo (fun n ↦ c * s n) (c * a)  := by
+  by_cases h : c = 0
+  · convert convergesTo_const 0
+    · rw [h]
+      ring
+    rw [h]
+    ring
+  have acpos : 0 < |c| := abs_pos.mpr h
+  intro ε εpos
+  dsimp
+  have εcpos : 0 < ε / |c| := by apply div_pos εpos acpos
+  rcases cs (ε / |c|) εcpos with ⟨Ns, hs⟩
+  use Ns
+  intro n ngt
+  calc
+    |c * s n - c * a| = |c| * |s n - a| := by rw [← abs_mul, mul_sub]","
+theorem convergesTo_mul_const {s : ℕ → ℝ} {a : ℝ} (c : ℝ) (cs : ConvergesTo s a) :
+    ConvergesTo (fun n ↦ c * s n) (c * a)       := by
+  by_cases h : c = 0
+  · convert convergesTo_const 0 <;> (rw [h]; ring)
+  intro ε εpos
+  have εcpos : 0 < ε / |c| := div_pos εpos (abs_pos.mpr h)
+  rcases cs (ε / |c|) εcpos with ⟨Ns, hs⟩
+  use Ns
+  intro n ngt
+  rw [← abs_mul, mul_sub]
+  exact (mul_lt_mul_left (abs_pos.mpr h)).mpr (hs n ngt)",45.52232313156128
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,"theorem exists_abs_le_of_convergesTo {s : ℕ → ℝ} {a : ℝ} (cs : ConvergesTo s a) :
+    ∃ N b, ∀ n, N ≤ n → |s n| < b ","best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,7,True,,6.0,-0.14285714285714285,"
+theorem exists_abs_le_of_convergesTo {s : ℕ → ℝ} {a : ℝ} (cs : ConvergesTo s a) :
+    ∃ N b, ∀ n, N ≤ n → |s n| < b  := by
+  rcases cs 1 zero_lt_one with ⟨N, h⟩
+  use N, |a| + 1
+  intro n ngt
+  calc
+    |s n| = |s n - a + a| := by
+      congr
+      abel
+    _ ≤ |s n - a| + |a| := (abs_add _ _)
+    _ < |a| + 1 := by linarith [h n ngt]","
+theorem exists_abs_le_of_convergesTo {s : ℕ → ℝ} {a : ℝ} (cs : ConvergesTo s a) :
+    ∃ N b, ∀ n, N ≤ n → |s n| < b       := by
+  rcases cs 1 zero_lt_one with ⟨N, h⟩
+  use N, |a| + 1
+  intro n ngt
+  calc
+  |s n| = |s n - a + a| := by ring_nf
+  _ ≤ |s n - a| + |a| := abs_add _ _
+  _ < |a| + 1 := by linarith [h n ngt]",42.03832793235779
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,"theorem aux {s t : ℕ → ℝ} {a : ℝ} (cs : ConvergesTo s a) (ct : ConvergesTo t 0) :
+    ConvergesTo (fun n ↦ s n * t n) 0 ","best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,12,False,"application type mismatch
+  mul_lt_mul (h₀ n (le_of_max_le_left ngt)) (h₁ n (le_of_max_le_right ngt))
+argument
+  h₁ n (le_of_max_le_right ngt)
+has type
+  |t n - 0| < ε / B : Prop
+but is expected to have type
+  |t n - 0| ≤ ε / B : Prop
+	at:   _ < B * (ε / B) := mul_lt_mul (h₀ n (le_of_max_le_left ngt)) (h₁ n (le_of_max_le_right ngt)) (abs_nonneg _) Bpos",,,"
+theorem aux {s t : ℕ → ℝ} {a : ℝ} (cs : ConvergesTo s a) (ct : ConvergesTo t 0) :
+    ConvergesTo (fun n ↦ s n * t n) 0  := by
+  intro ε εpos
+  dsimp
+  rcases exists_abs_le_of_convergesTo cs with ⟨N₀, B, h₀⟩
+  have Bpos : 0 < B := lt_of_le_of_lt (abs_nonneg _) (h₀ N₀ (le_refl _))
+  have pos₀ : ε / B > 0 := div_pos εpos Bpos
+  rcases ct _ pos₀ with ⟨N₁, h₁⟩
+  use max N₀ N₁
+  intro n ngt
+  have ngeN₀ : n ≥ N₀ := le_of_max_le_left ngt
+  have ngeN₁ : n ≥ N₁ := le_of_max_le_right ngt
+  calc
+    |s n * t n - 0| = |s n| * |t n - 0| := by rw [sub_zero, abs_mul, sub_zero]","
+theorem aux {s t : ℕ → ℝ} {a : ℝ} (cs : ConvergesTo s a) (ct : ConvergesTo t 0) :
+    ConvergesTo (fun n ↦ s n * t n) 0       := by
+  intro ε εpos
+  rcases exists_abs_le_of_convergesTo cs with ⟨N₀, B, h₀⟩
+  have Bpos : 0 < B := lt_of_le_of_lt (abs_nonneg _) (h₀ N₀ (le_refl _))
+  have pos₀ : ε / B > 0 := div_pos εpos Bpos
+  rcases ct _ pos₀ with ⟨N₁, h₁⟩
+  use max N₀ N₁
+  intro n ngt
+  calc |s n * t n - 0| = |s n| * |t n - 0| := by rw [sub_zero, abs_mul, sub_zero]
+  _ < B * (ε / B) := mul_lt_mul (h₀ n (le_of_max_le_left ngt)) (h₁ n (le_of_max_le_right ngt)) (abs_nonneg _) Bpos
+  _ = ε := mul_div_cancel' _ (ne_of_gt Bpos)",54.230209827423096
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,"theorem convergesTo_mul {s t : ℕ → ℝ} {a b : ℝ}
+      (cs : ConvergesTo s a) (ct : ConvergesTo t b) :
+    ConvergesTo (fun n ↦ s n * t n) (a * b) ","best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,9,False,"unsolved goals
+case h.e'_2
+s t : ℕ → ℝ
+a b : ℝ
+cs : ConvergesTo s a
+ct : ConvergesTo t b
+h₁ : ConvergesTo (fun n => s n * (t n + -b)) 0
+⊢ a * b = 0 + b * a
+	at: by
+  have h₁ : ConvergesTo (fun n ↦ s n * (t n + -b)) 0 := aux cs (convergesTo_add ct (convergesTo_const (-b)))
+  convert convergesTo_add h₁ (convergesTo_mul_const b cs) using 1
+  ext; ring
+application type mismatch
+  aux cs (convergesTo_add ct (convergesTo_const (-b)))
+argument
+  convergesTo_add ct (convergesTo_const (-b))
+has type
+  ConvergesTo (fun n => t n + -b) (b + -b) : Prop
+but is expected to have type
+  ConvergesTo (fun n => t n + -b) 0 : Prop
+	at:   have h₁ : ConvergesTo (fun n ↦ s n * (t n + -b)) 0 := aux cs (convergesTo_add ct (convergesTo_const (-b)))",,,"
+theorem convergesTo_mul {s t : ℕ → ℝ} {a b : ℝ}
+      (cs : ConvergesTo s a) (ct : ConvergesTo t b) :
+    ConvergesTo (fun n ↦ s n * t n) (a * b)  := by
+  have h₁ : ConvergesTo (fun n ↦ s n * (t n + -b)) 0 := by
+    apply aux cs
+    convert convergesTo_add ct (convergesTo_const (-b))
+    ring
+  have := convergesTo_add h₁ (convergesTo_mul_const b cs)
+  convert convergesTo_add h₁ (convergesTo_mul_const b cs) using 1
+  · ext; ring
+  ring","
+theorem convergesTo_mul {s t : ℕ → ℝ} {a b : ℝ}
+      (cs : ConvergesTo s a) (ct : ConvergesTo t b) :
+    ConvergesTo (fun n ↦ s n * t n) (a * b)       := by
+  have h₁ : ConvergesTo (fun n ↦ s n * (t n + -b)) 0 := aux cs (convergesTo_add ct (convergesTo_const (-b)))
+  convert convergesTo_add h₁ (convergesTo_mul_const b cs) using 1
+  ext; ring",44.67471480369568
+Tests,Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean,"theorem convergesTo_unique {s : ℕ → ℝ} {a b : ℝ}
+      (sa : ConvergesTo s a) (sb : ConvergesTo s b) :
+    a = b ","best_of_n(refinement(prompt_flat, prev_data_num=1, keep_best=False))",5,LENGTH,gpt-4o,True,False,False,10,True,,27,False,"unsolved goals
+case intro.intro
+s : ℕ → ℝ
+a b : ℝ
+sa : ConvergesTo s a
+sb : ConvergesTo s b
+abne : ¬a = b
+this✝ : |a - b| > 0
+Na : ℕ
+hNa : ∀ n ≥ Na, |s n - a| < |a - b| / 2
+Nb : ℕ
+hNb : ∀ n ≥ Nb, |s n - b| < |a - b| / 2
+N : ℕ := max Na Nb
+this : |a - b| < |a - b|
+⊢ False
+	at: by
+  by_contra abne
+  have : |a - b| > 0 := abs_pos.mpr (Ne.symm abne)
+  rcases sa (|a - b| / 2) (half_pos this) with ⟨Na, hNa⟩
+  rcases sb (|a - b| / 2) (half_pos this) with ⟨Nb, hNb⟩
+  let N := max Na Nb
+  have : |a - b| < |a - b| := calc
+  |a - b| = |(-(s N - a)) + (s N - b)| := by ring_nf
+  _ ≤ |-(s N - a)| + |s N - b| := abs_add _ _
+  _ = |s N - a| + |s N - b| := by rw [abs_neg]
+  _ < |a - b| / 2 + |a - b| / 2 := add_lt_add (hNa N (le_max_left _ _)) (hNb N (le_max_right _ _))
+  _ = |a - b| := add_halves _
+  exact lt_irrefl _ this
+unexpected end of input; expected ':='
+	at: ",,,"
+theorem convergesTo_unique {s : ℕ → ℝ} {a b : ℝ}
+      (sa : ConvergesTo s a) (sb : ConvergesTo s b) :
+    a = b  := by
+  by_contra abne
+  have : |a - b| > 0 := by
+    apply lt_of_le_of_ne
+    · apply abs_nonneg
+    intro h''
+    apply abne
+    apply eq_of_abs_sub_eq_zero h''.symm
+  let ε := |a - b| / 2
+  have εpos : ε > 0 := by
+    change |a - b| / 2 > 0
+    linarith
+  rcases sa ε εpos with ⟨Na, hNa⟩
+  rcases sb ε εpos with ⟨Nb, hNb⟩
+  let N := max Na Nb
+  have absa : |s N - a| < ε := by
+    apply hNa
+    apply le_max_left
+  have absb : |s N - b| < ε := by
+    apply hNb
+    apply le_max_right
+  have : |a - b| < |a - b|
+  calc
+    |a - b| = |(-(s N - a)) + (s N - b)| := by
+      congr
+      ring
+    _ ≤ |(-(s N - a))| + |s N - b| := (abs_add _ _)
+    _ = |s N - a| + |s N - b| := by rw [abs_neg]
+    _ < ε + ε := (add_lt_add absa absb)
+    _ = |a - b| := by norm_num [ε]
 
-example (lbf : FnHasLb f) (lbg : FnHasLb g) : FnHasLb fun x ↦ f x + g x  := by
-  rcases lbf with ⟨a, lbfa⟩
-  rcases lbg with ⟨b, lbgb⟩
-  use a + b
-  intro x
-  exact add_le_add (lbfa x) (lbgb x)
-",45.72199511528015
-Tests,Tests/MIL/C03_Logic/solutions/Solutions_S02_The_Existential_Quantifier.lean,example {c : ℝ} (ubf : FnHasUb f) (h : c ≥ 0) : FnHasUb fun x ↦ c * f x ,best_of_n(prompt_flat),5,LENGTH,gpt-4o-mini,True,False,False,10,True,,4,True,,4,0.0,"
-example {c : ℝ} (ubf : FnHasUb f) (h : c ≥ 0) : FnHasUb fun x ↦ c * f x  := by
-  rcases ubf with ⟨a, ubfa⟩
-  use c * a
-  intro x
-  exact mul_le_mul_of_nonneg_left (ubfa x) h","
-
-example {c : ℝ} (ubf : FnHasUb f) (h : c ≥ 0) : FnHasUb fun x ↦ c * f x  := by
-  rcases ubf with ⟨a, ubfa⟩
-  use c * a
-  intro x
-  exact mul_le_mul_of_nonneg_left (ubfa x) h
-",49.199743032455444
+  exact lt_irrefl _ this","
+theorem convergesTo_unique {s : ℕ → ℝ} {a b : ℝ}
+      (sa : ConvergesTo s a) (sb : ConvergesTo s b) :
+    a = b       := by
+  by_contra abne
+  have : |a - b| > 0 := abs_pos.mpr (Ne.symm abne)
+  rcases sa (|a - b| / 2) (half_pos this) with ⟨Na, hNa⟩
+  rcases sb (|a - b| / 2) (half_pos this) with ⟨Nb, hNb⟩
+  let N := max Na Nb
+  have : |a - b| < |a - b| := calc
+  |a - b| = |(-(s N - a)) + (s N - b)| := by ring_nf
+  _ ≤ |-(s N - a)| + |s N - b| := abs_add _ _
+  _ = |s N - a| + |s N - b| := by rw [abs_neg]
+  _ < |a - b| / 2 + |a - b| / 2 := add_lt_add (hNa N (le_max_left _ _)) (hNb N (le_max_right _ _))
+  _ = |a - b| := add_halves _
+  exact lt_irrefl _ this",64.50575399398804

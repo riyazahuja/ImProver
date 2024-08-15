@@ -487,7 +487,7 @@ def process_one(item):
     return (item, correct)
 
 
-def best_of_n(prompt_fn, max_workers=1, mixup=0):
+def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
 
     def best_of_n(
         thm: AnnotatedTheorem,
@@ -501,7 +501,6 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
         token=False,
     ):
         thms = []
-
         if token:
             return (
                 prompt_fn(
@@ -513,10 +512,12 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                     mathlib_search=mathlib_search,
                     examples=examples,
                     token=token,
+                    n=n,
                 )
                 * n
             )
-
+        # if max_workers is None:
+        #     max_workers = n
         if max_workers == 1:
             for i in range(n):
                 output = prompt_fn(
@@ -527,6 +528,7 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                     syntax_search=syntax_search,
                     mathlib_search=mathlib_search,
                     examples=examples,
+                    n=n,
                 )
                 correct, _, _ = eval_correctness(output)
                 thms.append((output, correct))
@@ -544,6 +546,7 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                             syntax_search=syntax_search,
                             mathlib_search=mathlib_search,
                             examples=examples,
+                            n=n,
                         )
                         if i >= mixup * n
                         else executor.submit(
@@ -553,25 +556,24 @@ def best_of_n(prompt_fn, max_workers=1, mixup=0):
                             model=model,
                             annotation=annotation,
                             examples=examples,
+                            n=n,
                         )
                     )
                     for i in range(n)
                 ]
                 stt = time.time()
-                # for future in futures:
-                #     output = future.result()
-                #     correct, _, _ = eval_correctness(output)
-                #     thms.append((output, correct))
+                for future in futures:
+                    output = future.result()
+                    correct, _, _ = eval_correctness(output)
+                    thms.append((output, correct))
 
-                with ProcessPoolExecutor(
-                    max_workers=min(math.floor(cpu_count()), n)
-                ) as proc_executor:
-                    proc_futures = [
-                        proc_executor.submit(process_one, future.result())
-                        for future in futures
-                    ]
+                # with ProcessPoolExecutor(max_workers=min(max_cpus, n)) as proc_executor:
+                #     proc_futures = [
+                #         proc_executor.submit(process_one, future.result())
+                #         for future in futures
+                #     ]
 
-                thms = [pf.result() for pf in proc_futures]
+                # thms = [pf.result() for pf in proc_futures]
 
                 if log_req_info:
                     print(f"Evaluation competed in {time.time()-stt}s")
@@ -605,7 +607,6 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
         examples=0,
         token=False,
     ):
-
         if token:
             cost_one = prompt_fn(
                 thm,
@@ -639,7 +640,10 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                 mathlib_search=mathlib_search,
                 examples=examples,
             )
+            st = time.time()
             correct, messages, new_thm = eval_correctness(output)
+            if log_req_info:
+                print(f"Evaluation completed in {time.time()-st}s")
             curr_data = {"input": curr, "output": new_thm}
             curr_data["correct"] = correct
             curr_data["messages"] = messages
@@ -680,6 +684,94 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
     refinement.__name__ = f"{refinement.__name__}({prompt_fn.__name__}, prev_data_num={prev_data_num}, keep_best={keep_best})"
     return refinement
+
+
+def refinement_all(
+    thm: AnnotatedTheorem,
+    metric: Metric,
+    n: int,
+    model="gpt-4-turbo",
+    annotation=True,
+    syntax_search=True,
+    mathlib_search=True,
+    examples=0,
+    token=False,
+):
+    prompt_fn = prompt_flat
+    prev_data_num = n
+    keep_best = False
+
+    if token:
+        cost_one = prompt_fn(
+            thm,
+            metric,
+            model=model,
+            annotation=annotation,
+            syntax_search=syntax_search,
+            mathlib_search=mathlib_search,
+            examples=examples,
+            token=token,
+        )
+        encoding = tiktoken.encoding_for_model(model)
+        cost_prev_data = 2 * len(encoding.encode(parseTheorem(thm, context=False)))
+        total = 0
+        for i in range(n):
+            total += cost_one + min(prev_data_num, i) * cost_prev_data
+        return total
+
+    curr = thm
+    prev_data = []
+
+    for i in range(n):
+
+        output = prompt_fn(
+            curr,
+            metric,
+            model=model,
+            prev_data=prev_data[-prev_data_num:],
+            annotation=annotation,
+            syntax_search=syntax_search,
+            mathlib_search=mathlib_search,
+            examples=examples,
+        )
+        correct, messages, new_thm = eval_correctness(output)
+        curr_data = {"input": curr, "output": new_thm}
+        curr_data["correct"] = correct
+        curr_data["messages"] = messages
+        curr_data["score"] = (
+            (metric.name, metric.score(new_thm))
+            if correct and metric.score_fn is not None
+            else None
+        )
+        curr_data["delta"] = (
+            (metric.name, metric.metric(curr, new_thm)) if correct else None
+        )
+        curr_data["minmax"] = metric.minmax
+
+        prev_data.append(curr_data)
+
+        if not metric.lock_refinement_state:
+            if not keep_best:
+                curr = new_thm
+            else:
+                old_correct = eval_correctness(curr)[0]
+                new_correct = correct
+
+                # if old correct and new incorrect, old
+                # if old correct, and new correct, min
+                # if old incorrect and new correct, new
+                # if both incorrect, one with less messages.
+
+                if old_correct and new_correct:
+                    curr = metric.cmp(curr, new_thm)
+                elif old_correct and not new_correct:
+                    pass
+                elif not old_correct and new_correct:
+                    curr = new_thm
+                else:
+                    curr = new_thm  # min(curr,new_thm,key=lambda x:len(x.messages))
+
+    return curr
 
 
 # def best_of_refined(prompt_fn, n_best,n_ref,prev_data_num=1, keep_best=False,max_workers=1):
