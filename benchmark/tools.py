@@ -225,35 +225,33 @@ if __name__ == "__main__":
 
     methods = get_methods(
         model=["gpt-4o"],
-        # fn=[prompt_flat],
-        fn=[
-            # best_of_n(refinement(prompt_flat)),
-            # refinement_all
-            best_of_n(prompt_flat, max_workers=5, max_cpus=cpu_count()),
-            # prompt_flat
-        ],
-        n=[3, 7],
+        fn=[refinement(prompt_flat)],
+        n=[15],
         annotation=[True],
         examples=[10],
         metric=[length_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
     )
-
-    methods.extend(
-        get_methods(
-            model=["gpt-4o-mini"],
-            # fn=[prompt_flat],
-            fn=[
-                # best_of_n(refinement(prompt_flat)),
-                # refinement_all
-                best_of_n(prompt_flat, max_workers=5, max_cpus=cpu_count()),
-                # prompt_flat
-            ],
-            n=[3, 5, 7, 15, 20],
-            annotation=[True],
-            examples=[10],
-            metric=[length_metric()],
-        )
-    )
+    # methods = []
+    # methods.extend(
+    #     get_methods(
+    #         model=["gpt-4o"],
+    #         fn=[
+    #             best_of_n(
+    #                 prompt_flat,
+    #                 max_workers=15,
+    #                 max_cpus=cpu_count(),
+    #             ),
+    #         ],
+    #         n=[15],
+    #         annotation=[True],
+    #         examples=[10],
+    #         metric=[length_metric()],
+    #         syntax_search=[True],
+    #         mathlib_search=[True],
+    #     )
+    # )
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
@@ -261,7 +259,12 @@ if __name__ == "__main__":
     fs = [
         files[name]
         for name in files.keys()
-        if ("C03" in name or "C04" in name or "C05" in name) and ("Solutions" in name)
+        if (
+            ("C03" in name and "S01" in name)
+            or ("C04" in name and "S01" in name)
+            or ("C05" in name and "S01" in name)
+        )
+        and ("Solutions" in name)
     ]
     # fs = [fs[i] for i in range(len(fs)) if i % 2 != 0]
     # for f in fs:
@@ -288,4 +291,4 @@ if __name__ == "__main__":
                 show_progress=True,
             )
         )
-        save_to_csv(data, path=f"benchmark/data/final/n_final.csv")
+        save_to_csv(data, path=f"benchmark/data/final/rag_final4.csv")
