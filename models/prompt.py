@@ -487,13 +487,13 @@ def process_one(item):
     return (item, correct)
 
 
-def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
-
+def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=False):
     def best_of_n(
         thm: AnnotatedTheorem,
         metric: Metric,
         n: int,
         model="gpt-4-turbo",
+        prev_data=[],
         annotation=True,
         syntax_search=True,
         mathlib_search=True,
@@ -507,6 +507,7 @@ def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
                     thm,
                     metric,
                     model=model,
+                    prev_data=prev_data,
                     annotation=annotation,
                     syntax_search=syntax_search,
                     mathlib_search=mathlib_search,
@@ -515,14 +516,15 @@ def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
                 )
                 * n
             )
-        # if max_workers is None:
-        #     max_workers = n
+        # if match_workers:
+        #    max_workers = n
         if max_workers == 1:
             for i in range(n):
                 output = prompt_fn(
                     thm,
                     metric,
                     model=model,
+                    prev_data=prev_data,
                     annotation=annotation,
                     syntax_search=syntax_search,
                     mathlib_search=mathlib_search,
@@ -532,7 +534,9 @@ def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
                 thms.append((output, correct))
         else:
             st = time.time()
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            with ThreadPoolExecutor(
+                max_workers=max_workers if not match_workers else n
+            ) as executor:
                 futures = [
                     (
                         executor.submit(
@@ -540,6 +544,7 @@ def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
                             thm,
                             metric,
                             model=model,
+                            prev_data=prev_data,
                             annotation=annotation,
                             syntax_search=syntax_search,
                             mathlib_search=mathlib_search,
@@ -550,6 +555,7 @@ def best_of_n(prompt_fn, max_workers=1, max_cpus=1, mixup=0):
                             prompt_fn,
                             thm,
                             metric,
+                            prev_data=prev_data,
                             model=model,
                             annotation=annotation,
                             examples=examples,
@@ -707,6 +713,35 @@ def refinement_n(prompt_fn, n, prev_data_num=1, keep_best=False):
 
     refinement_n.__name__ = f"{refinement_n.__name__}({prompt_fn.__name__}, prev_data_num={prev_data_num}, keep_best={keep_best})"
     return refinement_n
+
+
+def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
+    def best_of_n_n(
+        thm: AnnotatedTheorem,
+        metric: Metric,
+        model="gpt-4-turbo",
+        prev_data=[],
+        annotation=True,
+        syntax_search=True,
+        mathlib_search=True,
+        examples=0,
+        token=False,
+    ):
+        return best_of_n(prompt_fn, max_workers, max_cpus, mixup)(
+            thm,
+            metric,
+            n,
+            model,
+            prev_data,
+            annotation,
+            syntax_search,
+            mathlib_search,
+            examples,
+            token,
+        )
+
+    best_of_n_n.__name__ = f"{best_of_n_n.__name__}({prompt_fn.__name__})"
+    return best_of_n_n
 
 
 # def best_of_refined(prompt_fn, n_best,n_ref,prev_data_num=1, keep_best=False,max_workers=1):

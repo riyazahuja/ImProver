@@ -46,7 +46,7 @@ class File(BaseModel):
 
 class AnnotatedProofStep(BaseModel):
     prevState: List[str] = Field(
-        description="Pretty printed tactic st ate before the tactic invocation"
+        description="Pretty printed tactic state before the tactic invocation"
     )
     tactic: str = Field(description="One line/tactic in a tactic proof.")
     nextState: List[str] = Field(
