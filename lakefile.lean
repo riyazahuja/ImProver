@@ -7,7 +7,7 @@ import Lake
 
     
 
-    require Tests from "/Users/ahuja/Desktop/auto-tests/Automated-Rewriting-Tests"
+    require Tests from "/Users/ahuja/Desktop/LeanTestData/Tests"
 
     @[default_target]
     lean_lib TrainingData where

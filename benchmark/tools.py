@@ -223,16 +223,16 @@ def get_cost(obj, methods):
 
 if __name__ == "__main__":
 
-    # methods = get_methods(
-    #     model=["gpt-4o"],
-    #     fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
-    #     n=[3],
-    #     annotation=[True],
-    #     examples=[10],
-    #     metric=[length_metric()],
-    #     syntax_search=[True],
-    #     mathlib_search=[True],
-    # )
+    methods = get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
+        n=[3],
+        annotation=[True],
+        examples=[10],
+        metric=[length_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
     # methods.extend(
     #     get_methods(
     #         model=["gpt-4o"],
@@ -246,42 +246,19 @@ if __name__ == "__main__":
     #     )
     # )
 
-    methods = get_methods(
-        model=["gpt-4o"],
-        fn=[best_of_n(prompt_flat, max_workers=None)],
-        n=[3, 5, 7, 10, 15],
-        annotation=[True],
-        examples=[10],
-        metric=[length_metric()],
-        # syntax_search=[True],
-        # mathlib_search=[True],
-    )
-
-    methods.extend(
-        get_methods(
-            model=["gpt-4o-mini"],
-            fn=[best_of_n(prompt_flat, max_workers=None)],
-            n=[3, 5, 7, 10, 15, 20],
-            annotation=[True],
-            examples=[10],
-            metric=[length_metric()],
-            # syntax_search=[True],
-            # mathlib_search=[True],
-        )
-    )
-
-    repo = getRepo("Tests", "configs/config_MIL.json")
+    repo = getRepo("Tests", "configs/config_test.json")
     files = {file.file_path: file for file in repo.files}
 
     fs = [
         files[name]
         for name in files.keys()
         if (
+            ("P1" in name and "alphaproof" in name)
             # ("C03" in name and "S02" in name)
-            ("C04" in name and "S02" in name)
+            # ("C04" in name and "S02" in name)
             # or ("C05" in name and "S02" in name)
         )
-        and ("Solutions" in name)
+        # and ("Solutions" in name)
     ]
 
     # fs = [fs[i] for i in range(len(fs)) if i % 2 != 0]
@@ -298,7 +275,7 @@ if __name__ == "__main__":
     # # cost = get_cost(f, methods)
     # print(f"${cost}")
     # print(len(fs))
-    start = 14
+    start = 0
     curr = 0
     data = []
     for f in fs:
@@ -308,9 +285,9 @@ if __name__ == "__main__":
                     benchmark_theorem(
                         t,
                         methods,
-                        max_workers=6,
+                        max_workers=1,
                         show_progress=True,
                     )
                 )
-                save_to_csv(data, path=f"benchmark/data/final/add_n_4_2_two.csv")
+                save_to_csv(data, path=f"benchmark/data/alphaproof/better_combo.csv")
             curr += 1
