@@ -164,17 +164,20 @@ def prompt_raw(
         return out
 
     def get_examples(data):
-        if examples == 0:
-            return []
-        retriever = get_retriever(
-            k=examples,
-            persist_dir=os.path.join(
-                root_path, ".db", "metrics", f".{metric.name}_chroma_db"
-            ),
-        )
-        curr_thm = data["theorem"]
+        try:
+            if examples == 0:
+                return []
+            retriever = get_retriever(
+                k=examples,
+                persist_dir=os.path.join(
+                    root_path, ".db", "metrics", f".{metric.name}_chroma_db"
+                ),
+            )
+            curr_thm = data["theorem"]
 
-        out = format_docs(retriever.invoke(curr_thm), "EXAMPLE")
+            out = format_docs(retriever.invoke(curr_thm), "EXAMPLE")
+        except:
+            out = []
         return out
 
     if token:
