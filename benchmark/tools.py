@@ -223,15 +223,22 @@ def get_cost(obj, methods):
 
 if __name__ == "__main__":
 
+    # methods = get_methods(
+    #     model=["gpt-4o"],
+    #     fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
+    #     n=[3],
+    #     annotation=[True],
+    #     examples=[10],
+    #     metric=[length_metric()],
+    #     syntax_search=[True],
+    #     mathlib_search=[True],
+    # )
     methods = get_methods(
         model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
-        n=[3],
+        fn=[prompt_basic],
         annotation=[True],
-        examples=[10],
+        examples=[0],
         metric=[length_metric()],
-        syntax_search=[True],
-        mathlib_search=[True],
     )
     # methods.extend(
     #     get_methods(

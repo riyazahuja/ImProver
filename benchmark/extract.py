@@ -12,16 +12,6 @@ import scipy.stats as stats
 from statsmodels.stats.multitest import multipletests
 from itertools import combinations
 
-# Load the CSV file
-file_path = "benchmark/data/final/basic.csv"
-df = pd.read_csv(file_path)
-print(df)
-print(df.dtypes)
-
-comp = (df["method"] == "prompt_flat") & (df["annotation"] == True)
-new = df[comp]
-print(new)
-
 
 # Function to filter the dataframe based on specified parameters
 def filter_data(df, **kwargs):
@@ -43,26 +33,33 @@ def filter_data(df, **kwargs):
 
 
 # Function to calculate accuracy and improvement metrics
-def calculate_metrics(filtered_df, minimax):
+def calculate_metrics(filtered_df: pd.DataFrame, minimax="MAX"):
     accuracy = filtered_df["new_correct"].mean()
 
     time_mean = filtered_df["time"].mean()
     time_median = filtered_df["time"].median()
     time_stdev = filtered_df["time"].std()
 
-    nonempty_deltas = filtered_df["delta"].dropna()
-    zero_deltas = filtered_df["delta"].fillna(0)
+    nonempty_deltas = filtered_df.dropna(subset=["delta"])
+    zero_deltas = filtered_df.fillna(value={"delta": 0})
 
     if minimax == "MAX":
         improved_df = filtered_df[(filtered_df["delta"] > 0)]
-        nonempty_improved_deltas = nonempty_deltas[(nonempty_deltas["delta"] > 0)]
-        zero_improved_deltas = zero_deltas[(zero_deltas["delta"] > 0)]
+        nonempty_improved_deltas = nonempty_deltas[(nonempty_deltas["delta"] > 0)][
+            "delta"
+        ]
+        zero_improved_deltas = zero_deltas[(zero_deltas["delta"] > 0)]["delta"]
     else:
         improved_df = filtered_df[(filtered_df["delta"] < 0)]
-        nonempty_improved_deltas = nonempty_deltas[(nonempty_deltas["delta"] < 0)]
-        zero_improved_deltas = zero_deltas[(zero_deltas["delta"] < 0)]
+        nonempty_improved_deltas = nonempty_deltas[(nonempty_deltas["delta"] < 0)][
+            "delta"
+        ]
+        zero_improved_deltas = zero_deltas[(zero_deltas["delta"] < 0)]["delta"]
 
-    nonzero_accuracy = improved_df["new_correct"].mean()
+    nonzero_accuracy = len(improved_df["new_correct"]) / len(filtered_df)
+
+    nonempty_deltas = nonempty_deltas["delta"]
+    zero_deltas = zero_deltas["delta"]
 
     mean_improvement = nonempty_deltas.mean() if not nonempty_deltas.empty else None
     median_improvement = nonempty_deltas.median() if not nonempty_deltas.empty else None
@@ -123,10 +120,10 @@ def compare_nonzero_accuracy_pair(df, method1, method2):
     method2_data = filter_data(df, **method2)
 
     method1_data_filtered = method1_data[
-        method1_data[("new_correct" == True) & ("delta" < 0)]
+        (method1_data["new_correct"] == True) & (method1_data["delta"] < 0)
     ]
     method2_data_filtered = method2_data[
-        method2_data[("new_correct" == True) & ("delta" < 0)]
+        (method2_data["new_correct"] == True) & (method2_data["delta"] < 0)
     ]
 
     method1_success = method1_data_filtered["new_correct"].sum()
@@ -141,7 +138,7 @@ def compare_nonzero_accuracy_pair(df, method1, method2):
     ]
     _, p_value = stats.fisher_exact(contingency_table)
 
-    return {(method1, method2): p_value}
+    return p_value
 
 
 # Function to compare accuracy between two methods
@@ -161,7 +158,7 @@ def compare_accuracy_pair(df, method1, method2):
     ]
     _, p_value = stats.fisher_exact(contingency_table)
 
-    return {(method1, method2): p_value}
+    return p_value
 
 
 # Function to check if the data is normally distributed using the Shapiro-Wilk test.
@@ -197,38 +194,43 @@ def compare_improvement_pair(df, method1, method2):
     else:
         p_value = None
 
-    return {(method1, method2): p_value}
+    return p_value
 
 
-def compare_multiple_helper(df, *methods, fn):
+def compare_multiple_helper(df, fn, *methods):
     if len(methods) < 2:
         raise ValueError("not enough data provided for comparison")
     elif len(methods) == 2:
-        return compare_nonzero_accuracy_pair(df, methods[0], methods[1])
+        return {(0, 1): compare_nonzero_accuracy_pair(df, methods[0], methods[1])}
     else:
-        pairs = list(combinations(methods, 2))
-        p_values_raw = {pair: fn(df, pair[0], pair[1]) for pair in pairs}
-        coer_and_sort = [(k, p_values_raw[k]) for k in p_values_raw.keys()].sort(
-            key=lambda x: x[1]
-        )
-        trimmed = [item[1] for item in coer_and_sort]
-        p_values_corrected_raw = multipletests(trimmed, is_sorted=True)
+        pairs = list(combinations(range(len(methods)), 2))
+        p_values_raw = {
+            pair: fn(df, methods[pair[0]], methods[pair[1]]) for pair in pairs
+        }
+        p_items = list(p_values_raw.items())
+
+        p_items.sort(key=lambda x: x[1])
+        trimmed = [item[1] for item in p_items]
+        p_values_corrected_raw = multipletests(trimmed, is_sorted=True)[1]
+        # print(len(trimmed))
+        # print(len(p_values_corrected_raw))
+        # print(p_values_corrected_raw)
         corrected_p_values = {
-            coer_and_sort[i][0]: p_values_corrected_raw[i] for i in range(len(trimmed))
+            p_items[i][0]: p_values_corrected_raw[i] for i in range(len(trimmed))
         }
         return corrected_p_values
 
 
 def compare_nonzero_accuracy(df, *methods):
-    return compare_multiple_helper(df, *methods, compare_nonzero_accuracy_pair)
+    return compare_multiple_helper(df, compare_nonzero_accuracy_pair, *methods)
 
 
 def compare_accuracy(df, *methods):
-    return compare_multiple_helper(df, *methods, compare_accuracy_pair)
+    return compare_multiple_helper(df, compare_accuracy_pair, *methods)
 
 
 def compare_improvement(df, *methods):
-    return compare_multiple_helper(df, *methods, compare_improvement_pair)
+    return compare_multiple_helper(df, compare_improvement_pair, *methods)
 
 
 def get_best_method_helper(
@@ -240,13 +242,13 @@ def get_best_method_helper(
     minimax="MAX",
 ):
 
-    metrics = {
-        method: calculate_metrics(filter_data(df, **method)) for method in methods
+    metric_data = {
+        i: get_metric_fn(calculate_metrics(filter_data(df, **methods[i])))
+        for i in range(len(methods))
     }
 
-    metric_data = {method: get_metric_fn(metrics[method]) for method in metrics.keys()}
-    p_values = compare_multiple_helper(df, *methods, fn)
-    significant = {set(pair): p_values[pair] < alpha for pair in p_values.keys()}
+    p_values = compare_multiple_helper(df, fn, *methods)
+    significant = {pair: p_values[pair] < alpha for pair in p_values.keys()}
 
     best_raw = max(
         list(metric_data.items()), key=lambda x: x[1] if minimax == "MAX" else -1 * x[1]
@@ -254,11 +256,13 @@ def get_best_method_helper(
 
     best_method = best_raw[0]
     best_methods_significant = [
-        method
-        for method in methods
-        if (method != best_method) and (not significant[set((best_method, method))])
+        methods[method]
+        for method in range(len(methods))
+        if (method != best_method)
+        and (not significant.get((best_method, method), False))
+        and (not significant.get((method, best_method), False))
     ] + [
-        best_method
+        methods[best_method]
     ]  # all methods w/o sig diff from best
 
     if len(best_methods_significant) == 0:
@@ -271,7 +275,7 @@ def get_best_method(
     df,
     methods,
     alpha=0.05,
-    improvement_type=("mean_improvement", "nonzero", "raw"),
+    improvement_type=("mean_improvement", "nonempty", "raw"),
     time_type="mean",
     minimax="MAX",
 ):
@@ -291,6 +295,9 @@ def get_best_method(
     )
     if len(best_nonzero_accuracy_significant) == 1:
         return best_nonzero_accuracy_significant[0]
+    print(
+        f"Multiple best nonzero_accuracy:\n {best_nonzero_accuracy_significant}\n----------------"
+    )
 
     best_improvement_significant = get_best_method_helper(
         df,
@@ -306,6 +313,10 @@ def get_best_method(
     if len(best_improvement_significant) == 1:
         return best_improvement_significant[0]
 
+    print(
+        f"Multiple best improvement:\n {best_improvement_significant}\n----------------"
+    )
+
     best_accuracy_significant = get_best_method_helper(
         df,
         best_improvement_significant,
@@ -316,41 +327,46 @@ def get_best_method(
     if len(best_accuracy_significant) == 1:
         return best_accuracy_significant[0]
 
+    print(f"Multiple best accuracy:\n {best_accuracy_significant}\n----------------")
+
     time_data = {
-        method: calculate_metrics(filter_data(df, **method))["time"][time_type]
-        for method in methods
+        i: calculate_metrics(filter_data(df, **methods[i]))["time"][time_type]
+        for i in range(len(methods))
     }
 
     best_time_raw = min(list(time_data.items()), key=lambda x: x[1])
 
-    best_time_method = best_time_raw[0]
+    best_time_method = methods[best_time_raw[0]]
     return best_time_method
 
 
-# Example usage
-methods_to_compare = [
-    "prompt_flat",
-    "method_2",
-    "method_3",
-]  # Replace with actual method names
-group_columns = [
-    "method",
-    "n",
-    "metric",
-    "model",
-    "annotation",
-    "syntax_search",
-    "mathlib_search",
-    "examples",
-]
+if __name__ == "__main__":
+    file_path = "benchmark/data/parameter_tuning/final/Examples.csv"
 
+    # basic_methods = [
+    #     {"method": fn, "annotation": anno}
+    #     for fn in ["prompt_basic", "prompt_flat", "prompt_structured"]
+    #     for anno in [True, False]
+    # ]
+    basic_methods = [{"examples": n} for n in [0, 3, 5, 7, 10]]
 
-# Example usage
-method1_params = {"method": "prompt_flat", "annotation": True}
+    basic_df = pd.read_csv(file_path)
 
-# Filter data for each method
-method1_data = filter_data(df, **method1_params)
-print(method1_data)
-# Calculate metrics
-method1_metrics = calculate_metrics(method1_data)
-print(method1_metrics)
+    data = [
+        calculate_metrics(filter_data(basic_df, **method), minimax="MIN")
+        for method in basic_methods
+    ]
+    for i in range(len(data)):
+        print(basic_methods[i])
+        print("****")
+        print(data[i])
+        print("====================")
+
+    best_method = get_best_method(
+        basic_df,
+        basic_methods,
+        improvement_type=("mean_improvement", "nonempty", "raw"),
+        alpha=0.05,
+        minimax="MIN",
+    )
+    print(f"BEST:\n{best_method}")
