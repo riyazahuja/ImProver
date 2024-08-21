@@ -233,39 +233,37 @@ if __name__ == "__main__":
     #     syntax_search=[True],
     #     mathlib_search=[True],
     # )
+
     methods = get_methods(
         model=["gpt-4o"],
-        fn=[prompt_basic],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        n=[5],
         annotation=[True],
-        examples=[0],
+        examples=[10],
         metric=[length_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
     )
-    # methods.extend(
-    #     get_methods(
-    #         model=["gpt-4o"],
-    #         fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3))],
-    #         n=[5],
-    #         annotation=[True],
-    #         examples=[10],
-    #         metric=[length_metric()],
-    #         syntax_search=[True],
-    #         mathlib_search=[True],
-    #     )
-    # )
 
-    repo = getRepo("Tests", "configs/config_test.json")
+    repo = getRepo("compfiles", "configs/config_comp.json")
     files = {file.file_path: file for file in repo.files}
 
-    fs = [
-        files[name]
-        for name in files.keys()
-        if (
-            ("P1" in name and "alphaproof" in name)
-            # ("C03" in name and "S02" in name)
-            # ("C04" in name and "S02" in name)
-            # or ("C05" in name and "S02" in name)
+    def no_errors(thms):
+        msgs = []
+        for thm in thms:
+            msgs.extend(thm.messages)
+        errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
+            1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
         )
-        # and ("Solutions" in name)
+        return errors == 0
+
+    fs = [
+        files[name] for name in files.keys() if ("Imo" in name or "Usa" in name)
+    ]  # if ("Solutions" in name)]
+    fs = [
+        f
+        for f in fs
+        if type(f) == AnnotatedFile and len(f.theorems) != 0 and no_errors(f.theorems)
     ]
 
     # fs = [fs[i] for i in range(len(fs)) if i % 2 != 0]
@@ -278,23 +276,20 @@ if __name__ == "__main__":
 
     # print([f.file_path for f in fs])
 
-    # cost = sum(get_cost(f, methods) for f in fs)
-    # # cost = get_cost(f, methods)
-    # print(f"${cost}")
-    # print(len(fs))
-    start = 0
-    curr = 0
-    data = []
-    for f in fs:
-        for t in f.theorems:
-            if curr >= start:
-                data.extend(
-                    benchmark_theorem(
-                        t,
-                        methods,
-                        max_workers=1,
-                        show_progress=True,
-                    )
-                )
-                save_to_csv(data, path=f"benchmark/data/alphaproof/better_combo.csv")
-            curr += 1
+    cost = sum(get_cost(f, methods) for f in fs)
+    # cost = get_cost(f, methods)
+    print(f"${cost}")
+    print(len(fs))
+    # start = 0
+    # curr = 0
+    # data = []
+    # for f in fs:
+    #     data.extend(
+    #         benchmark_file(
+    #             f,
+    #             methods,
+    #             max_workers=5,
+    #             show_progress=True,
+    #         )
+    #     )
+    #     save_to_csv(data, path=f"benchmark/data/alphaproof/basic2.csv")

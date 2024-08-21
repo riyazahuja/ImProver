@@ -7,7 +7,8 @@ import Lake
 
     
 
-    require Tests from "/Users/ahuja/Desktop/LeanTestData/Tests"
+    require compfiles from git
+    "https://github.com/dwrensha/compfiles.git" @ "2ab6378aedaf379a1f58043199f89d40a5cda400"
 
     @[default_target]
     lean_lib TrainingData where
