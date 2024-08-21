@@ -286,7 +286,7 @@ if __name__ == "__main2__":
     #     mathlib_search=[True],
     # )
 
-    repo = getRepo("compfiles", "configs/config_comp.json")
+    repo = getRepo("PFR", "configs/config_PFR.json")
     files = {file.file_path: file for file in repo.files}
 
     def no_errors(thms):
@@ -299,7 +299,7 @@ if __name__ == "__main2__":
         return errors == 0
 
     fs = [
-        files[name] for name in files.keys() if ("Imo" in name or "Usa" in name)
+        files[name] for name in files.keys()  # if ("Imo" in name or "Usa" in name)
     ]  # if ("Solutions" in name)]
     fs = [
         f

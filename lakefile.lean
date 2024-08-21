@@ -5,9 +5,11 @@ import Lake
     -- add any package configuration options here
     }
 
-    
+    require mathlib from git
+    "https://github.com/leanprover-community/mathlib4.git" @ "600a5fa3828fef53b2fa20d30dc8e1fb51ce0f98"
 
-    require Tests from "/Users/ahuja/Desktop/LeanTestData/Tests"
+    require PFR from git
+    "https://github.com/teorth/pfr.git" @ "master"
 
     @[default_target]
     lean_lib TrainingData where
@@ -16,8 +18,6 @@ import Lake
 
     lean_exe training_data where
     root := `scripts.training_data
-    
+
     lean_exe constants where
     root := `scripts.constants
-
-    
