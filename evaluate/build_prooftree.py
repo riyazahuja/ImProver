@@ -159,11 +159,11 @@ def save_tree(G, positions, labels, save_path, show_mod=False):
         pos=positions,
         labels=labels,
         with_labels=True,
-        node_size=100,
+        node_size=500,
         arrows=True,
         arrowstyle="-|>",
-        arrowsize=12,
-        font_size=8,
+        arrowsize=15,
+        font_size=10,
         font_color="black",
         node_color="skyblue",
         edge_color="gray",
@@ -451,12 +451,17 @@ def tree_edit_distance(G1, G2, normalize=True):
 
 
 if __name__ == "__main__":
-    repo = getRepo("Tests", "configs/config_test.json")
-    files = {file.file_name: file for file in repo.files}
-    f = files["Basic.lean"]
-    thms = f.theorems
-    thm1 = thms[3]
-    thm2 = thms[4]
+    repo = getRepo("Tests", "configs/config_MIL.json")
+    files = {file.file_path: file for file in repo.files}
+    fs = [
+        files[name]
+        for name in files.keys()
+        if "Solution" in name and "C04" in name and "S01" in name
+    ]
 
-    save_tree(*getProofTree(thm1, visualize=False), save_path="ex.png", show_mod=True)
-    save_tree(*getProofTree(thm2, visualize=False), save_path="ex2.png", show_mod=True)
+    f = fs[0]
+    thms = f.theorems
+    for i in range(len(thms)):
+        save_tree(
+            *getProofTree(thms[i], visualize=False), save_path=f".trees/MIL/{i}.png"
+        )

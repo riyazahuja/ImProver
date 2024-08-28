@@ -79,8 +79,8 @@ def prompt_raw(
     examples=0,
     token=False,
 ):
-    syntax_k = 2
-    mathlib_k = 3
+    syntax_k = 5
+    mathlib_k = 5
     model_name = model
 
     model = ChatOpenAI(model=model)

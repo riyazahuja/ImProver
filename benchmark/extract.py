@@ -372,8 +372,11 @@ def get_best_method(df, methods, minimax="MAX"):
     return best_time_method
 
 
-# Example function to plot nonzero accuracy, accuracy, and mean improvement with error bars
-def plot_parameter_combinations(data_dict):
+# Example function to plot nonzero accuracy, accuracy, and mean improvement with/without error bars
+# makes a combination chart with x axis being each method, and two y axes. One for nonzero accuracy and accuracy,
+# which are columns on the bar chart, and one for mean improvement (nonempty, raw) and mean improvement (zero,raw) -which are line graphs. All 4 are to be shown together on the same graph.
+def plot_combined_chart(data_dict, minimax="MAX"):
+
     # Extract relevant data for plotting
     parameter_combinations = list(data_dict.keys())
     nonzero_accuracies = [
@@ -390,6 +393,11 @@ def plot_parameter_combinations(data_dict):
         data_dict[param]["mean_improvement"][("zero", "raw")]
         for param in parameter_combinations
     ]
+    if minimax != "MAX":
+        mean_improvements_nonempty_raw = [
+            -1 * x for x in mean_improvements_nonempty_raw
+        ]
+        mean_improvements_zero_raw = [-1 * x for x in mean_improvements_zero_raw]
     stdev_improvements_nonempty_raw = [
         data_dict[param]["stdev_improvement"][("nonempty", "raw")]
         for param in parameter_combinations
@@ -402,84 +410,106 @@ def plot_parameter_combinations(data_dict):
     # Convert the parameter combinations to a format suitable for labeling (e.g., strings)
     labels = [str(param) for param in parameter_combinations]
 
-    # Plot accuracy and nonzero accuracy
-    fig, ax1 = plt.subplots(figsize=(10, 6))
-    ax1.bar(
-        labels, nonzero_accuracies, alpha=0.7, label="Nonzero Accuracy", color="blue"
-    )
-    ax1.bar(labels, accuracies, alpha=0.5, label="Accuracy", color="orange")
-    ax1.set_ylabel("Accuracy")
-    ax1.set_title("Accuracy and Nonzero Accuracy Across Parameter Combinations")
-    ax1.legend(loc="upper left")
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.show()
+    # Create a figure and a set of subplots
+    fig, ax1 = plt.subplots(figsize=(12, 8))
 
-    # Plot mean improvement with error bars for nonempty raw and zero raw
-    fig, ax2 = plt.subplots(figsize=(10, 6))
-    ax2.errorbar(
-        labels,
+    # Plotting the bar chart for accuracy and nonzero accuracy
+    width = 0.35  # width of the bars
+    x = np.arange(len(labels))  # the label locations
+
+    bars1 = ax1.bar(
+        x - width / 2,
+        nonzero_accuracies,
+        width,
+        label="Nonzero Accuracy",
+        color="blue",
+        alpha=0.7,
+    )
+    bars2 = ax1.bar(
+        x + width / 2, accuracies, width, label="Accuracy", color="orange", alpha=0.7
+    )
+
+    # Set the labels and title
+    ax1.set_xlabel("Parameter Combinations")
+    ax1.set_ylabel("Accuracy")
+    ax1.set_title("Combined Chart for Accuracy and Mean Improvement")
+
+    # Set x-ticks and labels
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(labels, rotation=45, fontsize=6)
+
+    # Adding a secondary y-axis for the mean improvements
+    ax2 = ax1.twinx()
+    ax2.plot(
+        x,
         mean_improvements_nonempty_raw,
-        yerr=stdev_improvements_nonempty_raw,
-        fmt="o-",
+        "o-",
         label="Mean Improvement (nonempty, raw)",
         color="green",
     )
-    ax2.errorbar(
-        labels,
+    ax2.plot(
+        x,
         mean_improvements_zero_raw,
-        yerr=stdev_improvements_zero_raw,
-        fmt="s-",
+        "s-",
         label="Mean Improvement (zero, raw)",
         color="red",
     )
     ax2.set_ylabel("Mean Improvement")
-    ax2.set_title(
-        "Mean Improvement with Standard Deviation Across Parameter Combinations"
-    )
-    ax2.legend(loc="upper left")
-    plt.xticks(rotation=90)
+
+    # Add legends for both axes
+    ax1.legend(loc="upper left")
+    ax2.legend(loc="upper right")
+
+    # Ensure layout is neat and readable
     plt.tight_layout()
     plt.show()
 
 
 if __name__ == "__main__":
-    file_path = "benchmark/data/parameter_tuning/final/Basic.csv"
+    current = "RAG"
 
-    basic_methods = [
-        {"method": fn, "annotation": anno}
-        for fn in ["prompt_basic", "prompt_flat", "prompt_structured"]
-        for anno in [True, False]
-    ]
-    # basic_methods = [{"examples": n} for n in [0, 3, 5, 7, 10]]
-    # basic_methods = [
-    #     {"method": fn}
-    #     for fn in [
-    #         "prompt_flat",
-    #         "refinement(prompt_flat, prev_data_num=1, keep_best=False)",
-    #         "best_of_n(prompt_flat)",
-    #         "refinement(prompt_flat, prev_data_num=5, keep_best=False)",
-    #         "refinement(prompt_flat, prev_data_num=1, keep_best=True)",
-    #         "refinement(prompt_flat, prev_data_num=5, keep_best=True)",
-    #     ]
-    # ]
-    # basic_methods = [
-    #     {"model": model, "n": n}
-    #     for model in ["gpt-4o", "gpt-4o-mini"]
-    #     for n in [3, 5, 7, 10, 15]
-    # ] + [{"model": "gpt-4o-mini", "n": 20}]
-    # basic_methods = [
-    #     {"method": method, "n": n, "mathlib_search": rag}
-    #     for method in [
-    #         "best_of_n(refinement_n(prompt_flat, prev_data_num=1, keep_best=True))",
-    #         "refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=False)",
-    #     ]
-    #     for n in [3, 5]
-    #     for rag in [True, False]
-    # ] + [
-    #     {"method": "best_of_n(prompt_flat)", "n": 15, "mathlib_search": rag}
-    #     for rag in [True, False]
-    # ]
+    file_path = f"benchmark/data/parameter_tuning/final/{current}.csv"
+
+    basic_methods_dict = {
+        "Basic": [
+            {"method": fn, "annotation": anno}
+            for fn in ["prompt_basic", "prompt_flat", "prompt_structured"]
+            for anno in [True, False]
+        ],
+        "Examples": [{"examples": n} for n in [0, 3, 5, 7, 10]],
+        "Methods": [
+            {"method": fn}
+            for fn in [
+                "prompt_flat",
+                "refinement(prompt_flat, prev_data_num=1, keep_best=False)",
+                "best_of_n(prompt_flat)",
+                "refinement(prompt_flat, prev_data_num=5, keep_best=False)",
+                "refinement(prompt_flat, prev_data_num=1, keep_best=True)",
+                "refinement(prompt_flat, prev_data_num=5, keep_best=True)",
+            ]
+        ],
+        "N": [
+            {"model": model, "n": n}
+            for model in ["gpt-4o", "gpt-4o-mini"]
+            for n in [3, 5, 7, 10, 15]
+        ]
+        + [{"model": "gpt-4o-mini", "n": 20}],
+        "RAG": [
+            {"method": method, "n": n, "mathlib_search": rag}
+            for method in [
+                "best_of_n(refinement_n(prompt_flat, prev_data_num=1, keep_best=True))",
+                "refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=False)",
+            ]
+            for n in [3, 5]
+            for rag in [True, False]
+        ]
+        + [
+            {"method": "best_of_n(prompt_flat)", "n": 15, "mathlib_search": rag}
+            for rag in [True, False]
+        ],
+    }
+    basic_methods = basic_methods_dict[current]
+
     basic_df = pd.read_csv(file_path)
 
     data = [
@@ -500,5 +530,5 @@ if __name__ == "__main__":
     print(f"BEST:\n{best_method}")
 
     data_dict = {str(basic_methods[i]): data[i] for i in range(len(basic_methods))}
-    plot_parameter_combinations(data_dict)
+    plot_combined_chart(data_dict, minimax="MIN")
     # print(f'ORDER:\n{sort_methods(basic_df,basic_methods,minimax="MIN")}')
