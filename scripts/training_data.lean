@@ -8,7 +8,9 @@ import Mathlib.Lean.CoreM
 import Batteries.Lean.Util.Path
 import Batteries.Data.String.Basic
 import Mathlib.Tactic.Change
+import ImportGraph.RequiredModules
 import Cli
+open Lean Elab Term Command Frontend Parser
 
 open Lean Elab IO Meta
 open Cli System
@@ -70,7 +72,7 @@ def getElabDeclOfTacticInvocation (elabDeclInfo : List ElabDeclInfo) (ti: Tactic
     elabDeclInfo.find? fun ⟨⟨s', e'⟩, _⟩ => s' <= s && e <= e'
 
 def makeElabDeclId (info: ElabDeclInfo) (module: Name) (hash: String) : String :=
-  let ⟨x, y⟩ := info.fst.fst
+  let ⟨x,y⟩ := info.fst.fst
   let declId := s!"{module}.{x}_{y}.{hash}"
   declId
 
@@ -149,12 +151,24 @@ def trainingData' (elabDeclInfo: ElabDeclInfo) (module : ModuleName) (hash : Str
 end Lean.Elab.TacticInvocation
 
 
+-- def references (info : ConstantInfo) (env : Environment): HashSet (Name × Option Name) :=
+--   let temp : NameSet := info.getUsedConstantsAsSet
+--   let temp2 := temp.toList
+
+--   let get_mod := temp2.map (fun x=> (x,env.getModuleFor? x))
+--   let refs := HashSet.empty.insertMany get_mod
+--   refs
+
+
 
 def trainingData (args : Cli.Parsed) : IO UInt32 := do
     searchPathRef.set compile_time_search_path%
 
-    let module := args.positionalArg! "module" |>.as! ModuleName
-    let infos ← getElabDeclInfo (← moduleInfoTrees module)
+    let module : ModuleName := args.positionalArg! "module" |>.as! ModuleName
+    let steps ← compileModule module
+    --let environments := steps.map (fun step => step.after)
+
+    let infos ← getElabDeclInfo (steps.bind (fun c => c.trees))
     let trees ← getInvocationTrees module
     let hash ← generateRandomHash
 
@@ -183,6 +197,15 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
 
 
     let thmAnnotatedTrees : List (String × List InfoTree) := thmAnnotatedTrees_enum.map (fun (s,ts) => (s,ts.map (fun (_,t) =>t) |>.reverse))
+
+    -- println environments.length
+    -- let named_environments := environments.bind (fun env => (env.constants.map₂.toList.map (fun (a,b) => (a,b,env))))
+    -- println named_environments.length
+    -- let named_references := named_environments.map (fun (a,b,c) => (a,references b c |>.toList))
+
+    -- println named_references
+    -- println s!"\n\n\n"
+
     let parsedTrees : List (String × (IO (List Result))) := thmAnnotatedTrees.map (fun (s,ts) => (s,ts.filterMapM (BetterParser)))
 
     let mut PTs := []

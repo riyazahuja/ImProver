@@ -7,7 +7,7 @@ import Lake
 
     
 
-    require Tests from "/Users/ahuja/Desktop/auto-tests/Automated-Rewriting-Tests"
+    require Tests from "/Users/ahuja/Desktop/LeanTestData/Tests"
 
     @[default_target]
     lean_lib TrainingData where
@@ -16,5 +16,8 @@ import Lake
 
     lean_exe training_data where
     root := `scripts.training_data
+    
+    lean_exe constants where
+    root := `scripts.constants
 
     

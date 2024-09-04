@@ -80,6 +80,24 @@ class Message(BaseModel):
     content: str = Field(description="Message contents")
 
 
+# Improve by using (annotated) theorems and files.
+class Dependency(BaseModel):
+    dependency: str = Field(
+        description="Constant term in theorem dependent on external module"
+    )
+    src_file: str = Field(description="Source file of dependency")
+    src_content: str = Field(
+        description="source content (decl, def, proof, etc), just a few lines"
+    )
+    explicit: bool = Field(
+        description="Is dependency explicit in the pp form of the parent theorem"
+    )
+    direct: bool = Field(description="is dependency direct or unfolded")
+    kind: str = Field(
+        description="What type of object is the dependency (theorem, def,etc)"
+    )
+
+
 class AnnotatedTheorem(BaseModel):
     decl: str = Field(description="Theorem declaration")
     declID: str = Field(description="Unique theorem declaration ID")
@@ -96,6 +114,9 @@ class AnnotatedTheorem(BaseModel):
     pretty_print: str = Field(description="Content of theorem src file.")
     proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
         description="data for efficient proof tree construction"
+    )
+    dependencies: List[Dependency] = Field(
+        description="Theorem dependencies from all imported modules"
     )
 
 
@@ -236,12 +257,126 @@ def getMessage(msg, contents: str):
     )
 
 
+def search_main(module, project_path):
+    fp = os.path.join(project_path, module.replace(".", "/") + ".lean")
+    if os.path.isfile(fp):
+        with open(fp, "r") as f:
+            content = f.read()
+        return content
+    else:
+        return None
+
+
+def search_packages(module, project_path, package=None):
+    packages_path = os.path.join(project_path, ".lake", "packages")
+    if package is not None:
+        paths = [os.path.join(packages_path, package)]
+    else:
+        paths = [
+            os.path.join(packages_path, name) for name in os.listdir(packages_path)
+        ]
+    paths = [path for path in paths if os.path.isdir(path)]
+
+    outputs = [search_main(module, path) for path in paths]
+    outputs = [output for output in outputs if output is not None]
+    if len(outputs) == 0:
+        return None
+    else:
+        return outputs[0]
+
+
+# THIS WILL NOT FIND ANY BASE LEAN LIBRARY DEPENDENCIES
+def getDependencies(
+    constants,
+    decl,
+    project_path,
+    ignore_main=False,
+    max_lines=10,
+    end_at="\n\n",
+    max_dupes=3,
+):
+    def match(name):
+        return any(mod in decl for mod in name.split("."))
+
+    keywords = {
+        "theorem": ["theorem", "example", "lemma", "instance", "abbrev"],
+        "def": ["def"],
+        "axiom": ["axiom"],
+        "opaque": ["opaque"],
+        "quot": ["quot"],
+        "inductive": ["inductive"],
+        "constructor": ["constructor"],
+        "recursor": ["recursor"],
+    }  # maybe need to add more?
+    linked = [
+        obj
+        for obj in constants
+        if obj["kind"] in keywords["theorem"] and match(obj["name"])
+    ]  # only link theorems
+    if len(linked) == 0:
+        return []
+    dependents = linked[0]["dependents"]
+    # list of the form [{'name','module','explicit'}]
+    output = []
+    for dependency in dependents:
+        name = dependency["name"]
+        module = dependency["module"]
+        explicit = dependency["explicit"]
+        direct = dependency["direct"]
+        kind = dependency["kind"]  # theorem, def, etc
+
+        file_content = None
+        if not ignore_main:
+            file_content = search_main(module, project_path)
+        if file_content is None:
+            file_content = search_packages(module, project_path)
+        if file_content is None:
+            file_content = ""
+
+        if name not in file_content:
+            pass
+        else:
+            lines = list(enumerate(file_content.splitlines()))
+            idxs = [
+                line
+                for line in lines
+                if name in line[1]
+                and any(keyword in line[1] for keyword in keywords[kind])
+            ]
+            if max_dupes is None:
+                max_dupes = len(idxs)
+            for idx in idxs[:max_dupes]:
+                first_idx = idx[0]
+                rest = [lines[i] for i in range(first_idx, len(lines))]
+                if max_lines is not None:
+                    rest = rest[:max_lines]
+                rest = [r[1] for r in rest]
+                content = "\n".join(rest)
+                if end_at is not None:
+                    definition_idx = content.find(end_at)
+                    if definition_idx != -1:
+                        content = content[:definition_idx]
+
+                output.append(
+                    Dependency(
+                        dependency=name,
+                        src_file=module,
+                        src_content=content,
+                        explicit=explicit,
+                        kind=kind,
+                        direct=direct,
+                    )
+                )
+    return output
+
+
 def getTheorems(
     data, src, path, project_path, contents, until_end=False
 ) -> List[AnnotatedTheorem]:
     temp = {}
     msgs = data["messages"]
     trees = data["proofTrees"]
+    consts = data["constants"]
 
     def remove_dupes(tacs):
         output = []
@@ -260,9 +395,9 @@ def getTheorems(
 
     data = remove_dupes(data["tactics"])
 
-    all_tacs = [re.sub(r"\s", "", step["tactic"]) for step in data]
+    # all_tacs = [re.sub(r"\s", "", step["tactic"]) for step in data]
 
-    tactic_start_line = data[0]["startPos"]["line"] if len(data) != 0 else None
+    # tactic_start_line = data[0]["startPos"]["line"] if len(data) != 0 else None
     for step in data:
 
         ps = AnnotatedProofStep(
@@ -289,6 +424,9 @@ def getTheorems(
 
         messages = getMessages(thm_start, thm_end, msgs, contents)
         messages.reverse()
+
+        dependencies = getDependencies(consts, decl, project_path)
+
         lines_src = step["srcUpToTactic"].split("\n")
         decl_lines = decl.split("\n")
 
@@ -311,6 +449,7 @@ def getTheorems(
                 "messages": messages,
                 "pretty_print": pp,
                 "proof_tree": PT,
+                "dependencies": dependencies,
             }
         else:
             curr_proof = temp[declID]["proof"]
@@ -319,6 +458,7 @@ def getTheorems(
             curr_msgs = temp[declID]["messages"]
             curr_pp = temp[declID]["pretty_print"]
             curr_pt = temp[declID]["proof_tree"]
+            curr_dep = temp[declID]["dependencies"]
             curr_proof.append(ps)
             temp[declID] = {
                 "proof": curr_proof,
@@ -327,6 +467,7 @@ def getTheorems(
                 "messages": curr_msgs,
                 "pretty_print": curr_pp,
                 "proof_tree": curr_pt,
+                "dependencies": curr_dep,
             }
 
     result = {}
@@ -342,6 +483,7 @@ def getTheorems(
             messages=value["messages"],
             pretty_print=value["pretty_print"],
             proof_tree=value["proof_tree"],
+            dependencies=value["dependencies"],
         )
     return [v for _, v in result.items()]
 
@@ -731,6 +873,17 @@ def run_training_data(root_path, module_name):
     if data_raw == "":
         raise KeyError(f"BAD DATA: {output}")
     data = json.loads(data_raw)
+
+    cmd2 = f"lake exe constants {module_name}"
+    output2 = subprocess.run([cmd2], shell=True, text=True, capture_output=True)
+    data_raw2 = output2.stdout
+    if data_raw2 == "":
+        data2 = {}
+        # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
+    else:
+        data2 = json.loads(data_raw2)
+    data["constants"] = data2
+
     return data
 
 
@@ -774,6 +927,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             messages=[getMessage(msg, text) for msg in output_data["messages"]],
             pretty_print=text,
             proof_tree=[],
+            dependencies=[],
         )
     else:
         output = thms[-1]
@@ -872,6 +1026,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     messages=output.messages,
                     pretty_print=output.pretty_print,
                     proof_tree=output.proof_tree,
+                    dependencies=output.dependencies,
                 )
 
                 if [s.tactic for s in og_proof] != [s.tactic for s in proof]:

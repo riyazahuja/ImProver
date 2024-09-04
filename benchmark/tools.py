@@ -74,6 +74,7 @@ def process_instance(thm: AnnotatedTheorem, method):
         "syntax_search": kwargs.get("syntax_search", False),
         "mathlib_search": kwargs.get("mathlib_search", False),
         "examples": kwargs.get("examples", 0),
+        "improved_context": kwargs.get("improved_context", False),
         "og_correct": og_correct,
         "og_errors": og_errors,
         "og_score": og_score,
@@ -159,8 +160,19 @@ def get_methods(
     syntax_search=[False],
     mathlib_search=[False],
     examples=[0],
+    improved_context=[False],
 ):
-    dl = [fn, annotation, model, n, syntax_search, mathlib_search, metric, examples]
+    dl = [
+        fn,
+        annotation,
+        model,
+        n,
+        syntax_search,
+        mathlib_search,
+        metric,
+        examples,
+        improved_context,
+    ]
     prod = list(itertools.product(*dl))
     return [
         (
@@ -173,6 +185,7 @@ def get_methods(
                 "syntax_search": i[4],
                 "mathlib_search": i[5],
                 "examples": i[7],
+                "improved_context": i[8],
             },
         )
         for i in prod
@@ -222,28 +235,47 @@ def get_cost(obj, methods):
 
 
 if __name__ == "__main__":
+    repo = getRepo("Tests", "configs/config_test.json")
+    files = {file.file_path: file for file in repo.files}
+    # print(files.keys())
+    # f = files["Tests/IMO/alphaproof/P2.lean"]
+    f = files["Tests/rest.lean"]
+
+    thm = f.theorems[0]
+    # for dep in thm.dependencies:
+    #     print(
+    #         f"{dep.dependency} | {dep.src_file} | {dep.explicit}, {dep.direct} | {dep.kind}"
+    #     )
+    #     print(dep.src_content)
+    #     print("==========================")
+
+    methods = get_methods(
+        model=["gpt-4o"],
+        fn=[prompt_basic],
+        metric=[length_metric()],
+        improved_context=[True],
+    )
+
+    data = benchmark_theorem(
+        thm,
+        methods,
+        show_progress=True,
+    )
+    save_to_csv(data, path=f"benchmark/data/test_new_context.csv")
+
+
+if __name__ == "__main2__":
 
     # methods = get_methods(
     #     model=["gpt-4o"],
-    #     fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
-    #     n=[3],
+    #     fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+    #     n=[5],
     #     annotation=[True],
     #     examples=[10],
     #     metric=[length_metric()],
     #     syntax_search=[True],
     #     mathlib_search=[True],
     # )
-
-    methods = get_methods(
-        model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
-        n=[5],
-        annotation=[True],
-        examples=[10],
-        metric=[length_metric()],
-        syntax_search=[True],
-        mathlib_search=[True],
-    )
 
     repo = getRepo("compfiles", "configs/config_comp.json")
     files = {file.file_path: file for file in repo.files}
