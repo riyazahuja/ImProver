@@ -13,7 +13,23 @@ import Batteries.Lean.HashMap
 import Batteries.Lean.Util.Path
 import ImportGraph.RequiredModules
 
+import TrainingData.Frontend
+import TrainingData.InfoTree.ToJson
+import TrainingData.InfoTree.TacticInvocation.Basic
+import TrainingData.Utils.Range
+import TrainingData.TreeParser
+import Mathlib.Data.String.Defs
+import Mathlib.Lean.CoreM
+import Batteries.Lean.Util.Path
+import Batteries.Data.String.Basic
+import Mathlib.Tactic.Change
+import ImportGraph.RequiredModules
+import Cli
 
+
+open Lean Elab Term Command Frontend Parser
+open Lean Elab IO Meta
+open Cli System
 
 /-!
 Generate declaration dependencies up to a target file (defaulting to all of Mathlib).
@@ -54,6 +70,7 @@ partial def Lean.ConstantInfo.getUsedConstants' (c : ConstantInfo)
     | .inductInfo _ => "inductive"
     | .ctorInfo _ => "constructor"
     | .recInfo _ => "recursor"
+
 
   return (direct, unfolded, kind)
 
@@ -142,47 +159,84 @@ def getKind (const_map : HashMap Name ConstantInfo) (m : Name) : String :=
     | .ctorInfo _ => "constructor"
     | .recInfo _ => "recursor"
 
+
+def findCommandInfo (t : InfoTree) : List (CommandInfo × ContextInfo) :=
+  let infos := t.findAllInfo none fun i => match i with
+    | .ofCommandInfo _ => true
+    | _ => false
+  infos.filterMap fun p => match p with
+  | (.ofCommandInfo i, some ctx, _) => (i, ctx)
+  | _ => none
+
+def getRanges (tree : InfoTree) : IO (List (Range × CommandInfo)) := do
+    let infos := findCommandInfo tree
+    let mut out := []
+    for ⟨cmdInfo, ctxInfo⟩ in infos do
+      if cmdInfo.elaborator = "Lean.Elab.Command.elabDeclaration".toName then
+        out := (FileMap.stxRange ctxInfo.fileMap cmdInfo.stx, cmdInfo) :: out
+    return out
+
+
+def ppCommandInfo (module: Name) (info : CommandInfo) : IO String := do
+  return (Substring.mk (← moduleSource module)
+   (info.stx.getPos?.getD 0)
+   (info.stx.getTailPos?.getD 0)).toString
+
+def getDependencyData (module : Name) (name : Name) : IO (List (Range × String)) := do
+  try
+    let steps ← compileModule module
+    let steps := steps.filter (fun cmd => (cmd.after.constants.map₂.contains name) && !(cmd.before.constants.map₂.contains name))
+    let trees := steps.bind (fun c => c.trees)
+    let mut outputs := []
+    for tree in trees do
+      let rngs ← getRanges tree
+      for (rng, info) in rngs do
+        let i ← ppCommandInfo module info
+        outputs := (rng,i) :: outputs
+    return outputs
+  catch _ =>
+    return []
+
+
+
 def main (args : List String) : IO UInt32 := do
   let options := Options.empty.insert `maxHeartbeats (0 : Nat)
   let modules := match args with
   | [] => #[`Mathlib]
   | args => args.toArray.map fun s => s.toName
   searchPathRef.set compile_time_search_path%
+
   CoreM.withImportModules modules (options := options) do
     let env ← getEnv
     let allConstants ← allUsedConstants modules
     let explicitConstants ← MetaM.run' (allExplicitConstants modules)
     let const_map := env.constants.map₁
     let mut output := []
+    let module := modules[0]!
     for (n, (d, u, kind)) in allConstants do
-      -- We do not do this filtering as we already restrict to the given modules
-      -- match n.components with
-      -- -- Note we keep `Batteries` as it has many lemmas about numbers and data structures.
-      -- | `Lean :: _
-      -- | `Qq :: _
-      -- | `Cli :: _
-      -- | `Aesop :: _ => continue
-      -- | components => if components.contains `Tactic then continue
+
       let explicit := explicitConstants.find? n |>.getD ∅
-      let dependents := (d++u).toList.map fun m ↦ Json.mkObj [
-        ("name", Json.str m.toString),
-        ("module", Json.str <| toString <| (env.getModuleFor? m).getD (Name.anonymous)),
-        ("explicit", Json.bool (explicit.contains m)),
-        ("direct", Json.bool (d.contains m)),
-        ("kind", Json.str <| getKind const_map m)
-      ]
+
+      let map_fn (m : Name) : CoreM Json := do
+        let src_module := env.getModuleFor? m |>.getD (Name.anonymous)
+        let dep ← getDependencyData src_module m
+        return Json.mkObj [
+          ("name", Json.str m.toString),
+          ("module", Json.str src_module.toString),
+          ("explicit", Json.bool (explicit.contains m)),
+          ("direct", Json.bool (d.contains m)),
+          ("kind", Json.str <| getKind const_map m),
+          ("content", Json.arr <| dep.map (fun (_,s) => Json.str s) |>.toArray)
+        ]
+
+      let dependents ← (d++u).toList.mapM map_fn
       let json := Json.mkObj [
         ("name", Json.str n.toString),
         ("dependents", Json.arr dependents.toArray),
         ("kind", Json.str kind), -- for now, useful for doing the matching step
+        ("content", Json.arr <| (←getDependencyData module n).map (fun (_,s) => Json.str s) |>.toArray)
       ]
-      -- let data := Json.mkObj [("name",n.toString),("constants",Json.arr dependents.toArray),("index",Json.num idx.toNat)]
       output := json::output
-    --output := output.reverse
     let final := Json.arr output.toArray
     IO.println final.compress
-
-      --IO.println json.compress
   return 0
-
---#eval main ["Tests.rest"]
