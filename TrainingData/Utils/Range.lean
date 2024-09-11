@@ -9,7 +9,7 @@ instance : DecidableRel ((· : Position) ≤ ·) := by
   infer_instance
 
 def Range := Position × Position
-deriving DecidableEq, Repr, ToString
+deriving DecidableEq, Repr, ToString, ToJson
 
 instance : LE Range where
   le r₁ r₂ := r₂.1 ≤ r₁.1 ∧ r₁.2 ≤ r₂.2

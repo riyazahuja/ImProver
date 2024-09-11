@@ -145,8 +145,10 @@ def prompt_raw(
     </MODULE_CONTEXT>"""
 
     def get_module_context(data):
+        curr_thm = data["theorem"]
         if not improved_context:
             return []
+
         deps = [
             (parse_dependency(dep), dep.dependency, dep.explicit)
             for dep in thm.dependencies
@@ -160,12 +162,16 @@ def prompt_raw(
                 nonexplicit.append((dep[0], dep[1]))
 
         def key_it(x):
-            lines = list(enumerate(data["theorem"].splitlines()))
-            found = [line[0] for line in lines if x[1] in line[1]]
-            if len(found) == 0:
-                return len(lines) + 1
-            else:
-                return found[0]
+            content = data["theorem"]
+            return -1 * content.count(x[1])
+
+        # def key_it(x):
+        #     lines = list(enumerate(data["theorem"].splitlines()))
+        #     found = [line[0] for line in lines if x[1] in line[1]]
+        #     if len(found) == 0:
+        #         return len(lines) + 1
+        #     else:
+        #         return found[0]
 
         explicit.sort(key=key_it)
         return [("human", x[0]) for x in explicit + nonexplicit]
@@ -332,6 +338,7 @@ def prompt_basic(
             context=thm.context,
             proof=[ProofStep(tactic=curr.content)],
             project_path=thm.project_path,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_Thm(output)
@@ -388,6 +395,7 @@ def prompt_flat(
             context=thm.context,
             proof=[ProofStep(tactic=step) for step in curr.proof],
             project_path=thm.project_path,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output)
@@ -455,6 +463,7 @@ def prompt_structured(
             context=thm.context,
             proof=[coerce_PS(step) for step in curr.proof],
             project_path=thm.project_path,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output, force_decl=thm.decl)

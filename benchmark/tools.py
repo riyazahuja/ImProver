@@ -238,10 +238,11 @@ if __name__ == "__main__":
     repo = getRepo("Tests", "configs/config_test.json")
     files = {file.file_path: file for file in repo.files}
     # print(files.keys())
-    # f = files["Tests/IMO/alphaproof/P2.lean"]
-    f = files["Tests/rest.lean"]
+    f = files["Tests/IMO/alphaproof/P1_seperated.lean"]
+    # f = files["Tests/tester.lean"]
 
-    thm = f.theorems[0]
+    thms = f.theorems
+
     # for dep in thm.dependencies:
     #     print(
     #         f"{dep.dependency} | {dep.src_file} | {dep.explicit}, {dep.direct} | {dep.kind}"
@@ -251,17 +252,25 @@ if __name__ == "__main__":
 
     methods = get_methods(
         model=["gpt-4o"],
-        fn=[prompt_basic],
+        fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5), keep_best=True)],
+        n=[5],
+        annotation=[True],
+        examples=[10],
         metric=[length_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
         improved_context=[True],
     )
-
-    data = benchmark_theorem(
-        thm,
-        methods,
-        show_progress=True,
-    )
-    save_to_csv(data, path=f"benchmark/data/test_new_context.csv")
+    data = []
+    for thm in thms:
+        data.extend(
+            benchmark_theorem(
+                thm,
+                methods,
+                show_progress=True,
+            )
+        )
+        save_to_csv(data, path=f"benchmark/data/test_new_context2.csv")
 
 
 if __name__ == "__main2__":

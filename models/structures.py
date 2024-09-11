@@ -18,6 +18,24 @@ class ProofStep(BaseModel):
     )
 
 
+# Improve by using (annotated) theorems and files.
+class Dependency(BaseModel):
+    dependency: str = Field(
+        description="Constant term in theorem dependent on external module"
+    )
+    src_file: str = Field(description="Source file of dependency")
+    src_content: str = Field(
+        description="source content (decl, def, proof, etc), just a few lines"
+    )
+    explicit: bool = Field(
+        description="Is dependency explicit in the pp form of the parent theorem"
+    )
+    direct: bool = Field(description="is dependency direct or unfolded")
+    kind: str = Field(
+        description="What type of object is the dependency (theorem, def,etc)"
+    )
+
+
 class Theorem(BaseModel):
     decl: Optional[str] = Field(
         description="Theorem declaration. Optional argument, if not provided, will default to being an implicit case statement using dot notation.",
@@ -33,6 +51,9 @@ class Theorem(BaseModel):
         description="Context of the theorem (i.e. file contents up to decl)"
     )
     project_path: str = Field(description="Local path to src repo contents")
+    dependencies: List[Dependency] = Field(
+        description="Theorem dependencies from all imported modules"
+    )
 
 
 class File(BaseModel):
@@ -78,24 +99,6 @@ class Message(BaseModel):
         description="equivalent to source_contents[start:end]"
     )
     content: str = Field(description="Message contents")
-
-
-# Improve by using (annotated) theorems and files.
-class Dependency(BaseModel):
-    dependency: str = Field(
-        description="Constant term in theorem dependent on external module"
-    )
-    src_file: str = Field(description="Source file of dependency")
-    src_content: str = Field(
-        description="source content (decl, def, proof, etc), just a few lines"
-    )
-    explicit: bool = Field(
-        description="Is dependency explicit in the pp form of the parent theorem"
-    )
-    direct: bool = Field(description="is dependency direct or unfolded")
-    kind: str = Field(
-        description="What type of object is the dependency (theorem, def,etc)"
-    )
 
 
 class AnnotatedTheorem(BaseModel):
@@ -288,85 +291,45 @@ def search_packages(module, project_path, package=None):
 # THIS WILL NOT FIND ANY BASE LEAN LIBRARY DEPENDENCIES
 def getDependencies(
     constants,
-    decl,
-    project_path,
+    declID,
     ignore_main=False,
-    max_lines=10,
-    end_at="\n\n",
-    max_dupes=3,
+    only_main=False,
 ):
-    def match(name):
-        return any(mod in decl for mod in name.split("."))
 
-    keywords = {
-        "theorem": ["theorem", "example", "lemma", "instance", "abbrev"],
-        "def": ["def"],
-        "axiom": ["axiom"],
-        "opaque": ["opaque"],
-        "quot": ["quot"],
-        "inductive": ["inductive"],
-        "constructor": ["constructor"],
-        "recursor": ["recursor"],
-    }  # maybe need to add more?
-    linked = [
-        obj
+    declIDs = {
+        f"{obj['module']}.{obj['range']['start']['line']}_{obj['range']['start']['column']}": obj
         for obj in constants
-        if obj["kind"] in keywords["theorem"] and match(obj["name"])
-    ]  # only link theorems
-    if len(linked) == 0:
+    }
+
+    main_module = ".".join(declID.split(".")[:-2])
+    declID = ".".join(declID.split(".")[:-1])
+
+    if declID not in declIDs.keys():
         return []
-    dependents = linked[0]["dependents"]
-    # list of the form [{'name','module','explicit'}]
-    output = []
-    for dependency in dependents:
-        name = dependency["name"]
-        module = dependency["module"]
-        explicit = dependency["explicit"]
-        direct = dependency["direct"]
-        kind = dependency["kind"]  # theorem, def, etc
 
-        file_content = None
-        if not ignore_main:
-            file_content = search_main(module, project_path)
-        if file_content is None:
-            file_content = search_packages(module, project_path)
-        if file_content is None:
-            file_content = ""
+    data = declIDs[declID]
+    dependencies_raw = data["dependents"]
+    output = [
+        Dependency(
+            dependency=dep["name"],
+            src_file=dep["module"],
+            src_content=dep["content"],
+            explicit=dep["explicit"],
+            direct=dep["direct"],
+            kind=dep["kind"],
+        )
+        for dep in dependencies_raw
+    ]
 
-        if name not in file_content:
-            pass
-        else:
-            lines = list(enumerate(file_content.splitlines()))
-            idxs = [
-                line
-                for line in lines
-                if name in line[1]
-                and any(keyword in line[1] for keyword in keywords[kind])
-            ]
-            if max_dupes is None:
-                max_dupes = len(idxs)
-            for idx in idxs[:max_dupes]:
-                first_idx = idx[0]
-                rest = [lines[i] for i in range(first_idx, len(lines))]
-                if max_lines is not None:
-                    rest = rest[:max_lines]
-                rest = [r[1] for r in rest]
-                content = "\n".join(rest)
-                if end_at is not None:
-                    definition_idx = content.find(end_at)
-                    if definition_idx != -1:
-                        content = content[:definition_idx]
+    if ignore_main:
+        output = [dep for dep in output if dep.src_file != main_module]
+    if only_main:
+        output = [
+            dep
+            for dep in output
+            if dep.src_file.split(".")[0] == main_module.split(".")[0]
+        ]
 
-                output.append(
-                    Dependency(
-                        dependency=name,
-                        src_file=module,
-                        src_content=content,
-                        explicit=explicit,
-                        kind=kind,
-                        direct=direct,
-                    )
-                )
     return output
 
 
@@ -425,7 +388,7 @@ def getTheorems(
         messages = getMessages(thm_start, thm_end, msgs, contents)
         messages.reverse()
 
-        dependencies = getDependencies(consts, decl, project_path)
+        dependencies = getDependencies(consts, declID)
 
         lines_src = step["srcUpToTactic"].split("\n")
         decl_lines = decl.split("\n")
@@ -865,7 +828,8 @@ def parseTheorem(thm, context=True, annotation=False, prompt=False):
         return parseTheoremBase(thm, context)
 
 
-def run_training_data(root_path, module_name):
+def run_training_data(root_path, project_path, module_name, rerun=None):
+    cwd = os.getcwd()
     os.chdir(root_path)
     cmd = f"lake exe training_data {module_name}"
     output = subprocess.run([cmd], shell=True, text=True, capture_output=True)
@@ -873,18 +837,57 @@ def run_training_data(root_path, module_name):
     if data_raw == "":
         raise KeyError(f"BAD DATA: {output}")
     data = json.loads(data_raw)
+    messages = [
+        message for message in data["messages"] if message["severity"] == "error"
+    ]
 
-    cmd2 = f"lake exe constants {module_name}"
-    output2 = subprocess.run([cmd2], shell=True, text=True, capture_output=True)
-    data_raw2 = output2.stdout
-    if data_raw2 == "":
+    if (
+        len(messages) != 0 or True
+    ):  # NOT NEEDED NOW AS DUE TO HOW SLOW + INEFFICIENT IT IS!
         data2 = {}
-        # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
     else:
-        data2 = json.loads(data_raw2)
+        cmd2 = f"lake exe constants {module_name}"
+        output2 = subprocess.run([cmd2], shell=True, text=True, capture_output=True)
+        data_raw2 = output2.stdout
+        if data_raw2 == "":
+            data2 = {}
+            if ".olean" and "does not exist" in output2.stderr:
+                if rerun is None:
+                    os.chdir(project_path)
+                    subprocess.run([f"lake build {module_name}"], shell=True, text=True)
+                    generated_stuff_stem = os.path.abspath(
+                        os.path.join(
+                            project_path,
+                            ".lake",
+                            "build",
+                            "lib",
+                            module_name.replace(".", "/"),
+                        )
+                    )
+                    directory = os.path.dirname(generated_stuff_stem)
+                    tfile = os.path.basename(generated_stuff_stem)
+                    files = [
+                        f
+                        for f in os.listdir(directory)
+                        if os.path.isfile(os.path.join(directory, f))
+                    ]
+                    files = [
+                        os.path.join(directory, f)
+                        for f in files
+                        if tfile in os.path.basename(f)
+                    ]
+                    print(module_name)
+                    print(files)
+                    os.chdir(cwd)
+                    return run_training_data(
+                        root_path, project_path, module_name, rerun=files
+                    )
+            # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
+        else:
+            data2 = json.loads(data_raw2)
     data["constants"] = data2
-
-    return data
+    os.chdir(cwd)
+    return (data, rerun)
 
 
 def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
@@ -907,10 +910,14 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     temp_relpath = os.path.relpath(temp.name, project_path)
 
     mod_name = get_stem(temp_relpath.replace("/", "."))
-    output_data = run_training_data(root_path, mod_name)
+    output_data, to_delete = run_training_data(root_path, project_path, mod_name)
+    if to_delete is not None:
+        for i in to_delete:
+            os.remove(i)
     # print(
     #     f"-----------------\n(s,e)=({og_thm_start}, {og_thm_end})\nOutput:\n{output_data}\n-----------------"
     # )
+
     thms = getTheorems(
         output_data, src, temp_relpath, project_path, text, until_end=True
     )
@@ -927,7 +934,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             messages=[getMessage(msg, text) for msg in output_data["messages"]],
             pretty_print=text,
             proof_tree=[],
-            dependencies=[],
+            dependencies=thm.dependencies,
         )
     else:
         output = thms[-1]
@@ -1026,7 +1033,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     messages=output.messages,
                     pretty_print=output.pretty_print,
                     proof_tree=output.proof_tree,
-                    dependencies=output.dependencies,
+                    dependencies=thm.dependencies,
                 )
 
                 if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
@@ -1040,6 +1047,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     f"input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{elim_pf}"
                 )
         output.proof = elim_pf
+        output.dependencies = thm.dependencies
         return output
 
 

@@ -213,28 +213,61 @@ def main (args : List String) : IO UInt32 := do
     let const_map := env.constants.map₁
     let mut output := []
     let module := modules[0]!
-    for (n, (d, u, kind)) in allConstants do
+    for (n, (d, _, kind)) in allConstants do
 
       let explicit := explicitConstants.find? n |>.getD ∅
 
-      let map_fn (m : Name) : CoreM Json := do
+      let map_fn (m : Name) : CoreM (Option Json):= do
         let src_module := env.getModuleFor? m |>.getD (Name.anonymous)
         let dep ← getDependencyData src_module m
-        return Json.mkObj [
+        if dep.isEmpty then return none
+        let range := dep.map (fun (r,_) =>
+          Json.mkObj [
+            ("start", Json.mkObj [
+                ("line", r.1.line),
+                ("column",r.1.column)
+              ]
+            ),
+            ("end", Json.mkObj [
+              ("line", r.2.line),
+              ("column",r.2.column)
+              ]
+            )]) |>.toArray[0]!
+          let content := dep.map (fun (_,s) => Json.str s) |>.toArray[0]!
+        return some (Json.mkObj [
           ("name", Json.str m.toString),
           ("module", Json.str src_module.toString),
           ("explicit", Json.bool (explicit.contains m)),
           ("direct", Json.bool (d.contains m)),
           ("kind", Json.str <| getKind const_map m),
-          ("content", Json.arr <| dep.map (fun (_,s) => Json.str s) |>.toArray)
-        ]
+          ("content", content),
+          ("range",range)
+        ])
 
-      let dependents ← (d++u).toList.mapM map_fn
+      let dependents ← (explicit).toList.filterMapM map_fn
+      let parent_data ← getDependencyData module n
+
+      let range := parent_data.map (fun (r,_) =>
+          Json.mkObj [
+            ("start", Json.mkObj [
+                ("line", r.1.line),
+                ("column",r.1.column)
+              ]
+            ),
+            ("end", Json.mkObj [
+              ("line", r.2.line),
+              ("column",r.2.column)
+              ]
+            )]) |>.toArray[0]!
+      let content := parent_data.map (fun (_,s) => Json.str s) |>.toArray[0]!
+
       let json := Json.mkObj [
         ("name", Json.str n.toString),
         ("dependents", Json.arr dependents.toArray),
         ("kind", Json.str kind), -- for now, useful for doing the matching step
-        ("content", Json.arr <| (←getDependencyData module n).map (fun (_,s) => Json.str s) |>.toArray)
+        ("content", content),
+        ("range",range),
+        ("module", Json.str module.toString),
       ]
       output := json::output
     let final := Json.arr output.toArray
