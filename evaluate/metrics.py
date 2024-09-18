@@ -248,10 +248,129 @@ def modularity_metric():
                    Rewrite the current theorem to be as modular as possible, in that it has as many have statements as possible that are reused often, and the proof tree is broad and not deep - while ensuring the output is still syntactically correct.""",
     )
 
-    examples = []
+    examples = [
+        {
+            "input": """theorem imp_trans {P Q R S : Prop} (h1 : P → Q) (h2 : Q → R) (h3 : R → S) : P → S := by
+  intro hp
+  apply h3
+  apply h2
+  apply h1
+  exact hp""",
+            "output": """theorem imp_trans {P Q R S : Prop} (h1 : P → Q) (h2 : Q → R) (h3 : R → S) : P → S := by
+intro hp
+have hr := by exact h2 (h1 hp)
+exact h3 hr""",
+        },
+        {
+            "input": """theorem inter_self {α : Type*} (s : Set α) : s ∩ s = s := by
+  ext x
+  constructor
+  . intro h
+    rcases h with ⟨hs,_⟩
+    exact hs
+  . intro h
+    constructor
+    . exact h
+    . exact h""",
+            "output": """theorem inter_self {α : Type*} (s : Set α) : s ∩ s = s := by
+  have fact: ∀x:α, x∈s∩ s → x∈s :=by
+    rintro x ⟨hs,_⟩
+    exact hs
+  ext x
+  constructor
+  . exact fact x
+  . intro hs
+    exact ⟨hs,hs⟩""",
+        },
+        {
+            "input": """example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
+  apply h3
+  apply h2
+  apply h1
+  apply h4""",
+            "output": """example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
+    exact h3 (h2 (h1 h4))""",
+        },
+        {
+            "input": """example (P Q :Prop): P ∨ Q → Q ∨ P := by
+  intro h
+  cases h with
+  | inl hp => exact Or.inr hp
+  | inr hq => exact Or.inl hq""",
+            "output": """example (P Q :Prop): P ∨ Q → Q ∨ P := by
+  rintro (hp | hq)
+  . exact Or.inr hp
+  . exact Or.inl hq""",
+        },
+        {
+            "input": """example (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  intro h nq p
+  exact nq (h p)""",
+            "output": """example (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  intro h nq
+  have nhq := by
+    exact not_or_of_imp h
+  rcases nhq with hnp | hq
+  . exact hnp
+  . exfalso
+    contradiction""",
+        },
+        {
+            "input": """example (P Q R: Prop) : (P → Q) ∧ (Q → R) → P → R := by
+  intro h p
+  rcases h with ⟨a,b⟩
+  apply b
+  apply a
+  exact p""",
+            "output": """example (P Q R: Prop): (P → Q) ∧ (Q → R) → P → R := by
+  rintro (⟨hpq,hqr⟩) hp
+  exact hqr (hpq hp)""",
+        },
+        {
+            "input": """example (P Q: Prop) (h : ¬ (P ∧ Q)) : P → ¬ Q := by
+  intro hp hq
+  apply h
+  exact ⟨hp,hq⟩""",
+            "output": """example (P Q: Prop) (h : ¬ (P ∧ Q)) : P → ¬ Q := by
+  intro p opp
+  have duh : P ∧ Q := by
+    constructor
+    exact p
+    exact opp
+  exact h duh""",
+        },
+        {
+            "input": """theorem contraposition (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  -- direct
+  intro h nq p
+  exact nq (h p)""",
+            "output": """theorem contraposition (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  -- logical equivalences
+  intro h nq
+  have nhq := not_or_of_imp h
+  rcases nhq with hnp | hq
+  . exact hnp
+  . exfalso
+    contradiction""",
+        },
+        {
+            "input": """theorem not_imp (P Q : Prop) : ¬ (P → Q) → P ∧ ¬ Q := by
+  intro h
+  push_neg at h
+  exact h""",
+            "output": """theorem not_imp (P Q : Prop) : ¬ (P → Q) → P ∧ ¬ Q := by
+  intro h
+  by_cases hp : P
+  . constructor
+    . exact hp
+    . intro hq
+      exact h (fun _ => hq)
+  . exact Classical.not_imp.mp h""",
+        },
+    ]
 
     return Metric(
-        "MODULARITY", [sys_prompt, user_prompt], examples, "MAX", score_fn=mod_fn
+        "MODULARITY", [sys_prompt, user_prompt], examples, "MIN", score_fn=mod_fn
     )
 
 

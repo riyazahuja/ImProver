@@ -831,67 +831,70 @@ def parseTheorem(thm, context=True, annotation=False, prompt=False):
 def run_training_data(root_path, project_path, module_name, rerun=None):
     cwd = os.getcwd()
     os.chdir(root_path)
-    cmd = f"lake exe training_data {module_name}"
+    # cmd = f"lake exe training_data {module_name}"
+    cmd = f".lake/build/bin/training_data {module_name}"
+    # print("running cmd")
     output = subprocess.run([cmd], shell=True, text=True, capture_output=True)
+
+    # print("done running cmd")
     data_raw = output.stdout
     if data_raw == "":
         raise KeyError(f"BAD DATA: {output}")
     data = json.loads(data_raw)
-    messages = [
-        message for message in data["messages"] if message["severity"] == "error"
-    ]
+    # messages = [
+    #     message for message in data["messages"] if message["severity"] == "error"
+    # ]
 
-    if (
-        len(messages) != 0 or True
-    ):  # NOT NEEDED NOW AS DUE TO HOW SLOW + INEFFICIENT IT IS!
-        data2 = {}
-    else:
-        cmd2 = f"lake exe constants {module_name}"
-        output2 = subprocess.run([cmd2], shell=True, text=True, capture_output=True)
-        data_raw2 = output2.stdout
-        if data_raw2 == "":
-            data2 = {}
-            if ".olean" and "does not exist" in output2.stderr:
-                if rerun is None:
-                    os.chdir(project_path)
-                    subprocess.run([f"lake build {module_name}"], shell=True, text=True)
-                    generated_stuff_stem = os.path.abspath(
-                        os.path.join(
-                            project_path,
-                            ".lake",
-                            "build",
-                            "lib",
-                            module_name.replace(".", "/"),
-                        )
-                    )
-                    directory = os.path.dirname(generated_stuff_stem)
-                    tfile = os.path.basename(generated_stuff_stem)
-                    files = [
-                        f
-                        for f in os.listdir(directory)
-                        if os.path.isfile(os.path.join(directory, f))
-                    ]
-                    files = [
-                        os.path.join(directory, f)
-                        for f in files
-                        if tfile in os.path.basename(f)
-                    ]
-                    print(module_name)
-                    print(files)
-                    os.chdir(cwd)
-                    return run_training_data(
-                        root_path, project_path, module_name, rerun=files
-                    )
-            # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
-        else:
-            data2 = json.loads(data_raw2)
-    data["constants"] = data2
+    # if (
+    #     len(messages) != 0 or True
+    # ):  # NOT NEEDED NOW AS DUE TO HOW SLOW + INEFFICIENT IT IS!
+    #     data2 = {}
+    # else:
+    #     cmd2 = f"lake exe constants {module_name}"
+    #     output2 = subprocess.run([cmd2], shell=True, text=True, capture_output=True)
+    #     data_raw2 = output2.stdout
+    #     if data_raw2 == "":
+    #         data2 = {}
+    #         if ".olean" and "does not exist" in output2.stderr:
+    #             if rerun is None:
+    #                 os.chdir(project_path)
+    #                 subprocess.run([f"lake build {module_name}"], shell=True, text=True)
+    #                 generated_stuff_stem = os.path.abspath(
+    #                     os.path.join(
+    #                         project_path,
+    #                         ".lake",
+    #                         "build",
+    #                         "lib",
+    #                         module_name.replace(".", "/"),
+    #                     )
+    #                 )
+    #                 directory = os.path.dirname(generated_stuff_stem)
+    #                 tfile = os.path.basename(generated_stuff_stem)
+    #                 files = [
+    #                     f
+    #                     for f in os.listdir(directory)
+    #                     if os.path.isfile(os.path.join(directory, f))
+    #                 ]
+    #                 files = [
+    #                     os.path.join(directory, f)
+    #                     for f in files
+    #                     if tfile in os.path.basename(f)
+    #                 ]
+    #                 print(module_name)
+    #                 print(files)
+    #                 os.chdir(cwd)
+    #                 return run_training_data(
+    #                     root_path, project_path, module_name, rerun=files
+    #                 )
+    #         # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
+    #     else:
+    #         data2 = json.loads(data_raw2)
+    data["constants"] = {}
     os.chdir(cwd)
     return (data, rerun)
 
 
 def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
-
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm)
@@ -910,7 +913,9 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     temp_relpath = os.path.relpath(temp.name, project_path)
 
     mod_name = get_stem(temp_relpath.replace("/", "."))
+    # print("running training_data")
     output_data, to_delete = run_training_data(root_path, project_path, mod_name)
+    # print("done running training_data")
     if to_delete is not None:
         for i in to_delete:
             os.remove(i)

@@ -235,13 +235,13 @@ def get_cost(obj, methods):
 
 
 if __name__ == "__main__":
-    repo = getRepo("Tests", "configs/config_test.json")
+    repo = getRepo("PFR", "configs/config_PFR.json")
     files = {file.file_path: file for file in repo.files}
-    # print(files.keys())
-    f = files["Tests/IMO/alphaproof/P1_seperated.lean"]
-    # f = files["Tests/tester.lean"]
+    # print([k for (k, v) in files.items() if type(v) == AnnotatedFile])
 
-    thms = f.theorems
+    fs = [files[k] for k in ["PFR/EntropyPFR.lean", "PFR/Fibring.lean"]]
+    # fs = []
+    # f = files["Tests/tester.lean"]
 
     # for dep in thm.dependencies:
     #     print(
@@ -252,25 +252,24 @@ if __name__ == "__main__":
 
     methods = get_methods(
         model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5), keep_best=True)],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
         n=[5],
         annotation=[True],
         examples=[10],
-        metric=[length_metric()],
+        metric=[modularity_metric()],
         syntax_search=[True],
         mathlib_search=[True],
         improved_context=[True],
     )
+    # print(len([t for f in fs for t in f.theorems]))
     data = []
-    for thm in thms:
-        data.extend(
-            benchmark_theorem(
-                thm,
-                methods,
-                show_progress=True,
-            )
-        )
-        save_to_csv(data, path=f"benchmark/data/test_new_context2.csv")
+    for f in fs:
+        # data.extend(benchmark_file(f, methods, show_progress=True, max_workers=4))
+        # save_to_csv(data, path=f"benchmark/data/PFR_new_context_rest.csv")
+
+        for thm in f.theorems:
+            data.extend(benchmark_theorem(thm, methods, show_progress=True))
+            save_to_csv(data, path=f"benchmark/data/PFR_new_context_rest2_min.csv")
 
 
 if __name__ == "__main2__":

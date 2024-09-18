@@ -85,12 +85,14 @@ The typical use case is to unfold `_auxLemma`s generated dynamically by the simp
 def allUsedConstants (moduleNames : Array Name) (unfolding : Name → Bool := isAuxLemma) :
     CoreM (NameMap (NameSet × NameSet × String)) := do
   let constantsMap := (← getEnv).constants.map₁
+  --let constantsMap := constantsMap.toList.filter (fun (n,c) => n.toString.containsSubstr "PFR")
   let const2ModIdx := (← getEnv).const2ModIdx
   let moduleIdxs := moduleNames.filterMap (← getEnv).getModuleIdx?
   --let sIdx := const2ModIdx.toList.map (fun x=> toString x)
   --IO.println sIdx
   let mut result : NameMap (NameSet × NameSet × String) := ∅
   for (n, c) in constantsMap do
+    if !(n.toString.containsSubstr "PFR") then continue
     -- We omit all internally generated auxiliary statements.
     -- We restrict to declarations in the module
     if let some modIdx := const2ModIdx.find? n then
@@ -171,7 +173,7 @@ def findCommandInfo (t : InfoTree) : List (CommandInfo × ContextInfo) :=
 def getRanges (tree : InfoTree) : IO (List (Range × CommandInfo)) := do
     let infos := findCommandInfo tree
     let mut out := []
-    for ⟨cmdInfo, ctxInfo⟩ in infos do
+    for (cmdInfo, ctxInfo) in infos do
       if cmdInfo.elaborator = "Lean.Elab.Command.elabDeclaration".toName then
         out := (FileMap.stxRange ctxInfo.fileMap cmdInfo.stx, cmdInfo) :: out
     return out
@@ -196,7 +198,6 @@ def getDependencyData (module : Name) (name : Name) : IO (List (Range × String)
     return outputs
   catch _ =>
     return []
-
 
 
 def main (args : List String) : IO UInt32 := do

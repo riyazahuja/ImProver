@@ -144,8 +144,9 @@ def prompt_raw(
         {dep.src_content}
     </MODULE_CONTEXT>"""
 
+    num_contexts = 10
+
     def get_module_context(data):
-        curr_thm = data["theorem"]
         if not improved_context:
             return []
 
@@ -174,7 +175,7 @@ def prompt_raw(
         #         return found[0]
 
         explicit.sort(key=key_it)
-        return [("human", x[0]) for x in explicit + nonexplicit]
+        return [("human", x[0]) for x in (explicit + nonexplicit)[:num_contexts]]
 
     def get_syntax(data):
         if not syntax_search:
@@ -628,18 +629,19 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                     for i in range(n)
                 ]
                 stt = time.time()
-                for future in futures:
-                    output = future.result()
-                    correct, _, _ = eval_correctness(output)
-                    thms.append((output, correct))
+                # for future in futures:
+                #     output = future.result()
+                #     # print("Output completed")
+                #     correct, _, _ = eval_correctness(output)
+                #     thms.append((output, correct))
 
-                # with ProcessPoolExecutor(max_workers=min(max_cpus, n)) as proc_executor:
-                #     proc_futures = [
-                #         proc_executor.submit(process_one, future.result())
-                #         for future in futures
-                #     ]
+                with ProcessPoolExecutor(max_workers=min(max_cpus, n)) as proc_executor:
+                    proc_futures = [
+                        proc_executor.submit(process_one, future.result())
+                        for future in futures
+                    ]
 
-                # thms = [pf.result() for pf in proc_futures]
+                thms = [pf.result() for pf in proc_futures]
 
                 if log_req_info:
                     print(f"Evaluation competed in {time.time()-stt}s")
