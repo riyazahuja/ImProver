@@ -286,6 +286,17 @@ if __name__ == "__main2__":
     #     mathlib_search=[True],
     # )
 
+    methods = get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        n=[5],
+        annotation=[True],
+        examples=[10],
+        metric=[length_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
+
     repo = getRepo("PFR", "configs/config_PFR.json")
     files = {file.file_path: file for file in repo.files}
 

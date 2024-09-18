@@ -25,6 +25,17 @@ open Lean Elab IO Meta
 
     @@ -23,7 +24,7 @@ def addToMap (map : DeclIdMap) (declId : String) (jsonObj : Json) : DeclIdMap :=
 
+
+
+
+
+
+
+
+        Expand All
+
+    @@ -23,7 +24,7 @@ def addToMap (map : DeclIdMap) (declId : String) (jsonObj : Json) : DeclIdMap :=
+
 open Cli System
 def DeclIdMap := HashMap String (List Json)
 def addToMap (map : DeclIdMap) (declId : String) (jsonObj : Json) : DeclIdMap :=
@@ -35,8 +46,26 @@ def addToMap (map : DeclIdMap) (declId : String) (jsonObj : Json) : DeclIdMap :=
 def groupByDecl (idJsons : List (String × Json)) : IO DeclIdMap := do
   let mut map : DeclIdMap := HashMap.empty
   for (declId, json) in idJsons do
+  for (declId, json) in idJsons do
     map := addToMap map declId json
   return map
+
+
+
+
+
+
+
+
+          Expand Down
+
+
+
+
+
+          Expand Up
+
+    @@ -57,7 +58,7 @@ def getElabDeclInfo (trees : List InfoTree) : IO (List ElabDeclInfo) := do
 
 
 
@@ -110,6 +139,17 @@ def makeElabDeclId (info: ElabDeclInfo) (module: Name) (hash: String) : String :
   let y := info.fst.fst.column
   let declId := s!"{module}.{x}_{y}.{hash}"
   declId
+
+
+
+
+
+
+
+
+          Expand Down
+
+
 
 
 
