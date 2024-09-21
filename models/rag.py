@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from models.structures import *
+import os
 
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
