@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import argparse
 
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
@@ -592,3 +593,31 @@ if __name__ == "__main__":
         )
 
         print(f"{thm.decl}\n {score}\n=========")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Get metric")
+    # Required positional argument
+    parser.add_argument(
+        "name",
+        type=str,
+        help='metric_name, such as "length_metric", "modularity_metric", etc.',
+    )
+
+    args = parser.parse_args()
+
+    metrics = {
+        function.__name__: function()
+        for function in [
+            length_metric,
+            modularity_metric,
+            similarity_metric,
+            completion_metric,
+        ]
+    }
+
+    print("Argument values:")
+    print(args.name)
+    print(args.opt_pos_arg)
+    print(args.opt_arg)
+    print(args.switch)

@@ -6,3 +6,4 @@ import TrainingData.InfoTree.TacticInvocation.Basic
 import TrainingData.Utils.Range
 
 import TrainingData.TreeParser
+import scripts.training_data
