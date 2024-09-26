@@ -234,6 +234,32 @@ def modularity_metric():
         G, _, _ = getProofTree(thm)
         return calculate_modularity(G)
 
+    def count_haves(thm):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm, force=True)
+        pf = [tac.tactic for tac in thm.proof]
+        return sum(1 for tactic in pf if tactic.strip().startswith("have"))
+
+    def branching_factor(thm):
+        if type(thm) == Theorem:
+            thm = annotateTheorem(thm, force=True)
+        G, _, _ = getProofTree(thm)
+        non_leaf_nodes = [node for node in G.nodes if G.degree[node] > 1]
+
+        # If there are no non-leaf nodes, return 0
+        if len(non_leaf_nodes) == 0:
+            return 0
+
+        # Calculate the sum of degrees (branching factor) for non-leaf nodes
+        total_branching = sum(
+            G.degree[node] - 1 for node in non_leaf_nodes
+        )  # Subtract 1 to exclude the parent link
+
+        # Calculate the average branching factor
+        average_branching = total_branching / len(non_leaf_nodes)
+
+        return average_branching
+
     sys_prompt = (
         "system",
         """You are an AI assistant who rewrites Lean 4 proofs to be more modular while ensuring their correctness. 
@@ -248,10 +274,172 @@ def modularity_metric():
                    Rewrite the current theorem to be as modular as possible, in that it has as many have statements as possible that are reused often, and the proof tree is broad and not deep - while ensuring the output is still syntactically correct.""",
     )
 
-    examples = []
+    examples = [
+        {
+            "input": """
+example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
+  apply h3
+  apply h2
+  apply h1
+  apply h4
+""",
+            "output": """
+example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P) : S := by
+  apply h3
+  apply h2
+  have bar := by
+    apply h1
+    apply h4
+  exact bar
+""",
+        },
+        {
+            "input": """
+example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P) : S := by
+  have h1' := by exact h1
+  have h2' := by exact h2
+  have h3' := by exact h3
+  have h4' := by exact h4
+
+  apply h3'
+  apply h2'
+  apply h1'
+  apply h4'
+""",
+            "output": """
+example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P) : S := by
+  exact h3 (h2 (h1 h4))
+""",
+        },
+        {
+            "input": """
+example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P)  : S := by
+  have all := by
+    apply h3
+    apply h2
+    apply h1
+    apply h4
+  exact all
+""",
+            "output": """
+example (P Q R S : Prop) (h1 : P → Q) (h2 : Q → R) (h3 : R → S) (h4 : P) : S := by
+  exact h3 (h2 (h1 h4))
+""",
+        },
+        {
+            "input": """
+example (P Q :Prop): P ∨ Q → Q ∨ P := by
+  intro h
+  cases h with
+  | inl hp => exact Or.inr hp
+  | inr hq => exact Or.inl hq
+""",
+            "output": """
+example (P Q :Prop): P ∨ Q → Q ∨ P := by
+  rintro (hp | hq)
+  . exact Or.inr hp
+  . exact Or.inl hq
+""",
+        },
+        {
+            "input": """
+example (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  intro h nq
+  have nhq := by
+    exact not_or_of_imp h
+  rcases nhq with hnp | hq
+  . exact hnp
+  . exfalso
+    contradiction
+""",
+            "output": """
+example (P Q : Prop) : (P → Q) → (¬ Q → ¬ P) := by
+  intro h nq p
+  exact nq (h p)
+""",
+        },
+        {
+            "input": """
+example : (P → Q) ∧ (Q → R) → P → R := by
+  intro h p
+  rcases h with ⟨a,b⟩
+  apply b
+  apply a
+  exact p
+""",
+            "output": """
+example : (P → Q) ∧ (Q → R) → P → R := by
+  rintro (⟨hpq,hqr⟩) hp
+  exact hqr (hpq hp)
+""",
+        },
+        {
+            "input": """
+example (h : P → Q) (h1 : P ∧ R) : Q ∧ R := by
+  rcases h1 with ⟨p,r⟩
+  constructor
+  exact h p
+  exact r
+""",
+            "output": """
+example (h : P → Q) (h1 : P ∧ R) : Q ∧ R := by
+  exact And.imp_left h h1
+""",
+        },
+        {
+            "input": """
+example (h1 : P ∨ Q → R) : (P → R) ∧ (Q → R) := by
+  constructor
+  intro p
+  have duh : P ∨ Q := by
+    left
+    exact p
+  exact h1 duh
+  intro q
+  have duh : P ∨ Q := by
+    right
+    exact q
+  exact h1 duh
+""",
+            "output": """
+example (h1 : P ∨ Q → R) : (P → R) ∧ (Q → R) := by
+  constructor
+  . intro p
+    exact h1 (Or.inl p)
+  . intro q
+    exact h1 (Or.inr q)
+""",
+        },
+        {
+            "input": """
+example (h : ¬ (P ∧ Q)) : ¬ P ∨ ¬ Q := by
+  have hmm : P → ¬ Q := by
+    intro p opp
+    have duh : P ∧ Q := by
+      constructor
+      exact p
+      exact opp
+    exact h duh
+  by_cases duh:P
+  right
+  exact hmm duh
+  left
+  exact duh
+""",
+            "output": """
+example (h : ¬ (P ∧ Q)) : ¬ P ∨ ¬ Q := by
+  push_neg at h
+  exact not_or_of_imp h
+""",
+        },
+    ]
 
     return Metric(
-        "MODULARITY", [sys_prompt, user_prompt], examples, "MAX", score_fn=mod_fn
+        "MODULARITY",
+        [sys_prompt, user_prompt],
+        examples,
+        "MAX",
+        score_fn=branching_factor,
     )
 
 
