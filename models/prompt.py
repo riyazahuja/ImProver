@@ -32,6 +32,7 @@ from tenacity import (
     before_sleep_log,
     retry,
     wait_random_exponential,
+    stop_after_attempt,
 )
 
 
@@ -223,6 +224,7 @@ def prompt_raw(
         before_sleep=before_sleep_log(logger, logging.INFO) if log_req_info else None,
         after=after_log(logger, logging.INFO) if log_req_info else None,
         wait=wait_random_exponential(multiplier=1, max=60),
+        stop=stop_after_attempt(8),
     )
     def invoke_throttled(chain, config):
         return chain.invoke(config)

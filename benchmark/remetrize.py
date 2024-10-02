@@ -19,39 +19,39 @@ def remetrize_mod(text: str):
     tactics = [t for t in tactics if t != ""]
 
     indent = "  "
-    have_idxs = [i for i, tac in enumerate(tactics) if tac.startswith(indent + "have")]
+    have_idxs = [
+        i
+        for i, tac in enumerate(tactics)
+        if tac.startswith(indent) and tac.strip().startswith("have")
+    ]
     have_groups = []
     for i in have_idxs:
-        end_decl = [
-            k
-            for k in range(i, len(tactics))
-            if re.search(r":=\s*by", tactics[k]) is not None
-        ]
+        end_decl = [k for k in range(i, len(tactics)) if ":" in tactics[k]]
         if len(end_decl) == 0:
             continue
         end_decl = end_decl[0]
 
-        end = end_decl
-        for j in range(end_decl + 1, len(tactics)):
-            if tactics[j].startswith(indent + indent):
-                end += 1
-            else:
-                break
-        have_groups.append((i, end_decl, end))  # inclusive
+        end_end_decl = [k for k in range(i, len(tactics)) if ":=" in tactics[k]]
+        if len(end_end_decl) == 0:
+            continue
+        end_end_decl = end_end_decl[0]
+
+        have_groups.append((i, end_end_decl))  # inclusive
 
     if len(have_groups) == 0:
-        return len(tactics)
+        return 0  # len(tactics)
 
-    def get_semis(end_decl, end):
-        return sum(tactics[i].count(";") for i in range(end_decl + 1, end)) - sum(
-            tactics[i].count("<;>") for i in range(end_decl + 1, end)
-        )
+    # def get_semis(end_decl, end):
+    #     return sum(tactics[i].count(";") for i in range(end_decl + 1, end)) - sum(
+    #         tactics[i].count("<;>") for i in range(end_decl + 1, end)
+    #     )
 
-    have_grp_max = max([b - end + get_semis(end, b) for a, end, b in have_groups])
-    have_grp_total = sum([b - a for a, end, b in have_groups])
-    rest = len(tactics) - have_grp_total
+    # have_grp_max = max([b - end + get_semis(end, b) for a, end, b in have_groups])
+    # print(have_groups)
+    have_grp_total = sum([b - a + 1 for a, b in have_groups])
+    rest = have_grp_total / len(tactics)
 
-    score = rest + have_grp_max
+    score = rest
     return score
 
 
@@ -72,7 +72,11 @@ def remetrize_mod(text: str):
     tactics = [t for t in tactics if t != ""]
 
     indent = "  "
-    have_idxs = [i for i, tac in enumerate(tactics) if tac.startswith(indent + "have")]
+    have_idxs = [
+        i
+        for i, tac in enumerate(tactics)
+        if tac.startswith(indent) and tac.strip().startswith("have")
+    ]
     have_groups = []
     for i in have_idxs:
         end_decl = [
@@ -95,6 +99,7 @@ def remetrize_mod(text: str):
     #     )
 
     # have_grp_max = max([b - end + get_semis(end, b) for a, end, b in have_groups])
+    # print(have_groups)
     have_grp_total = sum([b - a + 1 for a, b in have_groups])
     rest = have_grp_total / len(tactics)
 
@@ -103,8 +108,8 @@ def remetrize_mod(text: str):
 
 
 # Load the csv file
-file_path = "benchmark/data/MAI/old_mod/Mathlib_baseline.csv"  # Placeholder for actual file path
-output_path = "benchmark/data/MAI/better_mod/Mathlib_baseline.csv"
+file_path = "benchmark/data/MAI/modularity_annotation_ablation2.csv"  # Placeholder for actual file path
+output_path = "benchmark/data/MAI/better_mod/modularity_annotation_ablation2.csv"
 
 df = pd.read_csv(file_path)
 

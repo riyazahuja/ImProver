@@ -153,7 +153,7 @@ def save_to_csv(data, path="data.csv"):
 def get_methods(
     fn=[prompt_structured],
     metric=[length_metric()],
-    annotation=[True],
+    annotation=[False],
     model=["gpt-4-turbo"],
     n=[1],
     syntax_search=[False],
@@ -221,7 +221,7 @@ def get_cost(obj, methods):
     return sum(future.result() for future in futures)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__2":
 
     # methods = get_methods(
     #     model=["gpt-4o"],
@@ -298,7 +298,7 @@ if __name__ == "__main__":
 
     print(parseTheorem(thm, annotation=False, context=False))
 
-if __name__ == "__main__2":
+if __name__ == "__main__":
 
     # methods = get_methods(
     #     model=["gpt-4o"],
@@ -315,16 +315,16 @@ if __name__ == "__main__2":
         model=["gpt-4o"],
         fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
         n=[5],
-        annotation=[True],
+        annotation=[True, False],
         examples=[10],
-        metric=[completion_metric()],
+        metric=[modularity_metric()],
         syntax_search=[True],
         mathlib_search=[True],
     )
     methods = get_methods(
         model=["gpt-4o"],
         fn=[prompt_basic],
-        metric=[completion_metric()],
+        metric=[modularity_metric()],
     )
 
     repo = getRepo("Tests", "configs/config_MIL.json")
@@ -365,11 +365,16 @@ if __name__ == "__main__2":
     fs = [
         files[name]
         for name in files.keys()
-        if ("C04" in name) and ("S01" in name) and ("Solutions" not in name)
+        if ("C04" in name or "C05" in name or "C03" in name)
+        and ("S01" in name)
+        and ("Solutions" in name)
     ]
 
-    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
-    thms = [thm for f in fs for thm in f.theorems if not no_errors([thm])]
+    fs = [
+        f
+        for f in fs
+        if type(f) == AnnotatedFile and len(f.theorems) != 0 and no_errors(f.theorems)
+    ]
     # thms = [(f, f.theorems) for f in fs]
     # outs = []
     # for f, ts in thms:
@@ -398,17 +403,18 @@ if __name__ == "__main__2":
     # for t in thms:
     #     data.extend(benchmark_theorem(t, methods, max_workers=1, show_progress=True))
     #     save_to_csv(data, path=f"benchmark/data/MAI/MIL_mini.csv")
-    print(len(thms))
-    for t in thms:
+    for f in fs:
         data.extend(
-            benchmark_theorem(
-                t,
+            benchmark_file(
+                f,
                 methods,
-                max_workers=5,
+                max_workers=6,
                 show_progress=True,
             )
         )
-        save_to_csv(data, path=f"benchmark/data/MAI/Completion_baseline2.csv")
+        save_to_csv(
+            data, path=f"benchmark/data/MAI/modularity_annotation_ablation2.csv"
+        )
     # data = []
     # for f in fs:
     #     for t in f.theorems:
