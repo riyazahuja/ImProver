@@ -1,9 +1,9 @@
-# ImProof: Agent-Based Automated Proof Optimization
+# ImProver: Agent-Based Automated Proof Optimization
 
 ## Overview
-ImProof is a language model-powered AI agent for proof rewriting tasks, built around a general-purpose neural theorem proving framework. It allows for arbitrary Lean 4 code to be optimized for an arbitrary metric, enabling users to automatically optimize their formal proofs by providing a lambda and prompt. ImProof leverages advanced techniques in Lean metaprogramming, machine learning, and formal methods to deliver optimized proofs that meet user-defined criteria.
+ImProver is a LLM-powered AI agent for proof rewriting tasks, built around a general-purpose neural theorem proving framework. It allows for arbitrary Lean 4 code to be optimized for an arbitrary metric, enabling users to automatically optimize their formal proofs by providing a lambda and prompt. ImProver leverages advanced techniques in Lean metaprogramming, machine learning, and formal methods to deliver optimized proofs that meet user-defined criteria.
 
-ImProof automates the process of optimizing Lean 4 proofs through the following steps:
+ImProver automates the process of optimizing Lean 4 proofs through the following steps:
 1. **Configuration and Setup**: Define configuration files specifying Lean projects.
 2. **Building Process**: Use Lean metaprogramming to generate proof data and cache it in JSON format.
 3. **Prompt Generation**: Construct prompts using templates refined with theorem and metric data.
@@ -35,6 +35,7 @@ root/
 ## Key Files
 - **scripts/build.py**: Build environment and cache
 - **benchmark/tools.py**: Run benchmarks with file-specified configuration.
+- **benchmark/extract.py**: Run experimental measurements over benchmarking data.
 - **models/prompt.py**: All prompting chains
 - **models/rag.py**: All RAG code
 - **models/structures.py**: All objects and datastructures
@@ -69,9 +70,8 @@ Configuration files specify the details of the Lean projects to be built. They a
 ImProof comes with several preinstalled metrics for evaluating proofs:
 
 - **Length Metric**: Measures the length of the proof in terms of the number of steps.
-- **Modularity Metric**: Evaluates the degree of modularity by analyzing the proof tree for reusable, independent subproofs.
-- **Readability Metric**: Assesses the readability of the proof by evaluating the average length of lines/tactics and modularity.
-- **Similarity Metric**: Measures the structural and syntactic differences between two proofs.
+- **Readability Metric**: Evaluates the degree of modularity by analyzing the proof tree for reusable, independent subproofs.
+- **Similarity Metric**: Measures the structural and syntactic differences between two proofs. (Not used in ICLR)
 - **Completion Metric**: Measures the completeness of a proof by evaluating the number of errors present. This is essentially used for full proof generation
 ### Adding Custom Metrics
 To add a new metric, create an instance of the `Metric` class by defining the following parameters:
@@ -97,17 +97,10 @@ Metric(name="Metric Name",
    - `python benchmark/tools.py`
 
 ## Acknowledgements
-We would like to thank Kim Morrison for the [Training Data repository](https://github.com/semorrison/lean-training-data) and Sean Welleck for the [Neural Theorem Proving (NTP) toolkit repository](https://github.com/cmu-l3/ntp-toolkit), which served as foundational resources for this project. Additionally, we would like to thank the Paperproof team for the [Paperproof repository](https://github.com/Paper-Proof/paperproof), which paved the way for our own prooftree generation and analysis system. We also greatly appreciate the support and guidance from the Hoskinson Center for Formal Mathematics at Carnegie Mellon University.
+We would like to thank Kim Morrison for the [Training Data repository](https://github.com/semorrison/lean-training-data) and Sean Welleck for the [Neural Theorem Proving (NTP) toolkit repository](https://github.com/cmu-l3/ntp-toolkit), which served as foundational resources for this project. Additionally, we would like to thank the Paperproof team for the [Paperproof repository](https://github.com/Paper-Proof/paperproof), which paved the way for our own prooftree generation and analysis system.
 
 ## Contributing
 We welcome contributions from the community. If you have suggestions, bug reports, or want to contribute code, please open an issue or submit a pull request.
 
 ## License
 This project is licensed under the MIT License.
-
-## Contact
-For any questions or inquiries, please contact:
-- Riyaz Ahuja: [riyaza@andrew.cmu.edu](mailto:riyaza@andrew.cmu.edu)
-- Jeremy Avigad: [avigad@cmu.edu](mailto:avigad@cmu.edu)
-- Prasad Tetali: [ptetali@cmu.edu](mailto:ptetali@cmu.edu)
-- Sean Welleck: [swelleck@andrew.cmu.edu](mailto:swelleck@andrew.cmu.edu)

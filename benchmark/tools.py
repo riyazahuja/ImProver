@@ -154,7 +154,7 @@ def save_to_csv(data, path="data.csv"):
 def get_methods(
     fn=[prompt_structured],
     metric=[length_metric()],
-    annotation=[True],
+    annotation=[False],
     model=["gpt-4-turbo"],
     n=[1],
     syntax_search=[False],
@@ -190,6 +190,27 @@ def get_methods(
         )
         for i in prod
     ]
+
+
+def baseline(*metrics):
+    return get_methods(
+        model=["gpt-4o"],
+        fn=[prompt_basic],
+        metric=metric,
+    )
+
+
+def improver(*metrics):
+    return get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        n=[5],
+        annotation=[True],
+        examples=[10],
+        metric=metrics,
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
 
 
 def get_cost(obj, methods):
@@ -234,6 +255,84 @@ def get_cost(obj, methods):
     return sum(future.result() for future in futures)
 
 
+def no_errors(thms):
+    msgs = []
+    for thm in thms:
+        msgs.extend(thm.messages)
+    errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
+        1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
+    )
+    return errors == 0
+
+
+if __name__ == "__main__2":
+
+    # methods = get_methods(
+    #     model=["gpt-4o"],
+    #     fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
+    #     n=[3],
+    #     annotation=[True],
+    #     examples=[10],
+    #     metric=[length_metric()],
+    #     syntax_search=[True],
+    #     mathlib_search=[True],
+    # )
+
+    methods = get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        n=[5],
+        annotation=[True],
+        examples=[10],
+        metric=[completion_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
+    methods = get_methods(
+        model=["gpt-4o"],
+        fn=[prompt_basic],
+        metric=[completion_metric()],
+    )
+
+    repo = getRepo("Tests", "configs/config_MIL.json")
+    files = {file.file_path: file for file in repo.files}
+
+    # fs = [
+    #     files[name]
+    #     for name in files.keys()
+    #     if (
+    #         ("Imo" in name or "Usa" in name)
+    #         and (
+    #             # "2014" in name
+    #             # or "2015" in name
+    #             "2016" in name
+    #             or "2017" in name
+    #             or "2018" in name
+    #             or "2019" in name
+    #             or "2020" in name
+    #             or "2021" in name
+    #             or "2022" in name
+    #             or "2023" in name
+    #             or "2024" in name
+    #         )
+    #         and "Compfiles/Imo2019P2.lean" not in name
+    #         and "Compfiles/Imo2017P2.lean" not in name
+    #     )
+    # ]  # if ("Solutions" in name)]
+    # fs = [files[name] for name in files.keys() if ("Compfiles/Imo2019P4.lean" in name)]
+    fs = [
+        files[name]
+        for name in files.keys()
+        if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
+    ]
+
+    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
+    thm = fs[0].theorems[0]
+
+    print(parseTheorem(thm, annotation=True, context=False))
+
+    print(parseTheorem(thm, annotation=False, context=False))
+
 if __name__ == "__main__":
     repo = getRepo("Tests", "configs/config_test.json")
     files = {file.file_path: file for file in repo.files}
@@ -256,37 +355,18 @@ if __name__ == "__main__":
         n=[5],
         annotation=[True],
         examples=[10],
-        metric=[length_metric()],
+        metric=[completion_metric()],
         syntax_search=[True],
         mathlib_search=[True],
         improved_context=[True],
     )
-    data = []
-    for thm in thms:
-        data.extend(
-            benchmark_theorem(
-                thm,
-                methods,
-                show_progress=True,
-            )
-        )
-        save_to_csv(data, path=f"benchmark/data/test_new_context2.csv")
-
-
-if __name__ == "__main2__":
-
     # methods = get_methods(
     #     model=["gpt-4o"],
-    #     fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
-    #     n=[5],
-    #     annotation=[True],
-    #     examples=[10],
-    #     metric=[length_metric()],
-    #     syntax_search=[True],
-    #     mathlib_search=[True],
+    #     fn=[prompt_basic],
+    #     metric=[modularity_metric()],
     # )
 
-    repo = getRepo("compfiles", "configs/config_comp.json")
+    repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
 
     def no_errors(thms):
@@ -298,39 +378,94 @@ if __name__ == "__main2__":
         )
         return errors == 0
 
+    # fs = [
+    #     files[name]
+    #     for name in files.keys()
+    #     if (
+    #         ("Imo" in name or "Usa" in name)
+    #         and (
+    #             # "2014" in name
+    #             # or "2015" in name
+    #             "2016" in name
+    #             or "2017" in name
+    #             or "2018" in name
+    #             or "2019" in name
+    #             or "2020" in name
+    #             or "2021" in name
+    #             or "2022" in name
+    #             or "2023" in name
+    #             or "2024" in name
+    #         )
+    #         and "Compfiles/Imo2019P2.lean" not in name
+    #         and "Compfiles/Imo2017P2.lean" not in name
+    #     )
+    # ]  # if ("Solutions" in name)]
+    # fs = [files[name] for name in files.keys() if ("Compfiles/Imo2019P4.lean" in name)]
     fs = [
-        files[name] for name in files.keys() if ("Imo" in name or "Usa" in name)
-    ]  # if ("Solutions" in name)]
+        files[name]
+        for name in files.keys()
+        if ("C04" in name) and ("S01" in name) and ("Solutions" not in name)
+    ]
+
     fs = [
         f
         for f in fs
-        if type(f) == AnnotatedFile and len(f.theorems) != 0 and no_errors(f.theorems)
+        if type(f) == AnnotatedFile
+        and len(f.theorems) != 0
+        and not no_errors(f.theorems)
     ]
+    # thms = [(f, f.theorems) for f in fs]
+    # outs = []
+    # for f, ts in thms:
+    #     outs.append((f, [i for i in ts if len(i.proof) > 0]))
 
-    # fs = [fs[i] for i in range(len(fs)) if i % 2 != 0]
-    # for f in fs:
+    # for f, t in outs:
     #     print(f"==============")
     #     print(f"{f.file_path}:")
-    #     print(f"\tNum_theorems: {len(f.theorems)}")
-    #     print(f"\tNum instances: {len(f.theorems)*len(methods)}")
+    #     print(f"\tNum_theorems: {len(t)}")
+    #     print(f"\tavg pf len: {np.average([len(p.proof) for p in t])}")
+    #     print(f"\tNum instances: {len(t)*len(methods)}")
     #     print("===================")
 
-    # print([f.file_path for f in fs])
+    print([f.file_path for f in fs])
+    print(sum(len(f.theorems) for f in fs))
+    thms = []
+    for f in fs:
+        thms.extend(f.theorems)
+    thms = thms[:13]
+    # print(sum(1 for f in fs for t in f.theorems if len(t.proof) > 1))
+    # thms = [t for f in fs for t in f.theorems if len(t.proof) > 1]
 
-    cost = sum(get_cost(f, methods) for f in fs)
-    # cost = get_cost(f, methods)
-    print(f"${cost}")
-    print(len(fs))
+    # cost = sum(get_cost(f, methods) for f in fs)
+    # # cost = get_cost(f, methods)
+    # print(f"${cost}")
+    # print(len(fs))
     # start = 0
     # curr = 0
+
+    data = []
+    # for t in thms:
+    #     data.extend(benchmark_theorem(t, methods, max_workers=1, show_progress=True))
+    #     save_to_csv(data, path=f"benchmark/data/MAI/MIL_mini.csv")
+    for t in thms:
+        data.extend(
+            benchmark_theorem(
+                t,
+                methods,
+                max_workers=1,
+                show_progress=True,
+            )
+        )
+        save_to_csv(data, path=f"benchmark/data/testsss.csv")
     # data = []
     # for f in fs:
-    #     data.extend(
-    #         benchmark_file(
-    #             f,
-    #             methods,
-    #             max_workers=5,
-    #             show_progress=True,
+    #     for t in f.theorems:
+    #         data.extend(
+    #             benchmark_theorem(
+    #                 t,
+    #                 methods,
+    #                 max_workers=1,
+    #                 show_progress=True,
+    #             )
     #         )
-    #     )
-    #     save_to_csv(data, path=f"benchmark/data/alphaproof/basic2.csv")
+    #         save_to_csv(data, path=f"benchmark/data/MAI/Mathlib_len.csv")

@@ -8,8 +8,9 @@ import subprocess
 from textwrap import indent
 import re
 
-# NOTE position encodings have top left as line 1, column 0
-# -> we restandardize to line 1 column 1. makes more sense that way
+"""
+This is the important file: Describes all datastructures that we will use, as well as how to coerce between them and interact with the cache
+"""
 
 
 class ProofStep(BaseModel):
@@ -755,33 +756,6 @@ def elim_overlap(pf: List[AnnotatedProofStep]):
     return output
 
 
-# def annotate(step: AnnotatedProofStep, prev_goal=False):
-#     prev = step.prevState
-#     tactic = step.tactic
-#     next = step.nextState
-
-#     def pp_state(state):
-#         if state == []:
-#             return "No Goals Left!"
-#         return "\n".join(state)
-
-#     prev_text = f"""
-# /-
-# {pp_state(prev)}
-# -/
-# """
-#     text = f"""
-# {tactic}
-# /-
-# {pp_state(next)}
-# -/
-# """
-#     if prev_goal:
-#         return indent(prev_text + text, "  ", lambda x: True)
-#     else:
-#         return indent(text, "  ", lambda x: True)
-
-
 def parse_proof(thm, indent=1, dot=False):
     output = ""
     spaces = "  "
@@ -1008,19 +982,6 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     get_empty_annotated_proof_step(i) if i >= first else elim_pf[i]
                     for i in range(len(og_proof))
                 ]
-
-                # if len(output.messages) == 0:
-                #     msgs = [
-                #         Message(
-                #             severity="error",
-                #             start=(None, None),
-                #             end=(None, None),
-                #             message_src=elim_pf[first - 1].tactic,
-                #             content="UNKNOWN",
-                #         )
-                #     ]
-                # else:
-                #     msgs = output.messages
 
                 final = AnnotatedTheorem(
                     decl=output.decl,

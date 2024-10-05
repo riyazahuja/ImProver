@@ -20,6 +20,8 @@ import json
 
 # Function to filter the dataframe based on specified parameters
 def filter_data(df, **kwargs):
+    if len(list(kwargs.keys())) == 0:
+        return df
     valid = [
         "method",
         "n",
@@ -465,10 +467,52 @@ def plot_combined_chart(data_dict, minimax="MAX"):
     plt.show()
 
 
+if __name__ == "__main__3":
+
+    file_path = lambda x: (
+        f"benchmark/data/MAI/{x}.csv",
+        f"benchmark/data/MAI/{x}_baseline.csv",
+    )
+    minimax = "MIN"
+    method = "Length"
+    neg = 1 if minimax == "MAX" else -1
+
+    x = "better_mod/modularity_annotation_ablation"
+    file_path = file_path(x)
+
+    basic_df = (pd.read_csv(file_path[0]), pd.read_csv(file_path[0]))
+
+    metrics = (
+        calculate_metrics(filter_data(basic_df[0]), minimax=minimax),
+        calculate_metrics(filter_data(basic_df[1]), minimax=minimax),
+    )
+
+    zero_improvement = (
+        round(metrics[0]["mean_improvement"][("zero", "raw")] * 100, 2) * neg
+    )
+    nonzero_improvement = (
+        round(metrics[0]["mean_improvement"][("nonempty", "raw")] * 100, 2) * neg
+    )
+    accuracy = round(metrics[0]["accuracy"]["raw"] * 100, 2)
+    nonzero_accuracy = round(metrics[0]["accuracy"]["nonzero"] * 100, 2)
+
+    b_zero_improvement = (
+        round(metrics[1]["mean_improvement"][("zero", "raw")] * 100, 2) * neg
+    )
+    b_nonzero_improvement = (
+        round(metrics[1]["mean_improvement"][("nonempty", "raw")] * 100, 2) * neg
+    )
+    b_accuracy = round(metrics[1]["accuracy"]["raw"] * 100, 2)
+    b_nonzero_accuracy = round(metrics[1]["accuracy"]["nonzero"] * 100, 2)
+
+    s = f"""\\multirow{"{2}{*}{"}\\{"textbf{"}{method}{"}}"} & GPT-4o & {b_zero_improvement} & {b_nonzero_improvement} & {b_accuracy}\\% & {b_nonzero_accuracy}\\% \\\\
+&\\{"methodname{}"} & \\textbf{"{"}{zero_improvement}{"}"} & \\textbf{"{"}{nonzero_improvement}{"}"} & \\textbf{"{"}{accuracy}\\%{"}"} & \\textbf{"{"}{nonzero_accuracy}\\%{"}"}\\\\"""
+    print(s)
+
 if __name__ == "__main__":
     current = "RAG"
 
-    file_path = f"benchmark/data/parameter_tuning/final/{current}.csv"
+    file_path = f"benchmark/data/ICLR-parameter_tuning/{current}.csv"
 
     basic_methods_dict = {
         "Basic": [
@@ -520,15 +564,175 @@ if __name__ == "__main__":
         print(basic_methods[i])
         print("****")
         print(data[i])
+        # print(f'{round(100*data[i]['mean_improvement'][('zero','raw')],2)}%')
         print("====================")
+
+    print()
+    minimax = "MIN"
+    neg = 1 if minimax == "MAX" else -1
+    best = best_method = get_best_method(
+        basic_df,
+        basic_methods,
+        minimax="MIN",
+    )
+
+    for i in range(len(data)):
+        method = basic_methods[i]
+        my_data = data[i]
+
+        best_zero_improvement = (
+            round(my_data["mean_improvement"][("zero", "raw")] * 100, 2) * neg
+        )
+        best_nonzero_improvement = (
+            round(my_data["mean_improvement"][("nonempty", "raw")] * 100, 2) * neg
+        )
+        best_accuracy = round(my_data["accuracy"]["raw"] * 100, 2)
+        best_nonzero_accuracy = round(my_data["accuracy"]["nonzero"] * 100, 2)
+
+        if best == method:
+            m_string = ""
+            for _, v in method.items():
+                m_string += f"\\textbf{'{'}{v}{'}'} & "
+            print(
+                f"{m_string} \\textbf{'{'}{best_zero_improvement}{'}'} & \\textbf{'{'}{best_nonzero_improvement}{'}'} & \\textbf{'{'}{best_accuracy}\\%{'}'} & \\textbf{'{'}{best_nonzero_accuracy}\\%{'}'} \\\\"
+            )
+        else:
+            m_string = ""
+            for _, v in method.items():
+                m_string += f"{v} & "
+            print(
+                f"{m_string} {best_zero_improvement} & {best_nonzero_improvement} & {best_accuracy}\\% & {best_nonzero_accuracy}\\% \\\\"
+            )
+
+    # Output and CoS &8.04\% / 6.31\% & 12.38\% / 14.17\% & 64.96\% / 44.53\% & 21.17\% / 16.06\% \\
 
     best_method = get_best_method(
         basic_df,
         basic_methods,
         minimax="MIN",
     )
+    worst_method = get_best_method(
+        basic_df,
+        basic_methods,
+        minimax="MAX",
+    )
     print(f"BEST:\n{best_method}")
+
+    best_data = calculate_metrics(filter_data(basic_df, **best_method), minimax="MIN")
+    best_zero_improvement = best_data["mean_improvement"][("zero", "raw")]
+    best_nonzero_improvement = best_data["mean_improvement"][("nonempty", "raw")]
+    best_accuracy = best_data["accuracy"]["raw"]
+    best_nonzero_accuracy = best_data["accuracy"]["nonzero"]
+
+    print(f"WORST:\n{worst_method}")
+
+    worst_data = calculate_metrics(filter_data(basic_df, **worst_method), minimax="MIN")
+    worst_zero_improvement = worst_data["mean_improvement"][("zero", "raw")]
+    worst_nonzero_improvement = worst_data["mean_improvement"][("nonempty", "raw")]
+    worst_accuracy = worst_data["accuracy"]["raw"]
+    worst_nonzero_accuracy = worst_data["accuracy"]["nonzero"]
+    minimax = "MIN"
+    neg = 1 if minimax == "MAX" else -1
+
+    print(
+        f"{neg*round(100*best_zero_improvement,2)}\\% / {neg*round(100*worst_zero_improvement,2)}\\% & {neg*round(100*best_nonzero_improvement,2)}\\% / {neg*round(100*worst_nonzero_improvement,2)}\\% & {round(100*best_accuracy,2)}\\% / {round(100*worst_accuracy,2)}\\% & {round(100*best_nonzero_accuracy,2)}\\% / {round(100*worst_nonzero_accuracy,2)}\\% \\\\"
+    )
 
     data_dict = {str(basic_methods[i]): data[i] for i in range(len(basic_methods))}
     plot_combined_chart(data_dict, minimax="MIN")
+    # print(f'ORDER:\n{sort_methods(basic_df,basic_methods,minimax="MIN")}')
+
+
+if __name__ == "__main__2":
+    file_path = f"benchmark/data/MAI/better_mod/modularity_annotation_ablation2.csv"
+
+    basic_methods_dict = [{"annotation": anno} for anno in [False]]
+    basic_methods = basic_methods_dict
+
+    basic_df = pd.read_csv(file_path)
+
+    data = [
+        calculate_metrics(filter_data(basic_df, **method), minimax="MAX")
+        for method in basic_methods
+    ]
+    for i in range(len(data)):
+        print(basic_methods[i])
+        print("****")
+        print(data[i])
+        # print(f'{round(100*data[i]['mean_improvement'][('zero','raw')],2)}%')
+        print("====================")
+
+    print()
+    minimax = "MAX"
+    neg = 1 if minimax == "MAX" else -1
+    best = best_method = get_best_method(
+        basic_df,
+        basic_methods,
+        minimax="MAX",
+    )
+
+    for i in range(len(data)):
+        method = basic_methods[i]
+        my_data = data[i]
+
+        best_zero_improvement = (
+            round(my_data["mean_improvement"][("zero", "raw")] * 100, 2) * neg
+        )
+        best_nonzero_improvement = (
+            round(my_data["mean_improvement"][("nonempty", "raw")] * 100, 2) * neg
+        )
+        best_accuracy = round(my_data["accuracy"]["raw"] * 100, 2)
+        best_nonzero_accuracy = round(my_data["accuracy"]["nonzero"] * 100, 2)
+
+        if best == method:
+            m_string = ""
+            for _, v in method.items():
+                m_string += f"\\textbf{'{'}{v}{'}'} & "
+            print(
+                f"{m_string} \\textbf{'{'}{best_zero_improvement}{'}'} & \\textbf{'{'}{best_nonzero_improvement}{'}'} & \\textbf{'{'}{best_accuracy}\\%{'}'} & \\textbf{'{'}{best_nonzero_accuracy}\\%{'}'} \\\\"
+            )
+        else:
+            m_string = ""
+            for _, v in method.items():
+                m_string += f"{v} & "
+            print(
+                f"{m_string} {best_zero_improvement} & {best_nonzero_improvement} & {best_accuracy}\\% & {best_nonzero_accuracy}\\% \\\\"
+            )
+
+    # Output and CoS &8.04\% / 6.31\% & 12.38\% / 14.17\% & 64.96\% / 44.53\% & 21.17\% / 16.06\% \\
+
+    best_method = get_best_method(
+        basic_df,
+        basic_methods,
+        minimax="MAX",
+    )
+    worst_method = get_best_method(
+        basic_df,
+        basic_methods,
+        minimax="MIN",
+    )
+    print(f"BEST:\n{best_method}")
+
+    best_data = calculate_metrics(filter_data(basic_df, **best_method), minimax="MIN")
+    best_zero_improvement = best_data["mean_improvement"][("zero", "raw")]
+    best_nonzero_improvement = best_data["mean_improvement"][("nonempty", "raw")]
+    best_accuracy = best_data["accuracy"]["raw"]
+    best_nonzero_accuracy = best_data["accuracy"]["nonzero"]
+
+    print(f"WORST:\n{worst_method}")
+
+    worst_data = calculate_metrics(filter_data(basic_df, **worst_method), minimax="MIN")
+    worst_zero_improvement = worst_data["mean_improvement"][("zero", "raw")]
+    worst_nonzero_improvement = worst_data["mean_improvement"][("nonempty", "raw")]
+    worst_accuracy = worst_data["accuracy"]["raw"]
+    worst_nonzero_accuracy = worst_data["accuracy"]["nonzero"]
+    minimax = "MAX"
+    neg = 1 if minimax == "MAX" else -1
+
+    print(
+        f"{neg*round(100*best_zero_improvement,2)}\\% / {neg*round(100*worst_zero_improvement,2)}\\% & {neg*round(100*best_nonzero_improvement,2)}\\% / {neg*round(100*worst_nonzero_improvement,2)}\\% & {round(100*best_accuracy,2)}\\% / {round(100*worst_accuracy,2)}\\% & {round(100*best_nonzero_accuracy,2)}\\% / {round(100*worst_nonzero_accuracy,2)}\\% \\\\"
+    )
+
+    data_dict = {str(basic_methods[i]): data[i] for i in range(len(basic_methods))}
+    # plot_combined_chart(data_dict, minimax="MIN")
     # print(f'ORDER:\n{sort_methods(basic_df,basic_methods,minimax="MIN")}')

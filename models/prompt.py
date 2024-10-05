@@ -3,6 +3,7 @@ from langchain.globals import set_debug
 import time
 
 # set_debug(True)
+# ^ For a lot of info on what langchain is up to
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -32,7 +33,13 @@ from tenacity import (
     before_sleep_log,
     retry,
     wait_random_exponential,
+    stop_after_attempt,
 )
+
+
+"""
+All prompting/sampling functions that interact with the LLM
+"""
 
 
 def parse_prev_data(data):
@@ -270,6 +277,7 @@ def prompt_raw(
         before_sleep=before_sleep_log(logger, logging.INFO) if log_req_info else None,
         after=after_log(logger, logging.INFO) if log_req_info else None,
         wait=wait_random_exponential(multiplier=1, max=60),
+        stop=stop_after_attempt(8),
     )
     def invoke_throttled(chain, config):
         return chain.invoke(config)
@@ -471,73 +479,6 @@ def prompt_structured(
     return final
 
 
-# TODO Must fix output parsing to strict syntaxtree/tactic information. Then we can at least know for sure that we are splitting into two cases after an rcases etc.
-
-
-# def prompt_recursive_gen(
-#     thm: AnnotatedTheorem,
-#     metric: Metric,
-#     model="gpt-4-turbo",
-#     prev_data=[],
-#     n=None,
-#     annotation=True,
-#     syntax_search=False,
-#     mathlib_search=False,
-# ) -> Theorem:
-#     output = prompt_structured(
-#         thm, metric, model, prev_data, n, annotation, syntax_search, mathlib_search
-#     )
-
-#     real_correct, real_msgs, real_anno_output = eval_correctness(
-#         output, sorries_are_errors=True
-#     )
-#     if real_correct:
-#         return output
-
-#     def sorry_replacement(thm: Theorem):
-#         new_proof = [
-#             (
-#                 step
-#                 if type(step.tactic) == str
-#                 else ProofStep(
-#                     tactic=Theorem(
-#                         decl=step.decl,
-#                         proof=[ProofStep(tactic="sorry")],
-#                         declID=step.declID,
-#                         leanFile=step.leanFile,
-#                         context=step.context,
-#                         project_path=step.project_path,
-#                     )
-#                 )
-#             )
-#             for step in thm.proof
-#         ]
-#         return Theorem(
-#             decl=thm.decl,
-#             proof=new_proof,
-#             declID=thm.declID,
-#             src=thm.src,
-#             leanFile=thm.leanFile,
-#             context=thm.context,
-#             project_path=thm.project_path,
-#         )
-
-#     sorry_output = sorry_replacement(output)
-#     sorry_correct, sorry_msgs, sorry_anno_output = eval_correctness(sorry_output)
-
-#     if sorry_correct:
-#         # if sorry is correct (i.e. base structure WILL solve the theorem), then we want to convert the goal state of said sorry
-#         # (extracted either directly from lean via a "sorries" attribute in json like repl, or taken from the annotatedThm)
-#         # into a full fledged theorem. Then we recurse on each of these subtheorems (in parallel?)
-#         #
-#         # if sorry is not correct (i.e. base structure WONT solve the theorem), then we will recurse the whole thing
-#         # but basically either fix it or redo (best of n on og thm, or refinement on output, idk)
-#         # then we keep doing this until we are correct up until sorries and we chilling.
-
-
-#         pass
-#     else:
-#         pass
 def process_one(item):
     correct, _, _ = eval_correctness(item)
     return (item, correct)
@@ -629,14 +570,6 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                     output = future.result()
                     correct, _, _ = eval_correctness(output)
                     thms.append((output, correct))
-
-                # with ProcessPoolExecutor(max_workers=min(max_cpus, n)) as proc_executor:
-                #     proc_futures = [
-                #         proc_executor.submit(process_one, future.result())
-                #         for future in futures
-                #     ]
-
-                # thms = [pf.result() for pf in proc_futures]
 
                 if log_req_info:
                     print(f"Evaluation competed in {time.time()-stt}s")
@@ -811,20 +744,6 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
     best_of_n_n.__name__ = f"{best_of_n_n.__name__}({prompt_fn.__name__})"
     return best_of_n_n
 
-
-# def best_of_refined(prompt_fn, n_best,n_ref,prev_data_num=1, keep_best=False,max_workers=1):
-#     def best_of_refined(
-#         thm: AnnotatedTheorem,
-#         metric: Metric,
-#         n: int,
-#         model="gpt-4-turbo",
-#         annotation=True,
-#         syntax_search=True,
-#         mathlib_search=True,
-#         examples=0,
-#         token=False,
-#     ):
-#         best_of_n(prompt_fn=prompt_fn)(thm,metric,n_best,model=model,max_workers=max_workers,annotation=annotation,syntax_search=syntax_search,mathlib_search=mathlib_search,examples=examples,token=token)
 
 if __name__ == "__main__":
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
