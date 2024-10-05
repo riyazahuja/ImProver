@@ -421,7 +421,7 @@ example (h : ¬ (P ∧ Q)) : ¬ P ∨ ¬ Q := by
     )
 
 
-# NOTE: NOT IN ICLR PAPER
+# NOTE: NOT IN ICLR/ARXIV PAPER
 # def similarity_metric():
 
 #     def diff_fn(thm1, thm2):

@@ -179,6 +179,27 @@ def get_methods(
     ]
 
 
+def baseline(*metrics):
+    return get_methods(
+        model=["gpt-4o"],
+        fn=[prompt_basic],
+        metric=metric,
+    )
+
+
+def improver(*metrics):
+    return get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        n=[5],
+        annotation=[True],
+        examples=[10],
+        metric=metrics,
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
+
+
 def get_cost(obj, methods):
     price_pt = {
         "gpt-4o-mini": (0.150 / 1000000, 0.600 / 1000000),
@@ -221,6 +242,16 @@ def get_cost(obj, methods):
     return sum(future.result() for future in futures)
 
 
+def no_errors(thms):
+    msgs = []
+    for thm in thms:
+        msgs.extend(thm.messages)
+    errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
+        1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
+    )
+    return errors == 0
+
+
 if __name__ == "__main__2":
 
     # methods = get_methods(
@@ -252,15 +283,6 @@ if __name__ == "__main__2":
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
-
-    def no_errors(thms):
-        msgs = []
-        for thm in thms:
-            msgs.extend(thm.messages)
-        errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
-            1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
-        )
-        return errors == 0
 
     # fs = [
     #     files[name]
