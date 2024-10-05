@@ -85,6 +85,7 @@ def prompt_raw(
     mathlib_search=False,
     examples=0,
     token=False,
+    improved_context=False,
 ):
     syntax_k = 5
     mathlib_k = 5
@@ -115,7 +116,8 @@ def prompt_raw(
             ("placeholder", "{system_prompts}"),
             (
                 "system",
-                f"""You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <CONTEXT>...</CONTEXT>.
+                f"""You will be given the proof context (i.e. the lean file contents/imports leading up to the theorem declaration) wrapped by <FILE_CONTEXT>...</FILE_CONTEXT>.
+         {'Additional context from other imports and modules will be wrapped by <MOD_CONTEXT>...</MOD_CONTEXT>, containing metadata on what dependency this context is for, where it was imported from, and whether it was explicit in the current theorem - in addition to the source declaration of the dependency.' if improved_context else ''}
          {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
          Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. {f"To assist with the syntax relating to the current theorem and current error messages, you will be given {syntax_k} documents to refer to for fixing these syntax issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>." if syntax_search else ""}
          {f"You will also recieve {mathlib_k} documents relevant to the current theorem to help with formulating your modified proof. Each of these will be wrapped with <CONTENT_DOC>...<CONTENT_DOC>" if mathlib_search else ""}
@@ -126,7 +128,8 @@ def prompt_raw(
             ("placeholder", "{syntax_docs}"),
             ("placeholder", "{mathlib_docs}"),
             ("placeholder", "{examples}"),
-            ("human", "<CONTEXT>\n{context}\n</CONTEXT>"),
+            ("human", "<FILE_CONTEXT>\n{context}\n</FILE_CONTEXT>"),
+            ("placeholder", "{mod_context}"),
             ("placeholder", "{prev_results}"),
             ("placeholder", "{user_prompts}"),
             ("human", "<CURRENT>\n{theorem}\n</CURRENT>"),
@@ -137,6 +140,48 @@ def prompt_raw(
         return [
             ("human", f"<{wrapper}>\n{doc.page_content}\n</{wrapper}>") for doc in docs
         ]
+
+    def parse_dependency(dep: Dependency):
+        return f"""<MODULE_CONTEXT>
+        Dependency Name: {dep.dependency} (type = {dep.kind})
+        Source: {dep.src_file}
+        Explicit? {dep.explicit}
+        Content:
+        
+        {dep.src_content}
+    </MODULE_CONTEXT>"""
+
+    def get_module_context(data):
+        curr_thm = data["theorem"]
+        if not improved_context:
+            return []
+
+        deps = [
+            (parse_dependency(dep), dep.dependency, dep.explicit)
+            for dep in thm.dependencies
+        ]
+        explicit = []
+        nonexplicit = []
+        for dep in deps:
+            if dep[2]:
+                explicit.append((dep[0], dep[1]))
+            else:
+                nonexplicit.append((dep[0], dep[1]))
+
+        def key_it(x):
+            content = data["theorem"]
+            return -1 * content.count(x[1])
+
+        # def key_it(x):
+        #     lines = list(enumerate(data["theorem"].splitlines()))
+        #     found = [line[0] for line in lines if x[1] in line[1]]
+        #     if len(found) == 0:
+        #         return len(lines) + 1
+        #     else:
+        #         return found[0]
+
+        explicit.sort(key=key_it)
+        return [("human", x[0]) for x in explicit + nonexplicit]
 
     def get_syntax(data):
         if not syntax_search:
@@ -192,6 +237,7 @@ def prompt_raw(
                 ),
                 syntax_docs=get_syntax,
                 mathlib_docs=get_mathlib,
+                mod_context=get_module_context,
                 examples=get_examples,
             )
             | prompt
@@ -218,6 +264,7 @@ def prompt_raw(
             ),
             syntax_docs=get_syntax,
             mathlib_docs=get_mathlib,
+            mod_context=get_module_context,
             examples=get_examples,
         )
         | prompt
@@ -263,6 +310,7 @@ def prompt_basic(
     mathlib_search=False,
     examples=0,
     token=False,
+    improved_context=False,
 ):
 
     class strProof(BaseModel):
@@ -282,6 +330,7 @@ def prompt_basic(
         mathlib_search=mathlib_search,
         examples=examples,
         token=token,
+        improved_context=improved_context,
     )
 
     if token:
@@ -297,6 +346,7 @@ def prompt_basic(
             context=thm.context,
             proof=[ProofStep(tactic=curr.content)],
             project_path=thm.project_path,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_Thm(output)
@@ -315,6 +365,7 @@ def prompt_flat(
     mathlib_search=False,
     examples=0,
     token=False,
+    improved_context=False,
 ):
 
     class Proof(BaseModel):
@@ -335,6 +386,7 @@ def prompt_flat(
         mathlib_search=mathlib_search,
         examples=examples,
         token=token,
+        improved_context=improved_context,
     )
 
     if token:
@@ -351,6 +403,7 @@ def prompt_flat(
             context=thm.context,
             proof=[ProofStep(tactic=step) for step in curr.proof],
             project_path=thm.project_path,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output)
@@ -370,6 +423,7 @@ def prompt_structured(
     mathlib_search=False,
     examples=0,
     token=False,
+    improved_context=False,
 ):
     class trimmedTheorem(BaseModel):
         decl: str = Field(
@@ -392,6 +446,7 @@ def prompt_structured(
         mathlib_search=mathlib_search,
         examples=examples,
         token=token,
+        improved_context=improved_context,
     )
 
     if token:
@@ -416,6 +471,7 @@ def prompt_structured(
             context=thm.context,
             proof=[coerce_PS(step) for step in curr.proof],
             project_path=thm.project_path,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output, force_decl=thm.decl)
@@ -440,6 +496,7 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
         mathlib_search=True,
         examples=0,
         token=False,
+        improved_context=False,
     ):
         thms = []
         if token:
@@ -454,6 +511,7 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                     mathlib_search=mathlib_search,
                     examples=examples,
                     token=token,
+                    improved_context=improved_context,
                 )
                 * n
             )
@@ -470,6 +528,7 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                     syntax_search=syntax_search,
                     mathlib_search=mathlib_search,
                     examples=examples,
+                    improved_context=improved_context,
                 )
                 correct, _, _ = eval_correctness(output)
                 thms.append((output, correct))
@@ -490,6 +549,7 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                             syntax_search=syntax_search,
                             mathlib_search=mathlib_search,
                             examples=examples,
+                            improved_context=improved_context,
                         )
                         if i >= mixup * n
                         else executor.submit(
@@ -500,6 +560,7 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                             model=model,
                             annotation=annotation,
                             examples=examples,
+                            improved_context=improved_context,
                         )
                     )
                     for i in range(n)
@@ -541,6 +602,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
         mathlib_search=True,
         examples=0,
         token=False,
+        improved_context=False,
     ):
         if token:
             cost_one = prompt_fn(
@@ -552,6 +614,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                 mathlib_search=mathlib_search,
                 examples=examples,
                 token=token,
+                improved_context=improved_context,
             )
             encoding = tiktoken.encoding_for_model(model)
             cost_prev_data = 2 * len(encoding.encode(parseTheorem(thm, context=False)))
@@ -574,6 +637,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                 syntax_search=syntax_search,
                 mathlib_search=mathlib_search,
                 examples=examples,
+                improved_context=improved_context,
             )
             st = time.time()
             correct, messages, new_thm = eval_correctness(output)
@@ -631,6 +695,7 @@ def refinement_n(prompt_fn, n, prev_data_num=1, keep_best=False):
         mathlib_search=True,
         examples=0,
         token=False,
+        improved_context=False,
     ):
         return refinement(prompt_fn, prev_data_num=prev_data_num, keep_best=keep_best)(
             thm,
@@ -642,6 +707,7 @@ def refinement_n(prompt_fn, n, prev_data_num=1, keep_best=False):
             mathlib_search,
             examples,
             token,
+            improved_context,
         )
 
     refinement_n.__name__ = f"{refinement_n.__name__}({prompt_fn.__name__}, prev_data_num={prev_data_num}, keep_best={keep_best})"
@@ -659,6 +725,7 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
         mathlib_search=True,
         examples=0,
         token=False,
+        improved_context=False,
     ):
         return best_of_n(prompt_fn, max_workers, max_cpus, mixup)(
             thm,
@@ -671,6 +738,7 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
             mathlib_search,
             examples,
             token,
+            improved_context,
         )
 
     best_of_n_n.__name__ = f"{best_of_n_n.__name__}({prompt_fn.__name__})"

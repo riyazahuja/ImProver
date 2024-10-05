@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import json
 
 
 def _get_stem(input_module, input_file_mode):
@@ -28,26 +29,38 @@ def _run_cmd(cmd, cwd, input_file, output_file):
 
 def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
     # Tactic prediction
+    # ratchet and todo fix later
+    training_file = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + "_training.json"
+    )
+    constants_file = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + "_constants.json"
+    )
+    output_file = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + ".json"
+    )
     _run_cmd(
         cmd="training_data",
         cwd=cwd,
         input_file=input_module,
-        output_file=os.path.join(
-            output_base_dir, _get_stem(input_module, input_file_mode) + ".json"
-        ),
+        output_file=training_file,
+    )
+    _run_cmd(
+        cmd="constants",
+        cwd=cwd,
+        input_file=input_module,
+        output_file=constants_file,
     )
 
-    #  # State comments
-    # state_comments_output_file = os.path.join(
-    #     output_base_dir,
-    #     _get_stem(input_module, input_file_mode) + '.lean'
-    # )
-    # _run_cmd(
-    #     cmd='state_comments',
-    #     cwd=cwd,
-    #     input_file=input_module,
-    #     output_file=state_comments_output_file
-    # )
+    with open(training_file, "r") as f:
+        training_data = json.load(f)
+    with open(constants_file, "r") as f:
+        constant_data = json.load(f)
+    with open(output_file, "w") as f:
+        training_data["constants"] = constant_data
+        json.dump(training_data, f)
+    os.remove(training_file)
+    os.remove(constants_file)
 
     print(input_module)
     return 1
@@ -89,11 +102,12 @@ if __name__ == "__main__":
     subprocess.Popen(["lake build training_data"], shell=True).wait()
 
     input_modules = []
-    if args.input_file is not None:
-        input_modules.extend(glob.glob(args.input_file))
-    elif args.import_file is not None:
+    # if args.input_file is not None:
+    #     input_modules.extend(glob.glob(args.input_file))
+    if args.import_file is not None:
         with open(args.import_file) as f:
             for line in f.readlines():
+                # ERROR: READING COMMENTS TOO!
                 if "import " in line:
                     chunks = line.split("import ")
                     module = chunks[1].strip()
@@ -113,13 +127,15 @@ if __name__ == "__main__":
                 files_in_path.append(path)
     if os.path.isfile(start):
         files_in_path = [os.path.relpath(start, proj_path)]
-    # print(f'walked from {start}: \n{files_in_path}')
+    # print(f"walked from {start}: \n{files_in_path}")
 
     completed = []
     start = time.time()
     with ProcessPoolExecutor(args.max_workers) as executor:
         input_file_mode = args.input_file is not None
-        # print(f'{input_modules} | {input_file_mode} | {[_get_stem(mod, input_file_mode) for mod in input_modules]}')
+        # print(
+        #     f"{input_modules} | {input_file_mode} | {[_get_stem(mod, input_file_mode) for mod in input_modules]}"
+        # )
         input_modules = [
             mod
             for mod in input_modules

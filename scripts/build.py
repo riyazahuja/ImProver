@@ -37,6 +37,9 @@ def _lakefile_local(path, name, cwd):
 
     lean_exe training_data where
     root := `scripts.training_data
+    
+    lean_exe constants where
+    root := `scripts.constants
 
     """ % (
         mathlib_text,
@@ -86,6 +89,9 @@ def _lakefile_remote(repo, commit, name, cwd):
 
     lean_exe training_data where
     root := `scripts.training_data
+    
+    lean_exe constants where
+    root := `scripts.constants
 
     """ % (
         mathlib_text,
