@@ -19,6 +19,11 @@ from models.structures import *
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+"""
+Retrieval stuff
+"""
+
+
 def get_mathlib_vs(
     path=os.path.join(root_path, ".lake", "packages", "mathlib", "Mathlib")
 ):

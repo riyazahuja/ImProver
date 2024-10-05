@@ -509,10 +509,10 @@ if __name__ == "__main__3":
 &\\{"methodname{}"} & \\textbf{"{"}{zero_improvement}{"}"} & \\textbf{"{"}{nonzero_improvement}{"}"} & \\textbf{"{"}{accuracy}\\%{"}"} & \\textbf{"{"}{nonzero_accuracy}\\%{"}"}\\\\"""
     print(s)
 
-if __name__ == "__main__2":
+if __name__ == "__main__":
     current = "RAG"
 
-    file_path = f"benchmark/data/parameter_tuning/final/{current}.csv"
+    file_path = f"benchmark/data/ICLR-parameter_tuning/{current}.csv"
 
     basic_methods_dict = {
         "Basic": [
@@ -639,11 +639,11 @@ if __name__ == "__main__2":
     )
 
     data_dict = {str(basic_methods[i]): data[i] for i in range(len(basic_methods))}
-    # plot_combined_chart(data_dict, minimax="MIN")
+    plot_combined_chart(data_dict, minimax="MIN")
     # print(f'ORDER:\n{sort_methods(basic_df,basic_methods,minimax="MIN")}')
 
 
-if __name__ == "__main__":
+if __name__ == "__main__2":
     file_path = f"benchmark/data/MAI/better_mod/modularity_annotation_ablation2.csv"
 
     basic_methods_dict = [{"annotation": anno} for anno in [False]]

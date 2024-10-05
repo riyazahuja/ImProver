@@ -13,6 +13,7 @@ import Cli
 open Lean Elab IO Meta
 open Cli System
 
+--CREDITS TO KIM MORRISON's training_data repo (citation in paper) for a lot of the background and helpers in this
 
 def DeclIdMap := HashMap String (List Json)
 
