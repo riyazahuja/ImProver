@@ -67,7 +67,7 @@ Configuration files specify the details of the Lean projects to be built. They a
 ```
 
 ## Metrics
-ImProof comes with several preinstalled metrics for evaluating proofs:
+ImProver comes with several preinstalled metrics for evaluating proofs:
 
 - **Length Metric**: Measures the length of the proof in terms of the number of steps.
 - **Readability Metric**: Evaluates the degree of modularity by analyzing the proof tree for reusable, independent subproofs.
@@ -99,8 +99,17 @@ Metric(name="Metric Name",
 ## Acknowledgements
 We would like to thank Kim Morrison for the [Training Data repository](https://github.com/semorrison/lean-training-data) and Sean Welleck for the [Neural Theorem Proving (NTP) toolkit repository](https://github.com/cmu-l3/ntp-toolkit), which served as foundational resources for this project. Additionally, we would like to thank the Paperproof team for the [Paperproof repository](https://github.com/Paper-Proof/paperproof), which paved the way for our own prooftree generation and analysis system.
 
+Special thanks goes to the L3 Lab, Hoskinson Center for Formal Mathematics, Convergent Research, the Lean FRO, and the OpenAI Researcher Access Program for their support.
+
 ## Contributing
 We welcome contributions from the community. If you have suggestions, bug reports, or want to contribute code, please open an issue or submit a pull request.
 
 ## License
 This project is licensed under the MIT License.
+
+## Contact
+For any questions or inquiries, please contact:
+- Riyaz Ahuja: [riyaza@andrew.cmu.edu](mailto:riyaza@andrew.cmu.edu)
+- Jeremy Avigad: [avigad@cmu.edu](mailto:avigad@cmu.edu)
+- Prasad Tetali: [ptetali@cmu.edu](mailto:ptetali@cmu.edu)
+- Sean Welleck: [swelleck@andrew.cmu.edu](mailto:swelleck@andrew.cmu.edu)

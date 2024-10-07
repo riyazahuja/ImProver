@@ -3,52 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Improof - Proof Optimization Project</title>
+  <title>ImProver - Proof Optimization Project</title>
   <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.4.0/css/pico.min.css">
   <link rel="stylesheet" href="assets/css/style.css">
+  <script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
 </head>
 <body>
   <main class="container">
     <header>
       <nav>
         <ul>
-          <li><strong>ImProof</strong></li>
+          <li><strong>ImProver</strong></li>
           <li><a href="index.html">Home</a></li>
           <li><a href="overview.html">Overview</a></li>
           <li><a href="experiments.html">Results</a></li>
           <li><a href="team.html">Team</a></li>
-          <!-- <li><a href="https://github.com/riyazahuja/Automated-Proof-Rewriting">Code</a></li> -->
+          <li><a href="https://github.com/riyazahuja/Automated-Proof-Rewriting">Code</a></li>
         </ul>
       </nav>
     </header>
     <article>
       <header>
-        <h1>ImProof Overview</h1>
-        <p>A high-level overview of ImProof and its framework, with results and usage guides.</p>
+        <h1>ImProver Overview</h1>
       </header>
         <section>
           <h2>Background</h2>
-          <p>We present ImProof, a LLM-powered Agent for proof rewriting tasks, built around a general-purpose neural theorem proving framework. </p>
-          <p>ImProof allows for arbitrary Lean 4 code to be optimized for an arbitrary metric, empowering users to freely and automatically optimize their formal proofs by just providing a lambda and prompt. It is built upon an NTP framework that allows for strict control over how LLMs interface with theorems, providing a higher degree of accuracy and control over proof (re)writing tasks.</p>
-          <p>With the rise in popularity of modern interactive theorem provers, there is a need for greater control over how formal proof are structured and developed. </p>
-          <p>By allowing for modular control over what metric to rewrite a given proof for, ImProof shows that given enough guardrails, SOTA language models can perform such optimization to a high degree of accuracy and effectiveness.</p>
+          <p>ImProver, is a LLM-powered AI agent for proof optimization tasks, built around a general-purpose neural theorem proving framework. </p>
+          <p>It allows for arbitrary formal Lean proofs to be optimized for an arbitrary metric, empowering users to freely and automatically optimize their formal proofs by just providing a metric to score against. It is built upon an general framework that allows for strict control over how LLMs interface with theorems and integrating the LLM pipeline with symbolic data from the Lean compiler directly, providing a higher degree of accuracy and control over how proofs are (re)written.</p>
+          <p>With the rise in popularity of modern interactive theorem provers, there is a need for greater control over how formal proof are structured and developed, and by allowing for higher control over what metric to rewrite a given proof for, ImProver shows that modern language models can be taught to perform such optimization to a high degree of accuracy and effectiveness.</p>
         <p>Some metrics we explore include:</p>
         <ul>
           <li>
             <strong>Length:</strong>
-            <p>Optimizing for length allows mathematicians to write more concise and, by some definitions, more efficient proofs.</p>
-          </li>
-          <li>
-            <strong>Modularity:</strong>
-            <p>By maximizing the number of reusable, independent subproofs that make up a given proof tree, we can epistemically improve proofs and practically increase the number of theorems in a database by separating all independent subproofs as standalone lemmas.</p>
+            <p>Optimizing for length allows mathematicians to write more concise and more efficient proofs.</p>
           </li>
           <li>
             <strong>Readability:</strong>
             <p>Optimizing for more readable proofs (according to a quantifiable standard of readability) facilitates better understanding of complex proofs and provides a distinct pedagogical advantage.</p>
-          </li>
-          <li>
-            <strong>Similarity:</strong>
-            <p>Creating new proofs that minimize similarity to the original proof enables multiple distinct strategies to prove the same theorem, offering new insights into proof structure and methods.</p>
           </li>
           <li>
             <strong>Completion:</strong>
@@ -59,10 +52,96 @@
         <p>Optimizing for these arbitrary auxilary metrics, on top of simply generating semantically and syntactically correct proofs, allows for mathematicians and ML researchers to have far greater control over netural theorem proving and proof optimization tasks,
           enabling more efficient, readable, intuitive, and reusable proof generation at scale.</p>
       </section>
+
+
       <section>
-        <h2>Results</h2>
-        <p>Our tool has shown significant improvements in all tested metrics from raw SOTA LLM prompting. Final rigorous testing and data experimentation is underway and expected to be fully completed and published by September 2024.</p>
-        <p>Preliminary experiments will be redhave been released on the AlphaProof/IMO2024 data. See <a href="experiments.html">experiments</a> to learn more.</p>
+        <h2>Features</h2>
+        <p>To create the ImProver agent, we integrate many symbolic and prompting features to provide more detailed context to the model, and use it to improve the accuracy and improvement abilities of the black-box generator model. Namely, we use:</p>
+        <ul>
+          <li>
+            <strong>Chain-of-States</strong>
+            <p>We extract and parse proof tree datastructures from the Lean elaborator in order to get metavariable hypotheses and goal states after each tactic invocation. These are interleaved with tactics to forward this symbolic information effectively to the LLM.</p>
+            
+            
+            <div class="columns">
+              <details>
+                <summary>
+                  Without CoS
+                </summary>
+                <pre><code>
+example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u)  := by
+  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
+  · use xs; left; exact xt
+  . use xs; right; exact xu
+                </code></pre> 
+              </details>
+             
+              <details>
+                <summary style="break-before: column;">
+                  With CoS
+                </summary>
+              
+                        <pre><code>
+example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u)  := by
+  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
+  /-
+  case inl.intro
+  α : Type u_1
+  s t u : Set α
+  x : α
+  xs : x ∈ s
+  xt : x ∈ t
+  ⊢ x ∈ s ∩ (t ∪ u)
+  case inr.intro
+  α : Type u_1
+  s t u : Set α
+  x : α
+  xs : x ∈ s
+  xu : x ∈ u
+  ⊢ x ∈ s ∩ (t ∪ u)
+  -/
+  · use xs; left; exact xt
+  /-
+  Goals Solved!
+  -/
+  . use xs; right; exact xu
+  /-
+  Goals Solved!
+  -/
+                        </code></pre> </details>
+                      </div>
+
+
+          </li>
+          <li>
+            <strong>Symbolic dependency search</strong>
+            <p>Oftentimes, theorems are dependent on definitions and lemmas outside the current module. We symbolically retrieve the types, statements, and full defintions of these dependencies, and filter the most relavent and important ones as context for the theorem.</p>
+          </li>
+          <li>
+            <strong>Output Formatters</strong>
+            <p>We analyze the affect of enforced output schemas on the LLM performance by considering proofs as simple strings, sequences of tactics, or trees of tactics.</p>
+          </li>
+          <li>
+            <strong>Best-of-N sampling</strong>
+            <p>We apply a standard Best-of-N sampling method with the following score function:</p>
+            <p>\[S(y,y')=\begin{cases}
+              \max(y,y',\text{key: } x\mapsto \mu(x)),&E(y)=E(y')=0\\
+              y,&E(y)=0, E(y')>0\\
+              y',&E(y)>0, E(y')=0\\
+              \min(y,y',\text{key: } x\mapsto E(x)),&E(y)=E(y')>0\\
+          \end{cases}\]</p>
+          <p>Where for an output \(y\), \(\mu(y)\) is the metric score, and \(E(y)\) is the number of errors in the proof.</p>
+          </li>
+          <li>
+            <strong>Refinement and Error Correction</strong>
+            <p>We identify and corrects errors in the generated proofs by iteratively refining its outputs. Each iteration carries information on the last <code>prev_num</code> iterations, including input, output, metric score, correctness, and error messages.</p>
+            <p>This iterative refinement is combined with the Best-of-N sampling to create compound sampling functions.</p>
+          </li>
+          <li>
+            <strong>RAG</strong>
+            <p>We use MMR-based RAG document retrieval to augment the prompt with examples relevant to the optimization of the specific metric, syntax help, and lemmas from Mathlib.</p>
+          </li>
+        </ul>
       </section>
       <section>
         <h2>Installation and Usage</h2>
@@ -98,20 +177,14 @@
             <p><pre><code>python scripts/build.py --config configs/CONFIG_FILE_NAME.json</code></pre></p>
           </li>
           <li>
-            <p>Configure the run parameters using the <code>get_methods</code> and <code>get_improof</code> functions in your script by importing from <code>./benchmark/tools.py</code></p>
-            <p>For configuring these parameters with custom tunings and custom metrics, see the <a href="https://github.com/riyazahuja/Automated-Proof-Rewriting/blob/main/README.md">README</a></p>
-          </li>
-          <li>
-            <p>Use <code>getRepo</code> to retrieve the cached repo information and <code>benchmark_repo</code>,<code>benchmark_file</code>, or <code>benchmark_file</code> to run your repo, file, or theorem respectively with the aforementioned parameter settings.
-          </li>
-          <li>
-            <p>Optionally export to <code>.csv</code> using <code>save_to_csv</code>.
+            <p>Configure the run parameters using the <code>get_methods</code> or <code>improver</code> functions in your script by importing from <code>./benchmark/tools.py</code></p>
+            <p>For configuring these parameters with custom tunings and custom metrics, see the <a href="https://github.com/riyazahuja/Automated-Proof-Rewriting/blob/main/README.md">README</a> or <a href="https://github.com/riyazahuja/Automated-Proof-Rewriting/blob/main/demo.py">demo</a></p>
           </li>
         </ol>
       </section>
     </article>
     <footer>
-      <p>© 2024 Proof Optimization Project</p>
+      <p>© 2024 ImProver</p>
     </footer>
   </main>
 </body>
