@@ -196,7 +196,7 @@ def baseline(*metrics):
     return get_methods(
         model=["gpt-4o"],
         fn=[prompt_basic],
-        metric=metric,
+        metric=metrics,
     )
 
 

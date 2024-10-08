@@ -1,9 +1,12 @@
 /-
 Adapted from lean-training-data/scripts/premises.lean
-(Changed: output declarations restricted to the input module(s).)
 
 Copyright (c) 2023 Scott Morrison. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+-/
+
+/-
+NOT USED IN ARXIV OR ICLR SUBMISSION, STILL IN PROGRESS!
 -/
 
 import Mathlib.Lean.CoreM

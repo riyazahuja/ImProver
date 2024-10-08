@@ -22,7 +22,7 @@ from typing import Final
 import tiktoken
 from multiprocessing import cpu_count
 
-log_req_info = True
+log_req_info = False
 
 if log_req_info:
     logger: Final = logging.getLogger(__name__)
@@ -346,7 +346,7 @@ def prompt_basic(
             context=thm.context,
             proof=[ProofStep(tactic=curr.content)],
             project_path=thm.project_path,
-            dependencies=thm.dependencies,
+            # dependencies=thm.dependencies,
         )
 
     final = coerce_Thm(output)
@@ -403,7 +403,7 @@ def prompt_flat(
             context=thm.context,
             proof=[ProofStep(tactic=step) for step in curr.proof],
             project_path=thm.project_path,
-            dependencies=thm.dependencies,
+            # dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output)
@@ -471,7 +471,7 @@ def prompt_structured(
             context=thm.context,
             proof=[coerce_PS(step) for step in curr.proof],
             project_path=thm.project_path,
-            dependencies=thm.dependencies,
+            # dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output, force_decl=thm.decl)
