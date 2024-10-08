@@ -113,3 +113,17 @@ For any questions or inquiries, please contact:
 - Jeremy Avigad: [avigad@cmu.edu](mailto:avigad@cmu.edu)
 - Prasad Tetali: [ptetali@cmu.edu](mailto:ptetali@cmu.edu)
 - Sean Welleck: [swelleck@andrew.cmu.edu](mailto:swelleck@andrew.cmu.edu)
+
+## BibTex
+To cite ImProver, use the following BibTex:
+```
+@misc{ahuja2024improveragentbasedautomatedproof,
+      title={ImProver: Agent-Based Automated Proof Optimization}, 
+      author={Riyaz Ahuja and Jeremy Avigad and Prasad Tetali and Sean Welleck},
+      year={2024},
+      eprint={2410.04753},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2410.04753}, 
+}
+```
