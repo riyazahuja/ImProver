@@ -18,6 +18,8 @@ import Lake
 
     lean_exe training_data where
     root := `scripts.training_data
-
+    
     lean_exe constants where
     root := `scripts.constants
+
+    
