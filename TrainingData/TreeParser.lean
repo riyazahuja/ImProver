@@ -52,7 +52,7 @@ def findHypsUsedByTactic (goalId: MVarId) (goalDecl : MetavarDecl) (mctxAfter : 
     | return []
 
   -- Need to instantiate it to get all fvars
-  let fullExpr ← instantiateExprMVars expr |>.run
+  let fullExpr ← instantiateMVars expr
   let fvarIds := (collectFVars {} fullExpr).fvarIds
   let fvars := fvarIds.filterMap goalDecl.lctx.find?
   let proofFvars ← fvars.filterM (Meta.isProof ·.toExpr)

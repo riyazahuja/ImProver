@@ -1,2 +1,2 @@
 
-import Tests
+import equational_theories
