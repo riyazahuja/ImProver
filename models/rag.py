@@ -191,25 +191,25 @@ def get_retriever(
 
 if __name__ == "__main__":
 
-    # get_mathlib_vs()
-    db = Chroma(
-        persist_directory=os.path.join(root_path, ".db/.mathlib_chroma_db"),
-        embedding_function=OpenAIEmbeddings(),
-    )
+    get_mathlib_vs()
+#     db = Chroma(
+#         persist_directory=os.path.join(root_path, ".db/.mathlib_chroma_db"),
+#         embedding_function=OpenAIEmbeddings(),
+#     )
 
-    retriever = get_retriever(
-        k=3, persist_dir=os.path.join(root_path, ".db/.mathlib_chroma_db")
-    )
-    output = retriever.invoke(
-        """theorem orrr (P Q :Prop):P∨ Q → Q∨ P:= by
-  intro hpq
-  rcases hpq with hp|hq
-  . right
-    exact hp
-  . left
-    exact hq"""
-    )
-    for doc in output:
-        print(f"[{doc.metadata}]")
-        print(doc.page_content)
-        print("===============")
+#     retriever = get_retriever(
+#         k=3, persist_dir=os.path.join(root_path, ".db/.mathlib_chroma_db")
+#     )
+#     output = retriever.invoke(
+#         """theorem orrr (P Q :Prop):P∨ Q → Q∨ P:= by
+#   intro hpq
+#   rcases hpq with hp|hq
+#   . right
+#     exact hp
+#   . left
+#     exact hq"""
+#     )
+#     for doc in output:
+#         print(f"[{doc.metadata}]")
+#         print(doc.page_content)
+#         print("===============")
