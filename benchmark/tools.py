@@ -294,8 +294,7 @@ if __name__ == "__main__":
     # now do statistics on results
     from benchmark.extract import *
 
-    experiments = [{}]
     fp = "equational_confl3_results.csv"
     df = pd.read_csv(fp)
-    data = calculate_metrics(filter_data(df, **method), minimax="MIN")
+    data = calculate_metrics(filter_data(df), minimax="MIN")
     print(data)

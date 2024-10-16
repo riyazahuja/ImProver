@@ -13,7 +13,7 @@ import Mathlib.Lean.CoreM
 import Mathlib.Control.Basic
 import Mathlib.Lean.Expr.Basic
 import Batteries.Lean.HashMap
-import Batteries.Lean.Util.Path
+-- import Batteries.Lean.Util.Path
 import ImportGraph.RequiredModules
 
 import TrainingData.Frontend
@@ -23,7 +23,7 @@ import TrainingData.Utils.Range
 import TrainingData.TreeParser
 import Mathlib.Data.String.Defs
 import Mathlib.Lean.CoreM
-import Batteries.Lean.Util.Path
+-- import Batteries.Lean.Util.Path
 import Batteries.Data.String.Basic
 import Mathlib.Tactic.Change
 import ImportGraph.RequiredModules
@@ -53,7 +53,7 @@ def isAuxLemma : Name → Bool
 | _ => false
 
 partial def Lean.ConstantInfo.getUsedConstants' (c : ConstantInfo)
-    (constantsMap : HashMap Name ConstantInfo)
+    (constantsMap : Std.HashMap Name ConstantInfo)
     (unfolding : Name → Bool := isAuxLemma) : NameSet × NameSet × String := Id.run do
   let mut direct : NameSet := ∅
   let mut unfolded : NameSet := ∅
@@ -148,7 +148,7 @@ def allExplicitConstants (moduleNames : Array Name) : MetaM (NameMap NameSet) :=
         result := result.insert n (← c.explicitConstants)
   return result
 
-def getKind (const_map : HashMap Name ConstantInfo) (m : Name) : String :=
+def getKind (const_map : Std.HashMap Name ConstantInfo) (m : Name) : String :=
   let c := const_map.find? m
   match c with
   | none => "Not Found"
