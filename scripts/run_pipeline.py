@@ -43,25 +43,25 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
         cmd="training_data",
         cwd=cwd,
         input_file=input_module,
-        output_file=output_file,
+        output_file=training_file,
     )
     # UNSTABLE, NOT IN ARXIV BUILD
-    # _run_cmd(
-    #     cmd="constants",
-    #     cwd=cwd,
-    #     input_file=input_module,
-    #     output_file=constants_file,
-    # )
+    _run_cmd(
+        cmd="constants",
+        cwd=cwd,
+        input_file=input_module,
+        output_file=constants_file,
+    )
 
-    # with open(training_file, "r") as f:
-    #     training_data = json.load(f)
-    # with open(constants_file, "r") as f:
-    #     constant_data = json.load(f)
-    # with open(output_file, "w") as f:
-    #     training_data["constants"] = constant_data
-    #     json.dump(training_data, f)
-    # os.remove(training_file)
-    # os.remove(constants_file)
+    with open(training_file, "r") as f:
+        training_data = json.load(f)
+    with open(constants_file, "r") as f:
+        constant_data = json.load(f)
+    with open(output_file, "w") as f:
+        training_data["constants"] = constant_data
+        json.dump(training_data, f)
+    os.remove(training_file)
+    os.remove(constants_file)
 
     print(input_module)
     return 1

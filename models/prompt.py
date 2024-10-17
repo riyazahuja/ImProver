@@ -1,8 +1,9 @@
 from __future__ import annotations
-from langchain.globals import set_debug
+from langchain.globals import set_debug, set_verbose
 import time
 
-# set_debug(True)
+set_debug(False)
+
 # ^ For a lot of info on what langchain is up to
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -142,14 +143,14 @@ def prompt_raw(
         ]
 
     def parse_dependency(dep: Dependency):
-        return f"""<MODULE_CONTEXT>
+        return f"""<MOD_CONTEXT>
         Dependency Name: {dep.dependency} (type = {dep.kind})
         Source: {dep.src_file}
         Explicit? {dep.explicit}
         Content:
         
         {dep.src_content}
-    </MODULE_CONTEXT>"""
+    </MOD_CONTEXT>"""
 
     def get_module_context(data):
         curr_thm = data["theorem"]
@@ -346,7 +347,7 @@ def prompt_basic(
             context=thm.context,
             proof=[ProofStep(tactic=curr.content)],
             project_path=thm.project_path,
-            # dependencies=thm.dependencies,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_Thm(output)
@@ -403,7 +404,7 @@ def prompt_flat(
             context=thm.context,
             proof=[ProofStep(tactic=step) for step in curr.proof],
             project_path=thm.project_path,
-            # dependencies=thm.dependencies,
+            dependencies=thm.dependencies,
         )
 
     final = coerce_trimmedThm(output)
@@ -748,13 +749,13 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
 if __name__ == "__main__":
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    repo = getRepo("Tests", "configs/config_test.json")
-    files = {file.file_name: file for file in repo.files}
-    f = files["Solutions_S01_Implication_and_the_Universal_Quantifier.lean"]
+    repo = getRepo("equational_theories", "configs/config_eq.json")
+    files = {file.file_path: file for file in repo.files if type(file) == AnnotatedFile}
+    f = files["equational_theories/Confluence3.lean"]
 
     thms = f.theorems
     for thm in [thms[0]]:
         metric = length_metric()
-        out = prompt_structured(thm, length_metric(), model="gpt-4o", examples=1)
+        out = prompt_basic(thm, length_metric(), model="gpt-4o", improved_context=True)
         print("\n")
         print(parseTheorem(out, context=False))

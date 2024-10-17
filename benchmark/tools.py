@@ -210,6 +210,7 @@ def improver(*metrics):
         metric=metrics,
         syntax_search=[True],
         mathlib_search=[True],
+        improved_context=[True],
     )
 
 
@@ -268,11 +269,11 @@ def no_errors(thms):
 if __name__ == "__main__":
 
     # setup
-    methods = improver(length_metric())
+    methods = improver(length_metric(), modularity_metric())
     repo = getRepo("equational_theories", "configs/config_eq.json")
     files = {file.file_path: file for file in repo.files if type(file) == AnnotatedFile}
     # print(files.keys())
-    f = files["equational_theories/Confluence3.lean"]
+    f = files["equational_theories/MagmaOp.lean"]
 
     # estimate the cost
     cost = get_cost(f, methods)
@@ -285,16 +286,16 @@ if __name__ == "__main__":
             benchmark_theorem(
                 t,
                 methods,
-                max_workers=1,
+                max_workers=2,
                 show_progress=True,
             )
         )
-        save_to_csv(data, path=f"equational_confl3_results.csv")
+        save_to_csv(data, path=f"equational_op_results.csv")
 
     # now do statistics on results
     from benchmark.extract import *
 
-    fp = "equational_confl3_results.csv"
+    fp = "equational_op_results.csv"
     df = pd.read_csv(fp)
     data = calculate_metrics(filter_data(df), minimax="MIN")
     print(data)

@@ -418,6 +418,7 @@ example (h : ¬ (P ∧ Q)) : ¬ P ∨ ¬ Q := by
         examples,
         "MAX",
         score_fn=count_haves,
+        metric_fn=lambda x, y: count_haves(y) - count_haves(x),
     )
 
 

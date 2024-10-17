@@ -52,9 +52,9 @@ class Theorem(BaseModel):
         description="Context of the theorem (i.e. file contents up to decl)"
     )
     project_path: str = Field(description="Local path to src repo contents")
-    # dependencies: List[Dependency] = Field(
-    #     description="Theorem dependencies from all imported modules"
-    # )
+    dependencies: List[Dependency] = Field(
+        description="Theorem dependencies from all imported modules"
+    )
 
 
 class File(BaseModel):
@@ -119,9 +119,9 @@ class AnnotatedTheorem(BaseModel):
     proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
         description="data for efficient proof tree construction"
     )
-    # dependencies: List[Dependency] = Field(
-    #     description="Theorem dependencies from all imported modules"
-    # )
+    dependencies: List[Dependency] = Field(
+        description="Theorem dependencies from all imported modules"
+    )
 
 
 class AnnotatedFile(BaseModel):
@@ -340,7 +340,7 @@ def getTheorems(
     temp = {}
     msgs = data["messages"]
     trees = data["proofTrees"]
-    # consts = data["constants"]
+    consts = data["constants"]
 
     def remove_dupes(tacs):
         output = []
@@ -389,7 +389,7 @@ def getTheorems(
         messages = getMessages(thm_start, thm_end, msgs, contents)
         messages.reverse()
 
-        # dependencies = getDependencies(consts, declID)
+        dependencies = getDependencies(consts, declID)
 
         lines_src = step["srcUpToTactic"].split("\n")
         decl_lines = decl.split("\n")
@@ -413,7 +413,7 @@ def getTheorems(
                 "messages": messages,
                 "pretty_print": pp,
                 "proof_tree": PT,
-                # "dependencies": dependencies,
+                "dependencies": dependencies,
             }
         else:
             curr_proof = temp[declID]["proof"]
@@ -422,7 +422,7 @@ def getTheorems(
             curr_msgs = temp[declID]["messages"]
             curr_pp = temp[declID]["pretty_print"]
             curr_pt = temp[declID]["proof_tree"]
-            # curr_dep = temp[declID]["dependencies"]
+            curr_dep = temp[declID]["dependencies"]
             curr_proof.append(ps)
             temp[declID] = {
                 "proof": curr_proof,
@@ -431,7 +431,7 @@ def getTheorems(
                 "messages": curr_msgs,
                 "pretty_print": curr_pp,
                 "proof_tree": curr_pt,
-                # "dependencies": curr_dep,
+                "dependencies": curr_dep,
             }
 
     result = {}
@@ -447,7 +447,7 @@ def getTheorems(
             messages=value["messages"],
             pretty_print=value["pretty_print"],
             proof_tree=value["proof_tree"],
-            # dependencies=value["dependencies"],
+            dependencies=value["dependencies"],
         )
     return [v for _, v in result.items()]
 
@@ -859,7 +859,7 @@ def run_training_data(root_path, project_path, module_name, rerun=None):
     #         # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
     #     else:
     #         data2 = json.loads(data_raw2)
-    # data["constants"] = {}
+    data["constants"] = {}
     os.chdir(cwd)
     return (data, rerun)
 
@@ -908,7 +908,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             messages=[getMessage(msg, text) for msg in output_data["messages"]],
             pretty_print=text,
             proof_tree=[],
-            # dependencies=thm.dependencies,
+            dependencies=thm.dependencies,
         )
     else:
         output = thms[-1]
@@ -994,7 +994,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     messages=output.messages,
                     pretty_print=output.pretty_print,
                     proof_tree=output.proof_tree,
-                    # dependencies=thm.dependencies,
+                    dependencies=thm.dependencies,
                 )
 
                 if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
@@ -1008,7 +1008,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     f"input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{elim_pf}"
                 )
         output.proof = elim_pf
-        # output.dependencies = thm.dependencies
+        output.dependencies = thm.dependencies
         return output
 
 
