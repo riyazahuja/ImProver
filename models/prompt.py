@@ -298,8 +298,10 @@ def prompt_raw(
 
     return output
 
-#Note: all prompt functions return a Theorem object, unless token=True, in which case they return the number of tokens in the prompt
+
+# Note: all prompt functions return a Theorem object, unless token=True, in which case they return the number of tokens in the prompt
 # however, we now make them output a (Theorem, trajectories), where trajectories is a list of Theorems
+
 
 def prompt_basic(
     thm: AnnotatedTheorem,
@@ -486,7 +488,14 @@ def process_one(item):
     return (item, correct)
 
 
-def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=False, output_trajectories=False):
+def best_of_n(
+    prompt_fn,
+    max_workers=None,
+    max_cpus=1,
+    mixup=0,
+    match_workers=False,
+    output_trajectories=False,
+):
     def best_of_n(
         thm: AnnotatedTheorem,
         metric: Metric,
@@ -581,17 +590,17 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                     print(f"Evaluation competed in {time.time()-stt}s")
         if log_req_info:
             print(f"Threadpool competed in {time.time()-st}s")
-        
+
         correct_thms = [item for item in thms if item[1]]
         if len(correct_thms) == 0:
-            return thms[0][0], trajectories
+            return thms[0][0], ("BoN", trajectories)
 
         best = correct_thms[0][0]
         for t, correct in correct_thms:
             if not correct:
                 continue
             best = metric.cmp(best, t)
-        return best, ('BoN',trajectories)
+        return best, ("BoN", trajectories)
 
     best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
     return best_of_n
@@ -687,7 +696,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                     else:
                         curr = new_thm  # min(curr,new_thm,key=lambda x:len(x.messages))
 
-        return curr, ('refine',trajectories)
+        return curr, ("refine", trajectories)
 
     refinement.__name__ = f"{refinement.__name__}({prompt_fn.__name__}, prev_data_num={prev_data_num}, keep_best={keep_best})"
     return refinement

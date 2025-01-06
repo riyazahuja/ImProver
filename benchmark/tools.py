@@ -17,20 +17,18 @@ from tqdm import tqdm
 from multiprocessing import cpu_count
 
 
-
 def extract_data(thm, method, trajectory_position):
-    
+
     if type(thm) == Theorem:
         thm = annotateTheorem(thm, force=True)
-    
-    
+
     fn, metric, kwargs = method
     correct, messages, _ = eval_correctness(thm)
-    
+
     score = None
     if correct and metric.score_fn != None:
         score = metric.score(thm)
-    
+
     raw = parseTheorem(thm, context=False)
 
     def parse_msg(message):
@@ -44,7 +42,7 @@ def extract_data(thm, method, trajectory_position):
             or (msg.severity == "warning" and "sorry" in msg.content)
         ]
     )
-    
+
     return {
         "repo": thm.src,
         "file": thm.leanFile,
@@ -62,41 +60,57 @@ def extract_data(thm, method, trajectory_position):
         "correct": correct,
         "errors": errors,
         "score": score,
-        "raw": raw
+        "raw": raw,
     }
-    
-def parse_trajectories(trajectories, method, position = "/"):    
-    if type(trajectories) == tuple and trajectories[0] == "BoN" and type(trajectories[1]) == list:
-        print('BON')
+
+
+def parse_trajectories(trajectories, method, position="/"):
+    # print(f"{type(trajectories)} : {trajectories}")
+    if (
+        type(trajectories) == tuple
+        and trajectories[0] == "BoN"
+        and type(trajectories[1]) == list
+    ):
+        # print("BON")
         output = []
         for subtrajectory in trajectories[1]:
-            output += parse_trajectories(subtrajectory, method, position + f"BoN({len(trajectories[1])})/")
+            output += parse_trajectories(
+                subtrajectory, method, position + f"BoN({len(trajectories[1])})/"
+            )
         return output
-    if type(trajectories) == tuple and trajectories[0] == "refine" and type(trajectories[1]) == list:
-        print('refine')
+    if (
+        type(trajectories) == tuple
+        and trajectories[0] == "refine"
+        and type(trajectories[1]) == list
+    ):
+        # print("refine")
         output = []
-        for i,subtrajectory in enumerate(trajectories[1]):
-            output += parse_trajectories(subtrajectory, method, position + f"refine({len(trajectories[1])}; curr = {i})/")
+        for i, subtrajectory in enumerate(trajectories[1]):
+            output += parse_trajectories(
+                subtrajectory,
+                method,
+                position + f"refine({len(trajectories[1])}; curr = {i})/",
+            )
         return output
-    
-    elif type(trajectories) == Theorem or type(trajectories) == AnnotatedTheorem:
-        print('thm')
-        return [extract_data(trajectories, method, position)]   
-    else:
-        raise ValueError(f"Invalid trajectories type: {type(trajectories)}, {trajectories}")
-    
 
-def process_instance(thm: AnnotatedTheorem, method, output_trajectories = False):
+    elif type(trajectories) == Theorem or type(trajectories) == AnnotatedTheorem:
+        # print("thm")
+        return [extract_data(trajectories, method, position)]
+    else:
+        raise ValueError(
+            f"Invalid trajectories type: {type(trajectories)}, {trajectories}"
+        )
+
+
+def process_instance(thm: AnnotatedTheorem, method, output_trajectories=False):
     start_time = time.time()
     fn, metric, kwargs = method
     og_correct, og_messages, _ = eval_correctness(thm)
     og_score = None
     if og_correct and metric.score_fn != None:
         og_score = metric.score(thm)
-        
+
     output_thm, trajectories = fn(thm, metric, **kwargs)
-
-
 
     new_correct, new_messages, output_anno_thm = eval_correctness(output_thm)
     processing_time = time.time() - start_time
@@ -157,10 +171,12 @@ def process_instance(thm: AnnotatedTheorem, method, output_trajectories = False)
         "og_raw": og_raw,
         "new_raw": new_raw,
         "time": processing_time,
-    }, parse_trajectories(trajectories, method) if output_trajectories else None
+    }, (parse_trajectories(trajectories, method) if output_trajectories else None)
 
 
-def process_instances(instances, max_workers=None, show_progress=False, output_trajectories = False):
+def process_instances(
+    instances, max_workers=None, show_progress=False, output_trajectories=False
+):
     if max_workers is None:
         max_workers = len(instances)
 
@@ -170,7 +186,13 @@ def process_instances(instances, max_workers=None, show_progress=False, output_t
                 max_workers=min(max_workers, len(instances))
             ) as executor:
                 futures = [
-                    executor.submit(process_instance, i[0], i[1], output_trajectories=output_trajectories) for i in instances
+                    executor.submit(
+                        process_instance,
+                        i[0],
+                        i[1],
+                        output_trajectories=output_trajectories,
+                    )
+                    for i in instances
                 ]
                 for future in concurrent.futures.as_completed(futures):
                     pbar.update(1)
@@ -178,9 +200,17 @@ def process_instances(instances, max_workers=None, show_progress=False, output_t
         with ThreadPoolExecutor(
             max_workers=min(max_workers, len(instances))
         ) as executor:
-            futures = [executor.submit(process_instance, i[0], i[1],output_trajectories=output_trajectories) for i in instances]
+            futures = [
+                executor.submit(
+                    process_instance,
+                    i[0],
+                    i[1],
+                    output_trajectories=output_trajectories,
+                )
+                for i in instances
+            ]
     data_raw = [future.result(timeout=1) for future in futures]
-    
+
     data = [item for item, traj in data_raw]
     if output_trajectories:
         trajectories = []
@@ -189,16 +219,23 @@ def process_instances(instances, max_workers=None, show_progress=False, output_t
                 trajectories += traj
     else:
         trajectories = None
-            
+
     return data, trajectories
 
 
 def benchmark_theorem(
-    thm: AnnotatedTheorem, methods, max_workers=None, show_progress=False, output_trajectories = False
+    thm: AnnotatedTheorem,
+    methods,
+    max_workers=None,
+    show_progress=False,
+    output_trajectories=False,
 ):
     instances = [(thm, m) for m in methods]
     return process_instances(
-        instances, max_workers=max_workers, show_progress=show_progress, output_trajectories = output_trajectories
+        instances,
+        max_workers=max_workers,
+        show_progress=show_progress,
+        output_trajectories=output_trajectories,
     )
 
 
@@ -206,17 +243,27 @@ def benchmark_file(
     file: AnnotatedFile,
     methods,
     max_workers=None,
-    show_progress=False, output_trajectories = False
+    show_progress=False,
+    output_trajectories=False,
 ):
     thms = file.theorems
 
     instances = [(t, m) for t in thms for m in methods]
     return process_instances(
-        instances, max_workers=max_workers, show_progress=show_progress, output_trajectories = output_trajectories
+        instances,
+        max_workers=max_workers,
+        show_progress=show_progress,
+        output_trajectories=output_trajectories,
     )
 
 
-def benchmark_repo(repo: Repo, methods, max_workers=None, show_progress=False, output_trajectories = False):
+def benchmark_repo(
+    repo: Repo,
+    methods,
+    max_workers=None,
+    show_progress=False,
+    output_trajectories=False,
+):
     anno_files = [f for f in repo.files if type(f) == AnnotatedFile]
     thms = []
     for f in anno_files:
@@ -224,7 +271,10 @@ def benchmark_repo(repo: Repo, methods, max_workers=None, show_progress=False, o
 
     instances = [(t, m) for t in thms for m in methods]
     return process_instances(
-        instances, max_workers=max_workers, show_progress=show_progress, output_trajectories = output_trajectories
+        instances,
+        max_workers=max_workers,
+        show_progress=show_progress,
+        output_trajectories=output_trajectories,
     )
 
 
@@ -347,10 +397,6 @@ def no_errors(thms):
     return errors == 0
 
 
-
-
-
-
 if __name__ == "__main__":
     # methods = get_methods(
     #     model=["gpt-4o"],
@@ -377,26 +423,21 @@ if __name__ == "__main__":
         )
         return errors == 0
 
-
     fs = [
         files[name]
         for name in files.keys()
         if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
     ]
 
-    fs = [
-        f
-        for f in fs
-        if type(f) == AnnotatedFile
-        and len(f.theorems) != 0
-    ]
-    
+    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
+
     f = fs[0]
     thm = f.theorems[0]
     instance = (thm, methods[0])
-    
-    d, t = benchmark_theorem(thm, methods, max_workers=1, show_progress=True, output_trajectories = True)
+
+    d, t = benchmark_theorem(
+        thm, methods, max_workers=1, show_progress=True, output_trajectories=True
+    )
     save_to_csv(d, "benchmark/data/traj_data.csv")
     save_to_csv(t, "benchmark/data/traj_traj.csv")
-    print(f'{t}')
-    
+    print(f"{t}")

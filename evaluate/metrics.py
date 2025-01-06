@@ -93,18 +93,18 @@ def length_metric():
     def len_fn(thm):
         if type(thm) == Theorem:
             thm = annotateTheorem(thm, force=True)
-        G, _, _ = getProofTree(thm)
-        return G.number_of_nodes()
-        # # thm.proof = elim_overlap(thm.proof)
-        # num_lines = len(elim_overlap(thm.proof))
-        # # return num_lines
-        # # dont count semicolons
-        # semicolons = 0
-        # for line in thm.proof:
-        #     # ignore <;>'s and ;'s at end of line
-        #     content = line.tactic.replace("<;>", "")[:-1]
-        #     semicolons += content.count(";")
-        # return num_lines + semicolons
+        # G, _, _ = getProofTree(thm)
+        # return G.number_of_nodes()
+        # thm.proof = elim_overlap(thm.proof)
+        num_lines = len(elim_overlap(thm.proof))
+        # return num_lines
+        # dont count semicolons
+        semicolons = 0
+        for line in thm.proof:
+            # ignore <;>'s and ;'s at end of line
+            content = line.tactic.replace("<;>", "")[:-1]
+            semicolons += content.count(";")
+        return num_lines + semicolons
 
     sys_prompt = (
         "system",

@@ -67,19 +67,19 @@ class File(BaseModel):
 
 
 class AnnotatedProofStep(BaseModel):
-    prevState: List[str] = Field(
-        description="Pretty printed tactic state before the tactic invocation"
-    )
+    # prevState: List[str] = Field(
+    #     description="Pretty printed tactic state before the tactic invocation"
+    # )
     tactic: str = Field(description="One line/tactic in a tactic proof.")
     nextState: List[str] = Field(
         description="Pretty printed tactic state after the tactic invocation"
     )
-    srcUpToTactic: str = Field(
-        description="Source code from file start to current tactic"
-    )
-    declUpToTactic: str = Field(
-        description="Source code from theorem declaration to current tactic"
-    )
+    # srcUpToTactic: str = Field(
+    #     description="Source code from file start to current tactic"
+    # )
+    # declUpToTactic: str = Field(
+    #     description="Source code from theorem declaration to current tactic"
+    # )
     start: Tuple[Optional[int], Optional[int]] = Field(
         description="start coordinates from source file as (row,column)"
     )
@@ -116,9 +116,9 @@ class AnnotatedTheorem(BaseModel):
     project_path: str = Field(description="Local path to src repo contents")
     messages: List[Message] = Field(..., description="Messages from the lean server")
     pretty_print: str = Field(description="Content of theorem src file.")
-    proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
-        description="data for efficient proof tree construction"
-    )
+    # proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
+    #     description="data for efficient proof tree construction"
+    # )
     # dependencies: List[Dependency] = Field(
     #     description="Theorem dependencies from all imported modules"
     # )
@@ -339,7 +339,7 @@ def getTheorems(
 ) -> List[AnnotatedTheorem]:
     temp = {}
     msgs = data["messages"]
-    trees = data["proofTrees"]
+    # trees = data["proofTrees"]
     # consts = data["constants"]
 
     def remove_dupes(tacs):
@@ -365,11 +365,11 @@ def getTheorems(
     for step in data:
 
         ps = AnnotatedProofStep(
-            prevState=step["prevState"],
+            # prevState=step["prevState"],
             tactic=step["tactic"],
             nextState=step["nextState"],
-            srcUpToTactic=step["srcUpToTactic"],
-            declUpToTactic=step["declUpToTactic"],
+            # srcUpToTactic=step["srcUpToTactic"],
+            # declUpToTactic=step["declUpToTactic"],
             start=(
                 step["startPos"].get("line", None),
                 step["startPos"].get("column", None),
@@ -398,12 +398,12 @@ def getTheorems(
 
         pp = contents
 
-        PT = trees.get(declID, None)
-        if PT is not None:
-            PT = [
-                (node["tactic"], node["children"], node["spawned_children"])
-                for node in PT
-            ]
+        # PT = trees.get(declID, None)
+        # if PT is not None:
+        #     PT = [
+        #         (node["tactic"], node["children"], node["spawned_children"])
+        #         for node in PT
+        #     ]
 
         if declID not in temp.keys():
             temp[declID] = {
@@ -412,7 +412,7 @@ def getTheorems(
                 "context": maybe_context,
                 "messages": messages,
                 "pretty_print": pp,
-                "proof_tree": PT,
+                # "proof_tree": PT,
                 # "dependencies": dependencies,
             }
         else:
@@ -421,7 +421,7 @@ def getTheorems(
             curr_ctxt = temp[declID]["context"]
             curr_msgs = temp[declID]["messages"]
             curr_pp = temp[declID]["pretty_print"]
-            curr_pt = temp[declID]["proof_tree"]
+            # curr_pt = temp[declID]["proof_tree"]
             # curr_dep = temp[declID]["dependencies"]
             curr_proof.append(ps)
             temp[declID] = {
@@ -430,7 +430,7 @@ def getTheorems(
                 "context": curr_ctxt,
                 "messages": curr_msgs,
                 "pretty_print": curr_pp,
-                "proof_tree": curr_pt,
+                # "proof_tree": curr_pt,
                 # "dependencies": curr_dep,
             }
 
@@ -446,7 +446,7 @@ def getTheorems(
             project_path=project_path,
             messages=value["messages"],
             pretty_print=value["pretty_print"],
-            proof_tree=value["proof_tree"],
+            # proof_tree=value["proof_tree"],
             # dependencies=value["dependencies"],
         )
     return [v for _, v in result.items()]
@@ -907,7 +907,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             project_path=thm.project_path,
             messages=[getMessage(msg, text) for msg in output_data["messages"]],
             pretty_print=text,
-            proof_tree=[],
+            # proof_tree=[],
             # dependencies=thm.dependencies,
         )
     else:
@@ -969,11 +969,11 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                 def get_empty_annotated_proof_step(i):
                     proofstep = og_proof[i]
                     return AnnotatedProofStep(
-                        prevState=["ERROR"],
+                        # prevState=["ERROR"],
                         tactic=proofstep.tactic,
                         nextState=["ERROR"],
-                        srcUpToTactic="ERROR",
-                        declUpToTactic="ERROR",
+                        # srcUpToTactic="ERROR",
+                        # declUpToTactic="ERROR",
                         start=(max_pos[0] + i, max_pos[1] + i),
                         end=(max_pos[0] + i, max_pos[1] + i),
                     )
@@ -993,7 +993,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     project_path=project_path,
                     messages=output.messages,
                     pretty_print=output.pretty_print,
-                    proof_tree=output.proof_tree,
+                    # proof_tree=output.proof_tree,
                     # dependencies=thm.dependencies,
                 )
 
