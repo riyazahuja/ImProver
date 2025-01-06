@@ -7,6 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
+import tempfile
 
 
 def _get_stem(input_module, input_file_mode):
@@ -45,6 +46,38 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
         input_file=input_module,
         output_file=output_file,
     )
+
+    with open(output_file, "r") as f:
+        data = json.load(f)
+    tacs = data["tactics"]
+    headers = ""
+    if len(tacs) > 0:
+        fst = tacs[0]
+        srcUpToTactic = fst["srcUpToTactic"]
+        declUpToTactic = fst["declUpToTactic"]
+        headers = srcUpToTactic
+        if declUpToTactic in headers:
+            headers = headers.replace(declUpToTactic, "")
+
+    pickle_path = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + ".o"
+    )
+
+    text = f'{{"cmd": "{headers}"}}'
+    text = text.replace("\n", "\\n")
+
+    text2 = f'{{"pickleTo": "{pickle_path}", "env": 0}}'
+    text2 = text2.replace("\n", "\\n")
+    text = text + "\n\n" + text2
+
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
+    with open(temp.name, "w") as f:
+        f.write(text)
+    # print(text)
+    subprocess.Popen(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"], shell=True, cwd=cwd
+    ).wait()
+
     # UNSTABLE, NOT IN ARXIV BUILD
     # _run_cmd(
     #     cmd="constants",

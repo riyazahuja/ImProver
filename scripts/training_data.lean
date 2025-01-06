@@ -161,86 +161,87 @@ end Lean.Elab.TacticInvocation
 --   refs
 
 
-
 def trainingData (args : Cli.Parsed) : IO UInt32 := do
-    searchPathRef.set compile_time_search_path%
+  searchPathRef.set compile_time_search_path%
 
-    let module : ModuleName := args.positionalArg! "module" |>.as! ModuleName
-    let steps ← compileModule module
-    --let environments := steps.map (fun step => step.after)
+  -- let t0 ← IO.monoMsNow
+  let module : ModuleName := args.positionalArg! "module" |>.as! ModuleName
+  let steps ← compileModule module
+  -- let t1 ← IO.monoMsNow
+  -- IO.println s!"[Timing] compileModule took {t1 - t0}ms"
 
-    let infos ← getElabDeclInfo (steps.bind (fun c => c.trees))
-    let trees ← getInvocationTrees module
-    let hash ← generateRandomHash
+  -- let t2 ← IO.monoMsNow
+  let infos ← getElabDeclInfo (steps.bind (fun c => c.trees))
+  let trees ← getInvocationTrees module
+  let hash ← generateRandomHash
+  -- let t3 ← IO.monoMsNow
+  -- IO.println s!"[Timing] Gathering info and invocation trees took {t3 - t2}ms"
 
-    let mut msgs := []
-    let raw_msgs ← moduleMessages module
+  -- let t4 ← IO.monoMsNow
+  let mut msgs := []
+  let raw_msgs ← moduleMessages module
+  for msg in raw_msgs do
+    let s ← msg.toJson
+    msgs := s::msgs
+  -- let t5 ← IO.monoMsNow
+  -- IO.println s!"[Timing] Collecting messages took {t5 - t4}ms"
 
-    for msg in raw_msgs do
-      let s ← msg.toJson
-      msgs := s::msgs
+  -- let t6 ← IO.monoMsNow
+  let mut idJsons : List (String × Json) := []
+  let mut thmAnnotatedTrees_enum : List (String × List (Nat × InfoTree)) := []
 
+  for (idx,t) in trees.enum do
+    for tac in t.tactics_new do
+    match getElabDeclOfTacticInvocation infos tac with
+    | some elabDeclInfo => do
+      let json ← tac.trainingData' elabDeclInfo module hash
+      if not <| thmAnnotatedTrees_enum.any (fun (s,_) => s==json.1) then
+      thmAnnotatedTrees_enum := (json.1,[(idx,t)]) :: thmAnnotatedTrees_enum
+      else
+      thmAnnotatedTrees_enum := thmAnnotatedTrees_enum.map (fun (s,ts) => if (s==json.1 && (not (ts.any (fun (i,_) => i==idx)))) then (s,(idx,t)::ts) else (s,ts))
+      idJsons := json :: idJsons
+    | none => pure ()
+  -- let t7 ← IO.monoMsNow
+  -- IO.println s!"[Timing] Constructing thmAnnotatedTrees took {t7 - t6}ms"
 
-    let mut idJsons : List (String × Json) := []
-    let mut thmAnnotatedTrees_enum : List (String × List (Nat × InfoTree)) := []
+  -- let t8 ← IO.monoMsNow
+  let thmAnnotatedTrees : List (String × List InfoTree) :=
+    thmAnnotatedTrees_enum.map (fun (s,ts) => (s,ts.map (fun (_,t) => t) |>.reverse))
+  let parsedTrees : List (String × (IO (List Result))) :=
+    thmAnnotatedTrees.map (fun (s,ts) => (s, ts.filterMapM (BetterParser)))
+  -- let t9 ← IO.monoMsNow
+  -- IO.println s!"[Timing] Preparing trees and parsers took {t9 - t8}ms"
 
-    for (idx,t) in trees.enum do
-      for tac in t.tactics_new do
-        match getElabDeclOfTacticInvocation infos tac with
-        | some elabDeclInfo => do
-          let json ← tac.trainingData' elabDeclInfo module hash
-          if not <| thmAnnotatedTrees_enum.any (fun (s,_) => s==json.1) then
-            thmAnnotatedTrees_enum := (json.1,[(idx,t)]) :: thmAnnotatedTrees_enum
-          else
-            thmAnnotatedTrees_enum := thmAnnotatedTrees_enum.map (fun (s,ts) => if (s==json.1 && (not (ts.any (fun (i,_) => i==idx)))) then (s,(idx,t)::ts) else (s,ts))
-          idJsons := json :: idJsons
-        | none => pure ()
+  -- let t10 ← IO.monoMsNow
+  let mut PTs := []
+  for (s,results) in parsedTrees do
+    let results ← results
+    let steps := results.bind (fun result => result.steps)
+    let PT : List (String × List Nat × List Nat) := getProofTree steps
+    let PTJson := Json.arr <| PT.map (fun (tac,xs) => Json.mkObj (
+      [("tactic",tac),
+      ("children",Json.arr <| xs.1.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray),
+      ("spawned_children",Json.arr <| xs.2.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray)]
+    )) |>.toArray
+    PTs := (s,PTJson) :: PTs
+  let PTsJson := Json.mkObj PTs
+  -- let t11 ← IO.monoMsNow
+  -- IO.println s!"[Timing] Proof tree parsing and construction took {t11 - t10}ms"
 
+  -- let t12 ← IO.monoMsNow
+  let out := idJsons.reverse.map fun (_, j) => j
+  let tactics := Json.arr out.toArray
+  let messages := Json.arr msgs.toArray
+  let output := Json.mkObj ([
+    ("tactics",tactics),
+    ("messages",messages),
+    ("proofTrees", PTsJson)
+  ])
+  IO.println output.compress
+  -- let t13 ← IO.monoMsNow
+  -- IO.println s!"[Timing] Final JSON construction and printing took {t13 - t12}ms"
 
-    let thmAnnotatedTrees : List (String × List InfoTree) := thmAnnotatedTrees_enum.map (fun (s,ts) => (s,ts.map (fun (_,t) =>t) |>.reverse))
-
-    -- println environments.length
-    -- let named_environments := environments.bind (fun env => (env.constants.map₂.toList.map (fun (a,b) => (a,b,env))))
-    -- println named_environments.length
-    -- let named_references := named_environments.map (fun (a,b,c) => (a,references b c |>.toList))
-
-    -- println named_references
-    -- println s!"\n\n\n"
-
-    let parsedTrees : List (String × (IO (List Result))) := thmAnnotatedTrees.map (fun (s,ts) => (s,ts.filterMapM (BetterParser)))
-
-    let mut PTs := []
-    for (s,results) in parsedTrees do
-      let results ← results
-      let steps := results.bind (fun result => result.steps)
-
-      let PT : List (String × List Nat × List Nat) := getProofTree steps
-      let PTJson := Json.arr <| PT.map (fun (s,xs) => Json.mkObj (
-          [("tactic",s),
-          ("children",Json.arr <| xs.1.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray),
-          ("spawned_children",Json.arr <| xs.2.map (fun x => Json.num <| JsonNumber.fromNat x) |>.toArray)]
-        )) |>.toArray
-      PTs := (s,PTJson) :: PTs
-    let PTsJson := Json.mkObj PTs
-
-
-    let out := idJsons.reverse.map fun (_, j) => j
-
-    let tactics := Json.arr out.toArray
-    let messages := Json.arr msgs.toArray
-    let output := Json.mkObj ([
-      ("tactics",tactics),
-      ("messages",messages),
-      ("proofTrees", PTsJson)
-    ])
-
-    IO.println output.compress
-
-    -- for item in out do
-    --   IO.println item.compress
-    --   IO.println "====LINE===="
-
-    return 0
+  return 0
 
 
 /-- Setting up command line options and help text for `lake exe training_data`. -/
@@ -255,3 +256,7 @@ def training_data : Cmd := `[Cli|
 /-- `lake exe training_data` -/
 def main (args : List String) : IO UInt32 :=
   training_data.validate args
+
+
+
+--#eval main ["Tests.MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets"]
