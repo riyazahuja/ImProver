@@ -409,7 +409,7 @@ if __name__ == "__main__":
     #     mathlib_search=[True],
     #     improved_context=[True],
     # )
-    methods = improver(length_metric())
+    methods = baseline(length_metric())
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}

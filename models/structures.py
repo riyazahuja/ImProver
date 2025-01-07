@@ -51,6 +51,7 @@ class Theorem(BaseModel):
     context: str = Field(
         description="Context of the theorem (i.e. file contents up to decl)"
     )
+    headerless_context: str = Field("Context of the theorem without file headers")
     project_path: str = Field(description="Local path to src repo contents")
     # dependencies: List[Dependency] = Field(
     #     description="Theorem dependencies from all imported modules"
@@ -110,6 +111,9 @@ class AnnotatedTheorem(BaseModel):
     context: str = Field(
         description="Context of the theorem (i.e. file contents up to decl)"
     )
+    headerless_context: str = Field(
+        description="Context of the theorem without file headers"
+    )
     proof: List[AnnotatedProofStep] = Field(
         ..., description="Sequence of annotated proofsteps for full proof of theorem."
     )
@@ -134,6 +138,7 @@ class AnnotatedFile(BaseModel):
         ..., description="List of all theorems in a file"
     )
     project_path: str = Field(description="Local path to src repo contents")
+    header: str = Field(description="Header of the file")
 
 
 class Repo(BaseModel):
@@ -360,7 +365,15 @@ def getTheorems(
     data = remove_dupes(data["tactics"])
 
     # all_tacs = [re.sub(r"\s", "", step["tactic"]) for step in data]
-
+    headers = ""
+    if len(data) > 0:
+        fst = data[0]
+        srcUpToTactic = fst["srcUpToTactic"]
+        declUpToTactic = fst["declUpToTactic"]
+        headers = srcUpToTactic
+        if declUpToTactic in headers:
+            headers = headers.replace(declUpToTactic, "")
+    headers = headers.strip()
     # tactic_start_line = data[0]["startPos"]["line"] if len(data) != 0 else None
     for step in data:
 
@@ -392,7 +405,8 @@ def getTheorems(
         # dependencies = getDependencies(consts, declID)
 
         lines_src = step["srcUpToTactic"].split("\n")
-        decl_lines = decl.split("\n")
+
+        decl_lines = step["declUpToTactic"].split("\n")
 
         maybe_context = "\n".join(lines_src[: -len(decl_lines) - 1]).strip()
 
@@ -436,6 +450,12 @@ def getTheorems(
 
     result = {}
     for ID, value in temp.items():
+        # if value["decl"] in value["context"]:
+        #     value["context"] = value["context"].replace(value["decl"], "")
+        headerless_ctx = value["context"]
+        if headers in headerless_ctx:
+            headerless_ctx = headerless_ctx.replace(headers, "")
+
         result[ID] = AnnotatedTheorem(
             leanFile=path,
             src=src,
@@ -443,6 +463,7 @@ def getTheorems(
             declID=ID,
             proof=value["proof"],
             context=value["context"],
+            headerless_context=headerless_ctx,
             project_path=project_path,
             messages=value["messages"],
             pretty_print=value["pretty_print"],
@@ -474,6 +495,16 @@ def getAnnotatedFile(src, path, project_path, until_end=False):
 
     theorems = getTheorems(data, src, path, project_path, contents, until_end=until_end)
 
+    tacs = data["tactics"]
+    headers = ""
+    if len(tacs) > 0:
+        fst = tacs[0]
+        srcUpToTactic = fst["srcUpToTactic"]
+        declUpToTactic = fst["declUpToTactic"]
+        headers = srcUpToTactic
+        if declUpToTactic in headers:
+            headers = headers.replace(declUpToTactic, "")
+
     return AnnotatedFile(
         src=src,
         file_name=os.path.basename(path),
@@ -482,6 +513,7 @@ def getAnnotatedFile(src, path, project_path, until_end=False):
         file_path=path,
         file_type=ftype,
         project_path=project_path,
+        header=headers,
     )
 
 
@@ -865,6 +897,60 @@ def run_training_data(root_path, project_path, module_name, rerun=None):
 
 
 def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
+    """
+    Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
+    and then parsed the output to get the proof steps. This was slow and inefficient.
+
+    Now, we parse the theorem's headerless context and raw text into a REPL command,
+    and construct a .in file that initializes the environment via the binary cache and
+    runs the command. Then we parse the REPL output to get a theorem object.
+    """
+
+    src = thm.src
+    path = thm.leanFile
+    text = parseTheorem(thm, context=False)
+    print(thm.context)
+    print(thm.proof)
+    og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
+    og_thm_end = len(text.splitlines())
+
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
+    project_path = thm.project_path
+
+    print(f"Cache Path: {cache_path}")
+    file_name = os.path.basename(path).replace(".lean", "")
+    binary_path = os.path.join(cache_path, file_name + ".o")
+    print(f"Binary Path: {binary_path}")
+
+    cmd_text = thm.headerless_context + "\n\n" + text
+
+    cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+
+    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "env": 0}}'
+
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
+    with open(temp.name, "w") as f:
+        f.write(infile)
+
+    output = subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
+        shell=True,
+        text=True,
+        capture_output=True,
+        cwd=root_path,
+    )
+
+    out = "\n".join(output.stdout.splitlines()[2:])
+    data = json.loads(out)
+
+    tactics = data["tactics"]
+    messages = data["messages"]
+
+    print(output.stdout)
+
+
+def annotateTheorem_old(thm: Theorem, force=False) -> AnnotatedTheorem:
 
     src = thm.src
     path = thm.leanFile
@@ -903,6 +989,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             src=thm.src,
             leanFile=thm.leanFile,
             context=thm.context,
+            headerless_context=thm.headerless_context,
             proof=[],
             project_path=thm.project_path,
             messages=[getMessage(msg, text) for msg in output_data["messages"]],
@@ -989,6 +1076,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
                     src=output.src,
                     leanFile=output.leanFile,
                     context=output.context,
+                    headerless_context=output.headerless_context,
                     proof=proof,
                     project_path=project_path,
                     messages=output.messages,
