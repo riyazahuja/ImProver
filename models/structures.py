@@ -1055,14 +1055,26 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             end_pos_raw["column"],
         )
 
+        msg_offsets = (to_offset(*start_pos), to_offset(*end_pos))
         overlaps = find_overlapping_tactics(intervals, message_interval)
-        print(overlaps)
-        tacs = [
-            tactics_lookup.get(over[2], "SOURCE NOT FOUND") for over in sorted(overlaps)
-        ]
-        
-        for tac in 
-        
+
+        tacs = []
+        for over in sorted(overlaps):
+            start_offset, end_offset, key = over
+
+            tactic = tactics_lookup.get(key, "SOURCE NOT FOUND")
+
+            left = max(0, msg_offsets[0] - start_offset, start_offset - msg_offsets[0])
+            right = min(
+                end_offset - msg_offsets[1], msg_offsets[1] - end_offset, len(tactic)
+            )
+
+            # if want full tactic forwarding:
+            # left = 0
+            # right = len(tactic)
+
+            tacs.append(tactic[left:right])
+
         message_src = "\n".join(tacs)
 
         messages.append(
@@ -1075,10 +1087,18 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             )
         )
 
-    print(output.stdout)
-
-    print(proof)
-    print(messages)
+    return AnnotatedTheorem(
+        decl=thm.decl,
+        declID=thm.declID,
+        src=thm.src,
+        leanFile=thm.leanFile,
+        context=thm.context,
+        headerless_context=thm.headerless_context,
+        proof=proof,
+        project_path=thm.project_path,
+        messages=messages,
+        pretty_print=parseTheorem(thm, context=False),
+    )
 
 
 def annotateTheorem_old(thm: Theorem, force=False) -> AnnotatedTheorem:
