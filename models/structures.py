@@ -7,6 +7,7 @@ import tempfile
 import subprocess
 from textwrap import indent
 import re
+import bisect
 
 """
 This is the important file: Describes all datastructures that we will use, as well as how to coerce between them and interact with the cache
@@ -909,8 +910,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm, context=False)
-    print(thm.context)
-    print(thm.proof)
+    # print(thm.context)
+    # print(thm.proof)
     og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
     og_thm_end = len(text.splitlines())
 
@@ -918,10 +919,10 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
     project_path = thm.project_path
 
-    print(f"Cache Path: {cache_path}")
+    # print(f"Cache Path: {cache_path}")
     file_name = os.path.basename(path).replace(".lean", "")
     binary_path = os.path.join(cache_path, file_name + ".o")
-    print(f"Binary Path: {binary_path}")
+    # print(f"Binary Path: {binary_path}")
 
     cmd_text = thm.headerless_context + "\n\n" + text
 
@@ -945,9 +946,139 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     data = json.loads(out)
 
     tactics = data["tactics"]
-    messages = data["messages"]
+    msgs = data["messages"]
+
+    proof = []
+    for tactic_data in tactics:
+        tactic = tactic_data["tactic"]
+        nextState = tactic_data["goals"]
+        # ^^^ need list of goals, not like this string one. TODO fix
+        start_pos_raw = tactic_data["pos"]
+        end_pos_raw = tactic_data["endPos"]
+        proof.append(
+            AnnotatedProofStep(
+                tactic=tactic,
+                nextState=[nextState],
+                start=(start_pos_raw["line"], start_pos_raw["column"]),
+                end=(end_pos_raw["line"], end_pos_raw["column"]),
+            )
+        )
+
+    messages = []
+
+    tactics_lookup = {
+        (step.start[0], step.start[1], step.end[0], step.end[1]): step.tactic
+        for step in proof
+    }
+
+    max_cols = (
+        max(
+            [
+                max(start_col, end_col)
+                for _, start_col, _, end_col in tactics_lookup.keys()
+            ]
+        )
+        + 1
+    )
+
+    def to_offset(line, col):
+        return line * (max_cols + 1) + col
+
+    def preprocess_tactics(tactics):
+        intervals = []
+        for sl, sc, el, ec in tactics:
+            start_offset = to_offset(sl, sc)
+            end_offset = to_offset(el, ec)
+            # Make sure start_offset <= end_offset
+            if start_offset > end_offset:
+                start_offset, end_offset = end_offset, start_offset
+
+            intervals.append((start_offset, end_offset, (sl, sc, el, ec)))
+
+        # Sort by the start_offset (the first element in the tuple)
+        intervals.sort(key=lambda x: x[0])
+        return intervals
+
+    def find_overlapping_tactics(intervals, message):
+
+        msg_start = to_offset(message[0], message[1])
+        msg_end = to_offset(message[2], message[3])
+        # Ensure msg_start <= msg_end
+        if msg_start > msg_end:
+            msg_start, msg_end = msg_end, msg_start
+
+        # We want to quickly skip intervals that start AFTER msg_end.
+        # Use bisect_right on the intervals' start_offset to find the cutoff.
+        # intervals is sorted by start_offset, i.e. intervals[i] = (start_off, end_off, original).
+
+        # We'll create a "dummy" tuple for searching: (msg_end, ...)
+        # We only care about the first two fields for the sort order, so
+        # something like (msg_end, +infinity) will act as a sentinel.
+        sentinel = (msg_end, float("inf"), None)
+
+        # pos is the index of the first interval whose start_offset > msg_end
+        pos = bisect.bisect_right(intervals, sentinel, key=lambda x: (x[0], x[1]))
+
+        # intervals[:pos] all have start_offset <= msg_end.
+        # Among those, we only keep those whose end_offset >= msg_start.
+        result = []
+        for start_off, end_off, original in intervals[:pos]:
+            if end_off >= msg_start:  # overlap condition
+                result.append((start_off, end_off, original))
+
+        return result
+
+    intervals = preprocess_tactics(tactics_lookup.keys())
+
+    msgs = sorted(
+        msgs,
+        key=lambda m: (
+            m["pos"]["line"],
+            m["pos"]["column"],
+            m["endPos"]["line"],
+            m["endPos"]["column"],
+        ),
+    )
+
+    for msg in msgs:
+        severity = msg["severity"]
+        start_pos_raw = msg["pos"]
+        end_pos_raw = msg["endPos"]
+        content = msg["data"]
+        start_pos = (start_pos_raw["line"], start_pos_raw["column"])
+        end_pos = (end_pos_raw["line"], end_pos_raw["column"])
+
+        message_interval = (
+            start_pos_raw["line"],
+            start_pos_raw["column"],
+            end_pos_raw["line"],
+            end_pos_raw["column"],
+        )
+
+        overlaps = find_overlapping_tactics(intervals, message_interval)
+        print(overlaps)
+        tacs = [
+            tactics_lookup.get(over[2], "SOURCE NOT FOUND") for over in sorted(overlaps)
+        ]
+        
+        for tac in 
+        
+        message_src = "\n".join(tacs)
+
+        messages.append(
+            Message(
+                severity=severity,
+                start=start_pos,
+                end=end_pos,
+                message_src=message_src,
+                content=content,
+            )
+        )
 
     print(output.stdout)
+
+    print(proof)
+    print(messages)
 
 
 def annotateTheorem_old(thm: Theorem, force=False) -> AnnotatedTheorem:
