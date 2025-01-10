@@ -335,7 +335,7 @@ def baseline(*metrics):
 def improver(*metrics):
     return get_methods(
         model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        fn=[refinement(best_of_n_n(prompt_flat, 16, max_workers=8), keep_best=True)],
         n=[5],
         annotation=[True],
         examples=[10],
@@ -409,7 +409,7 @@ if __name__ == "__main__":
     #     mathlib_search=[True],
     #     improved_context=[True],
     # )
-    methods = baseline(length_metric())
+    methods = improver(length_metric())
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
@@ -438,6 +438,6 @@ if __name__ == "__main__":
     d, t = benchmark_theorem(
         thm, methods, max_workers=1, show_progress=True, output_trajectories=True
     )
-    save_to_csv(d, "benchmark/data/traj_data.csv")
-    save_to_csv(t, "benchmark/data/traj_traj.csv")
+    save_to_csv(d, "benchmark/data/traj_data2.csv")
+    save_to_csv(t, "benchmark/data/traj_traj2.csv")
     print(f"{t}")

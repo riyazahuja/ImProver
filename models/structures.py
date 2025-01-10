@@ -945,8 +945,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
 
-    tactics = data["tactics"]
-    msgs = data["messages"]
+    tactics = data.get("tactics", [])
+    msgs = data.get("messages", {})
 
     proof = []
     for tactic_data in tactics:
@@ -1070,8 +1070,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
             )
 
             # if want full tactic forwarding:
-            # left = 0
-            # right = len(tactic)
+            left = 0
+            right = len(tactic)
 
             tacs.append(tactic[left:right])
 

@@ -22,7 +22,7 @@ from typing import Final
 import tiktoken
 from multiprocessing import cpu_count
 
-log_req_info = False
+log_req_info = True
 
 if log_req_info:
     logger: Final = logging.getLogger(__name__)
