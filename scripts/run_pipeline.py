@@ -1,4 +1,6 @@
 import glob
+import sys
+import re
 import os
 import argparse
 import subprocess
@@ -111,43 +113,60 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
     print(f"Extracting {input_module}")
 
     fp = os.path.join(start, input_module.replace(".", "/") + ".lean")
-    print(f"File Path: {fp}")
-
-    if "C04" not in input_module or "Solutions_S01" not in input_module:
-        return 1
-    repl_cmd = f'{{"path": "{fp}", "allTactics":true, "infotree":"full"}}'
-    repl_cmd = f'{{"path": "{fp}", "allTactics":true}}'
+    output_path = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + ".json"
+    )
+    # print(f'cmd: {cmd}\n input: {input_file}\n output {output_file}')
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    # if "C04" not in input_module or "Solutions_S01" not in input_module:
+    #     print(f"File Path: {fp}")
+    #     return 1
+    repl_cmd = f'{{"path": "{fp}", "allTactics":true, "theorems":true}}'
+    # repl_cmd = f'{{"path": "{fp}", "allTactics":true}}'
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
     with open(temp.name, "w") as f:
         f.write(repl_cmd)
 
-    output = subprocess.run(
-        [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
+    subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name} > {output_path}"],
         shell=True,
         cwd=cwd,
-        capture_output=True,
     )
-    data_raw = output.stdout
-    if data_raw == "":
-        raise KeyError(f"BAD DATA: {output}")
-    data = json.loads(data_raw)
-    print(data)
 
-    print()
-
-    return 1
-
-    with open(output_file, "r") as f:
+    with open(output_path, "r") as f:
         data = json.load(f)
-    tacs = data["tactics"]
+
+    # need to add context and headerless context to each theorem, and headers to the overall file
+    with open(fp, "r") as f:
+        contents = f.read()
+
     headers = ""
-    if len(tacs) > 0:
-        fst = tacs[0]
-        srcUpToTactic = fst["srcUpToTactic"]
-        declUpToTactic = fst["declUpToTactic"]
-        headers = srcUpToTactic
-        if declUpToTactic in headers:
-            headers = headers.replace(declUpToTactic, "")
+    header_end_line = 0  # exclusive
+    if len(data["theorems"]) > 0:
+
+        fst = data["theorems"][0]
+        header_end_line = max(fst["start"]["line"] - 1, 0)
+        headers = "\n".join(contents.splitlines()[:header_end_line])
+
+    new_theorems = []
+    for thm in data["theorems"]:
+        contents_split = contents.splitlines()
+        thm_start = thm["start"]["line"]
+        context = "\n".join(contents_split[:thm_start])
+        headerless_context = "\n".join(contents_split[header_end_line:thm_start])
+        new_theorems.append(
+            {**thm, "context": context, "headerless_context": headerless_context}
+        )
+
+    new_data = {
+        "tactics": data["tactics"],
+        "messages": data["messages"],
+        "theorems": new_theorems,
+        "headers": headers,
+    }
+
+    with open(output_path, "w") as f:
+        json.dump(new_data, f)
 
     pickle_path = os.path.join(
         output_base_dir, _get_stem(input_module, input_file_mode) + ".o"
@@ -166,29 +185,10 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
     with open(temp.name, "w") as f:
         f.write(text)
     # print(text)
-    subprocess.Popen(
+    subprocess.run(
         [f"lake env repl/.lake/build/bin/repl < {temp.name}"], shell=True, cwd=cwd
-    ).wait()
+    )
 
-    # UNSTABLE, NOT IN ARXIV BUILD
-    # _run_cmd(
-    #     cmd="constants",
-    #     cwd=cwd,
-    #     input_file=input_module,
-    #     output_file=constants_file,
-    # )
-
-    # with open(training_file, "r") as f:
-    #     training_data = json.load(f)
-    # with open(constants_file, "r") as f:
-    #     constant_data = json.load(f)
-    # with open(output_file, "w") as f:
-    #     training_data["constants"] = constant_data
-    #     json.dump(training_data, f)
-    # os.remove(training_file)
-    # os.remove(constants_file)
-
-    print(input_module)
     return 1
 
 
