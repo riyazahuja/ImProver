@@ -159,7 +159,7 @@ def _run(cwd, name, import_file, old_version, max_workers, start, local_path):
         proj_path = local_path
 
     start_path = os.path.join(proj_path, start)
-
+    # print(f"== {start_path} ==")
     flags += " --start %s --proj-path %s" % (start_path, proj_path)
     subprocess.Popen(
         [

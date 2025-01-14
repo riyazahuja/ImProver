@@ -298,5 +298,36 @@ if __name__ == "__main__":
     thms = f.theorems
     for i in range(len(thms)):
         save_tree(
-            *getProofTree(thms[i], visualize=False), save_path=f".trees/MIL/{i}.png"
+            *getProofTree(thms[i], visualize=False),
+            save_path=f".trees/MIL/{i}.png",
+            show_mod=True,
         )
+
+    thm = thms[0]
+    ProofStep.update_forward_refs()
+    proof = [
+        ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+        ProofStep(tactic="use xs"),
+        ProofStep(tactic="right"),
+        ProofStep(tactic="exact xt"),
+        ProofStep(tactic="use xs"),
+        ProofStep(tactic="right"),
+        ProofStep(tactic="exact xu"),
+    ]
+
+    thm_base = Theorem(
+        decl=thm.decl,
+        proof=proof,
+        declID=thm.declID,
+        src=thm.src,
+        leanFile=thm.leanFile,
+        context=thm.context,
+        project_path=thm.project_path,
+    )
+    thm = annotateTheorem(thm_base, force=True)
+
+    save_tree(
+        *getProofTree(thm, visualize=False),
+        save_path=f".trees/MIL/new.png",
+        show_mod=True,
+    )

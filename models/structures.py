@@ -101,6 +101,9 @@ class Message(BaseModel):
     message_src: Optional[str] = Field(
         description="equivalent to source_contents[start:end]"
     )
+    # message_tactic_src: Optional[AnnotatedProofStep] = Field(
+    #     description="tactic object containing message_src"
+    # )
     content: str = Field(description="Message contents")
 
 

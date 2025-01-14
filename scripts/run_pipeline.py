@@ -28,7 +28,7 @@ def _run_cmd(cmd, cwd, input_file, output_file):
         ).wait()
 
 
-def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
+def _extract_module_old(input_module, input_file_mode, output_base_dir, cwd):
     # Tactic prediction
     # ratchet and todo fix later
     training_file = os.path.join(
@@ -46,6 +46,96 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
         input_file=input_module,
         output_file=output_file,
     )
+
+    with open(output_file, "r") as f:
+        data = json.load(f)
+    tacs = data["tactics"]
+    headers = ""
+    if len(tacs) > 0:
+        fst = tacs[0]
+        srcUpToTactic = fst["srcUpToTactic"]
+        declUpToTactic = fst["declUpToTactic"]
+        headers = srcUpToTactic
+        if declUpToTactic in headers:
+            headers = headers.replace(declUpToTactic, "")
+
+    pickle_path = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + ".o"
+    )
+
+    text = f'{{"cmd": "{headers}"}}'.replace("\n", "\\n")  # .replace('"', '\\"')
+
+    text2 = f'{{"pickleTo": "{pickle_path}", "env": 0}}'.replace(
+        "\n", "\\n"
+    )  # .replace(
+    #'"', '\\"'
+    # )
+    text = text + "\n\n" + text2
+
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
+    with open(temp.name, "w") as f:
+        f.write(text)
+    # print(text)
+    subprocess.Popen(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"], shell=True, cwd=cwd
+    ).wait()
+
+    # UNSTABLE, NOT IN ARXIV BUILD
+    # _run_cmd(
+    #     cmd="constants",
+    #     cwd=cwd,
+    #     input_file=input_module,
+    #     output_file=constants_file,
+    # )
+
+    # with open(training_file, "r") as f:
+    #     training_data = json.load(f)
+    # with open(constants_file, "r") as f:
+    #     constant_data = json.load(f)
+    # with open(output_file, "w") as f:
+    #     training_data["constants"] = constant_data
+    #     json.dump(training_data, f)
+    # os.remove(training_file)
+    # os.remove(constants_file)
+
+    print(input_module)
+    return 1
+
+
+def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
+    # I am actually going to cry this is so scuffed
+    # If you aren't riyaz and reading this, trust me I can actually code
+    # This is just a disgusting patch that actually works for some reason
+    # for the love of god fix this to be less stupid
+
+    print(f"Extracting {input_module}")
+
+    fp = os.path.join(start, input_module.replace(".", "/") + ".lean")
+    print(f"File Path: {fp}")
+
+    if "C04" not in input_module or "Solutions_S01" not in input_module:
+        return 1
+    repl_cmd = f'{{"path": "{fp}", "allTactics":true, "infotree":"full"}}'
+    repl_cmd = f'{{"path": "{fp}", "allTactics":true}}'
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
+    with open(temp.name, "w") as f:
+        f.write(repl_cmd)
+
+    output = subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
+        shell=True,
+        cwd=cwd,
+        capture_output=True,
+    )
+    data_raw = output.stdout
+    if data_raw == "":
+        raise KeyError(f"BAD DATA: {output}")
+    data = json.loads(data_raw)
+    print(data)
+
+    print()
+
+    return 1
 
     with open(output_file, "r") as f:
         data = json.load(f)
@@ -166,6 +256,7 @@ if __name__ == "__main__":
     # print(f"walked from {start}: \n{files_in_path}")
 
     completed = []
+    start_path = start
     start = time.time()
     with ProcessPoolExecutor(args.max_workers) as executor:
         input_file_mode = args.input_file is not None
@@ -186,6 +277,7 @@ if __name__ == "__main__":
                 input_file_mode=input_file_mode,
                 output_base_dir=args.output_base_dir,
                 cwd=args.cwd,
+                start=start_path,
             )
             for input_module in input_modules
         ]
