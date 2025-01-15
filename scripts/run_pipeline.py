@@ -139,17 +139,17 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
     # need to add context and headerless context to each theorem, and headers to the overall file
     with open(fp, "r") as f:
         contents = f.read()
-
+    thms = data.get("theorems", [])
     headers = ""
     header_end_line = 0  # exclusive
-    if len(data["theorems"]) > 0:
+    if len(thms) > 0:
 
-        fst = data["theorems"][0]
+        fst = thms[0]
         header_end_line = max(fst["start"]["line"] - 1, 0)
         headers = "\n".join(contents.splitlines()[:header_end_line])
 
     new_theorems = []
-    for thm in data["theorems"]:
+    for thm in thms:
         contents_split = contents.splitlines()
         thm_start = thm["start"]["line"]
         context = "\n".join(contents_split[:thm_start])
@@ -159,8 +159,8 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
         )
 
     new_data = {
-        "tactics": data["tactics"],
-        "messages": data["messages"],
+        "tactics": data.get("tactics", []),
+        "messages": data.get("messages", []),
         "theorems": new_theorems,
         "headers": headers,
     }

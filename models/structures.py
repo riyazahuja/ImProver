@@ -2,6 +2,7 @@ from __future__ import annotations
 from langchain_core.pydantic_v1 import BaseModel, Field
 import os
 from typing import List, Union, Optional, Tuple
+import uuid
 import json
 import tempfile
 import subprocess
@@ -124,9 +125,9 @@ class AnnotatedTheorem(BaseModel):
     project_path: str = Field(description="Local path to src repo contents")
     messages: List[Message] = Field(..., description="Messages from the lean server")
     pretty_print: str = Field(description="Content of theorem src file.")
-    # proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
-    #     description="data for efficient proof tree construction"
-    # )
+    proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
+        description="data for efficient proof tree construction"
+    )
     # dependencies: List[Dependency] = Field(
     #     description="Theorem dependencies from all imported modules"
     # )
@@ -348,6 +349,72 @@ def getTheorems(
 ) -> List[AnnotatedTheorem]:
     temp = {}
     msgs = data["messages"]
+    tactics = data["tactics"]
+    theorems = data["theorems"]
+
+    output = []
+    for thm in theorems:
+        thm_tactics = [tactics[i] for i in thm["tactics"]]
+        proof = [
+            AnnotatedProofStep(
+                tactic=tac["tactic"],
+                nextState=[tac["goals"]],
+                start=(tac["pos"]["line"], tac["pos"]["column"]),
+                end=(tac["endPos"]["line"], tac["endPos"]["column"]),
+            )
+            for tac in thm_tactics
+        ]
+
+        thm_msgs = [msgs[i] for i in thm["messages"]]
+        thm_messages = [
+            Message(
+                severity=msg["severity"],
+                start=(msg["pos"]["line"], msg["pos"]["column"]),
+                end=(msg["endPos"]["line"], msg["endPos"]["column"]),
+                content=msg["data"],
+                message_src="\n".join(
+                    contents.splitlines()[
+                        msg["pos"]["line"] - 1 : msg["endPos"]["line"]
+                    ]
+                ),
+            )
+            for msg in thm_msgs
+        ]
+
+        decl = thm["decl"]
+        context = thm["context"]
+        headerless_context = thm["headerless_context"]
+        declID = str(uuid.uuid4())
+
+        if len(thm["proofTree"]) == len(proof):
+            proof_tree = [
+                (proof[i].tactic, pair["children"], pair["spawned_children"])
+                for i, pair in enumerate(thm["proofTree"])
+            ]
+        else:
+            proof_tree = []
+        start = (thm["start"]["line"], thm["start"]["column"])
+        end = (thm["end"]["line"], thm["end"]["column"])
+
+        pretty_print = "\n".join(contents.splitlines()[start[0] - 1 : end[0]])
+
+        output.append(
+            AnnotatedTheorem(
+                leanFile=path,
+                src=src,
+                decl=decl,
+                declID=declID,
+                proof=proof,
+                context=context,
+                headerless_context=headerless_context,
+                project_path=project_path,
+                messages=thm_messages,
+                pretty_print=pretty_print,
+                proof_tree=proof_tree,
+            )
+        )
+    return output
+
     # trees = data["proofTrees"]
     # consts = data["constants"]
 
@@ -499,15 +566,7 @@ def getAnnotatedFile(src, path, project_path, until_end=False):
 
     theorems = getTheorems(data, src, path, project_path, contents, until_end=until_end)
 
-    tacs = data["tactics"]
-    headers = ""
-    if len(tacs) > 0:
-        fst = tacs[0]
-        srcUpToTactic = fst["srcUpToTactic"]
-        declUpToTactic = fst["declUpToTactic"]
-        headers = srcUpToTactic
-        if declUpToTactic in headers:
-            headers = headers.replace(declUpToTactic, "")
+    headers = data["headers"]
 
     return AnnotatedFile(
         src=src,
@@ -724,6 +783,11 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
             # if line_after not in state_text_after_line.keys():
             state_text_after_line[line_after] = text
         proof_text = []
+
+        print(f"tactics_start_pos: {tactics_start_pos}")
+        print(f"thm_end_pos: {thm_end_pos}")
+        print(f"len contents: {len(contents)}")
+
         for curr_line in range(
             tactics_start_pos[0] - 1, min(thm_end_pos[0], len(contents) - 1)
         ):
@@ -737,7 +801,7 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
                     f"len contents: {len(contents)}\ncurr_line = {curr_line}\nstart:{tactics_start_pos[0] - 1}\nend:{thm_end_pos[0]-1}\nthm:{decl}\npp:{enum_cont}"
                 )
                 raise KeyError("")
-
+            print(line_text)
             try:
                 line_one = line_text.splitlines()[0]
                 indent_cnt = len(line_one) - len(line_one.lstrip(" "))
@@ -751,10 +815,8 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
         proof_text = "\n".join(proof_text)
 
     else:
-        if thm_end_pos is not None and thm_end_pos[0] is not None:
-            proof_text = "\n".join(contents[tactics_start_pos[0] - 1 : thm_end_pos[0]])
-        else:
-            proof_text = "\n".join(contents[tactics_start_pos[0] - 1 :])
+        return f"{context_str if context else ''}\n{thm.pretty_print}"
+
     return f"{context_str if context else ''}\n{decl} := by\n{proof_text}"
     # return f"{context_str if context else ''}\n{proof_text}"
 
@@ -1255,13 +1317,13 @@ def annotateTheorem_old(thm: Theorem, force=False) -> AnnotatedTheorem:
 
 
 if __name__ == "__main__":
-    repo = getRepo("Tests", "configs/config_test.json")
+    repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
-    print(files.keys())
-    fs = [files["Tests/Basic.lean"]]
+
+    fs = [files["Tests/MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean"]]
 
     for f in fs:
         print(f"{f.file_name}|==================================")
-        for thm in f.theorems:
+        for thm in [f.theorems[0]]:
             print(parseTheorem(thm, annotation=True, context=False))
             print("-------------------------")

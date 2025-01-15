@@ -256,3 +256,6 @@ def training_data : Cmd := `[Cli|
 /-- `lake exe training_data` -/
 def main (args : List String) : IO UInt32 :=
   training_data.validate args
+
+
+#eval main ["Tests.MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets"]
