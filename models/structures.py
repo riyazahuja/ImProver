@@ -53,7 +53,9 @@ class Theorem(BaseModel):
     context: str = Field(
         description="Context of the theorem (i.e. file contents up to decl)"
     )
-    headerless_context: str = Field("Context of the theorem without file headers")
+    headerless_context: str = Field(
+        description="Context of the theorem without file headers"
+    )
     project_path: str = Field(description="Local path to src repo contents")
     # dependencies: List[Dependency] = Field(
     #     description="Theorem dependencies from all imported modules"
@@ -750,8 +752,16 @@ def get_tactic_str(step: AnnotatedProofStep, content: str, annotation=False):
     content = content.splitlines()
 
 
-def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False):
-    context_str = thm.context
+def parseAnnotatedTheorem(
+    thm: AnnotatedTheorem, annotation=False, context=False, headerless_context=False
+):
+    context_str = ""
+    if context:
+        context_str = thm.context
+    elif headerless_context:
+        context_str = thm.headerless_context
+    if context_str != "":
+        context_str += "\n"
     decl = thm.decl
     proof = thm.proof
     tactics_start_pos = proof[0].start
@@ -823,9 +833,9 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
 
     else:
         pp = "\n".join(thm.pretty_print.splitlines()[thm.start[0] - 1 : thm.end[0]])
-        return f"{context_str if context else ''}\n{pp}"
+        return f"{context_str}{pp}"
 
-    return f"{context_str if context else ''}\n{decl} := by\n{proof_text}"
+    return f"{context_str}{decl} := by\n{proof_text}"
     # return f"{context_str if context else ''}\n{proof_text}"
 
 
@@ -890,22 +900,32 @@ def parse_proof(thm, indent=1, dot=False):
     return output
 
 
-def parseTheoremBase(thm, context=True):
+def parseTheoremBase(thm: Theorem, context=True, headerless_context=False):
     statement = thm.decl
     if context:
         context = thm.context
+    elif headerless_context:
+        context = thm.headerless_context
     else:
         context = ""
     proof = parse_proof(thm, dot=False)
+    if context != "":
+        context += "\n"
+    return f"{context}{statement} := by\n{proof}"
 
-    return f"{context}\n\n{statement} := by\n{proof}"
 
-
-def parseTheorem(thm, context=True, annotation=False, prompt=False):
+def parseTheorem(thm, annotation=False, context=False, headerless_context=False):
     if type(thm) == AnnotatedTheorem:
-        return parseAnnotatedTheorem(thm, context, annotation)  # thm.pretty_print
+        return parseAnnotatedTheorem(
+            thm,
+            annotation=annotation,
+            context=context,
+            headerless_context=headerless_context,
+        )  # thm.pretty_print
     else:
-        return parseTheoremBase(thm, context)
+        return parseTheoremBase(
+            thm, context=context, headerless_context=headerless_context
+        )
 
 
 def run_training_data(root_path, project_path, module_name, rerun=None):
@@ -985,8 +1005,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     text = parseTheorem(thm, context=False)
     # print(thm.context)
     # print(thm.proof)
-    og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
-    og_thm_end = len(text.splitlines())
+    # og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
+    # og_thm_end = len(text.splitlines())
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
@@ -1000,8 +1020,9 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     cmd_text = thm.headerless_context + "\n\n" + text
 
     cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
-
-    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "env": 0}}'
+    # print(thm.headerless_context)
+    # print("##############")
+    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
@@ -1014,12 +1035,88 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
         capture_output=True,
         cwd=root_path,
     )
-
+    # print(output.stdout)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
-
+    print(data)
     tactics = data.get("tactics", [])
     msgs = data.get("messages", {})
+
+    target_thms = data.get("theorems", [])
+    if len(target_thms) == 0:
+        raise ValueError(f"BAD REPL CALL:\n{cmd_text}\n\n{data}")
+
+    target_thm = target_thms[-1]
+
+    offset = len(thm.context.splitlines()) - (target_thm["start"]["line"] - 1) + 1
+    # the +1 is to account for the lean line numbers starting at 1 and python starting at zero so
+    # this ensures that we stay with that system here too (as the thm start/end values are supposed to be
+    # from lean)
+
+    thm_tactics = [tactics[i] for i in target_thm["tactics"]]
+    proof = [
+        AnnotatedProofStep(
+            tactic=tac["tactic"],
+            nextState=[tac["goals"]],
+            start=(tac["pos"]["line"] + offset, tac["pos"]["column"]),
+            end=(tac["endPos"]["line"] + offset, tac["endPos"]["column"]),
+        )
+        for tac in thm_tactics
+    ]
+    padding = "\n" * 5
+    contents = parseTheorem(thm, context=True) + padding
+    thm_msgs = [msgs[i] for i in target_thm["messages"]]
+    thm_messages = [
+        Message(
+            severity=msg["severity"],
+            start=(msg["pos"]["line"] + offset, msg["pos"]["column"]),
+            end=(msg["endPos"]["line"] + offset, msg["endPos"]["column"]),
+            content=msg["data"],
+            message_src="\n".join(
+                contents.splitlines()[
+                    msg["pos"]["line"] + offset - 1 : msg["endPos"]["line"] + offset
+                ]
+            ),
+        )
+        for msg in thm_msgs
+    ]
+
+    contents = parseTheorem(thm, context=True) + padding
+    decl = target_thm["decl"]
+    context = thm.context
+    headerless_context = thm.headerless_context
+    declID = str(uuid.uuid4())
+
+    if len(target_thm["proofTree"]) == len(proof):
+        proof_tree = [
+            (proof[i].tactic, pair["children"], pair["spawned_children"])
+            for i, pair in enumerate(target_thm["proofTree"])
+        ]
+    else:
+        proof_tree = []
+    start = (target_thm["start"]["line"] + offset, target_thm["start"]["column"])
+    end = (target_thm["end"]["line"] + offset, target_thm["end"]["column"])
+
+    # print("\n".join([f"{i}:\t{val}" for i, val in enumerate(contents.splitlines())]))
+    # print(f"==[{start} -> {end}]==")
+
+    pretty_print = contents
+
+    return AnnotatedTheorem(
+        leanFile=path,
+        src=src,
+        decl=decl,
+        declID=declID,
+        proof=proof,
+        context=context,
+        headerless_context=headerless_context,
+        project_path=project_path,
+        messages=thm_messages,
+        pretty_print=pretty_print,
+        proof_tree=proof_tree,
+        start=start,
+        end=end,
+    )
 
     proof = []
     for tactic_data in tactics:
@@ -1327,12 +1424,47 @@ def annotateTheorem_old(thm: Theorem, force=False) -> AnnotatedTheorem:
 if __name__ == "__main__":
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
+    fs = [
+        files[name]
+        for name in files.keys()
+        if "Solution" in name and "C04" in name and "S01" in name
+    ]
 
-    fs = [files["Tests/MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean"]]
+    f = fs[0]
+    thms = f.theorems
+    thm = thms[0]
+    ProofStep.update_forward_refs()
+    proof = [
+        ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+        ProofStep(tactic="use xs"),
+        ProofStep(tactic="left"),
+        ProofStep(tactic="exact xt"),
+        ProofStep(tactic="use xs"),
+        ProofStep(tactic="left"),
+        ProofStep(tactic="exact xu"),
+    ]
 
-    for f in fs:
-        print(f"{f.file_name}|==================================")
-        for thm in [f.theorems[0]]:
-            print(parseTheorem(thm, annotation=True, context=False))
-            print("-------------------------")
-            print(parseTheorem(thm, annotation=False, context=False))
+    thm_base = Theorem(
+        decl=thm.decl,
+        proof=proof,
+        declID=thm.declID,
+        src=thm.src,
+        leanFile=thm.leanFile,
+        context=thm.context,
+        headerless_context=thm.headerless_context,
+        project_path=thm.project_path,
+    )
+    thm = annotateTheorem(thm_base, force=True)
+
+    # repo = getRepo("Tests", "configs/config_MIL.json")
+    # files = {file.file_path: file for file in repo.files}
+
+    # fs = [files["Tests/MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean"]]
+
+    # for f in fs:
+    #     print(f"{f.file_name}|==================================")
+    #     for thm in [f.theorems[0]]:
+    print(parseTheorem(thm, annotation=False, context=True))
+    print(thm.messages)
+    print("-------------------------")
+    # print(parseTheorem(thm, annotation=True, headerless_context=True))

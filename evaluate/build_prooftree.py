@@ -84,7 +84,8 @@ def build_graph2(data):
     n = len(data)
     theta = (2 * math.pi) / n if n != 0 else math.pi / 4
     r = 10
-    for index, (tactic, children_indices, spawned_children_indices) in enumerate(data):
+    for index, (children_indices, spawned_children_indices) in enumerate(data):
+        tactic = "temp"
         G.add_node(index, label=tactic)
         labels[index] = tactic
         positions[index] = (r * math.cos(index * theta), r * math.sin(index * theta))
@@ -308,10 +309,10 @@ if __name__ == "__main__":
     proof = [
         ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
         ProofStep(tactic="use xs"),
-        ProofStep(tactic="right"),
+        ProofStep(tactic="left"),
         ProofStep(tactic="exact xt"),
         ProofStep(tactic="use xs"),
-        ProofStep(tactic="right"),
+        ProofStep(tactic="left"),
         ProofStep(tactic="exact xu"),
     ]
 
@@ -322,12 +323,13 @@ if __name__ == "__main__":
         src=thm.src,
         leanFile=thm.leanFile,
         context=thm.context,
+        headerless_context=thm.headerless_context,
         project_path=thm.project_path,
     )
     thm = annotateTheorem(thm_base, force=True)
 
     save_tree(
         *getProofTree(thm, visualize=False),
-        save_path=f".trees/MIL/new.png",
+        save_path=f".trees/MIL/new2.png",
         show_mod=True,
     )

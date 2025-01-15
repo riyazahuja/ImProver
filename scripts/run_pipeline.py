@@ -151,7 +151,7 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
     new_theorems = []
     for thm in thms:
         contents_split = contents.splitlines()
-        thm_start = thm["start"]["line"]
+        thm_start = thm["start"]["line"] - 1
         context = "\n".join(contents_split[:thm_start])
         headerless_context = "\n".join(contents_split[header_end_line:thm_start])
         new_theorems.append(
