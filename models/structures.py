@@ -128,6 +128,12 @@ class AnnotatedTheorem(BaseModel):
     proof_tree: List[Tuple[str, List[int], List[int]]] = Field(
         description="data for efficient proof tree construction"
     )
+    start: Tuple[Optional[int], Optional[int]] = Field(
+        description="start coordinates from source file as (row,column)"
+    )
+    end: Tuple[Optional[int], Optional[int]] = Field(
+        description="end coordinates from source file as (row,column)"
+    )
     # dependencies: List[Dependency] = Field(
     #     description="Theorem dependencies from all imported modules"
     # )
@@ -396,7 +402,7 @@ def getTheorems(
         start = (thm["start"]["line"], thm["start"]["column"])
         end = (thm["end"]["line"], thm["end"]["column"])
 
-        pretty_print = "\n".join(contents.splitlines()[start[0] - 1 : end[0]])
+        pretty_print = contents
 
         output.append(
             AnnotatedTheorem(
@@ -411,6 +417,8 @@ def getTheorems(
                 messages=thm_messages,
                 pretty_print=pretty_print,
                 proof_tree=proof_tree,
+                start=start,
+                end=end,
             )
         )
     return output
@@ -784,9 +792,9 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
             state_text_after_line[line_after] = text
         proof_text = []
 
-        print(f"tactics_start_pos: {tactics_start_pos}")
-        print(f"thm_end_pos: {thm_end_pos}")
-        print(f"len contents: {len(contents)}")
+        # print(f"tactics_start_pos: {tactics_start_pos}")
+        # print(f"thm_end_pos: {thm_end_pos}")
+        # print(f"len contents: {len(contents)}")
 
         for curr_line in range(
             tactics_start_pos[0] - 1, min(thm_end_pos[0], len(contents) - 1)
@@ -801,7 +809,6 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
                     f"len contents: {len(contents)}\ncurr_line = {curr_line}\nstart:{tactics_start_pos[0] - 1}\nend:{thm_end_pos[0]-1}\nthm:{decl}\npp:{enum_cont}"
                 )
                 raise KeyError("")
-            print(line_text)
             try:
                 line_one = line_text.splitlines()[0]
                 indent_cnt = len(line_one) - len(line_one.lstrip(" "))
@@ -815,7 +822,8 @@ def parseAnnotatedTheorem(thm: AnnotatedTheorem, context=True, annotation=False)
         proof_text = "\n".join(proof_text)
 
     else:
-        return f"{context_str if context else ''}\n{thm.pretty_print}"
+        pp = "\n".join(thm.pretty_print.splitlines()[thm.start[0] - 1 : thm.end[0]])
+        return f"{context_str if context else ''}\n{pp}"
 
     return f"{context_str if context else ''}\n{decl} := by\n{proof_text}"
     # return f"{context_str if context else ''}\n{proof_text}"
@@ -1327,3 +1335,4 @@ if __name__ == "__main__":
         for thm in [f.theorems[0]]:
             print(parseTheorem(thm, annotation=True, context=False))
             print("-------------------------")
+            print(parseTheorem(thm, annotation=False, context=False))
