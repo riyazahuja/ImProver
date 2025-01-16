@@ -990,6 +990,117 @@ def run_training_data(root_path, project_path, module_name, rerun=None):
     return (data, rerun)
 
 
+def coerce_repl(data, thm, contents=None):
+    src = thm.src
+    path = thm.leanFile
+    text = parseTheorem(thm, context=False)
+    # print(thm.context)
+    # print(thm.proof)
+    # og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
+    # og_thm_end = len(text.splitlines())
+
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
+    project_path = thm.project_path
+
+    # print(f"Cache Path: {cache_path}")
+    file_name = os.path.basename(path).replace(".lean", "")
+    binary_path = os.path.join(cache_path, file_name + ".o")
+
+    tactics = data.get("tactics", [])
+    msgs = data.get("messages", {})
+
+    target_thms = data.get("theorems", [])
+    if len(target_thms) == 0:
+        raise ValueError(f"BAD REPL CALL:\n{data}")
+
+    target_thm = target_thms[-1]
+
+    offset = len(thm.context.splitlines()) - (target_thm["start"]["line"] - 1) + 1
+    # the +1 is to account for the lean line numbers starting at 1 and python starting at zero so
+    # this ensures that we stay with that system here too (as the thm start/end values are supposed to be
+    # from lean)
+
+    thm_tactics = [tactics[i] for i in target_thm["tactics"]]
+    proof = [
+        AnnotatedProofStep(
+            tactic=tac["tactic"],
+            nextState=[tac["goals"]],
+            start=(tac["pos"]["line"] + offset, tac["pos"]["column"]),
+            end=(tac["endPos"]["line"] + offset, tac["endPos"]["column"]),
+        )
+        for tac in thm_tactics
+    ]
+    padding = "\n" * 5
+    if contents is None:
+        contents = parseTheorem(thm, context=True) + padding
+    thm_msgs = [msgs[i] for i in target_thm["messages"]]
+    thm_messages = [
+        Message(
+            severity=msg["severity"],
+            start=(msg["pos"]["line"] + offset, msg["pos"]["column"]),
+            end=(msg["endPos"]["line"] + offset, msg["endPos"]["column"]),
+            content=msg["data"],
+            message_src="\n".join(
+                contents.splitlines()[
+                    msg["pos"]["line"] + offset - 1 : msg["endPos"]["line"] + offset
+                ]
+            ),
+        )
+        for msg in thm_msgs
+    ]
+
+    decl = target_thm["decl"]
+    context = thm.context
+    headerless_context = thm.headerless_context
+    declID = str(uuid.uuid4())
+
+    if len(target_thm["proofTree"]) == len(proof):
+        proof_tree = [
+            (pair["tactic"], pair["children"], pair["spawned_children"])
+            for i, pair in enumerate(target_thm["proofTree"])
+        ]
+    else:
+        # for i,pair in enumerate(target_thm['proofTree']):
+        #     if
+        #     proof_tree.append()
+        # print(target_thm["proofTree"])
+        # print("*******")
+        # print(proof)
+        # print("*******")
+        # print(f"proof length: {len(proof)}, tree nodes: {len(target_thm['proofTree'])}")
+        # print(f"proof: {[tac.tactic for tac in proof]}")
+        proof_tree = []
+
+        proof_tree = [
+            (pair["tactic"], pair["children"], pair["spawned_children"])
+            for i, pair in enumerate(target_thm["proofTree"])
+        ]
+    start = (target_thm["start"]["line"] + offset, target_thm["start"]["column"])
+    end = (target_thm["end"]["line"] + offset, target_thm["end"]["column"])
+
+    # print("\n".join([f"{i}:\t{val}" for i, val in enumerate(contents.splitlines())]))
+    # print(f"==[{start} -> {end}]==")
+
+    pretty_print = contents
+
+    return AnnotatedTheorem(
+        leanFile=path,
+        src=src,
+        decl=decl,
+        declID=declID,
+        proof=proof,
+        context=context,
+        headerless_context=headerless_context,
+        project_path=project_path,
+        messages=thm_messages,
+        pretty_print=pretty_print,
+        proof_tree=proof_tree,
+        start=start,
+        end=end,
+    )
+
+
 def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     """
     Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
@@ -1039,100 +1150,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     # print(output.stdout)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
-    print(data)
-    tactics = data.get("tactics", [])
-    msgs = data.get("messages", {})
-
-    target_thms = data.get("theorems", [])
-    if len(target_thms) == 0:
-        raise ValueError(f"BAD REPL CALL:\n{cmd_text}\n\n{data}")
-
-    target_thm = target_thms[-1]
-
-    offset = len(thm.context.splitlines()) - (target_thm["start"]["line"] - 1) + 1
-    # the +1 is to account for the lean line numbers starting at 1 and python starting at zero so
-    # this ensures that we stay with that system here too (as the thm start/end values are supposed to be
-    # from lean)
-
-    thm_tactics = [tactics[i] for i in target_thm["tactics"]]
-    proof = [
-        AnnotatedProofStep(
-            tactic=tac["tactic"],
-            nextState=[tac["goals"]],
-            start=(tac["pos"]["line"] + offset, tac["pos"]["column"]),
-            end=(tac["endPos"]["line"] + offset, tac["endPos"]["column"]),
-        )
-        for tac in thm_tactics
-    ]
-    padding = "\n" * 5
-    contents = parseTheorem(thm, context=True) + padding
-    thm_msgs = [msgs[i] for i in target_thm["messages"]]
-    thm_messages = [
-        Message(
-            severity=msg["severity"],
-            start=(msg["pos"]["line"] + offset, msg["pos"]["column"]),
-            end=(msg["endPos"]["line"] + offset, msg["endPos"]["column"]),
-            content=msg["data"],
-            message_src="\n".join(
-                contents.splitlines()[
-                    msg["pos"]["line"] + offset - 1 : msg["endPos"]["line"] + offset
-                ]
-            ),
-        )
-        for msg in thm_msgs
-    ]
-
-    contents = parseTheorem(thm, context=True) + padding
-    decl = target_thm["decl"]
-    context = thm.context
-    headerless_context = thm.headerless_context
-    declID = str(uuid.uuid4())
-
-    if len(target_thm["proofTree"]) == len(proof):
-        proof_tree = [
-            (pair["tactic"], pair["children"], pair["spawned_children"])
-            for i, pair in enumerate(target_thm["proofTree"])
-        ]
-    else:
-        # for i,pair in enumerate(target_thm['proofTree']):
-        #     if
-        #     proof_tree.append()
-        print(target_thm["proofTree"])
-        print("*******")
-        print(proof)
-        print("*******")
-        print(f"proof length: {len(proof)}, tree nodes: {len(target_thm['proofTree'])}")
-        print(f"proof: {[tac.tactic for tac in proof]}")
-        proof_tree = []
-
-        proof_tree = [
-            (pair["tactic"], pair["children"], pair["spawned_children"])
-            for i, pair in enumerate(target_thm["proofTree"])
-        ]
-    start = (target_thm["start"]["line"] + offset, target_thm["start"]["column"])
-    end = (target_thm["end"]["line"] + offset, target_thm["end"]["column"])
-
-    # print("\n".join([f"{i}:\t{val}" for i, val in enumerate(contents.splitlines())]))
-    # print(f"==[{start} -> {end}]==")
-
-    pretty_print = contents
-
-    return AnnotatedTheorem(
-        leanFile=path,
-        src=src,
-        decl=decl,
-        declID=declID,
-        proof=proof,
-        context=context,
-        headerless_context=headerless_context,
-        project_path=project_path,
-        messages=thm_messages,
-        pretty_print=pretty_print,
-        proof_tree=proof_tree,
-        start=start,
-        end=end,
-    )
-
+    # print(data)
+    return coerce_repl(data, thm)
     proof = []
     for tactic_data in tactics:
         tactic = tactic_data["tactic"]

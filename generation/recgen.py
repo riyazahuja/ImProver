@@ -106,9 +106,102 @@ def extract_subtheorem(thm: AnnotatedTheorem):
             for (tactic_start, tactic_end) in tactic_ranges
         ):
             error_branches.append(branch)
-
+    return error_branches
     # perhaps need also information of the original node before the spawn/bifurcation, and node numbers as well (for future insertion)
     print([[tac.tactic for tac in branch] for branch in error_branches])
+
+
+def replace_and_run(branches, thm: AnnotatedTheorem):
+    # convert branches into syntax ranges:
+
+    syntax_ranges = [(branch[0].start, branch[-1].end) for branch in branches]
+    syntax_ranges = [
+        ((start[0] - 1, start[1]), (end[0] - 1, end[1])) for start, end in syntax_ranges
+    ]
+
+    command = "extract_goal; sorry"
+    contents = thm.pretty_print
+
+    # conver syntax ranges into offset ranges:
+    lines = contents.splitlines(True)
+    offset_acc = [0]
+    for l in lines:
+        offset_acc.append(offset_acc[-1] + len(l))
+
+    offset_ranges = []
+    for start_pos, end_pos in syntax_ranges:
+        s_off = offset_acc[start_pos[0]] + start_pos[1]
+        e_off = offset_acc[end_pos[0]] + end_pos[1]
+        offset_ranges.append((s_off, e_off))
+
+    # print(offset_ranges)
+    # print("\n[end]\n".join([contents[start:end] for (start, end) in offset_ranges]))
+
+    thm_syntax_range = ((thm.start[0] - 1, thm.start[1]), (thm.end[0] - 1, thm.end[1]))
+
+    text_list = list(contents)
+    for start, end in sorted(offset_ranges, reverse=True):
+        text_list[start:end] = command
+    new_contents = "".join(text_list)
+
+    theorem_start = offset_acc[thm_syntax_range[0][0]] + thm_syntax_range[0][1]
+    theorem_end = offset_acc[thm_syntax_range[1][0]] + thm_syntax_range[1][1]
+
+    adjusted_end = theorem_end
+    for start_off, end_off in offset_ranges:
+        if end_off <= theorem_start or start_off >= theorem_end:
+            continue
+        overlap_length = min(end_off, theorem_end) - max(start_off, theorem_start)
+        if overlap_length > 0:
+            replaced_diff = len(command) - (end_off - start_off)
+            adjusted_end += replaced_diff
+
+    theorem_slice = new_contents[theorem_start:adjusted_end]
+    return theorem_slice
+
+
+def make_theorem(thm_text: str, thm: AnnotatedTheorem) -> AnnotatedTheorem:
+
+    src = thm.src
+    path = thm.leanFile
+    text = thm_text
+    # print(thm.context)
+    # print(thm.proof)
+    # og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
+    # og_thm_end = len(text.splitlines())
+
+    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
+    project_path = thm.project_path
+
+    # print(f"Cache Path: {cache_path}")
+    file_name = os.path.basename(path).replace(".lean", "")
+    binary_path = os.path.join(cache_path, file_name + ".o")
+    # print(f"Binary Path: {binary_path}")
+
+    cmd_text = thm.headerless_context + "\n\n" + text
+
+    cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+    # print(thm.headerless_context)
+    # print("##############")
+    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
+    with open(temp.name, "w") as f:
+        f.write(infile)
+
+    output = subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
+        shell=True,
+        text=True,
+        capture_output=True,
+        cwd=root_path,
+    )
+    # print(cmd_text)
+    print(output.stdout)
+    out = "\n".join(output.stdout.splitlines()[2:])
+    data = json.loads(out)
+    return coerce_repl(data, thm, thm.context + "\n" + thm_text)
 
 
 if __name__ == "__main__":
@@ -156,4 +249,12 @@ if __name__ == "__main__":
         save_path=f".trees/MIL/new2.png",
         show_mod=True,
     )
-    extract_subtheorem(thm)
+    err_branches = extract_subtheorem(thm)
+    print("++++++++")
+    thm_text = replace_and_run(err_branches, thm)
+    print(f"==[{thm_text}]")
+    new_thm = make_theorem(thm_text, thm)
+    print("+++++++")
+    print(parseTheorem(new_thm, context=True, annotation=False))
+    print("\n\n\n")
+    print(new_thm)
