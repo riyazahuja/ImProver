@@ -396,7 +396,7 @@ def getTheorems(
 
         if len(thm["proofTree"]) == len(proof):
             proof_tree = [
-                (proof[i].tactic, pair["children"], pair["spawned_children"])
+                (pair["tactic"], pair["children"], pair["spawned_children"])
                 for i, pair in enumerate(thm["proofTree"])
             ]
         else:
@@ -1035,6 +1035,7 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
         capture_output=True,
         cwd=root_path,
     )
+    # print(cmd_text)
     # print(output.stdout)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
@@ -1089,11 +1090,25 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
 
     if len(target_thm["proofTree"]) == len(proof):
         proof_tree = [
-            (proof[i].tactic, pair["children"], pair["spawned_children"])
+            (pair["tactic"], pair["children"], pair["spawned_children"])
             for i, pair in enumerate(target_thm["proofTree"])
         ]
     else:
+        # for i,pair in enumerate(target_thm['proofTree']):
+        #     if
+        #     proof_tree.append()
+        print(target_thm["proofTree"])
+        print("*******")
+        print(proof)
+        print("*******")
+        print(f"proof length: {len(proof)}, tree nodes: {len(target_thm['proofTree'])}")
+        print(f"proof: {[tac.tactic for tac in proof]}")
         proof_tree = []
+
+        proof_tree = [
+            (pair["tactic"], pair["children"], pair["spawned_children"])
+            for i, pair in enumerate(target_thm["proofTree"])
+        ]
     start = (target_thm["start"]["line"] + offset, target_thm["start"]["column"])
     end = (target_thm["end"]["line"] + offset, target_thm["end"]["column"])
 

@@ -84,8 +84,7 @@ def build_graph2(data):
     n = len(data)
     theta = (2 * math.pi) / n if n != 0 else math.pi / 4
     r = 10
-    for index, (children_indices, spawned_children_indices) in enumerate(data):
-        tactic = "temp"
+    for index, (tactic, children_indices, spawned_children_indices) in enumerate(data):
         G.add_node(index, label=tactic)
         labels[index] = tactic
         positions[index] = (r * math.cos(index * theta), r * math.sin(index * theta))
@@ -198,6 +197,22 @@ def save_tree(G, positions, labels, save_path, show_mod=False):
 
 def getProofTree(thm: AnnotatedTheorem, visualize=False, show_mod=False):
     G, positions, labels = build_graph2(thm.proof_tree)
+
+    if len(thm.proof) == len(G.nodes):
+        for node in range(len(G.nodes)):
+            G.nodes[node]["data"] = node
+    else:
+        i = 0
+        j = 0
+
+        while i < len(G.nodes) and j < len(thm.proof):
+            if G.nodes[i]["label"] == thm.proof[j].tactic:
+                G.nodes[i]["data"] = j
+                i += 1
+                j += 1
+            else:
+                j += 1
+
     if visualize:
         visualize_tree(G, positions, labels, show_mod=show_mod)
     return G, positions, labels
@@ -308,11 +323,11 @@ if __name__ == "__main__":
     ProofStep.update_forward_refs()
     proof = [
         ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+        ProofStep(tactic=". use xs"),
+        ProofStep(tactic="  right"),
+        ProofStep(tactic="  exact xt"),
         ProofStep(tactic="use xs"),
-        ProofStep(tactic="left"),
-        ProofStep(tactic="exact xt"),
-        ProofStep(tactic="use xs"),
-        ProofStep(tactic="left"),
+        ProofStep(tactic="right"),
         ProofStep(tactic="exact xu"),
     ]
 
@@ -327,6 +342,8 @@ if __name__ == "__main__":
         project_path=thm.project_path,
     )
     thm = annotateTheorem(thm_base, force=True)
+
+    print(thm.proof_tree)
 
     save_tree(
         *getProofTree(thm, visualize=False),
