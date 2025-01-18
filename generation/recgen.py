@@ -15,6 +15,7 @@ from models.rag import *
 import itertools
 from tqdm import tqdm
 from multiprocessing import cpu_count
+import textwrap
 
 
 # need a function that takes the proof tree of a AnnotatedTheorem, and notes all mod edges (and their descendant branches)
@@ -160,8 +161,10 @@ def replace_and_run(branches, thm: AnnotatedTheorem):
     return theorem_slice
 
 
-def make_theorem(thm_text: str, thm: AnnotatedTheorem) -> AnnotatedTheorem:
-
+def make_theorem(
+    thm_text: str, thm: AnnotatedTheorem, use_thm_headerless_context=True
+) -> AnnotatedTheorem:
+    print("!!!!! MAKING THEOREM")
     src = thm.src
     path = thm.leanFile
     text = thm_text
@@ -179,9 +182,12 @@ def make_theorem(thm_text: str, thm: AnnotatedTheorem) -> AnnotatedTheorem:
     binary_path = os.path.join(cache_path, file_name + ".o")
     # print(f"Binary Path: {binary_path}")
 
-    cmd_text = thm.headerless_context + "\n\n" + text
+    if use_thm_headerless_context:
+        cmd_text = thm.headerless_context + "\n\n" + text
 
-    cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+        cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+    else:
+        cmd_text = text.replace("\n", "\\n")
     # print(thm.headerless_context)
     # print("##############")
     infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
@@ -197,8 +203,11 @@ def make_theorem(thm_text: str, thm: AnnotatedTheorem) -> AnnotatedTheorem:
         capture_output=True,
         cwd=root_path,
     )
-    # print(cmd_text)
-    # print(output.stdout)
+    print(infile)
+    print()
+    print(cmd_text)
+    print()
+    print(output.stdout)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
     return coerce_repl(data, thm, thm.context + "\n" + thm_text)
@@ -209,13 +218,15 @@ def make_empty_theorems(thm: AnnotatedTheorem) -> Tuple[Message, List[Theorem]]:
     infos = [msg for msg in thm.messages if msg.severity == "info"]
     out = []
     for info in infos:
-        thm_text = info.content
+        thm_text = info.content.replace(
+            r"theorem extracted_1.{u_1}", "example"
+        ).replace(":= sorry", ":= by sorry")
+
+        print(f"!!!!! {thm_text}")
 
         decl = thm_text.split(":=")[0]
-        context = parseTheorem(thm, context=True) + "\n" + thm_text
-        headerless_context = (
-            parseTheorem(thm, headerless_context=True) + "\n" + thm_text
-        )
+        context = parseTheorem(thm, context=True) + "\n"
+        headerless_context = parseTheorem(thm, headerless_context=True) + "\n"
         ProofStep.update_forward_refs()
 
         empty_theorem = Theorem(
@@ -235,11 +246,20 @@ def make_empty_theorems(thm: AnnotatedTheorem) -> Tuple[Message, List[Theorem]]:
 
 #: List[Tuple[Message, AnnotatedTheorem]]
 def insert_theorems(thm: AnnotatedTheorem, subtheorems):
+    print("---------- inserting!!! ----------")
     contents = thm.pretty_print
     subtheorems.sort(key=lambda x: x[0].start[0], reverse=True)
 
-    for subtheorem in subtheorems:
-        # insertion_range = (info.start, info.end)
+    for info, subtheorem in subtheorems:
+
+        insertion_start = (
+            sum(len(l) for l in contents.splitlines(True)[: info.start[0] - 1])
+            + info.start[1]
+        )
+        insertion_end = (
+            sum(len(l) for l in contents.splitlines(True)[: info.end[0] - 1])
+            + info.end[1]
+        ) + len("; sorry")
 
         subtheorem_proof_syntax_range = (subtheorem.start, subtheorem.end)
         subtheorem_text = parseTheorem(subtheorem, context=True)
@@ -256,20 +276,28 @@ def insert_theorems(thm: AnnotatedTheorem, subtheorems):
 
         # Retrieve the subtheorem text within the syntax range
         subtheorem_proof_text = subtheorem_text[start_offset:end_offset]
+        subtheorem_proof_text = textwrap.dedent(subtheorem_proof_text)
 
-        print("WAHOO!!!!!!")
-        print(subtheorem_subset)
-        print(len(subtheorem_text))
-        # print("nexts")
-        # print(parseTheorem(subtheorem, context=True))
-        print()
-        print(
-            "\n".join(
-                [f"{i}:\t{val}" for i, val in enumerate(subtheorem_text.splitlines())]
-            )
+        old_contents = contents
+        contents = (
+            contents[:insertion_start]
+            + subtheorem_proof_text
+            + contents[insertion_end:]
         )
-        print(f"==[{subtheorem.start} -> {subtheorem.end}]==")
-        print(start_offset, end_offset)
+
+    print(subtheorem_proof_text)
+
+    print()
+
+    print(contents)
+
+    headers_length = len(thm.context.splitlines()) - len(
+        thm.headerless_context.splitlines()
+    )
+    headerless_contents = "\n".join(contents.splitlines()[headers_length + 1 :])
+    print(headerless_contents)
+    output = make_theorem(headerless_contents, thm, use_thm_headerless_context=False)
+    return output
 
 
 if __name__ == "__main__":
@@ -326,6 +354,37 @@ if __name__ == "__main__":
     print(parseTheorem(new_thm, context=True, annotation=False))
 
     emp_thms = make_empty_theorems(new_thm)
-    print("\n\n".join([f"info : {info}" for info, empty in emp_thms]))
+    emp_og = emp_thms[0][1]
 
-    insert_theorems(thm, [thm])
+    # print(emp_og)
+    # print("\n\n")
+
+    emps = [(emp[0], annotateTheorem(emp[1])) for emp in emp_thms]
+
+    # print("\n\n".join([f"emp : {parseTheorem(empty)}" for info, empty in emp_thms]))
+
+    # print(emp[1])
+    # print("-------")
+    # print(
+    #     "\n".join(
+    #         [f"{i}: {val}" for i, val in enumerate(emp[1].pretty_print.splitlines())]
+    #     )
+    # )
+    # print(f"{emp[1].start} -> {emp[1].end}")
+
+    # print()
+    # print(parseTheorem(emp[1], context=True, annotation=False))
+    output = insert_theorems(new_thm, emps)
+    print("***************")
+    print(output)
+    print()
+
+    print(
+        "\n".join(
+            [f"{i}:\t{val}" for i, val in enumerate(output.pretty_print.splitlines())]
+        )
+    )
+    print(f"{output.start} -> {output.end}")
+    print()
+
+    print(parseTheorem(output))
