@@ -198,10 +198,78 @@ def make_theorem(thm_text: str, thm: AnnotatedTheorem) -> AnnotatedTheorem:
         cwd=root_path,
     )
     # print(cmd_text)
-    print(output.stdout)
+    # print(output.stdout)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
     return coerce_repl(data, thm, thm.context + "\n" + thm_text)
+
+
+def make_empty_theorems(thm: AnnotatedTheorem) -> Tuple[Message, List[Theorem]]:
+
+    infos = [msg for msg in thm.messages if msg.severity == "info"]
+    out = []
+    for info in infos:
+        thm_text = info.content
+
+        decl = thm_text.split(":=")[0]
+        context = parseTheorem(thm, context=True) + "\n" + thm_text
+        headerless_context = (
+            parseTheorem(thm, headerless_context=True) + "\n" + thm_text
+        )
+        ProofStep.update_forward_refs()
+
+        empty_theorem = Theorem(
+            decl=decl,
+            proof=[ProofStep(tactic="sorry")],
+            declID=str(uuid.uuid4()),
+            src=thm.src,
+            leanFile=thm.leanFile,
+            context=context,
+            headerless_context=headerless_context,
+            project_path=thm.project_path,
+        )
+
+        out.append((info, empty_theorem))
+    return out
+
+
+#: List[Tuple[Message, AnnotatedTheorem]]
+def insert_theorems(thm: AnnotatedTheorem, subtheorems):
+    contents = thm.pretty_print
+    subtheorems.sort(key=lambda x: x[0].start[0], reverse=True)
+
+    for subtheorem in subtheorems:
+        # insertion_range = (info.start, info.end)
+
+        subtheorem_proof_syntax_range = (subtheorem.start, subtheorem.end)
+        subtheorem_text = parseTheorem(subtheorem, context=True)
+
+        lines = subtheorem_text.splitlines(True)
+        offset_acc = [0]
+        for l in lines:
+            offset_acc.append(offset_acc[-1] + len(l))
+
+        offset_ranges = []
+
+        start_offset = offset_acc[subtheorem.start[0]] + subtheorem.start[1]
+        end_offset = offset_acc[subtheorem.end[0]] + subtheorem.end[1]
+
+        # Retrieve the subtheorem text within the syntax range
+        subtheorem_proof_text = subtheorem_text[start_offset:end_offset]
+
+        print("WAHOO!!!!!!")
+        print(subtheorem_subset)
+        print(len(subtheorem_text))
+        # print("nexts")
+        # print(parseTheorem(subtheorem, context=True))
+        print()
+        print(
+            "\n".join(
+                [f"{i}:\t{val}" for i, val in enumerate(subtheorem_text.splitlines())]
+            )
+        )
+        print(f"==[{subtheorem.start} -> {subtheorem.end}]==")
+        print(start_offset, end_offset)
 
 
 if __name__ == "__main__":
@@ -256,5 +324,8 @@ if __name__ == "__main__":
     new_thm = make_theorem(thm_text, thm)
     print("+++++++")
     print(parseTheorem(new_thm, context=True, annotation=False))
-    print("\n\n\n")
-    print(new_thm)
+
+    emp_thms = make_empty_theorems(new_thm)
+    print("\n\n".join([f"info : {info}" for info, empty in emp_thms]))
+
+    insert_theorems(thm, [thm])

@@ -1150,7 +1150,8 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     # print(output.stdout)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
-    # print(data)
+    print(data)
+    print()
     return coerce_repl(data, thm)
     proof = []
     for tactic_data in tactics:
@@ -1470,11 +1471,11 @@ if __name__ == "__main__":
     ProofStep.update_forward_refs()
     proof = [
         ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
-        ProofStep(tactic="use xs"),
-        ProofStep(tactic="left"),
-        ProofStep(tactic="exact xt"),
-        ProofStep(tactic="use xs"),
-        ProofStep(tactic="left"),
+        ProofStep(tactic=". use xs"),
+        ProofStep(tactic="  right"),
+        ProofStep(tactic="  exact xt"),
+        ProofStep(tactic="use 3"),
+        ProofStep(tactic="right"),
         ProofStep(tactic="exact xu"),
     ]
 
@@ -1498,7 +1499,7 @@ if __name__ == "__main__":
     # for f in fs:
     #     print(f"{f.file_name}|==================================")
     #     for thm in [f.theorems[0]]:
-    print(parseTheorem(thm, annotation=False, context=True))
+    print(parseTheorem(thm, annotation=False, context=False))
     print(thm.messages)
     print("-------------------------")
     # print(parseTheorem(thm, annotation=True, headerless_context=True))
