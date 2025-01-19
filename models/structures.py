@@ -425,134 +425,6 @@ def getTheorems(
         )
     return output
 
-    # trees = data["proofTrees"]
-    # consts = data["constants"]
-
-    def remove_dupes(tacs):
-        output = []
-        for i, step in enumerate(tacs):
-            dupe = any(
-                [
-                    step["startPos"] == other["startPos"]
-                    and step["endPos"] == other["endPos"]
-                    for j, other in enumerate(tacs)
-                    if j < i
-                ]
-            )
-            if not dupe:
-                output.append(step)
-        return output
-
-    data = remove_dupes(data["tactics"])
-
-    # all_tacs = [re.sub(r"\s", "", step["tactic"]) for step in data]
-    headers = ""
-    if len(data) > 0:
-        fst = data[0]
-        srcUpToTactic = fst["srcUpToTactic"]
-        declUpToTactic = fst["declUpToTactic"]
-        headers = srcUpToTactic
-        if declUpToTactic in headers:
-            headers = headers.replace(declUpToTactic, "")
-    headers = headers.strip()
-    # tactic_start_line = data[0]["startPos"]["line"] if len(data) != 0 else None
-    for step in data:
-
-        ps = AnnotatedProofStep(
-            # prevState=step["prevState"],
-            tactic=step["tactic"],
-            nextState=step["nextState"],
-            # srcUpToTactic=step["srcUpToTactic"],
-            # declUpToTactic=step["declUpToTactic"],
-            start=(
-                step["startPos"].get("line", None),
-                step["startPos"].get("column", None),
-            ),
-            end=(step["endPos"].get("line", None), step["endPos"].get("column", None)),
-        )
-
-        def elim_by(text):
-            return re.sub(r"\s*:=\s*by\s*$", "", text, flags=re.M)
-
-        decl = elim_by(step["decl"])
-        declID = step["declId"]
-        thm_start, thm_end = step["thm_startPos"], step["thm_endPos"]
-        if until_end:
-            thm_end = None
-
-        messages = getMessages(thm_start, thm_end, msgs, contents)
-        messages.reverse()
-
-        # dependencies = getDependencies(consts, declID)
-
-        lines_src = step["srcUpToTactic"].split("\n")
-
-        decl_lines = step["declUpToTactic"].split("\n")
-
-        maybe_context = "\n".join(lines_src[: -len(decl_lines) - 1]).strip()
-
-        pp = contents
-
-        # PT = trees.get(declID, None)
-        # if PT is not None:
-        #     PT = [
-        #         (node["tactic"], node["children"], node["spawned_children"])
-        #         for node in PT
-        #     ]
-
-        if declID not in temp.keys():
-            temp[declID] = {
-                "proof": [ps],
-                "decl": decl,
-                "context": maybe_context,
-                "messages": messages,
-                "pretty_print": pp,
-                # "proof_tree": PT,
-                # "dependencies": dependencies,
-            }
-        else:
-            curr_proof = temp[declID]["proof"]
-            curr_decl = temp[declID]["decl"]
-            curr_ctxt = temp[declID]["context"]
-            curr_msgs = temp[declID]["messages"]
-            curr_pp = temp[declID]["pretty_print"]
-            # curr_pt = temp[declID]["proof_tree"]
-            # curr_dep = temp[declID]["dependencies"]
-            curr_proof.append(ps)
-            temp[declID] = {
-                "proof": curr_proof,
-                "decl": curr_decl,
-                "context": curr_ctxt,
-                "messages": curr_msgs,
-                "pretty_print": curr_pp,
-                # "proof_tree": curr_pt,
-                # "dependencies": curr_dep,
-            }
-
-    result = {}
-    for ID, value in temp.items():
-        # if value["decl"] in value["context"]:
-        #     value["context"] = value["context"].replace(value["decl"], "")
-        headerless_ctx = value["context"]
-        if headers in headerless_ctx:
-            headerless_ctx = headerless_ctx.replace(headers, "")
-
-        result[ID] = AnnotatedTheorem(
-            leanFile=path,
-            src=src,
-            decl=value["decl"],
-            declID=ID,
-            proof=value["proof"],
-            context=value["context"],
-            headerless_context=headerless_ctx,
-            project_path=project_path,
-            messages=value["messages"],
-            pretty_print=value["pretty_print"],
-            # proof_tree=value["proof_tree"],
-            # dependencies=value["dependencies"],
-        )
-    return [v for _, v in result.items()]
-
 
 def get_stem(path):
 
@@ -787,7 +659,6 @@ def parseAnnotatedTheorem(
         ]
         tactic_line_positions.sort(key=lambda x: x[0])
 
-        # state_text to print after line n:
         state_text_after_line = {}
         for pos in tactic_line_positions:
             line_after = pos[1]
@@ -797,14 +668,8 @@ def parseAnnotatedTheorem(
                 if len(text) != 0
                 else "/-\nGoals Solved!\n-/"
             )
-            # Add indentation stuff
-            # if line_after not in state_text_after_line.keys():
             state_text_after_line[line_after] = text
         proof_text = []
-
-        # print(f"tactics_start_pos: {tactics_start_pos}")
-        # print(f"thm_end_pos: {thm_end_pos}")
-        # print(f"len contents: {len(contents)}")
 
         for curr_line in range(
             tactics_start_pos[0] - 1, min(thm_end_pos[0], len(contents) - 1)
@@ -836,40 +701,6 @@ def parseAnnotatedTheorem(
         return f"{context_str}{pp}"
 
     return f"{context_str}{decl} := by\n{proof_text}"
-    # return f"{context_str if context else ''}\n{proof_text}"
-
-
-def elim_overlap(pf: List[AnnotatedProofStep]):
-    def pos_le(a, b):
-        a_line, a_col = a
-        b_line, b_col = b
-
-        if a_line < b_line:
-            return True
-        elif a_line == b_line and a_col <= b_col:
-            return True
-        else:
-            return False
-
-    def pos_max(a, b):
-        le = pos_le(a, b)
-        if le:
-            return b
-        else:
-            return a
-
-    ptr = (0, 0)
-    output = []
-    for step in pf:
-        start = step.start
-        end = step.end
-        if pos_le(start, ptr) and pos_le(end, ptr):
-            # this is inside a have
-            pass
-        else:
-            ptr = pos_max(start, end)
-            output.append(step)
-    return output
 
 
 def parse_proof(thm, indent=1, dot=False):
@@ -928,84 +759,14 @@ def parseTheorem(thm, annotation=False, context=False, headerless_context=False)
         )
 
 
-def run_training_data(root_path, project_path, module_name, rerun=None):
-    cwd = os.getcwd()
-    os.chdir(root_path)
-    cmd = f"lake exe training_data {module_name}"
-    output = subprocess.run([cmd], shell=True, text=True, capture_output=True)
-    data_raw = output.stdout
-    if data_raw == "":
-        raise KeyError(f"BAD DATA: {output}")
-    data = json.loads(data_raw)
-    messages = [
-        message for message in data["messages"] if message["severity"] == "error"
-    ]
-
-    # if (
-    #     len(messages) != 0 or True
-    # ):  # NOT NEEDED NOW AS DUE TO HOW SLOW + INEFFICIENT IT IS!
-    #     data2 = {}
-    # else:
-    #     cmd2 = f"lake exe constants {module_name}"
-    #     output2 = subprocess.run([cmd2], shell=True, text=True, capture_output=True)
-    #     data_raw2 = output2.stdout
-    #     if data_raw2 == "":
-    #         data2 = {}
-    #         if ".olean" and "does not exist" in output2.stderr:
-    #             if rerun is None:
-    #                 os.chdir(project_path)
-    #                 subprocess.run([f"lake build {module_name}"], shell=True, text=True)
-    #                 generated_stuff_stem = os.path.abspath(
-    #                     os.path.join(
-    #                         project_path,
-    #                         ".lake",
-    #                         "build",
-    #                         "lib",
-    #                         module_name.replace(".", "/"),
-    #                     )
-    #                 )
-    #                 directory = os.path.dirname(generated_stuff_stem)
-    #                 tfile = os.path.basename(generated_stuff_stem)
-    #                 files = [
-    #                     f
-    #                     for f in os.listdir(directory)
-    #                     if os.path.isfile(os.path.join(directory, f))
-    #                 ]
-    #                 files = [
-    #                     os.path.join(directory, f)
-    #                     for f in files
-    #                     if tfile in os.path.basename(f)
-    #                 ]
-    #                 print(module_name)
-    #                 print(files)
-    #                 os.chdir(cwd)
-    #                 return run_training_data(
-    #                     root_path, project_path, module_name, rerun=files
-    #                 )
-    #         # raise KeyError(f"BAD DATA CONSTANTS: {output2}")
-    #     else:
-    #         data2 = json.loads(data_raw2)
-    # data["constants"] = {}
-    os.chdir(cwd)
-    return (data, rerun)
-
-
 def coerce_repl(data, thm, contents=None):
     src = thm.src
     path = thm.leanFile
-    text = parseTheorem(thm, context=False)
-    # print(thm.context)
-    # print(thm.proof)
-    # og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
-    # og_thm_end = len(text.splitlines())
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
     project_path = thm.project_path
 
-    # print(f"Cache Path: {cache_path}")
     file_name = os.path.basename(path).replace(".lean", "")
-    binary_path = os.path.join(cache_path, file_name + ".o")
 
     tactics = data.get("tactics", [])
     msgs = data.get("messages", {})
@@ -1061,15 +822,6 @@ def coerce_repl(data, thm, contents=None):
             for i, pair in enumerate(target_thm["proofTree"])
         ]
     else:
-        # for i,pair in enumerate(target_thm['proofTree']):
-        #     if
-        #     proof_tree.append()
-        # print(target_thm["proofTree"])
-        # print("*******")
-        # print(proof)
-        # print("*******")
-        # print(f"proof length: {len(proof)}, tree nodes: {len(target_thm['proofTree'])}")
-        # print(f"proof: {[tac.tactic for tac in proof]}")
         proof_tree = []
 
         proof_tree = [
@@ -1078,9 +830,6 @@ def coerce_repl(data, thm, contents=None):
         ]
     start = (target_thm["start"]["line"] + offset, target_thm["start"]["column"])
     end = (target_thm["end"]["line"] + offset, target_thm["end"]["column"])
-
-    # print("\n".join([f"{i}:\t{val}" for i, val in enumerate(contents.splitlines())]))
-    # print(f"==[{start} -> {end}]==")
 
     pretty_print = contents
 
@@ -1101,7 +850,7 @@ def coerce_repl(data, thm, contents=None):
     )
 
 
-def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
+def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
     """
     Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
     and then parsed the output to get the proof steps. This was slow and inefficient.
@@ -1114,25 +863,17 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
     src = thm.src
     path = thm.leanFile
     text = parseTheorem(thm, context=False)
-    # print(thm.context)
-    # print(thm.proof)
-    # og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
-    # og_thm_end = len(text.splitlines())
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
-    project_path = thm.project_path
 
-    # print(f"Cache Path: {cache_path}")
     file_name = os.path.basename(path).replace(".lean", "")
     binary_path = os.path.join(cache_path, file_name + ".o")
-    # print(f"Binary Path: {binary_path}")
 
     cmd_text = thm.headerless_context + "\n\n" + text
 
     cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
-    # print(thm.headerless_context)
-    # print("##############")
+
     infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
@@ -1146,314 +887,61 @@ def annotateTheorem(thm: Theorem, force=False) -> AnnotatedTheorem:
         capture_output=True,
         cwd=root_path,
     )
-    # print(cmd_text)
-    # print(output.stdout)
+
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
     print(data)
     print()
     return coerce_repl(data, thm)
-    proof = []
-    for tactic_data in tactics:
-        tactic = tactic_data["tactic"]
-        nextState = tactic_data["goals"]
-        # ^^^ need list of goals, not like this string one. TODO fix
-        start_pos_raw = tactic_data["pos"]
-        end_pos_raw = tactic_data["endPos"]
-        proof.append(
-            AnnotatedProofStep(
-                tactic=tactic,
-                nextState=[nextState],
-                start=(start_pos_raw["line"], start_pos_raw["column"]),
-                end=(end_pos_raw["line"], end_pos_raw["column"]),
-            )
-        )
-
-    messages = []
-
-    tactics_lookup = {
-        (step.start[0], step.start[1], step.end[0], step.end[1]): step.tactic
-        for step in proof
-    }
-
-    max_cols = (
-        max(
-            [
-                max(start_col, end_col)
-                for _, start_col, _, end_col in tactics_lookup.keys()
-            ]
-        )
-        + 1
-    )
-
-    def to_offset(line, col):
-        return line * (max_cols + 1) + col
-
-    def preprocess_tactics(tactics):
-        intervals = []
-        for sl, sc, el, ec in tactics:
-            start_offset = to_offset(sl, sc)
-            end_offset = to_offset(el, ec)
-            # Make sure start_offset <= end_offset
-            if start_offset > end_offset:
-                start_offset, end_offset = end_offset, start_offset
-
-            intervals.append((start_offset, end_offset, (sl, sc, el, ec)))
-
-        # Sort by the start_offset (the first element in the tuple)
-        intervals.sort(key=lambda x: x[0])
-        return intervals
-
-    def find_overlapping_tactics(intervals, message):
-
-        msg_start = to_offset(message[0], message[1])
-        msg_end = to_offset(message[2], message[3])
-        # Ensure msg_start <= msg_end
-        if msg_start > msg_end:
-            msg_start, msg_end = msg_end, msg_start
-
-        # We want to quickly skip intervals that start AFTER msg_end.
-        # Use bisect_right on the intervals' start_offset to find the cutoff.
-        # intervals is sorted by start_offset, i.e. intervals[i] = (start_off, end_off, original).
-
-        # We'll create a "dummy" tuple for searching: (msg_end, ...)
-        # We only care about the first two fields for the sort order, so
-        # something like (msg_end, +infinity) will act as a sentinel.
-        sentinel = (msg_end, float("inf"), None)
-
-        # pos is the index of the first interval whose start_offset > msg_end
-        pos = bisect.bisect_right(intervals, sentinel, key=lambda x: (x[0], x[1]))
-
-        # intervals[:pos] all have start_offset <= msg_end.
-        # Among those, we only keep those whose end_offset >= msg_start.
-        result = []
-        for start_off, end_off, original in intervals[:pos]:
-            if end_off >= msg_start:  # overlap condition
-                result.append((start_off, end_off, original))
-
-        return result
-
-    intervals = preprocess_tactics(tactics_lookup.keys())
-
-    msgs = sorted(
-        msgs,
-        key=lambda m: (
-            m["pos"]["line"],
-            m["pos"]["column"],
-            m["endPos"]["line"],
-            m["endPos"]["column"],
-        ),
-    )
-
-    for msg in msgs:
-        severity = msg["severity"]
-        start_pos_raw = msg["pos"]
-        end_pos_raw = msg["endPos"]
-        content = msg["data"]
-        start_pos = (start_pos_raw["line"], start_pos_raw["column"])
-        end_pos = (end_pos_raw["line"], end_pos_raw["column"])
-
-        message_interval = (
-            start_pos_raw["line"],
-            start_pos_raw["column"],
-            end_pos_raw["line"],
-            end_pos_raw["column"],
-        )
-
-        msg_offsets = (to_offset(*start_pos), to_offset(*end_pos))
-        overlaps = find_overlapping_tactics(intervals, message_interval)
-
-        tacs = []
-        for over in sorted(overlaps):
-            start_offset, end_offset, key = over
-
-            tactic = tactics_lookup.get(key, "SOURCE NOT FOUND")
-
-            left = max(0, msg_offsets[0] - start_offset, start_offset - msg_offsets[0])
-            right = min(
-                end_offset - msg_offsets[1], msg_offsets[1] - end_offset, len(tactic)
-            )
-
-            # if want full tactic forwarding:
-            left = 0
-            right = len(tactic)
-
-            tacs.append(tactic[left:right])
-
-        message_src = "\n".join(tacs)
-
-        messages.append(
-            Message(
-                severity=severity,
-                start=start_pos,
-                end=end_pos,
-                message_src=message_src,
-                content=content,
-            )
-        )
-
-    return AnnotatedTheorem(
-        decl=thm.decl,
-        declID=thm.declID,
-        src=thm.src,
-        leanFile=thm.leanFile,
-        context=thm.context,
-        headerless_context=thm.headerless_context,
-        proof=proof,
-        project_path=thm.project_path,
-        messages=messages,
-        pretty_print=parseTheorem(thm, context=False),
-    )
 
 
-def annotateTheorem_old(thm: Theorem, force=False) -> AnnotatedTheorem:
+# requires all theorems to have the same declaration/src/file/etc.
+def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
+    """
+    Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
+    and then parsed the output to get the proof steps. This was slow and inefficient.
+
+    Now, we parse the theorem's headerless context and raw text into a REPL command,
+    and construct a .in file that initializes the environment via the binary cache and
+    runs the command. Then we parse the REPL output to get a theorem object.
+    """
+
+    src = thms[0].src
+    path = thms[0].leanFile
 
     src = thm.src
     path = thm.leanFile
-    text = parseTheorem(thm)
-    og_thm_start = len(f"{thm.context}\n\n{thm.decl} := by\n".splitlines())
-    og_thm_end = len(text.splitlines())
+    text = parseTheorem(thm, context=False)
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
 
-    project_path = thm.project_path
+    file_name = os.path.basename(path).replace(".lean", "")
+    binary_path = os.path.join(cache_path, file_name + ".o")
 
-    path_dir = os.path.join(project_path, os.path.dirname(path))
+    cmd_text = thm.headerless_context + "\n\n" + text
 
-    temp = tempfile.NamedTemporaryFile(suffix=".lean", dir=path_dir)
+    cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+
+    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
-        f.write(text)
-    temp_relpath = os.path.relpath(temp.name, project_path)
+        f.write(infile)
 
-    mod_name = get_stem(temp_relpath.replace("/", "."))
-    output_data, to_delete = run_training_data(root_path, project_path, mod_name)
-    if to_delete is not None:
-        for i in to_delete:
-            os.remove(i)
-    # print(
-    #     f"-----------------\n(s,e)=({og_thm_start}, {og_thm_end})\nOutput:\n{output_data}\n-----------------"
-    # )
-
-    thms = getTheorems(
-        output_data, src, temp_relpath, project_path, text, until_end=True
+    output = subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
+        shell=True,
+        text=True,
+        capture_output=True,
+        cwd=root_path,
     )
 
-    if len(thms) == 0:
-        output = AnnotatedTheorem(
-            decl=thm.decl,
-            declID=thm.declID,
-            src=thm.src,
-            leanFile=thm.leanFile,
-            context=thm.context,
-            headerless_context=thm.headerless_context,
-            proof=[],
-            project_path=thm.project_path,
-            messages=[getMessage(msg, text) for msg in output_data["messages"]],
-            pretty_print=text,
-            # proof_tree=[],
-            # dependencies=thm.dependencies,
-        )
-    else:
-        output = thms[-1]
-
-    output.messages = getMessages(
-        {"line": og_thm_start, "col": None},
-        {"line": og_thm_end, "col": None},
-        output_data["messages"],
-        text,
-    )
-    elim_pf = elim_overlap(output.proof)
-
-    if len(output.messages) == 0:
-        output.proof = elim_pf
-        return output
-    else:
-        # pretty print value is original theorem's text.
-        # use first calculations to do partial annotation, and for the rest do all of the original
-
-        first = None
-
-        def flattenProof(proof):
-            new_proof = []
-            for stepraw in proof:
-                step = stepraw.tactic
-                if type(step) == str:
-                    new_proof.append(stepraw)
-                else:
-                    decl = step.decl
-
-                    new_proof.append(ProofStep(tactic=decl))
-                    new_proof.extend(flattenProof(step.proof))
-            return new_proof
-
-        og_proof = flattenProof(thm.proof)
-        # print(
-        #     f"+++++++++++++++\nRAW:{thm.proof}\nOG:\n{og_proof}\n\nelim\n{[step.tactic for step in elim_pf]}\nout\n{[step.tactic for step in output.proof]}\n++++++++++++++++++="
-        # )
-        # print(thm.proof)
-        for idx in range(min(len(og_proof), len(elim_pf))):
-            if og_proof[idx].tactic != elim_pf[idx].tactic:
-                first = idx
-                break
-            # print(f"[[[\nOG: {og_proof[idx].tactic}\nNEW: {elim_pf[idx].tactic}\n]]]")
-
-        if first is None:
-            if len(og_proof) != len(elim_pf):
-                first = min(len(og_proof), len(elim_pf))
-
-        if first is not None:
-            if first != 0:
-                max_pos = elim_pf[first - 1].end
-            else:
-                max_pos = (1, 1)
-
-            if force:
-
-                def get_empty_annotated_proof_step(i):
-                    proofstep = og_proof[i]
-                    return AnnotatedProofStep(
-                        # prevState=["ERROR"],
-                        tactic=proofstep.tactic,
-                        nextState=["ERROR"],
-                        # srcUpToTactic="ERROR",
-                        # declUpToTactic="ERROR",
-                        start=(max_pos[0] + i, max_pos[1] + i),
-                        end=(max_pos[0] + i, max_pos[1] + i),
-                    )
-
-                proof = [
-                    get_empty_annotated_proof_step(i) if i >= first else elim_pf[i]
-                    for i in range(len(og_proof))
-                ]
-
-                final = AnnotatedTheorem(
-                    decl=output.decl,
-                    declID=output.declID,
-                    src=output.src,
-                    leanFile=output.leanFile,
-                    context=output.context,
-                    headerless_context=output.headerless_context,
-                    proof=proof,
-                    project_path=project_path,
-                    messages=output.messages,
-                    pretty_print=output.pretty_print,
-                    # proof_tree=output.proof_tree,
-                    # dependencies=thm.dependencies,
-                )
-
-                if [s.tactic for s in og_proof] != [s.tactic for s in proof]:
-                    raise ValueError(
-                        f"=============Forcing Failed:\n{parseTheorem(thm,context=False)}\n{[s.tactic for s in og_proof]}\n--------\n{parseTheorem(final,context=False)}\n{[s.tactic for s in proof]}\n+++++++++++++++++++\n{[s.tactic for s in elim_pf]}\n{output.messages}\nfirst: {first}\n============="
-                    )
-
-                return final
-            else:
-                raise ValueError(
-                    f"input theorem is incorrect! \n{parseTheorem(thm,context=False)}\n{parseTheorem(output,context=False)}\nfirst={first}\n{og_proof}\n{elim_pf}"
-                )
-        output.proof = elim_pf
-        # output.dependencies = thm.dependencies
-        return output
+    out = "\n".join(output.stdout.splitlines()[2:])
+    data = json.loads(out)
+    print(data)
+    print()
+    return coerce_repl(data, thm)
 
 
 if __name__ == "__main__":
