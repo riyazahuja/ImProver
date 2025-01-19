@@ -334,7 +334,7 @@ if __name__ == "__main__":
         headerless_context=thm.headerless_context,
         project_path=thm.project_path,
     )
-    thm = annotateTheorem(thm_base, force=True)
+    thm = annotateTheorem(thm_base)
     print(len(thm.proof))
     print(parseTheorem(thm, context=False))
     for i, tac in enumerate(thm.proof):

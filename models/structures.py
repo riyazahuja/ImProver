@@ -9,6 +9,7 @@ import subprocess
 from textwrap import indent
 import re
 import bisect
+import time
 
 """
 This is the important file: Describes all datastructures that we will use, as well as how to coerce between them and interact with the cache
@@ -890,8 +891,8 @@ def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
 
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
-    print(data)
-    print()
+    # print(data)
+    # print()
     return coerce_repl(data, thm)
 
 
@@ -919,7 +920,7 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
     binary_path = os.path.join(cache_path, file_name + ".o")
 
     infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
-
+    vers = [infile]
     for thm in thms:
         if thm.src != src or thm.leanFile != path or thm.project_path != project_path:
             raise ValueError(f"All theorems must be from the same file")
@@ -932,6 +933,10 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
         cmd_text = thm.headerless_context + "\n\n" + text
         cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
         infile = f'{infile}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+        vers.append(
+            f'{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+        )
+    print("\n\n".join(vers))
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
@@ -1010,11 +1015,30 @@ if __name__ == "__main__":
         headerless_context=thm.headerless_context,
         project_path=thm.project_path,
     )
+    # Timing annotateTheorems
+    start_time = time.perf_counter()
+    outs = annotateTheorems(
+        [thm_base, thm_base2, thm_base, thm_base2, thm_base, thm_base2]
+    )
+    end_time = time.perf_counter()
+    print(f"annotateTheorems took {end_time - start_time:.4f} seconds")
 
-    outs = annotateTheorems([thm_base, thm_base2])
-    for thm in outs:
-        print(parseTheorem(thm, annotation=True, context=False))
-        print()
+    # Timing annotateTheorem in a loop
+    st = time.perf_counter()
+    for i in range(6):
+        start_time = time.perf_counter()
+        if i % 2 == 0:
+            out = annotateTheorem(thm_base)
+        else:
+            out = annotateTheorem(thm_base2)
+        end_time = time.perf_counter()
+        print(f"annotateTheorem call {i} took {end_time - start_time:.4f} seconds")
+    end = time.perf_counter()
+
+    print(f"annotateTheorem took {end - st:.4f} seconds")
+    # for thm in outs:
+    #     print(parseTheorem(thm, annotation=True, context=False))
+    #     print()
 
     # repo = getRepo("Tests", "configs/config_MIL.json")
     # files = {file.file_path: file for file in repo.files}

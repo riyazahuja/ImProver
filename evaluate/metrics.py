@@ -92,11 +92,11 @@ def length_metric():
 
     def len_fn(thm):
         if type(thm) == Theorem:
-            thm = annotateTheorem(thm, force=True)
+            thm = annotateTheorem(thm)
         # G, _, _ = getProofTree(thm)
         # return G.number_of_nodes()
         # thm.proof = elim_overlap(thm.proof)
-        num_lines = len(elim_overlap(thm.proof))
+        num_lines = len(thm.proof)
         # return num_lines
         # dont count semicolons
         semicolons = 0
@@ -236,7 +236,7 @@ def modularity_metric():
 
     def count_haves(thm):
         if type(thm) == Theorem:
-            thm = annotateTheorem(thm, force=True)
+            thm = annotateTheorem(thm)
         pf = [tac.tactic for tac in thm.proof]
         return sum(1 for tactic in pf if tactic.strip().startswith("have")) / len(
             thm.proof
@@ -713,7 +713,7 @@ if __name__ == "__main__":
     thms = f.theorems
     for i, thm in enumerate(thms):
         if type(thm) == Theorem:
-            thm = annotateTheorem(thm, force=True)
+            thm = annotateTheorem(thm)
         G, p, l = getProofTree(thm)
         score = calculate_modularity(G)
 

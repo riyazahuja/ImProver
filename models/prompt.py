@@ -15,7 +15,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
 from models.rag import *
 from evaluate.metrics import *
-from evaluate.eval import eval_correctness
+from evaluate.eval import *
+from generation.recgen import *
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import logging
 from typing import Final
@@ -532,7 +533,9 @@ def best_of_n(
             )
         # if match_workers:
         #    max_workers = n
-        if max_workers == 1:
+        if max_workers == 1 or True:
+            st = time.time()
+            unannotated = []
             for i in range(n):
                 output, prompt_trajectories = prompt_fn(
                     thm,
@@ -545,9 +548,17 @@ def best_of_n(
                     examples=examples,
                     improved_context=improved_context,
                 )
-                correct, _, annotated_output = eval_correctness(output)
-                thms.append((annotated_output, correct))
+                unannotated.append(output)
                 trajectories.append(prompt_trajectories)
+            evaluations = eval_correctness_batched(unannotated)
+            thms.extend(
+                [
+                    (annotated_output, correct)
+                    for (correct, _, annotated_output) in evaluations
+                ]
+            )
+            # correct, _, annotated_output = eval_correctness_batched(unannotated)
+            # thms.append((annotated_output, correct))
 
         else:
             st = time.time()
@@ -589,8 +600,8 @@ def best_of_n(
                     thms.append((output, correct))
                     trajectories.append(prompt_trajectories)
 
-                if log_req_info:
-                    print(f"Evaluation competed in {time.time()-stt}s")
+                # if log_req_info:
+                #     print(f"Evaluation competed in {time.time()-stt}s")
         if log_req_info:
             print(f"Threadpool competed in {time.time()-st}s")
 
@@ -763,6 +774,66 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
 
     best_of_n_n.__name__ = f"{best_of_n_n.__name__}({prompt_fn.__name__})"
     return best_of_n_n
+
+
+def recursive_generation(
+    prompt_fn,
+    max_workers=None,
+):
+    def recursive_generation(
+        thm: AnnotatedTheorem,
+        metric: Metric,
+        n: int,
+        model="gpt-4-turbo",
+        prev_data=[],
+        annotation=True,
+        syntax_search=True,
+        mathlib_search=True,
+        examples=0,
+        token=False,
+        improved_context=False,
+    ):
+        thms = []
+        trajectories = []
+        if token:
+            return (
+                prompt_fn(
+                    thm,
+                    metric,
+                    model=model,
+                    prev_data=prev_data,
+                    annotation=annotation,
+                    syntax_search=syntax_search,
+                    mathlib_search=mathlib_search,
+                    examples=examples,
+                    token=token,
+                    improved_context=improved_context,
+                )
+                * n
+            )
+
+    output, prompt_trajectories = prompt_fn(
+        thm,
+        metric,
+        model=model,
+        prev_data=prev_data[-prev_data_num:],
+        annotation=annotation,
+        syntax_search=syntax_search,
+        mathlib_search=mathlib_search,
+        examples=examples,
+        improved_context=improved_context,
+    )
+    err_branches = extract_subtheorem(thm)
+    thm_text = replace_and_run(err_branches, thm)
+    new_thm = make_theorem(thm_text, thm)
+    emp_thms = make_empty_theorems(new_thm)
+    anno_emp = annotateTheorems([emp[1] for emp in emp_thms])
+    emps = [(emp_thms[i][0], anno_emp[i]) for i in range(len(anno_emp))]
+
+    output = insert_theorems(new_thm, emps)
+
+    best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
+    return best_of_n
 
 
 if __name__ == "__main__":

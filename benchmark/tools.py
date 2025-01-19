@@ -20,7 +20,7 @@ from multiprocessing import cpu_count
 def extract_data(thm, method, trajectory_position):
 
     if type(thm) == Theorem:
-        thm = annotateTheorem(thm, force=True)
+        thm = annotateTheorem(thm)
 
     fn, metric, kwargs = method
     correct, messages, _ = eval_correctness(thm)
@@ -409,7 +409,16 @@ if __name__ == "__main__":
     #     mathlib_search=[True],
     #     improved_context=[True],
     # )
-    methods = improver(length_metric())
+    methods = get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=1), keep_best=True)],
+        n=[5],
+        annotation=[True],
+        examples=[10],
+        metric=[length_metric()],
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
@@ -440,4 +449,4 @@ if __name__ == "__main__":
     )
     save_to_csv(d, "benchmark/data/traj_data2.csv")
     save_to_csv(t, "benchmark/data/traj_traj2.csv")
-    print(f"{t}")
+    # print(f"{t}")
