@@ -908,22 +908,30 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
 
     src = thms[0].src
     path = thms[0].leanFile
-
-    src = thm.src
-    path = thm.leanFile
-    text = parseTheorem(thm, context=False)
+    decl = thms[0].decl
+    context = thms[0].context
+    headerless_context = thms[0].headerless_context
+    project_path = thms[0].project_path
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache_path = os.path.join(root_path, f".cache", src, os.path.dirname(path))
-
     file_name = os.path.basename(path).replace(".lean", "")
     binary_path = os.path.join(cache_path, file_name + ".o")
 
-    cmd_text = thm.headerless_context + "\n\n" + text
+    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
 
-    cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+    for thm in thms:
+        if thm.src != src or thm.leanFile != path or thm.project_path != project_path:
+            raise ValueError(f"All theorems must be from the same file")
+        if thm.decl != decl:
+            raise ValueError(f"All theorems must have same decl")
+        if thm.context != context or thm.headerless_context != headerless_context:
+            raise ValueError(f"All theorems must have same context")
 
-    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+        text = parseTheorem(thm, context=False)
+        cmd_text = thm.headerless_context + "\n\n" + text
+        cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+        infile = f'{infile}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
@@ -937,11 +945,15 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
         cwd=root_path,
     )
 
-    out = "\n".join(output.stdout.splitlines()[2:])
-    data = json.loads(out)
-    print(data)
-    print()
-    return coerce_repl(data, thm)
+    parse_to_jsonable = output.stdout.split("\n\n")
+    data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
+    if len(data) != len(thms):
+        raise ValueError("repl output/thms mismatch in length")
+    output = []
+    for i in range(len(data)):
+        output.append(coerce_repl(data[i], thms[i]))
+
+    return output
 
 
 if __name__ == "__main__":
@@ -977,7 +989,32 @@ if __name__ == "__main__":
         headerless_context=thm.headerless_context,
         project_path=thm.project_path,
     )
-    thm = annotateTheorem(thm_base, force=True)
+
+    proof2 = [
+        ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+        ProofStep(tactic=". use xs"),
+        ProofStep(tactic="  left"),
+        ProofStep(tactic="  exact xt"),
+        ProofStep(tactic="use xs"),
+        ProofStep(tactic="right"),
+        ProofStep(tactic="exact xu"),
+    ]
+
+    thm_base2 = Theorem(
+        decl=thm.decl,
+        proof=proof2,
+        declID=thm.declID,
+        src=thm.src,
+        leanFile=thm.leanFile,
+        context=thm.context,
+        headerless_context=thm.headerless_context,
+        project_path=thm.project_path,
+    )
+
+    outs = annotateTheorems([thm_base, thm_base2])
+    for thm in outs:
+        print(parseTheorem(thm, annotation=True, context=False))
+        print()
 
     # repo = getRepo("Tests", "configs/config_MIL.json")
     # files = {file.file_path: file for file in repo.files}
@@ -987,7 +1024,7 @@ if __name__ == "__main__":
     # for f in fs:
     #     print(f"{f.file_name}|==================================")
     #     for thm in [f.theorems[0]]:
-    print(parseTheorem(thm, annotation=False, context=False))
-    print(thm.messages)
-    print("-------------------------")
+    # print(parseTheorem(thm, annotation=False, context=False))
+    # print(thm.messages)
+    # print("-------------------------")
     # print(parseTheorem(thm, annotation=True, headerless_context=True))
