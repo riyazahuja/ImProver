@@ -1,4 +1,3 @@
-import glob
 import os
 import argparse
 import subprocess
@@ -7,6 +6,7 @@ from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
+import tempfile
 
 
 def _get_stem(input_module, input_file_mode):
@@ -17,53 +17,87 @@ def _get_stem(input_module, input_file_mode):
     return stem.replace("«", "").replace("»", "")
 
 
-def _run_cmd(cmd, cwd, input_file, output_file):
-    # print(f'cmd: {cmd}\n input: {input_file}\n output {output_file}')
-    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
+    # I am actually going to cry this is so scuffed
+    # If you aren't riyaz and reading this, trust me I can actually code
+    # This is just a disgusting patch that actually works for some reason
+    # for the love of god fix this to be less stupid
 
-    with open(output_file, "w") as f:
-        subprocess.Popen(
-            ["lake exe %s %s" % (cmd, input_file)], cwd=cwd, shell=True, stdout=f
-        ).wait()
+    print(f"Extracting {input_module}")
 
-
-def _extract_module(input_module, input_file_mode, output_base_dir, cwd):
-    # Tactic prediction
-    # ratchet and todo fix later
-    training_file = os.path.join(
-        output_base_dir, _get_stem(input_module, input_file_mode) + "_training.json"
-    )
-    constants_file = os.path.join(
-        output_base_dir, _get_stem(input_module, input_file_mode) + "_constants.json"
-    )
-    output_file = os.path.join(
+    fp = os.path.join(start, input_module.replace(".", "/") + ".lean")
+    output_path = os.path.join(
         output_base_dir, _get_stem(input_module, input_file_mode) + ".json"
     )
-    _run_cmd(
-        cmd="training_data",
+    # print(f'cmd: {cmd}\n input: {input_file}\n output {output_file}')
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    # if "C04" not in input_module or "Solutions_S01" not in input_module:
+    #     print(f"File Path: {fp}")
+    #     return 1
+    repl_cmd = f'{{"path": "{fp}", "allTactics":true, "theorems":true}}'
+    # repl_cmd = f'{{"path": "{fp}", "allTactics":true}}'
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
+    with open(temp.name, "w") as f:
+        f.write(repl_cmd)
+
+    subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name} > {output_path}"],
+        shell=True,
         cwd=cwd,
-        input_file=input_module,
-        output_file=output_file,
     )
-    # UNSTABLE, NOT IN ARXIV BUILD
-    # _run_cmd(
-    #     cmd="constants",
-    #     cwd=cwd,
-    #     input_file=input_module,
-    #     output_file=constants_file,
-    # )
 
-    # with open(training_file, "r") as f:
-    #     training_data = json.load(f)
-    # with open(constants_file, "r") as f:
-    #     constant_data = json.load(f)
-    # with open(output_file, "w") as f:
-    #     training_data["constants"] = constant_data
-    #     json.dump(training_data, f)
-    # os.remove(training_file)
-    # os.remove(constants_file)
+    with open(output_path, "r") as f:
+        data = json.load(f)
 
-    print(input_module)
+    # need to add context and headerless context to each theorem, and headers to the overall file
+    with open(fp, "r") as f:
+        contents = f.read()
+    thms = data.get("theorems", [])
+    headers = ""
+    header_end_line = 0  # exclusive
+    if len(thms) > 0:
+
+        fst = thms[0]
+        header_end_line = max(fst["start"]["line"] - 1, 0)
+        headers = "\n".join(contents.splitlines()[:header_end_line])
+
+    new_theorems = []
+    for thm in thms:
+        contents_split = contents.splitlines()
+        thm_start = thm["start"]["line"] - 1
+        context = "\n".join(contents_split[:thm_start])
+        headerless_context = "\n".join(contents_split[header_end_line:thm_start])
+        new_theorems.append(
+            {**thm, "context": context, "headerless_context": headerless_context}
+        )
+
+    new_data = {
+        "tactics": data.get("tactics", []),
+        "messages": data.get("messages", []),
+        "theorems": new_theorems,
+        "headers": headers,
+    }
+
+    with open(output_path, "w") as f:
+        json.dump(new_data, f)
+
+    pickle_path = os.path.join(
+        output_base_dir, _get_stem(input_module, input_file_mode) + ".o"
+    )
+
+    text = f'{{"cmd": "{headers}"}}'.replace("\n", "\\n")  # .replace('"', '\\"')
+
+    text2 = f'{{"pickleTo": "{pickle_path}", "env": 0}}'.replace("\n", "\\n")
+    text = text + "\n\n" + text2
+
+    temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
+    with open(temp.name, "w") as f:
+        f.write(text)
+
+    subprocess.run(
+        [f"lake env repl/.lake/build/bin/repl < {temp.name}"], shell=True, cwd=cwd
+    )
+
     return 1
 
 
@@ -131,6 +165,7 @@ if __name__ == "__main__":
     # print(f"walked from {start}: \n{files_in_path}")
 
     completed = []
+    start_path = start
     start = time.time()
     with ProcessPoolExecutor(args.max_workers) as executor:
         input_file_mode = args.input_file is not None
@@ -151,6 +186,7 @@ if __name__ == "__main__":
                 input_file_mode=input_file_mode,
                 output_base_dir=args.output_base_dir,
                 cwd=args.cwd,
+                start=start_path,
             )
             for input_module in input_modules
         ]
@@ -164,9 +200,3 @@ if __name__ == "__main__":
 
     end = time.time()
     print("Elapsed %.2f" % (round(end - start, 2)))
-
-    # subprocess.Popen(
-    #     ['python3 scripts/data_stats.py --pipeline-output-base-dir %s' % (args.output_base_dir)],
-    #     cwd=args.cwd,
-    #     shell=True
-    # ).wait()

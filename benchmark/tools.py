@@ -17,14 +17,100 @@ from tqdm import tqdm
 from multiprocessing import cpu_count
 
 
-def process_instance(thm: AnnotatedTheorem, method):
+def extract_data(thm, method, trajectory_position):
+
+    if type(thm) == Theorem:
+        thm = annotateTheorem(thm)
+
+    fn, metric, kwargs = method
+    correct, messages, _ = eval_correctness(thm)
+
+    score = None
+    if correct and metric.score_fn != None:
+        score = metric.score(thm)
+
+    raw = parseTheorem(thm, context=False)
+
+    def parse_msg(message):
+        return f"{message.content}\n\tat: {message.message_src}"
+
+    errors = "\n".join(
+        [
+            parse_msg(msg)
+            for msg in messages
+            if msg.severity == "error"
+            or (msg.severity == "warning" and "sorry" in msg.content)
+        ]
+    )
+
+    return {
+        "repo": thm.src,
+        "file": thm.leanFile,
+        "decl": thm.decl,
+        "method": fn.__name__,
+        "n": kwargs.get("n", None) if fn.__name__ != "prompt_structured" else None,
+        "metric": metric.name,
+        "trajectory_position": trajectory_position,
+        "model": kwargs.get("model", "gpt-4-turbo"),
+        "annotation": kwargs.get("annotation", True),
+        "syntax_search": kwargs.get("syntax_search", False),
+        "mathlib_search": kwargs.get("mathlib_search", False),
+        "examples": kwargs.get("examples", 0),
+        "improved_context": kwargs.get("improved_context", False),
+        "correct": correct,
+        "errors": errors,
+        "score": score,
+        "raw": raw,
+    }
+
+
+def parse_trajectories(trajectories, method, position="/"):
+    # print(f"{type(trajectories)} : {trajectories}")
+    if (
+        type(trajectories) == tuple
+        and trajectories[0] == "BoN"
+        and type(trajectories[1]) == list
+    ):
+        # print("BON")
+        output = []
+        for subtrajectory in trajectories[1]:
+            output += parse_trajectories(
+                subtrajectory, method, position + f"BoN({len(trajectories[1])})/"
+            )
+        return output
+    if (
+        type(trajectories) == tuple
+        and trajectories[0] == "refine"
+        and type(trajectories[1]) == list
+    ):
+        # print("refine")
+        output = []
+        for i, subtrajectory in enumerate(trajectories[1]):
+            output += parse_trajectories(
+                subtrajectory,
+                method,
+                position + f"refine({len(trajectories[1])}; curr = {i})/",
+            )
+        return output
+
+    elif type(trajectories) == Theorem or type(trajectories) == AnnotatedTheorem:
+        # print("thm")
+        return [extract_data(trajectories, method, position)]
+    else:
+        raise ValueError(
+            f"Invalid trajectories type: {type(trajectories)}, {trajectories}"
+        )
+
+
+def process_instance(thm: AnnotatedTheorem, method, output_trajectories=False):
     start_time = time.time()
     fn, metric, kwargs = method
     og_correct, og_messages, _ = eval_correctness(thm)
     og_score = None
     if og_correct and metric.score_fn != None:
         og_score = metric.score(thm)
-    output_thm = fn(thm, metric, **kwargs)
+
+    output_thm, trajectories = fn(thm, metric, **kwargs)
 
     new_correct, new_messages, output_anno_thm = eval_correctness(output_thm)
     processing_time = time.time() - start_time
@@ -85,10 +171,12 @@ def process_instance(thm: AnnotatedTheorem, method):
         "og_raw": og_raw,
         "new_raw": new_raw,
         "time": processing_time,
-    }
+    }, (parse_trajectories(trajectories, method) if output_trajectories else None)
 
 
-def process_instances(instances, max_workers=None, show_progress=False):
+def process_instances(
+    instances, max_workers=None, show_progress=False, output_trajectories=False
+):
     if max_workers is None:
         max_workers = len(instances)
 
@@ -98,7 +186,13 @@ def process_instances(instances, max_workers=None, show_progress=False):
                 max_workers=min(max_workers, len(instances))
             ) as executor:
                 futures = [
-                    executor.submit(process_instance, i[0], i[1]) for i in instances
+                    executor.submit(
+                        process_instance,
+                        i[0],
+                        i[1],
+                        output_trajectories=output_trajectories,
+                    )
+                    for i in instances
                 ]
                 for future in concurrent.futures.as_completed(futures):
                     pbar.update(1)
@@ -106,17 +200,42 @@ def process_instances(instances, max_workers=None, show_progress=False):
         with ThreadPoolExecutor(
             max_workers=min(max_workers, len(instances))
         ) as executor:
-            futures = [executor.submit(process_instance, i[0], i[1]) for i in instances]
-    data = [future.result(timeout=1) for future in futures]
-    return data
+            futures = [
+                executor.submit(
+                    process_instance,
+                    i[0],
+                    i[1],
+                    output_trajectories=output_trajectories,
+                )
+                for i in instances
+            ]
+    data_raw = [future.result(timeout=1) for future in futures]
+
+    data = [item for item, traj in data_raw]
+    if output_trajectories:
+        trajectories = []
+        for item, traj in data_raw:
+            if traj != None:
+                trajectories += traj
+    else:
+        trajectories = None
+
+    return data, trajectories
 
 
 def benchmark_theorem(
-    thm: AnnotatedTheorem, methods, max_workers=None, show_progress=False
+    thm: AnnotatedTheorem,
+    methods,
+    max_workers=None,
+    show_progress=False,
+    output_trajectories=False,
 ):
     instances = [(thm, m) for m in methods]
     return process_instances(
-        instances, max_workers=max_workers, show_progress=show_progress
+        instances,
+        max_workers=max_workers,
+        show_progress=show_progress,
+        output_trajectories=output_trajectories,
     )
 
 
@@ -125,16 +244,26 @@ def benchmark_file(
     methods,
     max_workers=None,
     show_progress=False,
+    output_trajectories=False,
 ):
     thms = file.theorems
 
     instances = [(t, m) for t in thms for m in methods]
     return process_instances(
-        instances, max_workers=max_workers, show_progress=show_progress
+        instances,
+        max_workers=max_workers,
+        show_progress=show_progress,
+        output_trajectories=output_trajectories,
     )
 
 
-def benchmark_repo(repo: Repo, methods, max_workers=None, show_progress=False):
+def benchmark_repo(
+    repo: Repo,
+    methods,
+    max_workers=None,
+    show_progress=False,
+    output_trajectories=False,
+):
     anno_files = [f for f in repo.files if type(f) == AnnotatedFile]
     thms = []
     for f in anno_files:
@@ -142,7 +271,10 @@ def benchmark_repo(repo: Repo, methods, max_workers=None, show_progress=False):
 
     instances = [(t, m) for t in thms for m in methods]
     return process_instances(
-        instances, max_workers=max_workers, show_progress=show_progress
+        instances,
+        max_workers=max_workers,
+        show_progress=show_progress,
+        output_trajectories=output_trajectories,
     )
 
 
@@ -265,106 +397,9 @@ def no_errors(thms):
     return errors == 0
 
 
-if __name__ == "__main__2":
-
-    # methods = get_methods(
-    #     model=["gpt-4o"],
-    #     fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5))],
-    #     n=[3],
-    #     annotation=[True],
-    #     examples=[10],
-    #     metric=[length_metric()],
-    #     syntax_search=[True],
-    #     mathlib_search=[True],
-    # )
-
-    methods = get_methods(
-        model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
-        n=[5],
-        annotation=[True],
-        examples=[10],
-        metric=[completion_metric()],
-        syntax_search=[True],
-        mathlib_search=[True],
-    )
-    methods = get_methods(
-        model=["gpt-4o"],
-        fn=[prompt_basic],
-        metric=[completion_metric()],
-    )
-
-    repo = getRepo("Tests", "configs/config_MIL.json")
-    files = {file.file_path: file for file in repo.files}
-
-    # fs = [
-    #     files[name]
-    #     for name in files.keys()
-    #     if (
-    #         ("Imo" in name or "Usa" in name)
-    #         and (
-    #             # "2014" in name
-    #             # or "2015" in name
-    #             "2016" in name
-    #             or "2017" in name
-    #             or "2018" in name
-    #             or "2019" in name
-    #             or "2020" in name
-    #             or "2021" in name
-    #             or "2022" in name
-    #             or "2023" in name
-    #             or "2024" in name
-    #         )
-    #         and "Compfiles/Imo2019P2.lean" not in name
-    #         and "Compfiles/Imo2017P2.lean" not in name
-    #     )
-    # ]  # if ("Solutions" in name)]
-    # fs = [files[name] for name in files.keys() if ("Compfiles/Imo2019P4.lean" in name)]
-    fs = [
-        files[name]
-        for name in files.keys()
-        if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
-    ]
-
-    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
-    thm = fs[0].theorems[0]
-
-    print(parseTheorem(thm, annotation=True, context=False))
-
-    print(parseTheorem(thm, annotation=False, context=False))
-
 if __name__ == "__main__":
-    repo = getRepo("Tests", "configs/config_test.json")
-    files = {file.file_path: file for file in repo.files}
-    # print(files.keys())
-    f = files["Tests/IMO/alphaproof/P1_seperated.lean"]
-    # f = files["Tests/tester.lean"]
 
-    thms = f.theorems
-
-    # for dep in thm.dependencies:
-    #     print(
-    #         f"{dep.dependency} | {dep.src_file} | {dep.explicit}, {dep.direct} | {dep.kind}"
-    #     )
-    #     print(dep.src_content)
-    #     print("==========================")
-
-    methods = get_methods(
-        model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5), keep_best=True)],
-        n=[5],
-        annotation=[True],
-        examples=[10],
-        metric=[completion_metric()],
-        syntax_search=[True],
-        mathlib_search=[True],
-        improved_context=[True],
-    )
-    # methods = get_methods(
-    #     model=["gpt-4o"],
-    #     fn=[prompt_basic],
-    #     metric=[modularity_metric()],
-    # )
+    methods = improver(length_metric())
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
@@ -378,94 +413,21 @@ if __name__ == "__main__":
         )
         return errors == 0
 
-    # fs = [
-    #     files[name]
-    #     for name in files.keys()
-    #     if (
-    #         ("Imo" in name or "Usa" in name)
-    #         and (
-    #             # "2014" in name
-    #             # or "2015" in name
-    #             "2016" in name
-    #             or "2017" in name
-    #             or "2018" in name
-    #             or "2019" in name
-    #             or "2020" in name
-    #             or "2021" in name
-    #             or "2022" in name
-    #             or "2023" in name
-    #             or "2024" in name
-    #         )
-    #         and "Compfiles/Imo2019P2.lean" not in name
-    #         and "Compfiles/Imo2017P2.lean" not in name
-    #     )
-    # ]  # if ("Solutions" in name)]
-    # fs = [files[name] for name in files.keys() if ("Compfiles/Imo2019P4.lean" in name)]
     fs = [
         files[name]
         for name in files.keys()
-        if ("C04" in name) and ("S01" in name) and ("Solutions" not in name)
+        if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
     ]
 
-    fs = [
-        f
-        for f in fs
-        if type(f) == AnnotatedFile
-        and len(f.theorems) != 0
-        and not no_errors(f.theorems)
-    ]
-    # thms = [(f, f.theorems) for f in fs]
-    # outs = []
-    # for f, ts in thms:
-    #     outs.append((f, [i for i in ts if len(i.proof) > 0]))
+    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
 
-    # for f, t in outs:
-    #     print(f"==============")
-    #     print(f"{f.file_path}:")
-    #     print(f"\tNum_theorems: {len(t)}")
-    #     print(f"\tavg pf len: {np.average([len(p.proof) for p in t])}")
-    #     print(f"\tNum instances: {len(t)*len(methods)}")
-    #     print("===================")
+    f = fs[0]
+    thm = f.theorems[0]
+    instance = (thm, methods[0])
 
-    print([f.file_path for f in fs])
-    print(sum(len(f.theorems) for f in fs))
-    thms = []
-    for f in fs:
-        thms.extend(f.theorems)
-    thms = thms[:13]
-    # print(sum(1 for f in fs for t in f.theorems if len(t.proof) > 1))
-    # thms = [t for f in fs for t in f.theorems if len(t.proof) > 1]
-
-    # cost = sum(get_cost(f, methods) for f in fs)
-    # # cost = get_cost(f, methods)
-    # print(f"${cost}")
-    # print(len(fs))
-    # start = 0
-    # curr = 0
-
-    data = []
-    # for t in thms:
-    #     data.extend(benchmark_theorem(t, methods, max_workers=1, show_progress=True))
-    #     save_to_csv(data, path=f"benchmark/data/MAI/MIL_mini.csv")
-    for t in thms:
-        data.extend(
-            benchmark_theorem(
-                t,
-                methods,
-                max_workers=1,
-                show_progress=True,
-            )
-        )
-        save_to_csv(data, path=f"benchmark/data/testsss.csv")
-    # data = []
-    # for f in fs:
-    #     for t in f.theorems:
-    #         data.extend(
-    #             benchmark_theorem(
-    #                 t,
-    #                 methods,
-    #                 max_workers=1,
-    #                 show_progress=True,
-    #             )
-    #         )
-    #         save_to_csv(data, path=f"benchmark/data/MAI/Mathlib_len.csv")
+    d, t = benchmark_theorem(
+        thm, methods, max_workers=1, show_progress=True, output_trajectories=True
+    )
+    save_to_csv(d, "benchmark/data/traj_data2.csv")
+    save_to_csv(t, "benchmark/data/traj_traj2.csv")
+    # print(f"{t}")

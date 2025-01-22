@@ -7,6 +7,8 @@ import requests
 import base64
 import shutil
 
+cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 def _lakefile_local(path, name, cwd):
     lakefile_path = os.path.join(path, "lakefile.lean")
@@ -34,12 +36,6 @@ def _lakefile_local(path, name, cwd):
     lean_lib TrainingData where
 
     lean_lib Examples where
-
-    lean_exe training_data where
-    root := `scripts.training_data
-    
-    lean_exe constants where
-    root := `scripts.constants
 
     """ % (
         mathlib_text,
@@ -155,7 +151,7 @@ def _run(cwd, name, import_file, old_version, max_workers, start, local_path):
         proj_path = local_path
 
     start_path = os.path.join(proj_path, start)
-
+    # print(f"== {start_path} ==")
     flags += " --start %s --proj-path %s" % (start_path, proj_path)
     subprocess.Popen(
         [

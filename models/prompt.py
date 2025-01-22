@@ -15,14 +15,15 @@ sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
 from models.rag import *
 from evaluate.metrics import *
-from evaluate.eval import eval_correctness
+from evaluate.eval import *
+from generation.recgen import *
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import logging
 from typing import Final
 import tiktoken
 from multiprocessing import cpu_count
 
-log_req_info = False
+log_req_info = True
 
 if log_req_info:
     logger: Final = logging.getLogger(__name__)
@@ -299,6 +300,10 @@ def prompt_raw(
     return output
 
 
+# Note: all prompt functions return a Theorem object, unless token=True, in which case they return the number of tokens in the prompt
+# however, we now make them output a (Theorem, trajectories), where trajectories is a list of Theorems
+
+
 def prompt_basic(
     thm: AnnotatedTheorem,
     metric: Metric,
@@ -344,6 +349,7 @@ def prompt_basic(
             src=thm.src,
             leanFile=thm.leanFile,
             context=thm.context,
+            headerless_context=thm.headerless_context,
             proof=[ProofStep(tactic=curr.content)],
             project_path=thm.project_path,
             # dependencies=thm.dependencies,
@@ -351,7 +357,7 @@ def prompt_basic(
 
     final = coerce_Thm(output)
 
-    return final
+    return final, final
 
 
 def prompt_flat(
@@ -401,6 +407,7 @@ def prompt_flat(
             src=thm.src,
             leanFile=thm.leanFile,
             context=thm.context,
+            headerless_context=thm.headerless_context,
             proof=[ProofStep(tactic=step) for step in curr.proof],
             project_path=thm.project_path,
             # dependencies=thm.dependencies,
@@ -409,7 +416,7 @@ def prompt_flat(
     final = coerce_trimmedThm(output)
     if log_req_info:
         print(f"Flat obj coersion completed in {time.time()-st}s")
-    return final
+    return final, final
 
 
 def prompt_structured(
@@ -469,6 +476,7 @@ def prompt_structured(
             src=thm.src,
             leanFile=thm.leanFile,
             context=thm.context,
+            headerless_context=thm.headerless_context,
             proof=[coerce_PS(step) for step in curr.proof],
             project_path=thm.project_path,
             # dependencies=thm.dependencies,
@@ -476,7 +484,7 @@ def prompt_structured(
 
     final = coerce_trimmedThm(output, force_decl=thm.decl)
 
-    return final
+    return final, final
 
 
 def process_one(item):
@@ -484,7 +492,14 @@ def process_one(item):
     return (item, correct)
 
 
-def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=False):
+def best_of_n(
+    prompt_fn,
+    max_workers=None,
+    max_cpus=1,
+    mixup=0,
+    match_workers=False,
+    output_trajectories=False,
+):
     def best_of_n(
         thm: AnnotatedTheorem,
         metric: Metric,
@@ -499,6 +514,7 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
         improved_context=False,
     ):
         thms = []
+        trajectories = []
         if token:
             return (
                 prompt_fn(
@@ -517,9 +533,11 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
             )
         # if match_workers:
         #    max_workers = n
-        if max_workers == 1:
+        if max_workers == 1 or True:
+            st = time.time()
+            unannotated = []
             for i in range(n):
-                output = prompt_fn(
+                output, prompt_trajectories = prompt_fn(
                     thm,
                     metric,
                     model=model,
@@ -530,8 +548,18 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                     examples=examples,
                     improved_context=improved_context,
                 )
-                correct, _, _ = eval_correctness(output)
-                thms.append((output, correct))
+                unannotated.append(output)
+                trajectories.append(prompt_trajectories)
+            evaluations = eval_correctness_batched(unannotated)
+            thms.extend(
+                [
+                    (annotated_output, correct)
+                    for (correct, _, annotated_output) in evaluations
+                ]
+            )
+            # correct, _, annotated_output = eval_correctness_batched(unannotated)
+            # thms.append((annotated_output, correct))
+
         else:
             st = time.time()
             with ThreadPoolExecutor(
@@ -567,24 +595,26 @@ def best_of_n(prompt_fn, max_workers=None, max_cpus=1, mixup=0, match_workers=Fa
                 ]
                 stt = time.time()
                 for future in futures:
-                    output = future.result()
+                    output, prompt_trajectories = future.result()
                     correct, _, _ = eval_correctness(output)
                     thms.append((output, correct))
+                    trajectories.append(prompt_trajectories)
 
-                if log_req_info:
-                    print(f"Evaluation competed in {time.time()-stt}s")
+                # if log_req_info:
+                #     print(f"Evaluation competed in {time.time()-stt}s")
         if log_req_info:
             print(f"Threadpool competed in {time.time()-st}s")
+
         correct_thms = [item for item in thms if item[1]]
         if len(correct_thms) == 0:
-            return thms[0][0]
+            return thms[0][0], ("BoN", trajectories)
 
         best = correct_thms[0][0]
         for t, correct in correct_thms:
             if not correct:
                 continue
             best = metric.cmp(best, t)
-        return best
+        return best, ("BoN", trajectories)
 
     best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
     return best_of_n
@@ -625,10 +655,10 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
         curr = thm
         prev_data = []
-
+        trajectories = []
         for i in range(n):
 
-            output = prompt_fn(
+            output, prompt_trajectories = prompt_fn(
                 curr,
                 metric,
                 model=model,
@@ -643,6 +673,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
             correct, messages, new_thm = eval_correctness(output)
             if log_req_info:
                 print(f"Evaluation completed in {time.time()-st}s")
+            trajectories.append(prompt_trajectories)
             curr_data = {"input": curr, "output": new_thm}
             curr_data["correct"] = correct
             curr_data["messages"] = messages
@@ -679,7 +710,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                     else:
                         curr = new_thm  # min(curr,new_thm,key=lambda x:len(x.messages))
 
-        return curr
+        return curr, ("refine", trajectories)
 
     refinement.__name__ = f"{refinement.__name__}({prompt_fn.__name__}, prev_data_num={prev_data_num}, keep_best={keep_best})"
     return refinement
@@ -743,6 +774,66 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
 
     best_of_n_n.__name__ = f"{best_of_n_n.__name__}({prompt_fn.__name__})"
     return best_of_n_n
+
+
+def recursive_generation(
+    prompt_fn,
+    max_workers=None,
+):
+    def recursive_generation(
+        thm: AnnotatedTheorem,
+        metric: Metric,
+        n: int,
+        model="gpt-4-turbo",
+        prev_data=[],
+        annotation=True,
+        syntax_search=True,
+        mathlib_search=True,
+        examples=0,
+        token=False,
+        improved_context=False,
+    ):
+        thms = []
+        trajectories = []
+        if token:
+            return (
+                prompt_fn(
+                    thm,
+                    metric,
+                    model=model,
+                    prev_data=prev_data,
+                    annotation=annotation,
+                    syntax_search=syntax_search,
+                    mathlib_search=mathlib_search,
+                    examples=examples,
+                    token=token,
+                    improved_context=improved_context,
+                )
+                * n
+            )
+
+        output, prompt_trajectories = prompt_fn(
+            thm,
+            metric,
+            model=model,
+            prev_data=prev_data,
+            annotation=annotation,
+            syntax_search=syntax_search,
+            mathlib_search=mathlib_search,
+            examples=examples,
+            improved_context=improved_context,
+        )
+        err_branches = extract_subtheorem(thm)
+        thm_text = replace_and_run(err_branches, thm)
+        new_thm = make_theorem(thm_text, thm)
+        emp_thms = make_empty_theorems(new_thm)
+        anno_emp = annotateTheorems([emp[1] for emp in emp_thms])
+        emps = [(emp_thms[i][0], anno_emp[i]) for i in range(len(anno_emp))]
+
+        output = insert_theorems(new_thm, emps)
+
+    best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
+    return best_of_n
 
 
 if __name__ == "__main__":

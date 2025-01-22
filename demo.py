@@ -8,7 +8,7 @@ from benchmark.extract import *
 def rewrite_metric():
     def count_rw(thm):
         if type(thm) == Theorem:
-            thm = annotateTheorem(thm, force=True)
+            thm = annotateTheorem(thm)
         pf = [tac.tactic for tac in thm.proof]
         return sum(1 for tactic in pf if tactic.strip().startswith("rw"))
 

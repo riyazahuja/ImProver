@@ -197,6 +197,22 @@ def save_tree(G, positions, labels, save_path, show_mod=False):
 
 def getProofTree(thm: AnnotatedTheorem, visualize=False, show_mod=False):
     G, positions, labels = build_graph2(thm.proof_tree)
+
+    if len(thm.proof) == len(G.nodes):
+        for node in range(len(G.nodes)):
+            G.nodes[node]["data"] = node
+    else:
+        i = 0
+        j = 0
+
+        while i < len(G.nodes) and j < len(thm.proof):
+            if G.nodes[i]["label"] == thm.proof[j].tactic:
+                G.nodes[i]["data"] = j
+                i += 1
+                j += 1
+            else:
+                j += 1
+
     if visualize:
         visualize_tree(G, positions, labels, show_mod=show_mod)
     return G, positions, labels
@@ -291,12 +307,46 @@ if __name__ == "__main__":
     fs = [
         files[name]
         for name in files.keys()
-        if "Solution" in name and "C04" in name and "S01" in name
+        if "Solution" in name and "C08" in name and "S01" in name
     ]
 
     f = fs[0]
     thms = f.theorems
     for i in range(len(thms)):
         save_tree(
-            *getProofTree(thms[i], visualize=False), save_path=f".trees/MIL/{i}.png"
+            *getProofTree(thms[i], visualize=False),
+            save_path=f".trees/MIL/ch5-{i}.png",
+            show_mod=True,
         )
+
+    # thm = thms[0]
+    # ProofStep.update_forward_refs()
+    # proof = [
+    #     ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+    #     ProofStep(tactic=". use xs"),
+    #     ProofStep(tactic="  right"),
+    #     ProofStep(tactic="  exact xt"),
+    #     ProofStep(tactic="use xs"),
+    #     ProofStep(tactic="right"),
+    #     ProofStep(tactic="exact xu"),
+    # ]
+
+    # thm_base = Theorem(
+    #     decl=thm.decl,
+    #     proof=proof,
+    #     declID=thm.declID,
+    #     src=thm.src,
+    #     leanFile=thm.leanFile,
+    #     context=thm.context,
+    #     headerless_context=thm.headerless_context,
+    #     project_path=thm.project_path,
+    # )
+    # thm = annotateTheorem(thm_base, force=True)
+
+    # print(thm.proof_tree)
+
+    # save_tree(
+    #     *getProofTree(thm, visualize=False),
+    #     save_path=f".trees/MIL/new2.png",
+    #     show_mod=True,
+    # )
