@@ -812,25 +812,25 @@ def recursive_generation(
                 * n
             )
 
-    output, prompt_trajectories = prompt_fn(
-        thm,
-        metric,
-        model=model,
-        prev_data=prev_data[-prev_data_num:],
-        annotation=annotation,
-        syntax_search=syntax_search,
-        mathlib_search=mathlib_search,
-        examples=examples,
-        improved_context=improved_context,
-    )
-    err_branches = extract_subtheorem(thm)
-    thm_text = replace_and_run(err_branches, thm)
-    new_thm = make_theorem(thm_text, thm)
-    emp_thms = make_empty_theorems(new_thm)
-    anno_emp = annotateTheorems([emp[1] for emp in emp_thms])
-    emps = [(emp_thms[i][0], anno_emp[i]) for i in range(len(anno_emp))]
+        output, prompt_trajectories = prompt_fn(
+            thm,
+            metric,
+            model=model,
+            prev_data=prev_data,
+            annotation=annotation,
+            syntax_search=syntax_search,
+            mathlib_search=mathlib_search,
+            examples=examples,
+            improved_context=improved_context,
+        )
+        err_branches = extract_subtheorem(thm)
+        thm_text = replace_and_run(err_branches, thm)
+        new_thm = make_theorem(thm_text, thm)
+        emp_thms = make_empty_theorems(new_thm)
+        anno_emp = annotateTheorems([emp[1] for emp in emp_thms])
+        emps = [(emp_thms[i][0], anno_emp[i]) for i in range(len(anno_emp))]
 
-    output = insert_theorems(new_thm, emps)
+        output = insert_theorems(new_thm, emps)
 
     best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
     return best_of_n

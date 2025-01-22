@@ -105,9 +105,6 @@ class Message(BaseModel):
     message_src: Optional[str] = Field(
         description="equivalent to source_contents[start:end]"
     )
-    # message_tactic_src: Optional[AnnotatedProofStep] = Field(
-    #     description="tactic object containing message_src"
-    # )
     content: str = Field(description="Message contents")
 
 
@@ -169,194 +166,10 @@ class Repo(BaseModel):
     project_path: str = Field(description="Local path to src repo contents")
 
 
-def getMessages(start, end, msgs, contents: str):
-    thm_start_row = start.get("line", None)
-    thm_start_col = start.get("col", None)
-    if end is not None:
-        thm_end_row = end.get("line", None)
-        thm_end_col = end.get("col", None)
-    else:
-        thm_end_row = 0
-        thm_end_col = 0
-
-    def msg_in_thm(msg):
-        start_row = (
-            msg.get("pos", {}).get("line", None)
-            if msg.get("pos", None) is not None
-            else None
-        )
-        end_row = (
-            msg.get("endPos", {}).get("line", None)
-            if msg.get("endPos", None) is not None
-            else None
-        )
-
-        if start_row is None:
-            return False
-        if (
-            thm_start_row <= start_row
-            and end is not None
-            and (end_row is None or thm_end_row >= end_row)
-        ):
-            return True
-        elif thm_start_row <= start_row and end is None:
-            return True
-        else:
-            return False
-
-    msgs2 = [msg for msg in msgs if msg_in_thm(msg)]
-    msgs = msgs2
-    return [getMessage(msg, contents) for msg in msgs]
-
-
-def getMessage(msg, contents: str):
-    severity = msg["severity"]
-
-    start_row = (
-        msg.get("pos", {}).get("line", None)
-        if msg.get("pos", None) is not None
-        else None
-    )
-    start_col = (
-        msg.get("pos", {}).get("column", None)
-        if msg.get("pos", None) is not None
-        else None
-    )
-    end_row = (
-        msg.get("endPos", {}).get("line", None)
-        if msg.get("endPos", None) is not None
-        else None
-    )
-    end_col = (
-        msg.get("endPos", {}).get("column", None)
-        if msg.get("endPos", None) is not None
-        else None
-    )
-
-    message_src = None
-    if start_col is None:
-        start_col = 1
-        # message_src = ''
-    if end_col is None and end_row is not None:
-        end_col = len(end_row)
-        # message_src = ''
-
-    if end_row is None:
-
-        try:
-            lines = [contents.splitlines()[start_row - 1]]
-        except:
-            lines = []
-
-    else:
-        lines = contents.splitlines()[start_row - 1 : end_row]
-    trimmed_lines = []
-
-    for line in lines:
-        if line == lines[0]:
-            if len(lines) == 1:
-                trimmed_lines.append(line)
-            else:
-                trimmed_lines.append(line[start_col:])
-        elif line == lines[-1]:
-            if end_col is None:
-                trimmed_lines.append(line)
-            else:
-                trimmed_lines.append(line[: end_col + 1])
-
-        else:
-            trimmed_lines.append(line)
-    content = msg["data"]
-
-    # if message_src is not None:
-    message_src = "\n".join(trimmed_lines)
-
-    return Message(
-        severity=severity,
-        start=(start_row, start_col),
-        end=(end_row, end_col),
-        message_src=message_src,
-        content=content,
-    )
-
-
-def search_main(module, project_path):
-    fp = os.path.join(project_path, module.replace(".", "/") + ".lean")
-    if os.path.isfile(fp):
-        with open(fp, "r") as f:
-            content = f.read()
-        return content
-    else:
-        return None
-
-
-def search_packages(module, project_path, package=None):
-    packages_path = os.path.join(project_path, ".lake", "packages")
-    if package is not None:
-        paths = [os.path.join(packages_path, package)]
-    else:
-        paths = [
-            os.path.join(packages_path, name) for name in os.listdir(packages_path)
-        ]
-    paths = [path for path in paths if os.path.isdir(path)]
-
-    outputs = [search_main(module, path) for path in paths]
-    outputs = [output for output in outputs if output is not None]
-    if len(outputs) == 0:
-        return None
-    else:
-        return outputs[0]
-
-
-# THIS WILL NOT FIND ANY BASE LEAN LIBRARY DEPENDENCIES
-def getDependencies(
-    constants,
-    declID,
-    ignore_main=False,
-    only_main=False,
-):
-
-    declIDs = {
-        f"{obj['module']}.{obj['range']['start']['line']}_{obj['range']['start']['column']}": obj
-        for obj in constants
-    }
-
-    main_module = ".".join(declID.split(".")[:-2])
-    declID = ".".join(declID.split(".")[:-1])
-
-    if declID not in declIDs.keys():
-        return []
-
-    data = declIDs[declID]
-    dependencies_raw = data["dependents"]
-    output = [
-        Dependency(
-            dependency=dep["name"],
-            src_file=dep["module"],
-            src_content=dep["content"],
-            explicit=dep["explicit"],
-            direct=dep["direct"],
-            kind=dep["kind"],
-        )
-        for dep in dependencies_raw
-    ]
-
-    if ignore_main:
-        output = [dep for dep in output if dep.src_file != main_module]
-    if only_main:
-        output = [
-            dep
-            for dep in output
-            if dep.src_file.split(".")[0] == main_module.split(".")[0]
-        ]
-
-    return output
-
-
 def getTheorems(
     data, src, path, project_path, contents, until_end=False
 ) -> List[AnnotatedTheorem]:
-    temp = {}
+
     msgs = data["messages"]
     tactics = data["tactics"]
     theorems = data["theorems"]
@@ -425,15 +238,6 @@ def getTheorems(
             )
         )
     return output
-
-
-def get_stem(path):
-
-    if path[-5:] == ".lean":
-        return path[:-5]
-    elif path[-5:] == ".json":
-        return path[:-5]
-    return path
 
 
 def getAnnotatedFile(src, path, project_path, until_end=False):
@@ -619,10 +423,6 @@ def getRepo(src, config=None, annotate=True, force=False):
     repo_data["name"] = repo_data["name"].replace("«", "").replace("»", "")
 
     return getRepoDirect(repo_data, annotate=annotate, force=force)
-
-
-def get_tactic_str(step: AnnotatedProofStep, content: str, annotation=False):
-    content = content.splitlines()
 
 
 def parseAnnotatedTheorem(
@@ -891,8 +691,6 @@ def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
 
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
-    # print(data)
-    # print()
     return coerce_repl(data, thm)
 
 
@@ -1036,19 +834,3 @@ if __name__ == "__main__":
     end = time.perf_counter()
 
     print(f"annotateTheorem took {end - st:.4f} seconds")
-    # for thm in outs:
-    #     print(parseTheorem(thm, annotation=True, context=False))
-    #     print()
-
-    # repo = getRepo("Tests", "configs/config_MIL.json")
-    # files = {file.file_path: file for file in repo.files}
-
-    # fs = [files["Tests/MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean"]]
-
-    # for f in fs:
-    #     print(f"{f.file_name}|==================================")
-    #     for thm in [f.theorems[0]]:
-    # print(parseTheorem(thm, annotation=False, context=False))
-    # print(thm.messages)
-    # print("-------------------------")
-    # print(parseTheorem(thm, annotation=True, headerless_context=True))

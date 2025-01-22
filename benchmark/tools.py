@@ -335,7 +335,7 @@ def baseline(*metrics):
 def improver(*metrics):
     return get_methods(
         model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 16, max_workers=8), keep_best=True)],
+        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
         n=[5],
         annotation=[True],
         examples=[10],
@@ -398,27 +398,8 @@ def no_errors(thms):
 
 
 if __name__ == "__main__":
-    # methods = get_methods(
-    #     model=["gpt-4o"],
-    #     fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5), keep_best=True)],
-    #     n=[5],
-    #     annotation=[True],
-    #     examples=[10],
-    #     metric=[completion_metric()],
-    #     syntax_search=[True],
-    #     mathlib_search=[True],
-    #     improved_context=[True],
-    # )
-    methods = get_methods(
-        model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=1), keep_best=True)],
-        n=[5],
-        annotation=[True],
-        examples=[10],
-        metric=[length_metric()],
-        syntax_search=[True],
-        mathlib_search=[True],
-    )
+
+    methods = improver(length_metric())
 
     repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}

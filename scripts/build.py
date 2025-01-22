@@ -1,4 +1,3 @@
-import tempfile
 import argparse
 import os
 import subprocess
@@ -7,7 +6,6 @@ from pathlib import Path
 import requests
 import base64
 import shutil
-import time
 
 cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,12 +36,6 @@ def _lakefile_local(path, name, cwd):
     lean_lib TrainingData where
 
     lean_lib Examples where
-
-    lean_exe training_data where
-    root := `scripts.training_data
-    
-    lean_exe constants where
-    root := `scripts.constants
 
     """ % (
         mathlib_text,
@@ -252,44 +244,3 @@ if __name__ == "__main__":
                 start=args.start,
                 local_path=source["path"] if local else None,
             )
-
-        # dir_path = os.path.join(args.cwd, ".cache", name)
-        # for root, _, files in os.walk(dir_path):
-        #     for f in files:
-        #         path = os.path.join(root, f)
-        #         if path.endswith(".json"):
-        #             # print(path)
-        #             with open(path, "r") as f:
-        #                 data = json.load(f)
-        #             tacs = data["tactics"]
-        #             headers = ""
-        #             if len(tacs) > 0:
-        #                 fst = tacs[0]
-        #                 srcUpToTactic = fst["srcUpToTactic"]
-        #                 declUpToTactic = fst["declUpToTactic"]
-        #                 headers = srcUpToTactic
-        #                 if declUpToTactic in headers:
-        #                     headers = headers.replace(declUpToTactic, "")
-
-        #             pickle_path = path[:-5] + ".o"
-
-        #             text = f'{{"cmd": "{headers}"}}'
-        #             text = text.replace("\n", "\\n")
-
-        #             text2 = f'{{"pickleTo": "{pickle_path}", "env": 0}}'
-        #             text2 = text2.replace("\n", "\\n")
-        #             text = text + "\n\n" + text2
-
-        #             temp = tempfile.NamedTemporaryFile(
-        #                 suffix=".in", dir=cwd, delete=False
-        #             )
-        #             with open(temp.name, "w") as f:
-        #                 f.write(text)
-
-        #             print(temp.name)
-        #             print(text)
-        #             subprocess.run(
-        #                 [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
-        #                 shell=True,
-        #                 cwd=cwd,
-        #             )
