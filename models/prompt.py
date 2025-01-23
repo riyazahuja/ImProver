@@ -92,7 +92,7 @@ def prompt_raw(
     mathlib_k = 5
     model_name = model
 
-    model = ChatOpenAI(model=model)
+    model = ChatOpenAI(model=model, temperature=1)
 
     str_output = obj == str
     if obj == str:

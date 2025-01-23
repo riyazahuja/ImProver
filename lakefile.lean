@@ -7,8 +7,8 @@ import Lake
 
     
 
-    require Tests from git
-    "https://github.com/riyazahuja/Improver_MIL.git" @ "master"
+    require mil from git
+    "https://github.com/riyazahuja/Improver_MIL.git" @ "temp2"
 
     @[default_target]
     lean_lib TrainingData where

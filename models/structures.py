@@ -729,16 +729,16 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
 
         text = parseTheorem(thm, context=False)
         cmd_text = thm.headerless_context + "\n\n" + text
-        cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+        cmd_text = cmd_text.replace("\n", "\\n")
         infile = f'{infile}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
         vers.append(
             f'{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
         )
-    print("\n\n".join(vers))
+    # print("\n\n".join(vers))
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
-        f.write(infile)
+        f.write("\n\n".join([vers[0], vers[1]]))
 
     output = subprocess.run(
         [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
@@ -747,11 +747,14 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
         capture_output=True,
         cwd=root_path,
     )
+    # print(output.stdout)
 
     parse_to_jsonable = output.stdout.split("\n\n")
     data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
     if len(data) != len(thms):
-        raise ValueError("repl output/thms mismatch in length")
+        raise ValueError(
+            f"repl output/thms mismatch in length\n\nlen:{len(thms)}\n\n{output.stdout}\n\n{output.stderr}\n\n{infile}"
+        )
     output = []
     for i in range(len(data)):
         output.append(coerce_repl(data[i], thms[i]))

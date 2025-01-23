@@ -401,33 +401,41 @@ if __name__ == "__main__":
 
     methods = improver(length_metric())
 
-    repo = getRepo("Tests", "configs/config_MIL.json")
+    repo = getRepo("mil", "configs/config_MIL_local2.json")
     files = {file.file_path: file for file in repo.files}
 
-    def no_errors(thms):
-        msgs = []
-        for thm in thms:
-            msgs.extend(thm.messages)
-        errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
-            1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
+    f = files["MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean"]
+    # f = files["MIL/students/questionable_proofs.lean"]
+
+    # def no_errors(thms):
+    #     msgs = []
+    #     for thm in thms:
+    #         msgs.extend(thm.messages)
+    #     errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
+    #         1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
+    #     )
+    #     return errors == 0
+
+    # fs = [
+    #     files[name]
+    #     for name in files.keys()
+    #     if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
+    # ]
+
+    # fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
+
+    # f = fs[0]
+    # thm = f.theorems[0]
+    # instance = (thm, methods[0])
+    data = []
+    traj = []
+    for thm in [f.theorems[0]]:
+        d, t = benchmark_theorem(
+            thm, methods, max_workers=3, show_progress=True, output_trajectories=True
         )
-        return errors == 0
+        # data.extend(d)
+        # traj.extend(t)
 
-    fs = [
-        files[name]
-        for name in files.keys()
-        if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
-    ]
-
-    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
-
-    f = fs[0]
-    thm = f.theorems[0]
-    instance = (thm, methods[0])
-
-    d, t = benchmark_theorem(
-        thm, methods, max_workers=1, show_progress=True, output_trajectories=True
-    )
-    save_to_csv(d, "benchmark/data/traj_data2.csv")
-    save_to_csv(t, "benchmark/data/traj_traj2.csv")
+        # save_to_csv(data, "benchmark/data/training/questionable.csv")
+        # save_to_csv(traj, "benchmark/data/questionable_traj.csv")
     # print(f"{t}")
