@@ -18,7 +18,7 @@ def eval_correctness(thm, sorries_are_errors=True):
         new_thm = annotateTheorem(thm)
     else:
         raise ValueError(
-            f"Input is not a Theorem/AnnotatedTheorem obj:\nthm:\n{thm}\ntype: {type(thm)}"
+            f"Input is not a Theorem/AnnotatedTheorem obj:\nthm:\n{thm[:5]}\ntype: {type(thm)}"
         )
     msgs = new_thm.messages
 

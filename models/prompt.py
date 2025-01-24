@@ -226,7 +226,6 @@ def prompt_raw(
             ),
         )
         curr_thm = data["theorem"]
-
         out = format_docs(retriever.invoke(curr_thm), "EXAMPLE")
         return out
 
@@ -278,12 +277,13 @@ def prompt_raw(
         before_sleep=before_sleep_log(logger, logging.INFO) if log_req_info else None,
         after=after_log(logger, logging.INFO) if log_req_info else None,
         wait=wait_random_exponential(multiplier=1, max=60),
-        stop=stop_after_attempt(8),
+        stop=stop_after_attempt(2),
     )
     def invoke_throttled(chain, config):
         return chain.invoke(config)
 
     st = time.time()
+
     output = invoke_throttled(
         chain,
         {
@@ -533,7 +533,7 @@ def best_of_n(
             )
         # if match_workers:
         #    max_workers = n
-        if max_workers == 1 or True:
+        if max_workers == 1:
             st = time.time()
             unannotated = []
             for i in range(n):
@@ -562,6 +562,7 @@ def best_of_n(
 
         else:
             st = time.time()
+            thms_raw = []
             with ThreadPoolExecutor(
                 max_workers=max_workers if not match_workers else n
             ) as executor:
@@ -594,14 +595,20 @@ def best_of_n(
                     for i in range(n)
                 ]
                 stt = time.time()
-                for future in futures:
+                for future in concurrent.futures.as_completed(futures):
                     output, prompt_trajectories = future.result()
-                    correct, _, _ = eval_correctness(output)
-                    thms.append((output, correct))
+                    # correct, _, _ = eval_correctness(output)
+                    thms_raw.append(output)
                     trajectories.append(prompt_trajectories)
 
-                # if log_req_info:
-                #     print(f"Evaluation competed in {time.time()-stt}s")
+            correct_parsed = eval_correctness_batched(thms_raw)
+            # thms.extend(
+            #     [(thms_raw[i], correct_parsed[i][0]) for i in range(len(thms_raw))]
+            # )
+            thms.extend([(t, correct) for correct, msg, t in correct_parsed])
+
+            # if log_req_info:
+            #     print(f"Evaluation competed in {time.time()-stt}s")
         if log_req_info:
             print(f"Threadpool competed in {time.time()-st}s")
 

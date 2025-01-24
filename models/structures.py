@@ -600,13 +600,29 @@ def coerce_repl(data, thm, contents=None):
     thm_messages = [
         Message(
             severity=msg["severity"],
-            start=(msg["pos"]["line"] + offset, msg["pos"]["column"]),
-            end=(msg["endPos"]["line"] + offset, msg["endPos"]["column"]),
+            start=(
+                msg["pos"]["line"] + offset if msg["pos"] else None,
+                msg["pos"]["column"] if msg["pos"] else None,
+            ),
+            end=(
+                msg["endPos"]["line"] + offset if msg["endPos"] else None,
+                msg["endPos"]["column"] if msg["endPos"] else None,
+            ),
             content=msg["data"],
-            message_src="\n".join(
-                contents.splitlines()[
-                    msg["pos"]["line"] + offset - 1 : msg["endPos"]["line"] + offset
-                ]
+            message_src=(
+                "\n".join(
+                    contents.splitlines()[
+                        msg["pos"]["line"]
+                        + offset
+                        - 1 : (
+                            msg["endPos"]["line"] + offset
+                            if msg["endPos"]
+                            else len(contents.splitlines())
+                        )
+                    ]
+                )
+                if msg["pos"]
+                else ""
             ),
         )
         for msg in thm_msgs
@@ -673,9 +689,9 @@ def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
 
     cmd_text = thm.headerless_context + "\n\n" + text
 
-    cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
-
-    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+    # cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
+    cmd = {"cmd": cmd_text, "allTactics": True, "theorems": True, "env": 0}
+    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{json.dumps(cmd)}'
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
@@ -688,7 +704,9 @@ def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
         capture_output=True,
         cwd=root_path,
     )
-
+    # print(output.stdout)
+    # print(output.stderr)
+    # print(infile)
     out = "\n".join(output.stdout.splitlines()[2:])
     data = json.loads(out)
     return coerce_repl(data, thm)
@@ -718,7 +736,7 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
     binary_path = os.path.join(cache_path, file_name + ".o")
 
     infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
-    vers = [infile]
+
     for thm in thms:
         if thm.src != src or thm.leanFile != path or thm.project_path != project_path:
             raise ValueError(f"All theorems must be from the same file")
@@ -729,16 +747,29 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
 
         text = parseTheorem(thm, context=False)
         cmd_text = thm.headerless_context + "\n\n" + text
-        cmd_text = cmd_text.replace("\n", "\\n")
-        infile = f'{infile}\n\n{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
-        vers.append(
-            f'{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
-        )
+
+        cmd = {"cmd": cmd_text, "allTactics": True, "theorems": True, "env": 0}
+
+        infile = f"{infile}\n\n{json.dumps(cmd)}"
+        # vers.append(
+        #     f'{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
+        # )
     # print("\n\n".join(vers))
+
+    #     """
+    #     {"unpickleEnvFrom": "/Users/ahuja/Desktop/ImProver2/.cache/mil/MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.o"}
+
+    # {"cmd": "example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by\n  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)\n  · use xs; left; exact xt\n  · use xs; right; exact xu\n\n\nexample : s \ (t ∪ u) ⊆ (s \ t) \ u  := by\n  rintro x ⟨xs, xntu⟩\n  exact ⟨⟨xs, fun xt => xntu (Or.inl xt)⟩, fun xu => xntu (Or.inr xu)⟩\n", "allTactics": true, "theorems": true, "env": 0}
+
+    # {"cmd": "example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by\n  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)\n  · use xs; left; exact xt\n  · use xs; right; exact xu\n\n\nexample : s \ (t ∪ u) ⊆ (s \ t) \ u  := by\n  rintro x ⟨xs, xntu⟩\n  exact ⟨⟨xs, fun xt => xntu (Or.inl xt)⟩, fun xu => xntu (Or.inr xu)⟩\n", "allTactics": true, "theorems": true, "env": 0}
+
+    # {"cmd": "example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by\n  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)\n  · use xs; left; exact xt\n  · use xs; right; exact xu\n\n\nexample : s \ (t ∪ u) ⊆ (s \ t) \ u  := by\n  rintro x ⟨xs, xntu⟩\n  use xs\n  intro xt; exact xntu (Or.inl xt)\n  intro xu; exact xntu (Or.inr xu)\n", "allTactics": true, "theorems": true, "env": 0}
+
+    #     """
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
-        f.write("\n\n".join([vers[0], vers[1]]))
+        f.write(infile)
 
     output = subprocess.run(
         [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
@@ -832,6 +863,8 @@ if __name__ == "__main__":
             out = annotateTheorem(thm_base)
         else:
             out = annotateTheorem(thm_base2)
+        print(parseTheorem(out, annotation=True))
+        print()
         end_time = time.perf_counter()
         print(f"annotateTheorem call {i} took {end_time - start_time:.4f} seconds")
     end = time.perf_counter()

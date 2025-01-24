@@ -706,23 +706,30 @@ def completion_metric():
 
 if __name__ == "__main__":
 
-    repo = getRepo("Tests", "configs/config_test.json")
-    files = {file.file_name: file for file in repo.files}
+    # repo = getRepo("Tests", "configs/config_test.json")
+    # files = {file.file_name: file for file in repo.files}
 
-    f = files["Basic.lean"]
-    thms = f.theorems
-    for i, thm in enumerate(thms):
-        if type(thm) == Theorem:
-            thm = annotateTheorem(thm)
-        G, p, l = getProofTree(thm)
-        score = calculate_modularity(G)
+    # f = files["Basic.lean"]
+    # thms = f.theorems
+    # for i, thm in enumerate(thms):
+    #     if type(thm) == Theorem:
+    #         thm = annotateTheorem(thm)
+    #     G, p, l = getProofTree(thm)
+    #     score = calculate_modularity(G)
 
-        save_tree(
-            G,
-            p,
-            l,
-            os.path.join(root_path, ".trees", "mod", f"thm_{i}.png"),
-            show_mod=True,
-        )
+    #     save_tree(
+    #         G,
+    #         p,
+    #         l,
+    #         os.path.join(root_path, ".trees", "mod", f"thm_{i}.png"),
+    #         show_mod=True,
+    #     )
 
-        print(f"{thm.decl}\n {score}\n=========")
+    #     print(f"{thm.decl}\n {score}\n=========")
+    retriever = get_retriever(
+        k=10,
+        persist_dir=os.path.join(root_path, ".db", "metrics", f".LENGTH_chroma_db"),
+    )
+
+    out = retriever.invoke("fpqiwfpqjfmqwe;fqnmwf")
+    print(out)

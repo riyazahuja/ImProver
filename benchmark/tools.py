@@ -401,10 +401,12 @@ if __name__ == "__main__":
 
     methods = improver(length_metric())
 
-    repo = getRepo("mil", "configs/config_MIL_local2.json")
+    repo = getRepo("Tests", "configs/config_MIL.json")
     files = {file.file_path: file for file in repo.files}
-
-    f = files["MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.lean"]
+    print(files.keys())
+    f = files[
+        "Tests/MIL/C05_Elementary_Number_Theory/solutions/Solutions_S03_Infinitely_Many_Primes.lean"
+    ]
     # f = files["MIL/students/questionable_proofs.lean"]
 
     # def no_errors(thms):
@@ -427,15 +429,16 @@ if __name__ == "__main__":
     # f = fs[0]
     # thm = f.theorems[0]
     # instance = (thm, methods[0])
+
     data = []
     traj = []
-    for thm in [f.theorems[0]]:
+
+    for thm in f.theorems[16:]:
         d, t = benchmark_theorem(
             thm, methods, max_workers=3, show_progress=True, output_trajectories=True
         )
-        # data.extend(d)
-        # traj.extend(t)
+        data.extend(d)
+        traj.extend(t)
 
-        # save_to_csv(data, "benchmark/data/training/questionable.csv")
-        # save_to_csv(traj, "benchmark/data/questionable_traj.csv")
-    # print(f"{t}")
+        save_to_csv(data, "benchmark/data/training/MIL/CH05/C5S3_new2.csv")
+        save_to_csv(traj, "benchmark/data/training/MIL/CH05/C5S3_traj_new2.csv")
