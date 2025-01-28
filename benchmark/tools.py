@@ -15,6 +15,7 @@ from models.rag import *
 import itertools
 from tqdm import tqdm
 from multiprocessing import cpu_count
+import re
 
 
 def extract_data(thm, method, trajectory_position):
@@ -401,12 +402,55 @@ if __name__ == "__main__":
 
     methods = improver(length_metric())
 
-    repo = getRepo("Tests", "configs/config_MIL.json")
+    repo = getRepo("compfiles", "configs/config_comp.json")
     files = {file.file_path: file for file in repo.files}
-    print(files.keys())
-    f = files[
-        "Tests/MIL/C05_Elementary_Number_Theory/solutions/Solutions_S03_Infinitely_Many_Primes.lean"
+
+    train_set = [
+        "Compfiles/Imo2020P2.lean",
+        "Compfiles/Imo2022P2.lean",
+        "Compfiles/Usa2023P2.lean",
+        "Compfiles/Imo2019P1.lean",
+        "Compfiles/Usa2018P1.lean",
+        "Compfiles/Imo2021P1.lean",
+        "Compfiles/Usa2019P1.lean",
+        "Compfiles/Usa2022P4.lean",
+        "Compfiles/Imo2019P4.lean",
     ]
+
+    fs = [
+        file
+        for name, file in files.items()
+        if name not in train_set and type(file) == AnnotatedFile
+    ]
+    fs = [f for f in fs if re.search(r"201[1-5]", f.file_path)]
+    thms = [
+        thm
+        for f in fs
+        for thm in f.theorems
+        if no_errors([thm])
+        and len(thm.proof) < 50
+        and len(thm.proof) > 3
+        and type(thm) == AnnotatedTheorem
+    ]
+
+    unique_thms = []
+    seen_decls = set()
+    for thm in thms:
+        if thm.decl not in seen_decls:
+            unique_thms.append(thm)
+            seen_decls.add(thm.decl)
+    thms = unique_thms
+
+    # print(files.keys())
+    # f = files[
+    #     "Tests/MIL/C05_Elementary_Number_Theory/solutions/Solutions_S03_Infinitely_Many_Primes.lean"
+    # ]
+    # f = files["Tests/MIL/C09_Topology/solutions/Solutions_S03_Topological_Spaces.lean"]
+    # f = files["Tests/MIL/C09_Topology/solutions/Solutions_S02_Metric_Spaces.lean"]
+    # f = files[
+    #     "Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean"
+    # ]
+
     # f = files["MIL/students/questionable_proofs.lean"]
 
     # def no_errors(thms):
@@ -429,16 +473,50 @@ if __name__ == "__main__":
     # f = fs[0]
     # thm = f.theorems[0]
     # instance = (thm, methods[0])
-
+    # print(len(f.theorems))
+    # print(len(thms))
     data = []
     traj = []
+    errors = []
 
-    for thm in f.theorems[16:]:
-        d, t = benchmark_theorem(
-            thm, methods, max_workers=3, show_progress=True, output_trajectories=True
-        )
-        data.extend(d)
-        traj.extend(t)
+    # thms = thms[34:]
+    unique_thms = []
+    seen_decls = set()
+    for thm in thms:
+        trim_decl = (
+            thm.decl.replace("theorem ", "")
+            .replace("lemma ", "")
+            .replace("example ", "")
+            .replace("problem ", "")
+        ).strip()
+        if trim_decl not in seen_decls:
+            unique_thms.append(thm)
+            seen_decls.add(trim_decl)
+    thms = unique_thms
 
-        save_to_csv(data, "benchmark/data/training/MIL/CH05/C5S3_new2.csv")
-        save_to_csv(traj, "benchmark/data/training/MIL/CH05/C5S3_traj_new2.csv")
+    # for i in range(len(thms)):
+    #     print(f"Processing {i}:\t{thms[i].decl}")
+    #     print("----------------------------------")
+
+    # print(parseTheorem(thms[24]))
+
+    for i, thm in enumerate(thms):
+        try:
+            d, t = benchmark_theorem(
+                thm,
+                methods,
+                max_workers=3,
+                show_progress=True,
+                output_trajectories=True,
+            )
+            data.extend(d)
+            traj.extend(t)
+
+            save_to_csv(data, "benchmark/data/training/Compfiles/data_rest.csv")
+            save_to_csv(traj, "benchmark/data/training/Compfiles/traj_rest.csv")
+        except Exception as e:
+            print(f"Error: {e}")
+            errors.append({"idx": i, "error": str(e)})
+            with open("compfiles_errors4.json", "w") as f:
+                json.dump(errors, f)
+            continue

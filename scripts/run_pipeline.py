@@ -85,10 +85,9 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
         output_base_dir, _get_stem(input_module, input_file_mode) + ".o"
     )
 
-    text = f'{{"cmd": "{headers}"}}'.replace("\n", "\\n")  # .replace('"', '\\"')
-
-    text2 = f'{{"pickleTo": "{pickle_path}", "env": 0}}'.replace("\n", "\\n")
-    text = text + "\n\n" + text2
+    text = json.dumps({"cmd": headers})
+    text2 = json.dumps({"pickleTo": pickle_path, "env": 0})
+    text = f"{text}\n\n{text2}"
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=cwd)
     with open(temp.name, "w") as f:

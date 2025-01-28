@@ -560,7 +560,7 @@ def parseTheorem(thm, annotation=False, context=False, headerless_context=False)
         )
 
 
-def coerce_repl(data, thm, contents=None):
+def coerce_repl(data, thm, contents=None, infile=""):
     src = thm.src
     path = thm.leanFile
 
@@ -574,7 +574,7 @@ def coerce_repl(data, thm, contents=None):
 
     target_thms = data.get("theorems", [])
     if len(target_thms) == 0:
-        raise ValueError(f"BAD REPL CALL:\n{data}")
+        raise ValueError(f"BAD REPL CALL:\n{data}\n\n{infile}")
 
     target_thm = target_thms[-1]
 
@@ -667,7 +667,10 @@ def coerce_repl(data, thm, contents=None):
     )
 
 
-def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
+usePickle = False
+
+
+def annotateTheorem(thm: Theorem, usePickle=usePickle) -> AnnotatedTheorem:
     """
     Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
     and then parsed the output to get the proof steps. This was slow and inefficient.
@@ -691,29 +694,52 @@ def annotateTheorem(thm: Theorem) -> AnnotatedTheorem:
 
     # cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
     cmd = {"cmd": cmd_text, "allTactics": True, "theorems": True, "env": 0}
-    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}\n\n{json.dumps(cmd)}'
+
+    if usePickle:
+        infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
+    else:
+        headers_lines = len(thm.context.splitlines()) - len(
+            thm.headerless_context.splitlines()
+        )
+        headers = "\n".join(thm.context.splitlines()[:headers_lines])
+        infile = json.dumps({"cmd": headers})
+
+    infile = f"{infile}\n\n{json.dumps(cmd)}"
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
         f.write(infile)
+    try:
+        output = subprocess.run(
+            [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
+            shell=True,
+            text=True,
+            capture_output=True,
+            cwd=root_path,
+        )
+        # print(output.stdout)
+        # print(output.stderr)
+        # print(infile)
+        parse_to_jsonable = output.stdout.split("\n\n")
+        data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
+        # out = "\n".join(output.stdout.splitlines()[2:])
+        # print(f"\n\n{out}\n\n")
+        data = data[-1]
+    except Exception as e:
+        print(f"Error in annotateTheorem\n{e}")
+        print(f"{output.stdout}")
+        print(f"{output.stderr}")
+        print(f"{infile}")
+        if usePickle:
+            return annotateTheorem(thm, usePickle=False)
+        else:
+            raise e
 
-    output = subprocess.run(
-        [f"lake env repl/.lake/build/bin/repl < {temp.name}"],
-        shell=True,
-        text=True,
-        capture_output=True,
-        cwd=root_path,
-    )
-    # print(output.stdout)
-    # print(output.stderr)
-    # print(infile)
-    out = "\n".join(output.stdout.splitlines()[2:])
-    data = json.loads(out)
-    return coerce_repl(data, thm)
+    return coerce_repl(data, thm, infile=infile)
 
 
 # requires all theorems to have the same declaration/src/file/etc.
-def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
+def annotateTheorems(thms: List[Theorem], usePickle=usePickle) -> AnnotatedTheorem:
     """
     Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
     and then parsed the output to get the proof steps. This was slow and inefficient.
@@ -735,7 +761,14 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
     file_name = os.path.basename(path).replace(".lean", "")
     binary_path = os.path.join(cache_path, file_name + ".o")
 
-    infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
+    if usePickle:
+        infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
+    else:
+        headers_lines = len(thms[0].context.splitlines()) - len(
+            thms[0].headerless_context.splitlines()
+        )
+        headers = "\n".join(thms[0].context.splitlines()[:headers_lines])
+        infile = json.dumps({"cmd": headers})
 
     for thm in thms:
         if thm.src != src or thm.leanFile != path or thm.project_path != project_path:
@@ -783,12 +816,19 @@ def annotateTheorems(thms: List[Theorem]) -> AnnotatedTheorem:
     parse_to_jsonable = output.stdout.split("\n\n")
     data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
     if len(data) != len(thms):
-        raise ValueError(
-            f"repl output/thms mismatch in length\n\nlen:{len(thms)}\n\n{output.stdout}\n\n{output.stderr}\n\n{infile}"
-        )
+        if usePickle:
+            print(
+                f"repl output/thms mismatch in length\n\nlen:{len(thms)}\n\n{output.stdout}\n\n{output.stderr}"  # \n\n{infile}"
+            )
+            return annotateTheorems(thms, usePickle=False)
+        else:
+            raise ValueError(
+                f"repl output/thms mismatch in length\n\nlen:{len(thms)}\n\n{output.stdout}\n\n{output.stderr}"  # \n\n{infile}"
+            )
+
     output = []
     for i in range(len(data)):
-        output.append(coerce_repl(data[i], thms[i]))
+        output.append(coerce_repl(data[i], thms[i], infile=infile))
 
     return output
 
@@ -849,24 +889,22 @@ if __name__ == "__main__":
     )
     # Timing annotateTheorems
     start_time = time.perf_counter()
-    outs = annotateTheorems(
-        [thm_base, thm_base2, thm_base, thm_base2, thm_base, thm_base2]
-    )
+    outs = annotateTheorems([thm_base, thm_base2], usePickle=False)
     end_time = time.perf_counter()
     print(f"annotateTheorems took {end_time - start_time:.4f} seconds")
 
-    # Timing annotateTheorem in a loop
-    st = time.perf_counter()
-    for i in range(6):
-        start_time = time.perf_counter()
-        if i % 2 == 0:
-            out = annotateTheorem(thm_base)
-        else:
-            out = annotateTheorem(thm_base2)
-        print(parseTheorem(out, annotation=True))
-        print()
-        end_time = time.perf_counter()
-        print(f"annotateTheorem call {i} took {end_time - start_time:.4f} seconds")
-    end = time.perf_counter()
+    # # Timing annotateTheorem in a loop
+    # st = time.perf_counter()
+    # for i in range(6):
+    #     start_time = time.perf_counter()
+    #     if i % 2 == 0:
+    #         out = annotateTheorem(thm_base)
+    #     else:
+    #         out = annotateTheorem(thm_base2)
+    #     print(parseTheorem(out, annotation=True))
+    #     print()
+    #     end_time = time.perf_counter()
+    #     print(f"annotateTheorem call {i} took {end_time - start_time:.4f} seconds")
+    # end = time.perf_counter()
 
-    print(f"annotateTheorem took {end - st:.4f} seconds")
+    # print(f"annotateTheorem took {end - st:.4f} seconds")

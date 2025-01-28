@@ -1,0 +1,570 @@
+repo,file,decl,method,n,metric,model,annotation,syntax_search,mathlib_search,examples,improved_context,og_correct,og_errors,og_score,new_correct,new_errors,new_score,delta,og_raw,new_raw,time
+compfiles,Compfiles/Imo2008P5.lean,"lemma lemma1 (α : Type) (A B : Set α) (hA : A.Finite) (hB : B.Finite)
+    (f : {x // A x} → {x // B x})
+    (n : Nat) (h1 : ∀ b, Set.ncard { a | f a = b } = n)
+    : B.ncard * n = A.ncard ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,48,True,,4,-0.9166666666666666,"lemma lemma1 (α : Type) (A B : Set α) (hA : A.Finite) (hB : B.Finite)
+    (f : {x // A x} → {x // B x})
+    (n : Nat) (h1 : ∀ b, Set.ncard { a | f a = b } = n)
+    : B.ncard * n = A.ncard := by
+  classical
+  haveI hfa : Fintype ↑A := Set.Finite.fintype hA
+  haveI hfb : Fintype ↑B := Set.Finite.fintype hB
+  have hbf : ∀ b,  Fintype { a // f a = b } := by
+    intro b
+    have : Fintype { x // A x } := hfa
+    exact setFintype fun x ↦ f x = b
+  have h2 : ∀ b, Set.ncard { a | f a = b } = Fintype.card { a // f a = b} := by
+    intro b
+    rw [Set.setOf_set, Fintype.card_eq_nat_card, ←Set.Nat.card_coe_set_eq]
+    rfl
+
+  have h3' : ∀ b ∈ Finset.univ (α := ↑B), (Finset.filter {a | f a = b } (Finset.univ (α := ↑A))).card = n := by
+    intro b _
+    rw [← @Fintype.card_subtype]
+    rw [← h1
+        b, h2,
+        Set.setOf_set, Fintype.card_eq_nat_card,
+        Mathlib.Tactic.Zify.natCast_eq, Fintype.card_eq_nat_card]
+
+  clear h1 h2
+  let A' := Finset.biUnion
+             (Finset.univ (α := ↑B))
+             (fun b ↦ Finset.filter { a | f a = b } (Finset.univ (α := ↑A)))
+  have h4 :
+    ∀ b1 ∈ (Finset.univ (α := ↑B)),
+      ∀ b2 ∈ (Finset.univ (α := ↑B)),
+        b1 ≠ b2 →
+          Disjoint
+            (Finset.filter { a | f a = b1 } (Finset.univ (α := ↑A)))
+            (Finset.filter { a | f a = b2 } (Finset.univ (α := ↑A))) := by
+    intro b1 _ b2 _ hb12
+    rw [Finset.disjoint_filter]
+    intro x _ hx2 hx3
+    rw [Set.setOf_app_iff] at hx2 hx3
+    rw [hx2] at hx3
+    exact hb12 hx3
+  have h5 : A'.card = Set.ncard B * n := by
+    rw [Finset.card_biUnion h4]
+    rw [Finset.sum_congr rfl h3']
+    simp only [Finset.sum_const, smul_eq_mul]
+    have : (Finset.univ (α := ↑B)).card = Set.ncard B := by
+      rw [Finset.card_univ, Fintype.card_eq_nat_card, Set.Nat.card_coe_set_eq]
+    exact congrFun (congrArg HMul.hMul this) n
+  rw [←h5]
+  have h6 : A' = Finset.univ (α := ↑A) := by
+    ext a
+    constructor
+    · intro _
+      exact @Finset.mem_univ _ hfa a
+    · intro _
+      rw [Finset.mem_biUnion]
+      use f a
+      refine ⟨Finset.mem_univ _, ?_⟩
+      · simp; rfl
+  rw[h6]
+  rw [@Finset.card_univ, ←Set.Nat.card_coe_set_eq, Fintype.card_eq_nat_card]
+  rfl","lemma lemma1 (α : Type) (A B : Set α) (hA : A.Finite) (hB : B.Finite)
+    (f : {x // A x} → {x // B x})
+    (n : Nat) (h1 : ∀ b, Set.ncard { a | f a = b } = n)
+    : B.ncard * n = A.ncard  := by
+  classical
+  haveI := Set.Finite.fintype hA
+  haveI := Set.Finite.fintype hB
+  rw [Nat.mul_eq_iff_exists_unique, Finset.card_eq_fintype_card, Finset.card_eq_fintype_card]
+  refine ⟨λ a, ⟨{ x // f x = a }, ⟨h1 a, h2 a⟩⟩, _⟩",1431.7326259613037
+compfiles,Compfiles/Imo2008P5.lean,"problem imo2008_p5 (n k : ℕ) (hn : 0 < n)
+    (hnk : n ≤ k) (he : Even (k - n))
+    : Set.ncard (MSequence n k) * solution n k = Set.ncard (NSequence n k) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,6,True,,6,0.0,"problem imo2008_p5 (n k : ℕ) (hn : 0 < n)
+    (hnk : n ≤ k) (he : Even (k - n))
+    : Set.ncard (MSequence n k) * solution n k = Set.ncard (NSequence n k) := by
+  have hA : Set.Finite { f | NSequence n k f } := Set.toFinite _
+  have hB : Set.Finite { f | MSequence n k f } := Set.toFinite _
+  have h1 := lemma1 (Sequence n k) (NSequence n k) (MSequence n k) hA hB (ψ n k)
+              (2 ^ (k - n))
+              (claim n k hn hnk he)
+  rw [←h1]
+  push_cast
+  rfl","problem imo2008_p5 (n k : ℕ) (hn : 0 < n)
+    (hnk : n ≤ k) (he : Even (k - n))
+    : Set.ncard (MSequence n k) * solution n k = Set.ncard (NSequence n k) := by
+  have hA : Set.Finite { f | NSequence n k f } := Set.toFinite _
+  have hB : Set.Finite { f | MSequence n k f } := Set.toFinite _
+  have h1 := lemma1 (Sequence n k) (NSequence n k) (MSequence n k) hA hB (ψ n k)
+              (2 ^ (k - n))
+              (claim n k hn hnk he)
+  rw [←h1]
+  push_cast
+  rfl",269.2559697628021
+compfiles,Compfiles/Imo2000P2.lean,"lemma schur (a b c : ℝ) (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : 0 ≤ c) :
+    a^2 * b + a^2 * c + b^2 * a + b^2 * c + c^2 * a + c^2 * b ≤
+    a^3 + b^3 + c^3 + 3 * a * b * c ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,22,True,,1,-0.9545454545454546,"lemma schur (a b c : ℝ) (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : 0 ≤ c) :
+    a^2 * b + a^2 * c + b^2 * a + b^2 * c + c^2 * a + c^2 * b ≤
+    a^3 + b^3 + c^3 + 3 * a * b * c := by
+  wlog Hcb : c ≤ b with h1
+  · have h3 : b ≤ c := le_of_not_le Hcb
+    linarith [h1 a c b ha hc hb h3]
+  wlog Hba : b ≤ a with h2
+  · have h4 : a ≤ b := le_of_not_le Hba
+    obtain hca | hac : c ≤ a ∨ a ≤ c := le_total c a
+    · have := h2 b a c hb ha hc hca h4
+      linarith only [this]
+    · have := h2 b c a hb hc ha hac Hcb
+      linarith only [this]
+  have h5 : a * (a - b) * (a - c) + b * (b - a) * (b - c) =
+            (a - b) * (a * (a - c) - b * (b - c)) := by ring
+
+  have h6 : 0 ≤ (a - b) * (a * (a - c) - b * (b - c)) := by
+    apply mul_nonneg
+    · exact sub_nonneg_of_le Hba
+    · nlinarith
+
+  rw [← h5] at h6
+  have h12 : 0 ≤ (c - a) * (c - b) := by nlinarith only [Hba, Hcb]
+  have h13 : 0 ≤ c * (c - a) * (c - b) := by nlinarith only [hc, h12]
+  linarith","lemma schur (a b c : ℝ) (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : 0 ≤ c) :
+    a^2 * b + a^2 * c + b^2 * a + b^2 * c + c^2 * a + c^2 * b ≤
+    a^3 + b^3 + c^3 + 3 * a * b * c  := by
+  wlog Hcb : c ≤ b;
+  linarith [‹_⟩];",54.3630108833313
+compfiles,Compfiles/Imo2000P2.lean,"lemma lemma2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b)
+    (habc : a * b * c = 1) :
+    ∃ x y z : ℝ, 0 < x ∧ 0 < y ∧ 0 < z ∧
+                 a = x / y ∧ b = y / z ∧ c = z / x ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,6,True,,4,-0.3333333333333333,"lemma lemma2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b)
+    (habc : a * b * c = 1) :
+    ∃ x y z : ℝ, 0 < x ∧ 0 < y ∧ 0 < z ∧
+                 a = x / y ∧ b = y / z ∧ c = z / x := by
+  refine ⟨a, 1, (1/b), ha, zero_lt_one, ?_, ?_, ?_, ?_⟩
+  · exact one_div_pos.mpr hb
+  · exact (div_one a).symm
+  · exact (one_div_one_div b).symm
+  · field_simp; linarith","lemma lemma2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b)
+    (habc : a * b * c = 1) :
+    ∃ x y z : ℝ, 0 < x ∧ 0 < y ∧ 0 < z ∧
+                 a = x / y ∧ b = y / z ∧ c = z / x  := by
+  refine ⟨a, 1, 1/b, ha, zero_lt_one, one_div_pos.mpr hb, (div_one a).symm, (one_div_one_div b).symm, by field_simp; linarith⟩",58.6344850063324
+compfiles,Compfiles/Imo2000P2.lean,"problem imo2000_p2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c)
+    (habc : a * b * c = 1) :
+    (a - 1 + 1 / b) * (b - 1 + 1 / c) * (c - 1 + 1 / a) ≤ 1 ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,8,True,,8,0.0,"problem imo2000_p2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c)
+    (habc : a * b * c = 1) :
+    (a - 1 + 1 / b) * (b - 1 + 1 / c) * (c - 1 + 1 / a) ≤ 1 := by
+  -- we follow the solution from
+  -- https://web.evanchen.cc/exams/IMO-2000-notes.pdf
+
+  -- Let a = x/y, b = y/z, c = z/x for x, y, z > 0.
+  obtain ⟨x,y,z, hx, hy, hz, rfl, rfl, rfl⟩ := lemma2 a b c ha hb habc
+  have h1 := lemma1 x y z hx hy hz
+  have h2 : 0 < y * z * x := by positivity
+  suffices H :
+      (x - y + z) * (y - z + x) * (z - x + y) ≤ (y * z * x) by
+    field_simp
+    exact (div_le_one h2).mpr H
+  linarith","problem imo2000_p2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c)
+    (habc : a * b * c = 1) :
+    (a - 1 + 1 / b) * (b - 1 + 1 / c) * (c - 1 + 1 / a) ≤ 1 := by
+  -- we follow the solution from
+  -- https://web.evanchen.cc/exams/IMO-2000-notes.pdf
+
+  -- Let a = x/y, b = y/z, c = z/x for x, y, z > 0.
+  obtain ⟨x,y,z, hx, hy, hz, rfl, rfl, rfl⟩ := lemma2 a b c ha hb habc
+  have h1 := lemma1 x y z hx hy hz
+  have h2 : 0 < y * z * x := by positivity
+  suffices H :
+      (x - y + z) * (y - z + x) * (z - x + y) ≤ (y * z * x) by
+    field_simp
+    exact (div_le_one h2).mpr H
+  linarith",65.44682812690735
+compfiles,Compfiles/Usa2003P1.lean,"lemma nat_mod_inv (a : ℕ) : ∃ b, (a + b) % 5 = 0 ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,8,True,,8,0.0,"lemma nat_mod_inv (a : ℕ) : ∃ b, (a + b) % 5 = 0 := by
+  use 5 - (a % 5)
+  have h : a % 5 < 5 := Nat.mod_lt _ (by norm_num)
+  have h' : a % 5 ≤ 5 := Nat.le_of_lt h
+  rw[Nat.add_mod]
+  have h2 : a % 5 = a % 5 % 5 := (Nat.mod_mod a 5).symm
+  rw[h2, ← Nat.add_mod, Nat.mod_mod]
+  rw[Nat.add_sub_of_le h']","lemma nat_mod_inv (a : ℕ) : ∃ b, (a + b) % 5 = 0 := by
+  use 5 - (a % 5)
+  have h : a % 5 < 5 := Nat.mod_lt _ (by norm_num)
+  have h' : a % 5 ≤ 5 := Nat.le_of_lt h
+  rw[Nat.add_mod]
+  have h2 : a % 5 = a % 5 % 5 := (Nat.mod_mod a 5).symm
+  rw[h2, ← Nat.add_mod, Nat.mod_mod]
+  rw[Nat.add_sub_of_le h']",21.96656894683838
+compfiles,Compfiles/Usa2003P1.lean,"lemma lemma2 (a b c : ℕ) (hb : 0 < b) (h : Nat.Coprime a b) : ∃ k, k < b ∧ a * k ≡ c [MOD b] ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,8,True,,8,0.0,"lemma lemma2 (a b c : ℕ) (hb : 0 < b) (h : Nat.Coprime a b) : ∃ k, k < b ∧ a * k ≡ c [MOD b] := by
+  let ⟨N, HN1, HN2⟩ := Nat.chineseRemainder h 0 c
+  have ⟨x, hx⟩ : a ∣ N := Nat.modEq_zero_iff_dvd.mp HN1
+  use x % b
+  constructor
+  · exact Nat.mod_lt _ hb
+  · change N % b = c % b at HN2
+    change (a * (x % b)) % b = c % b
+    rw [← HN2, hx, Nat.mul_mod, Nat.mod_mod, ←Nat.mul_mod]","lemma lemma2 (a b c : ℕ) (hb : 0 < b) (h : Nat.Coprime a b) : ∃ k, k < b ∧ a * k ≡ c [MOD b] := by
+  let ⟨N, HN1, HN2⟩ := Nat.chineseRemainder h 0 c
+  have ⟨x, hx⟩ : a ∣ N := Nat.modEq_zero_iff_dvd.mp HN1
+  use x % b
+  constructor
+  · exact Nat.mod_lt _ hb
+  · change N % b = c % b at HN2
+    change (a * (x % b)) % b = c % b
+    rw [← HN2, hx, Nat.mul_mod, Nat.mod_mod, ←Nat.mul_mod]",34.34060215950012
+compfiles,Compfiles/Imo2005P3.lean,"theorem key_insight (x y z : ℝ) (hx : x > 0) (hy : y > 0) (hz : z > 0) (h : x * y * z ≥ 1) :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) ≥ (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,11,True,,11,0.0,"theorem key_insight (x y z : ℝ) (hx : x > 0) (hy : y > 0) (hz : z > 0) (h : x * y * z ≥ 1) :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) ≥ (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) := by
+  have key :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) -
+        (x ^ 5 - x ^ 2 * 1) / (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2)) =
+      (x ^ 3 - 1) ^ 2 * x ^ 2 * (y ^ 2 + z ^ 2) /
+        ((x ^ 5 + y ^ 2 + z ^ 2) * (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2))) := by
+    field_simp
+    ring
+  have h₅ :
+    (x ^ 3 - 1) ^ 2 * x ^ 2 * (y ^ 2 + z ^ 2) /
+        ((x ^ 5 + y ^ 2 + z ^ 2) * (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2))) ≥ 0 := by positivity
+  calc
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2)
+      ≥ (x ^ 5 - x ^ 2 * 1) / (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2)) := by linarith only [key, h₅]
+    _ ≥ (x ^ 5 - x ^ 2 * (x * y * z)) / (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2)) := by gcongr
+    _ = (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) := by field_simp; ring","theorem key_insight (x y z : ℝ) (hx : x > 0) (hy : y > 0) (hz : z > 0) (h : x * y * z ≥ 1) :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) ≥ (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) := by
+  have key :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) -
+        (x ^ 5 - x ^ 2 * 1) / (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2)) =
+      (x ^ 3 - 1) ^ 2 * x ^ 2 * (y ^ 2 + z ^ 2) /
+        ((x ^ 5 + y ^ 2 + z ^ 2) * (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2))) := by
+    field_simp
+    ring
+  have h₅ :
+    (x ^ 3 - 1) ^ 2 * x ^ 2 * (y ^ 2 + z ^ 2) /
+        ((x ^ 5 + y ^ 2 + z ^ 2) * (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2))) ≥ 0 := by positivity
+  calc
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2)
+      ≥ (x ^ 5 - x ^ 2 * 1) / (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2)) := by linarith only [key, h₅]
+    _ ≥ (x ^ 5 - x ^ 2 * (x * y * z)) / (x ^ 3 * (x ^ 2 + y ^ 2 + z ^ 2)) := by gcongr
+    _ = (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) := by field_simp; ring",79.79709100723267
+compfiles,Compfiles/Imo2005P3.lean,"problem imo2005_p3 (x y z : ℝ) (hx : x > 0) (hy : y > 0) (hz : z > 0) (h : x * y * z ≥ 1) :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) + (y ^ 5 - y ^ 2) / (y ^ 5 + z ^ 2 + x ^ 2) +
+        (z ^ 5 - z ^ 2) / (z ^ 5 + x ^ 2 + y ^ 2) ≥
+      0 ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,19,True,,11,-0.42105263157894735,"problem imo2005_p3 (x y z : ℝ) (hx : x > 0) (hy : y > 0) (hz : z > 0) (h : x * y * z ≥ 1) :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) + (y ^ 5 - y ^ 2) / (y ^ 5 + z ^ 2 + x ^ 2) +
+        (z ^ 5 - z ^ 2) / (z ^ 5 + x ^ 2 + y ^ 2) ≥
+      0 := by
+  calc
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) + (y ^ 5 - y ^ 2) / (y ^ 5 + z ^ 2 + x ^ 2) +
+          (z ^ 5 - z ^ 2) / (z ^ 5 + x ^ 2 + y ^ 2) ≥
+        (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) + (y ^ 2 - z * x) / (y ^ 2 + z ^ 2 + x ^ 2) +
+          (z ^ 2 - x * y) / (z ^ 2 + x ^ 2 + y ^ 2) := by
+      gcongr ?_ + ?_ + ?_ <;> apply key_insight <;> linarith
+    _ = 1 / 2 * ((x - y) ^ 2 + (y - z) ^ 2 + (z - x) ^ 2) / (x ^ 2 + y ^ 2 + z ^ 2) := by ring
+    _ ≥ 0 := by positivity","problem imo2005_p3 (x y z : ℝ) (hx : x > 0) (hy : y > 0) (hz : z > 0) (h : x * y * z ≥ 1) :
+    (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) + (y ^ 5 - y ^ 2) / (y ^ 5 + z ^ 2 + x ^ 2) +
+        (z ^ 5 - z ^ 2) / (z ^ 5 + x ^ 2 + y ^ 2) ≥
+      0  := by
+  have : ∀ (w : ℝ), (w ^ 5 - w ^ 2) / (w ^ 5 + x ^ 2 + y ^ 2) ≥ (w ^ 2 - y * z) / (w ^ 2 + x ^ 2 + y ^ 2) :=
+    by intro w; apply key_insight; positivity
+  have h₁ : (x ^ 5 - x ^ 2) / (x ^ 5 + y ^ 2 + z ^ 2) ≥ (x ^ 2 - y * z) / (x ^ 2 + y ^ 2 + z ^ 2) := by apply this
+  have h₂ : (y ^ 5 - y ^ 2) / (y ^ 5 + z ^ 2 + x ^ 2) ≥ (y ^ 2 - z * x) / (y ^ 2 + z ^ 2 + x ^ 2) := by apply this
+  have h₃ : (z ^ 5 - z ^ 2) / (z ^ 5 + x ^ 2 + y ^ 2) ≥ (z ^ 2 - x * y) / (z ^ 2 + x ^ 2 + y ^ 2) := by apply this
+  linarith [h₁, h₂, h₃, show 1 / 2 * ((x - y) ^ 2 + (y - z) ^ 2 + (z - x) ^ 2) / (x ^ 2 + y ^ 2 + z ^ 2) = 0,",69.14807724952698
+compfiles,Compfiles/Imo2005P4.lean,"/-- Key lemma (a modular arithmetic calculation):  Given a prime `p` other than `2` or `3`, the
+`(p - 2)`th term of the sequence has `p` as a factor. -/
+theorem find_specified_factor {p : ℕ} (hp : Nat.Prime p) (hp2 : p ≠ 2) (hp3 : p ≠ 3) :
+    ↑p ∣ a (p - 2) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,18,True,,5,-0.7222222222222222,"/-- Key lemma (a modular arithmetic calculation):  Given a prime `p` other than `2` or `3`, the
+`(p - 2)`th term of the sequence has `p` as a factor. -/
+theorem find_specified_factor {p : ℕ} (hp : Nat.Prime p) (hp2 : p ≠ 2) (hp3 : p ≠ 3) :
+    ↑p ∣ a (p - 2) := by
+  -- Since `p` is neither `2` nor `3`, it is coprime with `2`, `3`, and `6`
+  rw [Ne, ← Nat.prime_dvd_prime_iff_eq hp (by decide), ← Nat.Prime.coprime_iff_not_dvd hp]
+    at hp2 hp3
+  have : Int.gcd p 6 = 1 := Nat.coprime_mul_iff_right.2 ⟨hp2, hp3⟩
+  -- Nat arithmetic needed to deal with powers
+  have hp' : p - 1 = p - 2 + 1 := Eq.symm <| Nat.succ_pred <| (tsub_pos_of_lt hp.one_lt).ne'
+  -- Thus it suffices to show that `6 * a (p - 2) ≡ 0 [ZMOD p]`
+  rw [← Int.modEq_zero_iff_dvd, ← Int.ediv_one p, ← Nat.cast_one, ← this]
+  refine Int.ModEq.cancel_left_div_gcd (Nat.cast_pos.2 hp.pos) ?_
+  calc
+    6 * a (p - 2) = 3 * 2 ^ (p - 1) + 2 * 3 ^ (p - 1) + (2 * 3) ^ (p - 1) - 6 := by
+      simp only [a, hp', pow_succ']; ring
+    _ ≡ 3 * 1 + 2 * 1 + 1 - 6 [ZMOD p] := by
+      gcongr <;> apply Int.ModEq.pow_card_sub_one_eq_one hp <;>
+        rwa [Int.isCoprime_iff_gcd_eq_one, Int.gcd_comm]
+    _ = 0 := rfl","/-- Key lemma (a modular arithmetic calculation):  Given a prime `p` other than `2` or `3`, the
+`(p - 2)`th term of the sequence has `p` as a factor. -/
+theorem find_specified_factor {p : ℕ} (hp : Nat.Prime p) (hp2 : p ≠ 2) (hp3 : p ≠ 3) :
+    ↑p ∣ a (p - 2)   := by
+  rw [Ne, ← Nat.prime_dvd_prime_iff_eq hp (by decide), ← Nat.Prime.coprime_iff_not_dvd hp] at hp2 hp3
+  have : Int.gcd p 6 = 1 := Nat.coprime_mul_iff_right.2 ⟨hp2, hp3⟩
+  refine Int.ModEq.cancel_left_div_gcd (Nat.cast_pos.2 hp.pos) ?_
+  calc
+  6 * a (p - 2) = 3 * 2 ^ (p - 1) + 2 * 3 ^ (p - 1) + (2 * 3) ^ (p - 1) - 6 := by",29.287203073501587
+compfiles,Compfiles/Imo2005P4.lean,"problem imo2005_p4 {k : ℕ} (hk : 0 < k) :
+    (∀ n : ℕ, 1 ≤ n → IsCoprime (a n) k) ↔ ⟨k, hk⟩ ∈ SolutionSet ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,25,True,,1,-0.96,"problem imo2005_p4 {k : ℕ} (hk : 0 < k) :
+    (∀ n : ℕ, 1 ≤ n → IsCoprime (a n) k) ↔ ⟨k, hk⟩ ∈ SolutionSet := by
+  rw [Set.mem_singleton_iff,
+      show ((⟨k, hk⟩: ℕ+) = 1) ↔ k = 1 from eq_iff_eq_of_cmp_eq_cmp rfl]
+  constructor; rotate_left
+  · -- The property is clearly true for `k = 1`
+    rintro rfl n -
+    exact isCoprime_one_right
+  intro h
+  -- Conversely, suppose `k` is a number with the property, and let `p` be `k.minFac` (by
+  -- definition this is the minimal prime factor of `k` if `k ≠ 1`, and otherwise `1`.
+  let p := k.minFac
+  -- Suppose for the sake of contradiction that `k ≠ 1`.  Then `p` is genuinely a prime factor of
+  -- `k`. Hence, it divides none of `a n`, `1 ≤ n`
+  by_contra hk'
+  have hp : Nat.Prime p := Nat.minFac_prime hk'
+  replace h : ∀ n, 1 ≤ n → ¬(p : ℤ) ∣ a n := fun n hn ↦ by
+    have : IsCoprime (a n) p :=
+      .of_isCoprime_of_dvd_right (h n hn) (Int.natCast_dvd_natCast.mpr k.minFac_dvd)
+    rwa [isCoprime_comm,(Nat.prime_iff_prime_int.mp hp).coprime_iff_not_dvd] at this
+  -- For `p = 2` and `p = 3`, take `n = 1` and `n = 2`, respectively
+  by_cases hp2 : p = 2
+  · rw [hp2] at h
+    apply h 1 <;> decide
+  by_cases hp3 : p = 3
+  · rw [hp3] at h
+    apply h 2 <;> decide
+  -- Otherwise, take `n = p - 2`
+  refine h (p - 2) ?_ (find_specified_factor hp hp2 hp3)
+  calc
+    1 = 3 - 2 := by norm_num
+    _ ≤ p - 2 := tsub_le_tsub_right (Nat.succ_le_of_lt <| hp.two_le.lt_of_ne' hp2) _","problem imo2005_p4 {k : ℕ} (hk : 0 < k) :
+    (∀ n : ℕ, 1 ≤ n → IsCoprime (a n) k) ↔ ⟨k, hk⟩ ∈ SolutionSet  := by
+  rw [Set.mem_singleton_iff, PNat.ext'_iff]; constructor; rintro (rfl | h);
+  exact PNat.coe_eq_one_iff.1 rfl;
+  let p := k.minFac; by_contra hk'; have hp := Nat.minFac_prime hk';
+  suffices ∀ n : ℕ, 1 ≤ n → ¬ (↑p ∣ a n) by
+    (apply this; apply find_specified_factor hp;
+      rintro rfl; apply h 1 <;> simp [a]; rw (show 1 = 2 - 1 from by norm_num);",39.804885149002075
+compfiles,Compfiles/Imo2007P5.lean,"lemma bad_exists_descent {n : ℤ} (hn : 1 < n) {a : ℕ}
+  (h : 0 < a ∧ ∃ b : ℕ, a < b ∧ n * a * b - 1 ∣ (n * a ^ 2 - 1) ^ 2) :
+  ∃ c : ℕ, 0 < c ∧ c < a ∧ n * c * a - 1 ∣ (n * c ^ 2 - 1) ^ 2 ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,48,True,,48,0.0,"lemma bad_exists_descent {n : ℤ} (hn : 1 < n) {a : ℕ}
+  (h : 0 < a ∧ ∃ b : ℕ, a < b ∧ n * a * b - 1 ∣ (n * a ^ 2 - 1) ^ 2) :
+  ∃ c : ℕ, 0 < c ∧ c < a ∧ n * c * a - 1 ∣ (n * c ^ 2 - 1) ^ 2 := by
+  rcases h with ⟨h, b, h0, k, h1⟩
+  rw [sq (a : ℤ), ← mul_assoc] at h1
+  generalize ht : n * a = t at h1
+  obtain ⟨c, rfl⟩ : ∃ c : ℤ, k = t * c - 1 := by
+    replace h1 : (t * a - 1) ^ 2 ≡ (t * b - 1) * k [ZMOD t] := by rw [h1]
+    have X : ∀ m : ℤ, t * m - 1 ≡ -1 [ZMOD t] := fun m ↦ by
+      symm; rw [Int.modEq_iff_dvd, sub_neg_eq_add, sub_add_cancel]; exact ⟨m, rfl⟩
+    replace h1 := ((X a).pow 2).symm.trans (h1.trans ((X b).mul_right _))
+    rw [Int.modEq_iff_dvd, sq, ← mul_sub, sub_neg_eq_add, neg_one_mul, dvd_neg] at h1
+    cases' h1 with c h1
+    exact ⟨c, eq_sub_of_add_eq h1⟩
+
+  ---- It suffices to show that `0 < c` and `c < (a : ℤ)`
+  suffices h2 : c < a ∧ 0 < c by
+    lift c to ℕ using le_of_lt h2.2
+    rw [Int.natCast_pos, Int.ofNat_lt] at h2
+    refine ⟨c, h2.2, h2.1, bad_symm ⟨t * b - 1, ?_⟩⟩
+    rw [sq (a : ℤ), ← mul_assoc, ht, h1, mul_comm]
+
+  ---- We do not need `n`; we just use `t` instead.
+  replace ht : 1 < t := by
+    rw [← Int.natCast_pos] at h
+    have h2 := le_trans Int.one_nonneg (le_of_lt hn)
+    rw [Int.lt_iff_add_one_le] at hn h ⊢
+    rw [← ht]
+    exact le_mul_of_le_of_one_le_of_nonneg hn h h2
+
+  clear hn n
+
+  ---- Some ordering results
+  have h2 := lt_trans one_pos ht
+  have h3 : ∀ x y : ℤ, x < y ↔ t * x - 1 < t * y - 1 :=
+    λ x y ↦ by rw [sub_lt_sub_iff_right, ← mul_lt_mul_left h2]
+  replace h2 : ∀ x : ℤ, 0 < x ↔ 0 < t * x - 1 := by
+    intro x
+    rw [h3, mul_zero, Int.lt_iff_add_one_le, sub_add_cancel, le_iff_eq_or_lt]
+    refine or_iff_right (λ h4 ↦ ne_of_gt ht ?_)
+    rw [eq_comm, sub_eq_zero] at h4
+    exact Int.eq_one_of_mul_eq_one_right (le_of_lt h2) h4
+
+  ---- Rearranging and final step
+  rw [← Int.natCast_pos, h2] at h
+  rw [← Int.ofNat_lt, h3] at h0
+  rw [h2, h3 c]
+  constructor
+  · rwa [← mul_lt_mul_left (lt_trans h h0), ← h1, sq, mul_lt_mul_right h]
+  · rw [← mul_lt_mul_left (lt_trans h h0), mul_zero, ← h1]
+    exact pow_pos h 2","lemma bad_exists_descent {n : ℤ} (hn : 1 < n) {a : ℕ}
+  (h : 0 < a ∧ ∃ b : ℕ, a < b ∧ n * a * b - 1 ∣ (n * a ^ 2 - 1) ^ 2) :
+  ∃ c : ℕ, 0 < c ∧ c < a ∧ n * c * a - 1 ∣ (n * c ^ 2 - 1) ^ 2 := by
+  rcases h with ⟨h, b, h0, k, h1⟩
+  rw [sq (a : ℤ), ← mul_assoc] at h1
+  generalize ht : n * a = t at h1
+  obtain ⟨c, rfl⟩ : ∃ c : ℤ, k = t * c - 1 := by
+    replace h1 : (t * a - 1) ^ 2 ≡ (t * b - 1) * k [ZMOD t] := by rw [h1]
+    have X : ∀ m : ℤ, t * m - 1 ≡ -1 [ZMOD t] := fun m ↦ by
+      symm; rw [Int.modEq_iff_dvd, sub_neg_eq_add, sub_add_cancel]; exact ⟨m, rfl⟩
+    replace h1 := ((X a).pow 2).symm.trans (h1.trans ((X b).mul_right _))
+    rw [Int.modEq_iff_dvd, sq, ← mul_sub, sub_neg_eq_add, neg_one_mul, dvd_neg] at h1
+    cases' h1 with c h1
+    exact ⟨c, eq_sub_of_add_eq h1⟩
+
+  ---- It suffices to show that `0 < c` and `c < (a : ℤ)`
+  suffices h2 : c < a ∧ 0 < c by
+    lift c to ℕ using le_of_lt h2.2
+    rw [Int.natCast_pos, Int.ofNat_lt] at h2
+    refine ⟨c, h2.2, h2.1, bad_symm ⟨t * b - 1, ?_⟩⟩
+    rw [sq (a : ℤ), ← mul_assoc, ht, h1, mul_comm]
+
+  ---- We do not need `n`; we just use `t` instead.
+  replace ht : 1 < t := by
+    rw [← Int.natCast_pos] at h
+    have h2 := le_trans Int.one_nonneg (le_of_lt hn)
+    rw [Int.lt_iff_add_one_le] at hn h ⊢
+    rw [← ht]
+    exact le_mul_of_le_of_one_le_of_nonneg hn h h2
+
+  clear hn n
+
+  ---- Some ordering results
+  have h2 := lt_trans one_pos ht
+  have h3 : ∀ x y : ℤ, x < y ↔ t * x - 1 < t * y - 1 :=
+    λ x y ↦ by rw [sub_lt_sub_iff_right, ← mul_lt_mul_left h2]
+  replace h2 : ∀ x : ℤ, 0 < x ↔ 0 < t * x - 1 := by
+    intro x
+    rw [h3, mul_zero, Int.lt_iff_add_one_le, sub_add_cancel, le_iff_eq_or_lt]
+    refine or_iff_right (λ h4 ↦ ne_of_gt ht ?_)
+    rw [eq_comm, sub_eq_zero] at h4
+    exact Int.eq_one_of_mul_eq_one_right (le_of_lt h2) h4
+
+  ---- Rearranging and final step
+  rw [← Int.natCast_pos, h2] at h
+  rw [← Int.ofNat_lt, h3] at h0
+  rw [h2, h3 c]
+  constructor
+  · rwa [← mul_lt_mul_left (lt_trans h h0), ← h1, sq, mul_lt_mul_right h]
+  · rw [← mul_lt_mul_left (lt_trans h h0), mul_zero, ← h1]
+    exact pow_pos h 2",113.26889395713806
+compfiles,Compfiles/Imo2007P5.lean,"theorem generalized_imo2007_p5 {n : ℤ} (hn : 1 < n) :
+    ∀ a b : ℕ, 0 < a → 0 < b → n * a * b - 1 ∣ (n * a ^ 2 - 1) ^ 2 → a = b ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,7,True,,7,0.0,"theorem generalized_imo2007_p5 {n : ℤ} (hn : 1 < n) :
+    ∀ a b : ℕ, 0 < a → 0 < b → n * a * b - 1 ∣ (n * a ^ 2 - 1) ^ 2 → a = b := by
+  let P : ℕ → Prop := λ k ↦ (0 < k ∧ ∃ m : ℕ, k < m ∧ n * k * m - 1 ∣ (n * k ^ 2 - 1) ^ 2)
+  have h : ∀ k : ℕ, P k → ∃ m : ℕ, m < k ∧ P m :=
+    λ k h ↦ Exists.elim (bad_exists_descent hn h)
+      (λ c h0 ↦ ⟨c, h0.2.1, h0.1, k, h0.2.1, h0.2.2⟩)
+  classical
+  replace h := nat_pred_descent h
+  intro a b ha hb h0
+  by_contra! h1
+  exact (lt_or_gt_of_ne h1).elim (λ h1 ↦ h a ⟨ha, b, h1, h0⟩)
+    (λ h1 ↦ h b ⟨hb, a, h1, bad_symm h0⟩)","theorem generalized_imo2007_p5 {n : ℤ} (hn : 1 < n) :
+    ∀ a b : ℕ, 0 < a → 0 < b → n * a * b - 1 ∣ (n * a ^ 2 - 1) ^ 2 → a = b := by
+  let P : ℕ → Prop := λ k ↦ (0 < k ∧ ∃ m : ℕ, k < m ∧ n * k * m - 1 ∣ (n * k ^ 2 - 1) ^ 2)
+  have h : ∀ k : ℕ, P k → ∃ m : ℕ, m < k ∧ P m :=
+    λ k h ↦ Exists.elim (bad_exists_descent hn h)
+      (λ c h0 ↦ ⟨c, h0.2.1, h0.1, k, h0.2.1, h0.2.2⟩)
+  classical
+  replace h := nat_pred_descent h
+  intro a b ha hb h0
+  by_contra! h1
+  exact (lt_or_gt_of_ne h1).elim (λ h1 ↦ h a ⟨ha, b, h1, h0⟩)
+    (λ h1 ↦ h b ⟨hb, a, h1, bad_symm h0⟩)",79.24536395072937
+compfiles,Compfiles/Imo2007P5.lean,"problem imo2007_p5 (a b : ℤ) (ha : 0 < a) (hb : 0 < b)
+    (hab : 4 * a * b - 1 ∣ (4 * a^2 - 1)^2) : a = b ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,7,True,,4,-0.42857142857142855,"problem imo2007_p5 (a b : ℤ) (ha : 0 < a) (hb : 0 < b)
+    (hab : 4 * a * b - 1 ∣ (4 * a^2 - 1)^2) : a = b := by
+  lift a to ℕ using le_of_lt ha
+  lift b to ℕ using le_of_lt hb
+  have ha' : 0 < a := Int.ofNat_pos.mp ha
+  have hb' : 0 < b := Int.ofNat_pos.mp hb
+  have hg := generalized_imo2007_p5 (n := 4) (by norm_num) a b ha' hb' hab
+  exact congrArg Nat.cast hg","problem imo2007_p5 (a b : ℤ) (ha : 0 < a) (hb : 0 < b)
+    (hab : 4 * a * b - 1 ∣ (4 * a^2 - 1)^2) : a = b  := by
+  lift a to ℕ using ha.le
+  lift b to ℕ using hb.le
+  exact congrArg Int.ofNat (generalized_imo2007_p5 (by norm_num) a b (Int.ofNat_pos.1 ha) (Int.ofNat_pos.1 hb) hab)",57.164360761642456
+compfiles,Compfiles/Imo2009P5.lean,"lemma exists_sup_fn_fin (f : ℕ → ℕ) (c : ℕ) : ∃ K : ℕ, ∀ n : ℕ, n < c → f n ≤ K ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,8,True,,7,-0.125,"lemma exists_sup_fn_fin (f : ℕ → ℕ) (c : ℕ) : ∃ K : ℕ, ∀ n : ℕ, n < c → f n ≤ K := by
+  induction' c with c ih
+  · simp
+  · obtain ⟨k, hk⟩ := ih
+    use max k (f c)
+    intro n hn
+    obtain hlt | rfl := Nat.lt_succ_iff_lt_or_eq.mp hn <;> aesop","lemma exists_sup_fn_fin (f : ℕ → ℕ) (c : ℕ) : ∃ K : ℕ, ∀ n : ℕ, n < c → f n ≤ K  := by
+  induction c with
+  | zero => exact ⟨0, by simp⟩
+  | succ =>
+    obtain ⟨k, hk⟩ := ih
+    exact ⟨max k (f c), by intro n hn; cases Nat.lt_succ_iff_lt_or_eq.mp hn; [exact hk n ‹_›, simp]⟩",35.77247905731201
+compfiles,Compfiles/Imo2009P5.lean,"/-- Final solution, `pnat` version -/
+theorem final_solution_pnat (f : ℕ+ → ℕ+) :
+    ((∀ x y : ℕ+, f (y + f x - 1) < f y + x)
+      ∧ (∀ x y : ℕ+, x < f y + f (y + f x - 1))
+      ∧ (∀ x y : ℕ+, f y < f (y + f x - 1) + x))
+        ↔ f = λ x ↦ x ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,4,True,,4,0.0,"/-- Final solution, `pnat` version -/
+theorem final_solution_pnat (f : ℕ+ → ℕ+) :
+    ((∀ x y : ℕ+, f (y + f x - 1) < f y + x)
+      ∧ (∀ x y : ℕ+, x < f y + f (y + f x - 1))
+      ∧ (∀ x y : ℕ+, f y < f (y + f x - 1) + x))
+        ↔ f = λ x ↦ x := by
+  obtain ⟨g, rfl⟩ : ∃ g : ℕ → ℕ, f = λ x ↦ (g x.natPred).succPNat :=
+    ⟨λ x ↦ (f x.succPNat).natPred,
+      funext (λ x ↦ by rw [PNat.succPNat_natPred, PNat.succPNat_natPred])⟩
+  simp_rw [pnat_to_nat_prop2, Function.funext_iff, pnat_to_nat_prop, Nat.natPred_succPNat,
+           Nat.succPNat_inj, ← Function.funext_iff, succ_pnat_add_succ_pnat, pnat_add_sub_cancel,
+           Nat.natPred_succPNat, PNat.lt_add_one_iff, Nat.succPNat_le_succPNat]
+  exact final_solution_nat g","/-- Final solution, `pnat` version -/
+theorem final_solution_pnat (f : ℕ+ → ℕ+) :
+    ((∀ x y : ℕ+, f (y + f x - 1) < f y + x)
+      ∧ (∀ x y : ℕ+, x < f y + f (y + f x - 1))
+      ∧ (∀ x y : ℕ+, f y < f (y + f x - 1) + x))
+        ↔ f = λ x ↦ x := by
+  obtain ⟨g, rfl⟩ : ∃ g : ℕ → ℕ, f = λ x ↦ (g x.natPred).succPNat :=
+    ⟨λ x ↦ (f x.succPNat).natPred,
+      funext (λ x ↦ by rw [PNat.succPNat_natPred, PNat.succPNat_natPred])⟩
+  simp_rw [pnat_to_nat_prop2, Function.funext_iff, pnat_to_nat_prop, Nat.natPred_succPNat,
+           Nat.succPNat_inj, ← Function.funext_iff, succ_pnat_add_succ_pnat, pnat_add_sub_cancel,
+           Nat.natPred_succPNat, PNat.lt_add_one_iff, Nat.succPNat_le_succPNat]
+  exact final_solution_nat g",57.074713945388794
+compfiles,Compfiles/Imo2009P5.lean,"problem imo2009_p5 (f : ℕ+ → ℕ+) :
+    f ∈ solution_set ↔
+    ∀ a b, (f (b + f a - 1) < f b + a ∧
+            a < f b + f (b + f a - 1) ∧
+            f b < f (b + f a - 1) + a) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,15,True,,8,-0.4666666666666667,"problem imo2009_p5 (f : ℕ+ → ℕ+) :
+    f ∈ solution_set ↔
+    ∀ a b, (f (b + f a - 1) < f b + a ∧
+            a < f b + f (b + f a - 1) ∧
+            f b < f (b + f a - 1) + a) := by
+  have fsn := final_solution_pnat f
+  constructor
+  · rintro rfl a b
+    obtain ⟨h1, h2, h3⟩ := fsn.mpr rfl
+    exact ⟨h1 a b, h2 a b, h3 a b⟩
+  · intro h
+    rw [Set.mem_singleton_iff]
+    apply fsn.mp
+    refine ⟨?_,?_,?_⟩
+    · intro a b; exact (h a b).1
+    · intro a b; exact (h a b).2.1
+    · intro a b; exact (h a b).2.2","problem imo2009_p5 (f : ℕ+ → ℕ+) :
+    f ∈ solution_set ↔
+    ∀ a b, (f (b + f a - 1) < f b + a ∧
+            a < f b + f (b + f a - 1) ∧
+            f b < f (b + f a - 1) + a)  := by
+  have fsn := final_solution_pnat f
+  constructor
+  rintro rfl a b
+  rcases fsn.mpr rfl with ⟨h1, h2, h3⟩
+  exact ⟨h1 a b, h2 a b, h3 a b⟩
+  intro h
+  rw [Set.mem_singleton_iff]
+  exact fsn.mp ⟨fun a b ↦ (h a b).1, fun a b ↦ (h a b).2.1, fun a b ↦ (h a b).2.2⟩",56.289522886276245
+compfiles,Compfiles/Imo2001P2.lean,"theorem bound (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :
+    a ^ 4 / (a ^ 4 + b ^ 4 + c ^ 4) ≤ a ^ 3 / sqrt ((a ^ 3) ^ 2 + 8 * b ^ 3 * c ^ 3) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",5,LENGTH,gpt-4o,True,True,True,10,False,True,,13,True,,4,-0.6923076923076923,"theorem bound (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :
+    a ^ 4 / (a ^ 4 + b ^ 4 + c ^ 4) ≤ a ^ 3 / sqrt ((a ^ 3) ^ 2 + 8 * b ^ 3 * c ^ 3) := by
+  rw [div_le_div_iff (by positivity) (by positivity)]
+  calc a ^ 4 * sqrt ((a ^ 3) ^ 2 + (8:ℝ) * b ^ 3 * c ^ 3)
+      = a ^ 3 * (a * sqrt ((a ^ 3) ^ 2 + (8:ℝ) * b ^ 3 * c ^ 3)) := by ring
+    _ ≤ a ^ 3 * (a ^ 4 + b ^ 4 + c ^ 4) := ?_
+  gcongr
+  apply le_of_pow_le_pow_left two_ne_zero (by positivity)
+  rw [mul_pow, sq_sqrt (by positivity), ← sub_nonneg]
+  calc
+    (a ^ 4 + b ^ 4 + c ^ 4) ^ 2 - a ^ 2 * ((a ^ 3) ^ 2 + 8 * b ^ 3 * c ^ 3)
+      = 2 * (a ^ 2 * (b ^ 2 - c ^ 2)) ^ 2 + (b ^ 4 - c ^ 4) ^ 2 +
+        (2 * (a ^ 2 * b * c - b ^ 2 * c ^ 2)) ^ 2 := by ring
+    _ ≥ 0 := by positivity","theorem bound (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :
+    a ^ 4 / (a ^ 4 + b ^ 4 + c ^ 4) ≤ a ^ 3 / sqrt ((a ^ 3) ^ 2 + 8 * b ^ 3 * c ^ 3)  := by
+  rw [div_le_div_iff (by positivity) (by positivity)]
+  calc a ^ 4 * sqrt ((a ^ 3) ^ 2 + (8:ℝ) * b ^ 3 * c ^ 3) = a ^ 3 * (a * sqrt ((a ^ 3) ^ 2 + (8:ℝ) * b ^ 3 * c ^ 3)) := by ring
+  gcongr",33.430320024490356

@@ -60,12 +60,12 @@ def _lakefile_remote(repo, commit, name, cwd):
         # and content. But it is encoded with base64.
         text = str(base64.b64decode(req["content"]))
     else:
-        text = ""
-        print("Content was not found.")
+        text = "require mathlib from git"  # TEMP!! REMOVE AFTER COMPFILES
+        print(f"Content was not found.\n{req.status_code}\n{req.content}")
 
     mathlib_text = ""
     if "require mathlib from git" not in text and name != "mathlib":
-        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "v4.15.0"'
+        mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git" @ "v4.9.0"'
     contents = """import Lake
     open Lake DSL
 
