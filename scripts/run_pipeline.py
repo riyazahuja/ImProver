@@ -24,8 +24,13 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
     # for the love of god fix this to be less stupid
 
     print(f"Extracting {input_module}")
+    # print(f"cwd: {cwd}")
+    # print(f"start: {start}")
+    # print(f"output_base_dir: {output_base_dir}")
 
     fp = os.path.join(start, input_module.replace(".", "/") + ".lean")
+    # print(f"fp: {fp}")
+    # print("===============")
     output_path = os.path.join(
         output_base_dir, _get_stem(input_module, input_file_mode) + ".json"
     )
@@ -176,6 +181,7 @@ if __name__ == "__main__":
             for mod in input_modules
             if _get_stem(mod, input_file_mode) + ".lean" in files_in_path
         ]
+
         # print(f'Input Modules: {input_modules}')
         # print('-----------------')
         futures = [
@@ -185,7 +191,7 @@ if __name__ == "__main__":
                 input_file_mode=input_file_mode,
                 output_base_dir=args.output_base_dir,
                 cwd=args.cwd,
-                start=start_path,
+                start=proj_path,
             )
             for input_module in input_modules
         ]

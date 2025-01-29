@@ -7,8 +7,8 @@ import Lake
 
     
 
-    require compfiles from git
-    "https://github.com/dwrensha/compfiles.git" @ "2ab6378aedaf379a1f58043199f89d40a5cda400"
+    require mathlib from git
+    "https://github.com/leanprover-community/mathlib4.git" @ "v4.9.0"
 
     @[default_target]
     lean_lib TrainingData where

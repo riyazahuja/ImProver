@@ -22,6 +22,8 @@ import logging
 from typing import Final
 import tiktoken
 from multiprocessing import cpu_count
+from datetime import datetime
+import pytz
 
 log_req_info = True
 
@@ -295,7 +297,9 @@ def prompt_raw(
         },
     )
     if log_req_info:
-        print(f"API Call completed in {time.time()-st}s")
+        print(
+            f"({datetime.now(pytz.timezone('US/Eastern')).timetz()}) API Call completed in {time.time()-st}s"
+        )
 
     return output
 
@@ -414,8 +418,7 @@ def prompt_flat(
         )
 
     final = coerce_trimmedThm(output)
-    if log_req_info:
-        print(f"Flat obj coersion completed in {time.time()-st}s")
+
     return final, final
 
 
@@ -610,7 +613,9 @@ def best_of_n(
             # if log_req_info:
             #     print(f"Evaluation competed in {time.time()-stt}s")
         if log_req_info:
-            print(f"Threadpool competed in {time.time()-st}s")
+            print(
+                f"({datetime.now(pytz.timezone('US/Eastern')).timetz()}) Threadpool competed in {time.time()-st}s"
+            )
 
         correct_thms = [item for item in thms if item[1]]
         if len(correct_thms) == 0:
@@ -679,7 +684,9 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
             st = time.time()
             correct, messages, new_thm = eval_correctness(output)
             if log_req_info:
-                print(f"Evaluation completed in {time.time()-st}s")
+                print(
+                    f"({datetime.now(pytz.timezone('US/Eastern')).timetz()}) Evaluation completed in {time.time()-st}s"
+                )
             trajectories.append(prompt_trajectories)
             curr_data = {"input": curr, "output": new_thm}
             curr_data["correct"] = correct

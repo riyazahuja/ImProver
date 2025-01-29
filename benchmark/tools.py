@@ -67,6 +67,7 @@ def extract_data(thm, method, trajectory_position):
 
 def parse_trajectories(trajectories, method, position="/"):
     # print(f"{type(trajectories)} : {trajectories}")
+    st = time.time()
     if (
         type(trajectories) == tuple
         and trajectories[0] == "BoN"
@@ -148,8 +149,8 @@ def process_instance(thm: AnnotatedTheorem, method, output_trajectories=False):
             or (msg.severity == "warning" and "sorry" in msg.content)
         ]
     )
-
-    return {
+    tt = time.time()
+    out = {
         "repo": thm.src,
         "file": thm.leanFile,
         "decl": thm.decl,
@@ -173,6 +174,12 @@ def process_instance(thm: AnnotatedTheorem, method, output_trajectories=False):
         "new_raw": new_raw,
         "time": processing_time,
     }, (parse_trajectories(trajectories, method) if output_trajectories else None)
+    
+    print(
+        f"({datetime.now(pytz.timezone('US/Eastern')).timetz()}) Instance Processing Completed in {time.time()-tt}s"
+    )
+    
+    return out
 
 
 def process_instances(
@@ -439,127 +446,15 @@ if __name__ == "__main__":
 
     methods = improver(length_metric())
 
-    repo = getRepo("compfiles", "configs/config_comp.json")
+    repo = getRepo("mathlib", "configs/config.json")
     files = {file.file_path: file for file in repo.files}
-    # print(files.keys())
-
-    prev_files_raw = """
-Compfiles/Usa2005P2.lean
-Compfiles/Usa2005P2.lean
-Compfiles/Imo2006P3.lean
-Compfiles/Imo2006P3.lean
-Compfiles/Imo2006P3.lean
-Compfiles/Imo2006P3.lean
-Compfiles/Imo2006P3.lean
-Compfiles/Imo2006P3.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2009P6.lean
-Compfiles/Imo2008P2.lean
-Compfiles/Imo2008P3.lean
-Compfiles/Imo2008P3.lean
-Compfiles/Imo2008P3.lean
-Compfiles/Usa2001P4.lean
-Compfiles/Imo2006P5.lean
-Compfiles/Imo2006P5.lean
-Compfiles/Usa2001P3.lean
-Compfiles/Usa2001P3.lean
-Compfiles/Imo2001P6.lean
-Compfiles/Imo2001P6.lean
-Compfiles/Imo2008P5.lean
-Compfiles/Imo2008P5.lean
-Compfiles/Imo2000P2.lean
-Compfiles/Imo2000P2.lean
-Compfiles/Imo2000P2.lean
-Compfiles/Usa2003P1.lean
-Compfiles/Usa2003P1.lean
-Compfiles/Imo2005P3.lean
-Compfiles/Imo2005P3.lean
-Compfiles/Imo2005P4.lean
-Compfiles/Imo2005P4.lean
-Compfiles/Imo2007P5.lean
-Compfiles/Imo2007P5.lean
-Compfiles/Imo2007P5.lean
-Compfiles/Imo2009P5.lean
-Compfiles/Imo2009P5.lean
-Compfiles/Imo2009P5.lean
-Compfiles/Imo2001P2.lean
-Compfiles/Imo2013P1.lean
-Compfiles/Usa2011P4.lean
-Compfiles/Imo2013P5.lean
-Compfiles/Imo2013P5.lean
-Compfiles/Imo2013P5.lean
-Compfiles/Imo2013P5.lean
-Compfiles/Imo2013P5.lean
-Compfiles/Imo2013P5.lean
-Compfiles/Imo2014P1.lean
-Compfiles/Imo2014P1.lean
-Compfiles/Imo2014P1.lean
-Compfiles/Imo2011P3.lean
-Compfiles/Usa1998P1.lean
-Compfiles/Romania1998P12.lean
-Compfiles/Romania1998P12.lean
-Compfiles/Bulgaria1998P3.lean
-Compfiles/Russia1998P42.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1998P2.lean
-Compfiles/Imo1994P1.lean
-Compfiles/Imo1994P1.lean
-Compfiles/Bulgaria1998P11.lean
-Compfiles/Iran1998P9.lean
-Compfiles/Usa1993P1.lean
-Compfiles/Usa1998P3.lean
-Compfiles/Usa1998P3.lean
-Compfiles/Usa1998P3.lean
-Compfiles/Hungary1998P6.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean
-Compfiles/Poland1998P4.lean"""
-
-    train_set = [
-        "Compfiles/Imo2020P2.lean",
-        "Compfiles/Imo2022P2.lean",
-        "Compfiles/Usa2023P2.lean",
-        "Compfiles/Imo2019P1.lean",
-        "Compfiles/Usa2018P1.lean",
-        "Compfiles/Imo2021P1.lean",
-        "Compfiles/Usa2019P1.lean",
-        "Compfiles/Usa2022P4.lean",
-        "Compfiles/Imo2019P4.lean",
-    ]
-
-    prev_files_names = set()
-    prev_files = []
-    for name in prev_files_raw.splitlines():
-        if name not in prev_files_names:
-            prev_files_names.add(name)
-            prev_files.append(name)
-
-    prev_files = prev_files + train_set
 
     fs = [
         files[name]
         for name in files.keys()
-        if name not in prev_files and type(files[name]) == AnnotatedFile
+        if type(files[name]) == AnnotatedFile
     ]
+    fs = fs[:math.floor(len(fs) * 0.8)] #train/test split
     thms = [
         thm
         for f in fs
@@ -569,12 +464,7 @@ Compfiles/Poland1998P4.lean"""
         and type(thm) == AnnotatedTheorem
         and len(thm.proof) > 5
         and len(thm.proof) < 30
-        and (
-            "lemma" in thm.decl
-            or "example" in thm.decl
-            or "problem" in thm.decl
-            or "theorem" in thm.decl
-        )
+        and ("lemma" in thm.decl or "example" in thm.decl or "theorem" in thm.decl)
     ]
 
     unique_thms = []
@@ -590,8 +480,10 @@ Compfiles/Poland1998P4.lean"""
             unique_thms.append(thm)
             seen_decls.add(trim_decl)
     thms = unique_thms
-
     thms = sorted(thms, key=lambda x: len(x.proof))
+
+    print(f"Benchmarking {len(thms)} theorems")
+
     data = []
     traj = []
     errors = []
@@ -607,7 +499,7 @@ Compfiles/Poland1998P4.lean"""
     if current_group:
         grouped_thms.append(current_group)
 
-    for group in grouped_thms[22:]:
+    for group in grouped_thms[17:]:
         d, t = process_instancesP(
             [(thm, method) for thm in group for method in methods],
             max_workers=workers,
@@ -616,30 +508,5 @@ Compfiles/Poland1998P4.lean"""
 
         data.extend(d)
         traj.extend(t)
-        save_to_csv(
-            data, "benchmark/data/training/Compfiles/rest/data_actually_rest3.csv"
-        )
-        save_to_csv(
-            traj, "benchmark/data/training/Compfiles/rest/traj_actually_rest3.csv"
-        )
-
-    # # for i, thm in enumerate(thms):
-    # #     try:
-    # #         d, t = benchmark_theorem(
-    # #             thm,
-    # #             methods,
-    # #             max_workers=3,
-    # #             show_progress=True,
-    # #             output_trajectories=True,
-    # #         )
-    # #         data.extend(d)
-    # #         traj.extend(t)
-
-    # #         save_to_csv(data, "benchmark/data/training/MIL/rest/data.csv")
-    # #         save_to_csv(traj, "benchmark/data/training/MIL/rest/traj.csv")
-    # #     except Exception as e:
-    # #         print(f"Error: {e}")
-    # #         errors.append({"idx": i, "error": str(e)})
-    # #         with open("MIL_rest.json", "w") as f:
-    # #             json.dump(errors, f)
-    # #         continue
+        save_to_csv(data, "benchmark/data/training/mathlib/computability/data2.csv")
+        save_to_csv(traj, "benchmark/data/training/mathlib/computability/traj2.csv")
