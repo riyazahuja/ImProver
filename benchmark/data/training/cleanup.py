@@ -17,9 +17,10 @@ def merge_csv_files(paths, out_file="merged.csv"):
 
 if __name__ == "__main__":
     files = [
-        "Compfiles/data.csv",
-        "Compfiles/data_new.csv",
-        "Compfiles/data_3.csv",
-        "Compfiles/data_rest.csv",
+        "Compfiles/traj.csv",
+        "Compfiles/traj_new.csv",
+        "Compfiles/traj_3.csv",
+        "Compfiles/traj_rest.csv",
+        "Compfiles/traj_nineties.csv",
     ]
-    merge_csv_files(files, "Compfiles/merged_data_full.csv")
+    merge_csv_files(files, "Compfiles/merged_traj_full.csv")

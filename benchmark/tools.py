@@ -224,6 +224,43 @@ def process_instances(
     return data, trajectories
 
 
+def process_instancesP(instances, max_workers=None, output_trajectories=False):
+    if max_workers is None:
+        max_workers = len(instances)
+
+    data = []
+    trajectories = []
+
+    with tqdm(total=len(instances), desc="Instances: ") as pbar:
+        with ThreadPoolExecutor(
+            max_workers=min(max_workers, len(instances))
+        ) as executor:
+            futures = {
+                executor.submit(
+                    process_instance,
+                    i[0],
+                    i[1],
+                    output_trajectories=output_trajectories,
+                ): i
+                for i in instances
+            }
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    item, traj = future.result(timeout=60)
+                    data.append(item)
+                    if traj:
+                        trajectories.extend(traj)
+                except Exception as e:
+                    print(f"Error: {e}")
+                    errors.append({"idx": i, "error": str(e)})
+                    with open("Compfiles_rest.json", "w") as f:
+                        json.dump(errors, f)
+                    pass
+                pbar.update(1)
+
+    return data, trajectories
+
+
 def benchmark_theorem(
     thm: AnnotatedTheorem,
     methods,
@@ -404,6 +441,98 @@ if __name__ == "__main__":
 
     repo = getRepo("compfiles", "configs/config_comp.json")
     files = {file.file_path: file for file in repo.files}
+    # print(files.keys())
+
+    prev_files_raw = """
+Compfiles/Usa2005P2.lean
+Compfiles/Usa2005P2.lean
+Compfiles/Imo2006P3.lean
+Compfiles/Imo2006P3.lean
+Compfiles/Imo2006P3.lean
+Compfiles/Imo2006P3.lean
+Compfiles/Imo2006P3.lean
+Compfiles/Imo2006P3.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2009P6.lean
+Compfiles/Imo2008P2.lean
+Compfiles/Imo2008P3.lean
+Compfiles/Imo2008P3.lean
+Compfiles/Imo2008P3.lean
+Compfiles/Usa2001P4.lean
+Compfiles/Imo2006P5.lean
+Compfiles/Imo2006P5.lean
+Compfiles/Usa2001P3.lean
+Compfiles/Usa2001P3.lean
+Compfiles/Imo2001P6.lean
+Compfiles/Imo2001P6.lean
+Compfiles/Imo2008P5.lean
+Compfiles/Imo2008P5.lean
+Compfiles/Imo2000P2.lean
+Compfiles/Imo2000P2.lean
+Compfiles/Imo2000P2.lean
+Compfiles/Usa2003P1.lean
+Compfiles/Usa2003P1.lean
+Compfiles/Imo2005P3.lean
+Compfiles/Imo2005P3.lean
+Compfiles/Imo2005P4.lean
+Compfiles/Imo2005P4.lean
+Compfiles/Imo2007P5.lean
+Compfiles/Imo2007P5.lean
+Compfiles/Imo2007P5.lean
+Compfiles/Imo2009P5.lean
+Compfiles/Imo2009P5.lean
+Compfiles/Imo2009P5.lean
+Compfiles/Imo2001P2.lean
+Compfiles/Imo2013P1.lean
+Compfiles/Usa2011P4.lean
+Compfiles/Imo2013P5.lean
+Compfiles/Imo2013P5.lean
+Compfiles/Imo2013P5.lean
+Compfiles/Imo2013P5.lean
+Compfiles/Imo2013P5.lean
+Compfiles/Imo2013P5.lean
+Compfiles/Imo2014P1.lean
+Compfiles/Imo2014P1.lean
+Compfiles/Imo2014P1.lean
+Compfiles/Imo2011P3.lean
+Compfiles/Usa1998P1.lean
+Compfiles/Romania1998P12.lean
+Compfiles/Romania1998P12.lean
+Compfiles/Bulgaria1998P3.lean
+Compfiles/Russia1998P42.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1998P2.lean
+Compfiles/Imo1994P1.lean
+Compfiles/Imo1994P1.lean
+Compfiles/Bulgaria1998P11.lean
+Compfiles/Iran1998P9.lean
+Compfiles/Usa1993P1.lean
+Compfiles/Usa1998P3.lean
+Compfiles/Usa1998P3.lean
+Compfiles/Usa1998P3.lean
+Compfiles/Hungary1998P6.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean
+Compfiles/Poland1998P4.lean"""
 
     train_set = [
         "Compfiles/Imo2020P2.lean",
@@ -417,69 +546,37 @@ if __name__ == "__main__":
         "Compfiles/Imo2019P4.lean",
     ]
 
+    prev_files_names = set()
+    prev_files = []
+    for name in prev_files_raw.splitlines():
+        if name not in prev_files_names:
+            prev_files_names.add(name)
+            prev_files.append(name)
+
+    prev_files = prev_files + train_set
+
     fs = [
-        file
-        for name, file in files.items()
-        if name not in train_set and type(file) == AnnotatedFile
+        files[name]
+        for name in files.keys()
+        if name not in prev_files and type(files[name]) == AnnotatedFile
     ]
-    fs = [f for f in fs if re.search(r"201[1-5]", f.file_path)]
     thms = [
         thm
         for f in fs
         for thm in f.theorems
-        if no_errors([thm])
-        and len(thm.proof) < 50
-        and len(thm.proof) > 3
+        if type(f) == AnnotatedFile
+        and no_errors([thm])
         and type(thm) == AnnotatedTheorem
+        and len(thm.proof) > 5
+        and len(thm.proof) < 30
+        and (
+            "lemma" in thm.decl
+            or "example" in thm.decl
+            or "problem" in thm.decl
+            or "theorem" in thm.decl
+        )
     ]
 
-    unique_thms = []
-    seen_decls = set()
-    for thm in thms:
-        if thm.decl not in seen_decls:
-            unique_thms.append(thm)
-            seen_decls.add(thm.decl)
-    thms = unique_thms
-
-    # print(files.keys())
-    # f = files[
-    #     "Tests/MIL/C05_Elementary_Number_Theory/solutions/Solutions_S03_Infinitely_Many_Primes.lean"
-    # ]
-    # f = files["Tests/MIL/C09_Topology/solutions/Solutions_S03_Topological_Spaces.lean"]
-    # f = files["Tests/MIL/C09_Topology/solutions/Solutions_S02_Metric_Spaces.lean"]
-    # f = files[
-    #     "Tests/MIL/C03_Logic/solutions/Solutions_S06_Sequences_and_Convergence.lean"
-    # ]
-
-    # f = files["MIL/students/questionable_proofs.lean"]
-
-    # def no_errors(thms):
-    #     msgs = []
-    #     for thm in thms:
-    #         msgs.extend(thm.messages)
-    #     errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
-    #         1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
-    #     )
-    #     return errors == 0
-
-    # fs = [
-    #     files[name]
-    #     for name in files.keys()
-    #     if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
-    # ]
-
-    # fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
-
-    # f = fs[0]
-    # thm = f.theorems[0]
-    # instance = (thm, methods[0])
-    # print(len(f.theorems))
-    # print(len(thms))
-    data = []
-    traj = []
-    errors = []
-
-    # thms = thms[34:]
     unique_thms = []
     seen_decls = set()
     for thm in thms:
@@ -494,29 +591,55 @@ if __name__ == "__main__":
             seen_decls.add(trim_decl)
     thms = unique_thms
 
-    # for i in range(len(thms)):
-    #     print(f"Processing {i}:\t{thms[i].decl}")
-    #     print("----------------------------------")
+    thms = sorted(thms, key=lambda x: len(x.proof))
+    data = []
+    traj = []
+    errors = []
 
-    # print(parseTheorem(thms[24]))
-
+    workers = 3
+    grouped_thms = []
+    current_group = []
     for i, thm in enumerate(thms):
-        try:
-            d, t = benchmark_theorem(
-                thm,
-                methods,
-                max_workers=3,
-                show_progress=True,
-                output_trajectories=True,
-            )
-            data.extend(d)
-            traj.extend(t)
+        current_group.append(thm)
+        if len(current_group) == workers:
+            grouped_thms.append(current_group)
+            current_group = []
+    if current_group:
+        grouped_thms.append(current_group)
 
-            save_to_csv(data, "benchmark/data/training/Compfiles/data_rest.csv")
-            save_to_csv(traj, "benchmark/data/training/Compfiles/traj_rest.csv")
-        except Exception as e:
-            print(f"Error: {e}")
-            errors.append({"idx": i, "error": str(e)})
-            with open("compfiles_errors4.json", "w") as f:
-                json.dump(errors, f)
-            continue
+    for group in grouped_thms[22:]:
+        d, t = process_instancesP(
+            [(thm, method) for thm in group for method in methods],
+            max_workers=workers,
+            output_trajectories=True,
+        )
+
+        data.extend(d)
+        traj.extend(t)
+        save_to_csv(
+            data, "benchmark/data/training/Compfiles/rest/data_actually_rest3.csv"
+        )
+        save_to_csv(
+            traj, "benchmark/data/training/Compfiles/rest/traj_actually_rest3.csv"
+        )
+
+    # # for i, thm in enumerate(thms):
+    # #     try:
+    # #         d, t = benchmark_theorem(
+    # #             thm,
+    # #             methods,
+    # #             max_workers=3,
+    # #             show_progress=True,
+    # #             output_trajectories=True,
+    # #         )
+    # #         data.extend(d)
+    # #         traj.extend(t)
+
+    # #         save_to_csv(data, "benchmark/data/training/MIL/rest/data.csv")
+    # #         save_to_csv(traj, "benchmark/data/training/MIL/rest/traj.csv")
+    # #     except Exception as e:
+    # #         print(f"Error: {e}")
+    # #         errors.append({"idx": i, "error": str(e)})
+    # #         with open("MIL_rest.json", "w") as f:
+    # #             json.dump(errors, f)
+    # #         continue
