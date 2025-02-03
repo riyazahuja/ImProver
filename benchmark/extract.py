@@ -645,7 +645,7 @@ if __name__ == "__main__2":
 
 if __name__ == "__main__":
     
-    file_path = 'benchmark/data/training/final_data.csv'
+    file_path = 'benchmark/data/training/MIL/final/data.csv'
     
     basic_methods_dict = [{"annotation": anno} for anno in [True]]
     basic_methods = basic_methods_dict

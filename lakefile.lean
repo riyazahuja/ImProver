@@ -7,8 +7,8 @@ import Lake
 
     
 
-    require mathlib from git
-    "https://github.com/leanprover-community/mathlib4.git" @ "v4.9.0"
+    require PrimeNumberTheoremAnd from git
+    "https://github.com/AlexKontorovich/PrimeNumberTheoremAnd.git" @ "main"
 
     @[default_target]
     lean_lib TrainingData where

@@ -22,7 +22,7 @@ def _extract_module(input_module, input_file_mode, output_base_dir, cwd, start):
     # If you aren't riyaz and reading this, trust me I can actually code
     # This is just a disgusting patch that actually works for some reason
     # for the love of god fix this to be less stupid
-
+    input_module = input_module.replace("«", "").replace("»", "")
     print(f"Extracting {input_module}")
     # print(f"cwd: {cwd}")
     # print(f"start: {start}")

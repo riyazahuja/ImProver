@@ -446,7 +446,7 @@ if __name__ == "__main__":
 
     methods = improver(length_metric())
 
-    repo = getRepo("mathlib", "configs/config.json")
+    repo = getRepo("PrimeNumberTheoremAnd", "configs/config_PNT.json")
     files = {file.file_path: file for file in repo.files}
 
     fs = [
@@ -454,7 +454,7 @@ if __name__ == "__main__":
         for name in files.keys()
         if type(files[name]) == AnnotatedFile
     ]
-    fs = fs[:math.floor(len(fs) * 0.8)] #train/test split
+    fs = fs[:math.floor(len(fs) * 0.5)]
     thms = [
         thm
         for f in fs
@@ -488,25 +488,34 @@ if __name__ == "__main__":
     traj = []
     errors = []
 
-    workers = 3
-    grouped_thms = []
-    current_group = []
-    for i, thm in enumerate(thms):
-        current_group.append(thm)
-        if len(current_group) == workers:
-            grouped_thms.append(current_group)
-            current_group = []
-    if current_group:
-        grouped_thms.append(current_group)
-
-    for group in grouped_thms[17:]:
-        d, t = process_instancesP(
-            [(thm, method) for thm in group for method in methods],
-            max_workers=workers,
-            output_trajectories=True,
-        )
-
+    thms = thms[4:]
+    for thm in thms:
+        d,t = benchmark_theorem(thm, methods, max_workers=3, output_trajectories=True)
         data.extend(d)
         traj.extend(t)
-        save_to_csv(data, "benchmark/data/training/mathlib/computability/data2.csv")
-        save_to_csv(traj, "benchmark/data/training/mathlib/computability/traj2.csv")
+        save_to_csv(data, "benchmark/data/training/pnt/data2.csv")
+        save_to_csv(traj, "benchmark/data/training/pnt/traj2.csv")
+
+
+    # workers = 3
+    # grouped_thms = []
+    # current_group = []
+    # for i, thm in enumerate(thms):
+    #     current_group.append(thm)
+    #     if len(current_group) == workers:
+    #         grouped_thms.append(current_group)
+    #         current_group = []
+    # if current_group:
+    #     grouped_thms.append(current_group)
+
+    # for group in grouped_thms:
+    #     d, t = process_instancesP(
+    #         [(thm, method) for thm in group for method in methods],
+    #         max_workers=workers,
+    #         output_trajectories=True,
+    #     )
+
+    #     data.extend(d)
+    #     traj.extend(t)
+    #     save_to_csv(data, "benchmark/data/training/pnt/data.csv")
+    #     save_to_csv(traj, "benchmark/data/training/pnt/traj.csv")

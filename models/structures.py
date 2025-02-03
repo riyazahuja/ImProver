@@ -191,12 +191,12 @@ def getTheorems(
         thm_messages = [
             Message(
                 severity=msg["severity"],
-                start=(msg["pos"]["line"], msg["pos"]["column"]),
-                end=(msg["endPos"]["line"], msg["endPos"]["column"]),
+                start=(msg["pos"]["line"] if msg['pos'] else None, msg["pos"]["column"] if msg['pos'] else None),
+                end=(msg["endPos"]["line"] if msg['endPos'] else None, msg["endPos"]["column"] if msg['endPos'] else None),
                 content=msg["data"],
                 message_src="\n".join(
                     contents.splitlines()[
-                        msg["pos"]["line"] - 1 : msg["endPos"]["line"]
+                        msg["pos"]["line"] - 1 : msg["endPos"]["line"] if msg['endPos'] else len(contents.splitlines())
                     ]
                 ),
             )
