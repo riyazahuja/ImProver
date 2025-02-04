@@ -7,18 +7,11 @@ import Lake
 
     
 
-    require PrimeNumberTheoremAnd from git
-    "https://github.com/AlexKontorovich/PrimeNumberTheoremAnd.git" @ "main"
+    require braid_project from "/Users/ahuja/Desktop/braids_better"
 
     @[default_target]
     lean_lib TrainingData where
 
     lean_lib Examples where
-
-    lean_exe training_data where
-    root := `scripts.training_data
-    
-    lean_exe constants where
-    root := `scripts.constants
 
     

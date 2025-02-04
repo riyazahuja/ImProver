@@ -446,7 +446,7 @@ if __name__ == "__main__":
 
     methods = improver(length_metric())
 
-    repo = getRepo("PrimeNumberTheoremAnd", "configs/config_PNT.json")
+    repo = getRepo("braid_project", "configs/config_knot.json")
     files = {file.file_path: file for file in repo.files}
 
     fs = [
@@ -454,7 +454,7 @@ if __name__ == "__main__":
         for name in files.keys()
         if type(files[name]) == AnnotatedFile
     ]
-    fs = fs[:math.floor(len(fs) * 0.5)]
+    fs = fs[:math.floor(len(fs) * 0.8)]
     thms = [
         thm
         for f in fs
@@ -463,7 +463,7 @@ if __name__ == "__main__":
         and no_errors([thm])
         and type(thm) == AnnotatedTheorem
         and len(thm.proof) > 5
-        and len(thm.proof) < 30
+        and len(thm.proof) < 50
         and ("lemma" in thm.decl or "example" in thm.decl or "theorem" in thm.decl)
     ]
 
@@ -488,34 +488,34 @@ if __name__ == "__main__":
     traj = []
     errors = []
 
-    thms = thms[4:]
-    for thm in thms:
-        d,t = benchmark_theorem(thm, methods, max_workers=3, output_trajectories=True)
-        data.extend(d)
-        traj.extend(t)
-        save_to_csv(data, "benchmark/data/training/pnt/data2.csv")
-        save_to_csv(traj, "benchmark/data/training/pnt/traj2.csv")
-
-
-    # workers = 3
-    # grouped_thms = []
-    # current_group = []
-    # for i, thm in enumerate(thms):
-    #     current_group.append(thm)
-    #     if len(current_group) == workers:
-    #         grouped_thms.append(current_group)
-    #         current_group = []
-    # if current_group:
-    #     grouped_thms.append(current_group)
-
-    # for group in grouped_thms:
-    #     d, t = process_instancesP(
-    #         [(thm, method) for thm in group for method in methods],
-    #         max_workers=workers,
-    #         output_trajectories=True,
-    #     )
-
+    # thms = thms
+    # for thm in thms:
+    #     d,t = benchmark_theorem(thm, methods, max_workers=3, output_trajectories=True)
     #     data.extend(d)
     #     traj.extend(t)
-    #     save_to_csv(data, "benchmark/data/training/pnt/data.csv")
-    #     save_to_csv(traj, "benchmark/data/training/pnt/traj.csv")
+    #     save_to_csv(data, "benchmark/data/training/pnt/data2.csv")
+    #     save_to_csv(traj, "benchmark/data/training/pnt/traj2.csv")
+
+
+    workers = 3
+    grouped_thms = []
+    current_group = []
+    for i, thm in enumerate(thms):
+        current_group.append(thm)
+        if len(current_group) == workers:
+            grouped_thms.append(current_group)
+            current_group = []
+    if current_group:
+        grouped_thms.append(current_group)
+
+    for group in grouped_thms:
+        d, t = process_instancesP(
+            [(thm, method) for thm in group for method in methods],
+            max_workers=workers,
+            output_trajectories=True,
+        )
+
+        data.extend(d)
+        traj.extend(t)
+        save_to_csv(data, "benchmark/data/training/knot/data.csv")
+        save_to_csv(traj, "benchmark/data/training/knot/traj.csv")
