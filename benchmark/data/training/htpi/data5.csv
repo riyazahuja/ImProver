@@ -1,0 +1,586 @@
+repo,file,decl,method,n,metric,model,annotation,syntax_search,mathlib_search,examples,improved_context,og_correct,og_errors,og_score,new_correct,new_errors,new_score,delta,og_raw,new_raw,time
+htpi,HTPILib/Chap4.lean,"theorem Theorem_4_4_6_2 {A : Type} (R : BinRel A) (B : Set A) (b : A)
+    (h1 : partial_order R) (h2 : smallestElt R b B) :
+    minimalElt R b B ∧ ∀ (c : A), minimalElt R c B → b = c ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,24,True,,2,-0.9166666666666666,"theorem Theorem_4_4_6_2 {A : Type} (R : BinRel A) (B : Set A) (b : A)
+    (h1 : partial_order R) (h2 : smallestElt R b B) :
+    minimalElt R b B ∧ ∀ (c : A), minimalElt R c B → b = c := by
+  define at h1     --h1 : reflexive R ∧ transitive R ∧ antisymmetric R
+  define at h2     --h2 : b ∈ B ∧ ∀ (x : A), x ∈ B → R b x
+  apply And.intro
+  · -- Proof that b is minimal
+    define           --Goal : b ∈ B ∧ ¬∃ (x : A), x ∈ B ∧ R x b ∧ x ≠ b
+    apply And.intro h2.left
+    quant_neg        --Goal : ∀ (x : A), ¬(x ∈ B ∧ R x b ∧ x ≠ b)
+    fix x : A
+    demorgan         --Goal : ¬x ∈ B ∨ ¬(R x b ∧ x ≠ b)
+    or_right with h3 --h3 : x ∈ B; Goal : ¬(R x b ∧ x ≠ b)
+    demorgan         --Goal : ¬R x b ∨ x = b
+    or_right with h4 --h4 : R x b; Goal : x = b
+    have h5 : R b x := h2.right x h3
+    have h6 : antisymmetric R := h1.right.right
+    define at h6     --h6 : ∀ (x y : A), R x y → R y x → x = y
+    show x = b from h6 x b h4 h5
+    done
+  · -- Proof that b is only minimal element
+    fix c : A
+    assume h3 : minimalElt R c B
+    define at h3    --h3 : c ∈ B ∧ ¬∃ (x : A), x ∈ B ∧ R x c ∧ x ≠ c
+    contradict h3.right with h4
+                  --h4 : ¬b = c; Goal : ∃ (x : A), x ∈ B ∧ R x c ∧ x ≠ c
+    have h5 : R b c := h2.right c h3.left
+    show ∃ (x : A), x ∈ B ∧ R x c ∧ x ≠ c from
+      Exists.intro b (And.intro h2.left (And.intro h5 h4))
+    done
+  done","    (h1 : partial_order R) (h2 : smallestElt R b B) :
+    minimalElt R b B ∧ ∀ (c : A), minimalElt R c B → b = c  := by
+  cases h1 with _ antisymmR
+  cases h2 with inB minForB",72.80801916122437
+htpi,HTPILib/Chap8Part2.lean,"lemma neb_increase {A : Set Nat} {n s : Nat} (h1 : enum A s n) :
+    ∀ ⦃m : Nat⦄, m ≥ n + 1 → ∀ ⦃t : Nat⦄, num_elts_below A m t → s < t ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,24,True,,3,-0.875,"lemma neb_increase {A : Set Nat} {n s : Nat} (h1 : enum A s n) :
+    ∀ ⦃m : Nat⦄, m ≥ n + 1 → ∀ ⦃t : Nat⦄, num_elts_below A m t → s < t := by
+  by_induc
+  · -- Base Case
+    define at h1
+    fix t : Nat
+    assume h2 : num_elts_below A (n + 1) t
+    rewrite [neb_step_elt h1.left] at h2
+    have h3 : s = t - 1 := neb_unique A h1.right h2.right
+    show s < t from
+      calc s
+        _ = t - 1 := h3
+        _ < t - 1 + 1 := by linarith
+        _ = t := Nat.sub_add_cancel h2.left
+    done
+  · -- Induction Step
+    fix m : Nat
+    assume h2 : m ≥ n + 1
+    assume ih : ∀ ⦃t : Nat⦄, num_elts_below A m t → s < t
+    fix t : Nat
+    assume h3 : num_elts_below A (m + 1) t
+    by_cases h4 : m ∈ A
+    · -- Case 1. h4 : m ∈ A
+      rewrite [neb_step_elt h4] at h3
+      have h5 : s < t - 1 := ih h3.right
+      show s < t from
+        calc s
+          _ < t - 1 := h5
+          _ ≤ t := Nat.sub_le _ _
+      done
+    · -- Case 2. h4 : m ∉ A
+      rewrite [neb_step_not_elt h4] at h3
+      show s < t from ih h3
+      done
+    done
+  done","lemma neb_increase {A : Set Nat} {n s : Nat} (h1 : enum A s n) :
+    ∀ ⦃m : Nat⦄, m ≥ n + 1 → ∀ ⦃t : Nat⦄, num_elts_below A m t → s < t  := by
+  intro m hmn t ht
+  induction m with
+  | 0 =>",79.89203786849976
+htpi,HTPILib/Chap4.lean,"theorem Theorem_4_5_6 {A : Type} (F : Set (Set A)) (h: partition F) :
+    ∃ (R : BinRel A), equiv_rel R ∧ mod A R = F ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,25,True,,1,-0.96,"theorem Theorem_4_5_6 {A : Type} (F : Set (Set A)) (h: partition F) :
+    ∃ (R : BinRel A), equiv_rel R ∧ mod A R = F := by
+  set R : BinRel A := EqRelFromPart F
+  apply Exists.intro R               --Goal : equiv_rel R ∧ mod A R = F
+  apply And.intro (Lemma_4_5_7 F h)  --Goal : mod A R = F
+  apply Set.ext
+  fix X : Set A                      --Goal :  X ∈ mod A R ↔ X ∈ F
+  apply Iff.intro
+  · -- (→)
+    assume h2 : X ∈ mod A R          --Goal : X ∈ F
+    define at h2                     --h2 : ∃ (x : A), equivClass R x = X
+    obtain (x : A) (h3 : equivClass R x = X) from h2
+    have h4 : x ∈ ⋃₀ F := h.left x
+    define at h4
+    obtain (Y : Set A) (h5 : Y ∈ F ∧ x ∈ Y) from h4
+    have h6 : equivClass R x = Y :=
+      Lemma_4_5_8 F h Y h5.left x h5.right
+    rewrite [←h3, h6]
+    show Y ∈ F from h5.left
+    done
+  · -- (←)
+    assume h2 : X ∈ F                --Goal : X ∈ mod A R
+    have h3 : ¬empty X := h.right.right X h2
+    define at h3; double_neg at h3   --h3 : ∃ (x : A), x ∈ X
+    obtain (x : A) (h4 : x ∈ X) from h3
+    define                       --Goal : ∃ (x : A), equivClass R x = X
+    show ∃ (x : A), equivClass R x = X from
+      Exists.intro x (Lemma_4_5_8 F h X h2 x h4)
+    done
+  done","theorem Theorem_4_5_6 {A : Type} (F : Set (Set A)) (h: partition F) :
+    ∃ (R : BinRel A), equiv_rel R ∧ mod A R = F   := by
+  exact ⟨EqRelFromPart F, Lemma_4_5_7 F h, Set.ext (λ X, ⟨λ ⟨x, hx⟩, (h.left x).elim (λ Y hY hxY, by rw [←hx, Lemma_4_5_8 F h Y hY x hxY]; exact hY), λ hX, (h.right.right X hX).elim (λ x hx, ⟨x, Lemma_4_5_8 F h X hX x hx⟩)⟩)⟩",46.820209980010986
+htpi,HTPILib/Chap8Part2.lean,theorem Cantor's_theorem : ¬ctble (𝒫 (Univ Nat)) ,"refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,24,True,,13,-0.4583333333333333,"theorem Cantor's_theorem : ¬ctble (𝒫 (Univ Nat)) := by
+  by_contra h1
+  rewrite [Theorem_8_1_5_2] at h1
+  obtain (R : Rel Nat (Set Nat))
+    (h2 : fcnl_onto_from_nat R (𝒫 (Univ Nat))) from h1
+  define at h2
+  have h3 : unique_val_on_N R := h2.left
+  have h4 : nat_rel_onto R (𝒫 (Univ Nat)) := h2.right
+  set D : Set Nat := {n : Nat | ∃ (X : Set Nat), R n X ∧ n ∉ X}
+  have h5 : D ∈ 𝒫 (Univ Nat) := set_elt_powerset_univ D
+  define at h4
+  obtain (n : Nat) (h6 : R n D) from h4 h5
+  by_cases h7 : n ∈ D
+  · -- Case 1. h7 : n ∈ D
+    contradict h7
+    define at h7
+    obtain (X : Set Nat) (h8 : R n X ∧ n ∉ X) from h7
+    define at h3
+    have h9 : D = X := h3 h6 h8.left
+    rewrite [h9]
+    show n ∉ X from h8.right
+    done
+  · -- Case 2. h7 : n ∉ D
+    contradict h7
+    define
+    show ∃ (X : Set Nat), R n X ∧ n ∉ X from
+      Exists.intro D (And.intro h6 h7)
+    done
+  done","theorem Cantor's_theorem : ¬ctble (𝒫 (Univ Nat))  := by
+  by_contra h1
+  obtain (R : Rel Nat (Set Nat)) (h2 : fcnl_onto_from_nat R (𝒫 (Univ Nat))) from (Theorem_8_1_5_2.mp h1)
+  set D : Set Nat := {n : Nat | ∃ (X : Set Nat), R n X ∧ n ∉ X}
+  obtain (n : Nat) (h3 : R n D) from h2.right (set_elt_powerset_univ D)
+  by_cases h4 : n ∈ D
+  · exact h4.2 h4.1
+  · exact h4 ⟨D, h3, h4⟩
+
+
+
+
+",119.27199697494507
+htpi,HTPILib/Chap4.lean,"theorem Theorem_4_2_5_4 {A B C D : Type}
+    (R : Set (A × B)) (S : Set (B × C)) (T : Set (C × D)) :
+    comp T (comp S R) = comp (comp T S) R ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,28,True,,4,-0.8571428571428571,"theorem Theorem_4_2_5_4 {A B C D : Type}
+    (R : Set (A × B)) (S : Set (B × C)) (T : Set (C × D)) :
+    comp T (comp S R) = comp (comp T S) R := by
+  apply Set.ext
+  fix (a, d) : A × D
+  apply Iff.intro
+  · -- (→)
+    assume h1 : (a, d) ∈ comp T (comp S R)
+                     --Goal : (a, d) ∈ comp (comp T S) R
+    define           --Goal : ∃ (x : B), (a, x) ∈ R ∧ (x, d) ∈ comp T S
+    define at h1     --h1 : ∃ (x : C), (a, x) ∈ comp S R ∧ (x, d) ∈ T
+    obtain (c : C) (h2 : (a, c) ∈ comp S R ∧ (c, d) ∈ T) from h1
+    have h3 : (a, c) ∈ comp S R := h2.left
+    define at h3     --h3 : ∃ (x : B), (a, x) ∈ R ∧ (x, c) ∈ S
+    obtain (b : B) (h4 : (a, b) ∈ R ∧ (b, c) ∈ S) from h3
+    apply Exists.intro b    --Goal : (a, b) ∈ R ∧ (b, d) ∈ comp T S
+    apply And.intro h4.left --Goal : (b, d) ∈ comp T S
+    define                  --Goal : ∃ (x : C), (b, x) ∈ S ∧ (x, d) ∈ T
+    show ∃ (x : C), (b, x) ∈ S ∧ (x, d) ∈ T from
+      Exists.intro c (And.intro h4.right h2.right)
+    done
+  · -- (←)
+    assume h1 : (a, d) ∈ comp (comp T S) R
+    define; define at h1
+    obtain (b : B) (h2 : (a, b) ∈ R ∧ (b, d) ∈ comp T S) from h1
+    have h3 : (b, d) ∈ comp T S := h2.right
+    define at h3
+    obtain (c : C) (h4 : (b, c) ∈ S ∧ (c, d) ∈ T) from h3
+    apply Exists.intro c
+    apply And.intro _ h4.right
+    define
+    show ∃ (x : B), (a, x) ∈ R ∧ (x, c) ∈ S from
+      Exists.intro b (And.intro h2.left h4.left)
+    done
+  done","theorem Theorem_4_2_5_4 {A B C D : Type}
+    (R : Set (A × B)) (S : Set (B × C)) (T : Set (C × D)) :
+    comp T (comp S R) = comp (comp T S) R   := by
+  ext ⟨a, d⟩
+  constructor
+  exact fun ⟨c, ⟨⟨b, h1, h2⟩, h3⟩⟩ => ⟨b, h1, c, h2, h3⟩
+  exact fun ⟨b, h1, c, h2, h3⟩ => ⟨c, ⟨b, h1, h2⟩, h3⟩",43.94978094100952
+htpi,HTPILib/Chap8Part2.lean,lemma fnnn_onto : onto fnnn ,"refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,28,True,,28,0.0,"lemma fnnn_onto : onto fnnn := by
+  define  --Goal : ∀ (y : Nat), ∃ (x : Nat × Nat), fnnn x = y
+  by_induc
+  · -- Base Case
+    apply Exists.intro (0, 0)
+    rfl
+    done
+  · -- Induction Step
+    fix n : Nat
+    assume ih : ∃ (x : Nat × Nat), fnnn x = n
+    obtain ((a, b) : Nat × Nat) (h1 : fnnn (a, b) = n) from ih
+    by_cases h2 : b = 0
+    · -- Case 1. h2 : b = 0
+      apply Exists.intro (0, a + 1)
+      show fnnn (0, a + 1) = n + 1 from
+        calc fnnn (0, a + 1)
+          _ = tri (0 + (a + 1)) + 0 := by rfl
+          _ = tri (a + 1) := by ring
+          _ = tri a + a + 1 := tri_step a
+          _ = tri (a + 0) + a + 1 := by ring
+          _ = fnnn (a, b) + 1 := by rw [h2, fnnn_def]
+          _ = n + 1 := by rw [h1]
+      done
+    · -- Case 2. h2 : b ≠ 0
+      obtain (k : Nat) (h3 : b = k + 1) from
+        exists_eq_add_one_of_ne_zero h2
+      apply Exists.intro (a + 1, k)
+      show fnnn (a + 1, k) = n + 1 from
+        calc fnnn (a + 1, k)
+          _ = tri (a + 1 + k) + (a + 1) := by rfl
+          _ = tri (a + (k + 1)) + a + 1 := by ring
+          _ = tri (a + b) + a + 1 := by rw [h3]
+          _ = fnnn (a, b) + 1 := by rfl
+          _ = n + 1 := by rw [h1]
+      done
+    done
+  done","lemma fnnn_onto : onto fnnn := by
+  define  --Goal : ∀ (y : Nat), ∃ (x : Nat × Nat), fnnn x = y
+  by_induc
+  · -- Base Case
+    apply Exists.intro (0, 0)
+    rfl
+    done
+  · -- Induction Step
+    fix n : Nat
+    assume ih : ∃ (x : Nat × Nat), fnnn x = n
+    obtain ((a, b) : Nat × Nat) (h1 : fnnn (a, b) = n) from ih
+    by_cases h2 : b = 0
+    · -- Case 1. h2 : b = 0
+      apply Exists.intro (0, a + 1)
+      show fnnn (0, a + 1) = n + 1 from
+        calc fnnn (0, a + 1)
+          _ = tri (0 + (a + 1)) + 0 := by rfl
+          _ = tri (a + 1) := by ring
+          _ = tri a + a + 1 := tri_step a
+          _ = tri (a + 0) + a + 1 := by ring
+          _ = fnnn (a, b) + 1 := by rw [h2, fnnn_def]
+          _ = n + 1 := by rw [h1]
+      done
+    · -- Case 2. h2 : b ≠ 0
+      obtain (k : Nat) (h3 : b = k + 1) from
+        exists_eq_add_one_of_ne_zero h2
+      apply Exists.intro (a + 1, k)
+      show fnnn (a + 1, k) = n + 1 from
+        calc fnnn (a + 1, k)
+          _ = tri (a + 1 + k) + (a + 1) := by rfl
+          _ = tri (a + (k + 1)) + a + 1 := by ring
+          _ = tri (a + b) + a + 1 := by rw [h3]
+          _ = fnnn (a, b) + 1 := by rfl
+          _ = n + 1 := by rw [h1]
+      done
+    done
+  done",59.40032482147217
+htpi,HTPILib/Chap8Part2.lean,"theorem eq_of_I_equinum : ∀ ⦃m n : Nat⦄, I m ∼ I n → m = n ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,28,True,,1,-0.9642857142857143,"theorem eq_of_I_equinum : ∀ ⦃m n : Nat⦄, I m ∼ I n → m = n := by
+  by_induc
+  · -- Base Case
+    fix n : Nat
+    assume h1 : I 0 ∼ I n
+    show 0 = n from (eq_zero_of_I_zero_equinum h1).symm
+    done
+  · -- Induction Step
+    fix m : Nat
+    assume ih : ∀ ⦃n : Nat⦄, I m ∼ I n → m = n
+    fix n : Nat
+    assume h1 : I (m + 1) ∼ I n      --Goal : m + 1 = n
+    have h2 : n ≠ 0 := by
+      by_contra h2
+      have h3 : I n ∼ I (m + 1) := Theorem_8_1_3_2 h1
+      rewrite [h2] at h3
+      have h4 : m + 1 = 0 := eq_zero_of_I_zero_equinum h3
+      linarith
+      done
+    obtain (k : Nat) (h3 : n = k + 1) from exists_eq_add_one_of_ne_zero h2
+    rewrite [h3] at h1               --h1 : I (m + 1) ∼ I (k + 1)
+    rewrite [h3]                     --Goal : m + 1 = k + 1
+    have h4 : m ∈ I (m + 1) := I_max m
+    have h5 : k ∈ I (k + 1) := I_max k
+    have h6 : I (m + 1) \ {m} ∼ I (k + 1) \ {k} :=
+      remove_one_equinum h1 h4 h5
+    rewrite [I_diff, I_diff] at h6   --h6 : I m ∼ I k
+    have h7 : m = k := ih h6
+    rewrite [h7]
+    rfl
+    done
+  done","theorem eq_of_I_equinum : ∀ ⦃m n : Nat⦄, I m ∼ I n → m = n  := by
+  by_induc
+  case Base_Case fix n assume h1
+  exact (eq_zero_of_I_zero_equinum h1).symm",86.53335285186768
+htpi,HTPILib/Chap5.lean,"theorem Theorem_5_1_5 {A B C : Type} (f : A → B) (g : B → C) :
+    ∃ (h : A → C), graph h = comp (graph g) (graph f) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,29,True,,29,0.0,"theorem Theorem_5_1_5 {A B C : Type} (f : A → B) (g : B → C) :
+    ∃ (h : A → C), graph h = comp (graph g) (graph f) := by
+  set h : A → C := fun (x : A) => g (f x)
+  apply Exists.intro h
+  apply Set.ext
+  fix (a, c) : A × C
+  apply Iff.intro
+  · -- Proof that (a, c) ∈ graph h → (a, c) ∈ comp (graph g) (graph f)
+    assume h1 : (a, c) ∈ graph h
+    define at h1  --h1 : h a = c
+    define        --Goal : ∃ (x : B), (a, x) ∈ graph f ∧ (x, c) ∈ graph g
+    apply Exists.intro (f a)
+    apply And.intro
+    · -- Proof that (a, f a) ∈ graph f
+      define
+      rfl
+      done
+    · -- Proof that (f a, c) ∈ graph g
+      define
+      show g (f a) = c from h1
+      done
+    done
+  · -- Proof that (a, c) ∈ comp (graph g) (graph f) → (a, c) ∈ graph h
+    assume h1 : (a, c) ∈ comp (graph g) (graph f)
+    define        --Goal : h a = c
+    define at h1  --h1 : ∃ (x : B), (a, x) ∈ graph f ∧ (x, c) ∈ graph g
+    obtain (b : B) (h2 : (a, b) ∈ graph f ∧ (b, c) ∈ graph g) from h1
+    have h3 : (a, b) ∈ graph f := h2.left
+    have h4 : (b, c) ∈ graph g := h2.right
+    define at h3          --h3 : f a = b
+    define at h4          --h4 : g b = c
+    rewrite [←h3] at h4   --h4 : g (f a) = c
+    show h a = c from h4
+    done
+  done","theorem Theorem_5_1_5 {A B C : Type} (f : A → B) (g : B → C) :
+    ∃ (h : A → C), graph h = comp (graph g) (graph f) := by
+  set h : A → C := fun (x : A) => g (f x)
+  apply Exists.intro h
+  apply Set.ext
+  fix (a, c) : A × C
+  apply Iff.intro
+  · -- Proof that (a, c) ∈ graph h → (a, c) ∈ comp (graph g) (graph f)
+    assume h1 : (a, c) ∈ graph h
+    define at h1  --h1 : h a = c
+    define        --Goal : ∃ (x : B), (a, x) ∈ graph f ∧ (x, c) ∈ graph g
+    apply Exists.intro (f a)
+    apply And.intro
+    · -- Proof that (a, f a) ∈ graph f
+      define
+      rfl
+      done
+    · -- Proof that (f a, c) ∈ graph g
+      define
+      show g (f a) = c from h1
+      done
+    done
+  · -- Proof that (a, c) ∈ comp (graph g) (graph f) → (a, c) ∈ graph h
+    assume h1 : (a, c) ∈ comp (graph g) (graph f)
+    define        --Goal : h a = c
+    define at h1  --h1 : ∃ (x : B), (a, x) ∈ graph f ∧ (x, c) ∈ graph g
+    obtain (b : B) (h2 : (a, b) ∈ graph f ∧ (b, c) ∈ graph g) from h1
+    have h3 : (a, b) ∈ graph f := h2.left
+    have h4 : (b, c) ∈ graph g := h2.right
+    define at h3          --h3 : f a = b
+    define at h4          --h4 : g b = c
+    rewrite [←h3] at h4   --h4 : g (f a) = c
+    show h a = c from h4
+    done
+  done",37.91152381896973
+htpi,HTPILib/Chap8Part2.lean,"lemma neb_unique (A : Set Nat) : ∀ ⦃n : Nat⦄, ∀ ⦃s1 s2 : Nat⦄,
+    num_elts_below A n s1 → num_elts_below A n s2 → s1 = s2 ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,29,True,,20,-0.3103448275862069,"lemma neb_unique (A : Set Nat) : ∀ ⦃n : Nat⦄, ∀ ⦃s1 s2 : Nat⦄,
+    num_elts_below A n s1 → num_elts_below A n s2 → s1 = s2 := by
+  by_induc
+  · -- Base Case
+    fix s1 : Nat; fix s2 : Nat
+    assume h1 : num_elts_below A 0 s1
+    assume h2 : num_elts_below A 0 s2
+    define at h1; define at h2  --h1 : s1 = 0; h2 : s2 = 0
+    rewrite [h1, h2]
+    rfl
+    done
+  · -- Induction Step
+    fix n : Nat
+    assume ih : ∀ ⦃s1 s2 : Nat⦄,
+      num_elts_below A n s1 → num_elts_below A n s2 → s1 = s2
+    fix s1 : Nat; fix s2 : Nat
+    assume h1 : num_elts_below A (n + 1) s1
+    assume h2 : num_elts_below A (n + 1) s2
+    by_cases h3 : n ∈ A
+    · -- Case 1. h3 : n ∈ A
+      rewrite [neb_step_elt h3] at h1
+      rewrite [neb_step_elt h3] at h2
+        --h1 : 1 ≤ s1 ∧ num_elts_below A n (s1 - 1)
+        --h2 : 1 ≤ s2 ∧ num_elts_below A n (s2 - 1)
+      have h4 : s1 - 1 = s2 - 1 := ih h1.right h2.right
+      show s1 = s2 from
+        calc s1
+          _ = s1 - 1 + 1 := (Nat.sub_add_cancel h1.left).symm
+          _ = s2 - 1 + 1 := by rw [h4]
+          _ = s2 := Nat.sub_add_cancel h2.left
+      done
+    · -- Case 2. h3 : n ∉ A
+      rewrite [neb_step_not_elt h3] at h1 --h1 : num_elts_below A n s1
+      rewrite [neb_step_not_elt h3] at h2 --h2 : num_elts_below A n s2
+      show s1 = s2 from ih h1 h2
+      done
+    done
+  done","lemma neb_unique (A : Set Nat) : ∀ ⦃n : Nat⦄, ∀ ⦃s1 s2 : Nat⦄,
+    num_elts_below A n s1 → num_elts_below A n s2 → s1 = s2  := by
+  by induction n generalizing s1 s2 <;> simp [num_elts_below] <;> intros h1 h2
+  case zero => rw [h1, h2]; rfl
+  case succ => by_cases h3 : n ∈ A; simp [*] at *; try { rfl }; rw [Nat.sub_eq_iff_eq_add h1.left, Nat.sub_eq_iff_eq_add h2.left, ih h1.right h2.right]
+
+
+
+
+",52.24186420440674
+htpi,HTPILib/Chap8Part2.lean,"lemma bdd_subset_nat_match {A : Set Nat} {m s : Nat}
+    (h1 : ∀ n ∈ A, n < m) (h2 : num_elts_below A m s) :
+    matching (enum A) (I s) A ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,29,True,,29,0.0,"lemma bdd_subset_nat_match {A : Set Nat} {m s : Nat}
+    (h1 : ∀ n ∈ A, n < m) (h2 : num_elts_below A m s) :
+    matching (enum A) (I s) A := by
+  define
+  apply And.intro
+  · -- Proof of rel_within
+    define
+    fix t : Nat; fix n : Nat
+    assume h3 : enum A t n
+    have h4 : ∀ ⦃m : Nat⦄, m ≥ n + 1 → ∀ ⦃t_1 : Nat⦄, num_elts_below A m t_1 → t < t_1 :=
+      neb_increase h3
+    define at h3
+    apply And.intro _ h3.left
+    define
+    have h5 : n < m := h1 n h3.left
+    have h6 : m ≥ n + 1 := h5
+    show t < s from h4 h6 h2
+    done
+  · -- Proof of fcnl_ons
+    apply And.intro
+    · -- proof of fcnl_on (enum A) (I s)
+      define
+      fix t : Nat
+      assume h3 : t ∈ I s
+      define at h3
+      exists_unique
+      · -- Existence
+        show ∃ (y : Nat), enum A t y from enum_not_skip h2 t h3
+        done
+      · -- Uniqueness
+        show ∀ (y_1 y_2 : Nat), enum A t y_1 → enum A t y_2 → y_1 = y_2 from
+          enum_unique A t
+        done
+      done
+    · -- Proof of fcnl_on (invRel (enum A)) A
+      show fcnl_on (invRel (enum A)) A from inv_enum_fcnl A
+      done
+    done
+  done","lemma bdd_subset_nat_match {A : Set Nat} {m s : Nat}
+    (h1 : ∀ n ∈ A, n < m) (h2 : num_elts_below A m s) :
+    matching (enum A) (I s) A := by
+  define
+  apply And.intro
+  · -- Proof of rel_within
+    define
+    fix t : Nat; fix n : Nat
+    assume h3 : enum A t n
+    have h4 : ∀ ⦃m : Nat⦄, m ≥ n + 1 → ∀ ⦃t_1 : Nat⦄, num_elts_below A m t_1 → t < t_1 :=
+      neb_increase h3
+    define at h3
+    apply And.intro _ h3.left
+    define
+    have h5 : n < m := h1 n h3.left
+    have h6 : m ≥ n + 1 := h5
+    show t < s from h4 h6 h2
+    done
+  · -- Proof of fcnl_ons
+    apply And.intro
+    · -- proof of fcnl_on (enum A) (I s)
+      define
+      fix t : Nat
+      assume h3 : t ∈ I s
+      define at h3
+      exists_unique
+      · -- Existence
+        show ∃ (y : Nat), enum A t y from enum_not_skip h2 t h3
+        done
+      · -- Uniqueness
+        show ∀ (y_1 y_2 : Nat), enum A t y_1 → enum A t y_2 → y_1 = y_2 from
+          enum_unique A t
+        done
+      done
+    · -- Proof of fcnl_on (invRel (enum A)) A
+      show fcnl_on (invRel (enum A)) A from inv_enum_fcnl A
+      done
+    done
+  done",60.48232412338257
+htpi,HTPILib/Chap8Part2.lean,"lemma Lemma_7_4_7 {m n : Nat} [NeZero m] [NeZero n]
+    (h1 : rel_prime m n) (a b : Nat) :
+    ∃ (r : Nat), r < m * n ∧ r ≡ a (MOD m) ∧ r ≡ b (MOD n) ","refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,29,True,,7,-0.7586206896551724,"lemma Lemma_7_4_7 {m n : Nat} [NeZero m] [NeZero n]
+    (h1 : rel_prime m n) (a b : Nat) :
+    ∃ (r : Nat), r < m * n ∧ r ≡ a (MOD m) ∧ r ≡ b (MOD n) := by
+  set s : Int := gcd_c1 m n
+  set t : Int := gcd_c2 m n
+  have h4 : s * m + t * n = gcd m n := gcd_lin_comb n m
+  define at h1                      --h1 : gcd m n = 1
+  rewrite [h1, Nat.cast_one] at h4  --h4 : s * m + t * n = 1
+  set x : Int := t * n * a + s * m * b
+  have h5 : x ≡ a (MOD m) := Lemma_7_4_7_aux h4 a b
+  rewrite [add_comm] at h4          --h4 : t * n + s * m = 1
+  have h6 : s * m * b + t * n * a ≡ b (MOD n) :=
+    Lemma_7_4_7_aux h4 b a
+  have h7 : s * m * b + t * n * a = x := by ring
+  rewrite [h7] at h6                --h6 : x ≡ b (MOD n)
+  have h8 : m * n ≠ 0 := mul_ne_zero (NeZero.ne m) (NeZero.ne n)
+  rewrite [←neZero_iff] at h8       --h8 : NeZero (m * n)
+  have h9 : 0 ≤ x % ↑(m * n) ∧ x % ↑(m * n) < ↑(m * n) ∧
+    x ≡ x % ↑(m * n) (MOD m * n) := mod_cmpl_res (m * n) x
+  have h10 : x % ↑(m * n) < ↑(m * n) ∧
+    x ≡ x % ↑(m * n) (MOD m * n) := h9.right
+  set r : Nat := Int.toNat (x % ↑(m * n))
+  have h11 : x % ↑(m * n) = ↑r := (Int.toNat_of_nonneg h9.left).symm
+  rewrite [h11, Nat.cast_lt] at h10 --h10 : r < m * n ∧ x ≡ r (MOD m * n)
+  apply Exists.intro r
+  apply And.intro h10.left
+  have h12 : r ≡ x (MOD (m * n)) := congr_symm h10.right
+  rewrite [Lemma_7_4_5 _ _ h1] at h12 --h12 : r ≡ x (MOD m) ∧ r ≡ x (MOD n)
+  apply And.intro
+  · -- Proof that r ≡ a (MOD m)
+    show r ≡ a (MOD m) from congr_trans h12.left h5
+    done
+  · -- Proof that r ≡ b (MOD n)
+    show r ≡ b (MOD n) from congr_trans h12.right h6
+    done
+  done","lemma Lemma_7_4_7 {m n : Nat} [NeZero m] [NeZero n]
+    (h1 : rel_prime m n) (a b : Nat) :
+    ∃ (r : Nat), r < m * n ∧ r ≡ a (MOD m) ∧ r ≡ b (MOD n)  := by
+  set s : Int := gcd_c1 m n
+  set t : Int := gcd_c2 m n
+  have h4 : s * m + t * n = gcd m n := gcd_lin_comb n m
+  rw [h1, Nat.cast_one] at h4
+  set x : Int := t * n * a + s * m * b
+  have h5 : x ≡ a (MOD m) := Lemma_7_4_7_aux h4 a b
+  have h6 : x ≡ b (MOD n) := Lemma_7_4_7_aux h4.symm b a
+  have ⟨l, hl⟩ := mod_cmpl_res (m * n) x
+  use Int.toNat (x % ↑(m * n))
+  rw Int.toNat_of_nonneg hl.1",101.01449084281921
+htpi,HTPILib/Chap8Part2.lean,lemma Lemma_8_2_4_3 {U : Type} (A : Set U) : ⋃₀ (sbl_set A) = seq A ,"refinement(best_of_n_n(prompt_flat), prev_data_num=1, keep_best=True)",3,LENGTH,gpt-4o,True,True,True,10,False,True,,29,True,,2,-0.9310344827586207,"lemma Lemma_8_2_4_3 {U : Type} (A : Set U) : ⋃₀ (sbl_set A) = seq A := by
+  apply Set.ext
+  fix l : List U
+  apply Iff.intro
+  · -- (→)
+    assume h1 : l ∈ ⋃₀ (sbl_set A)
+    define at h1
+    obtain (S : Set (List U)) (h2 :  S ∈ sbl_set A ∧ l ∈ S) from h1
+    have h3 : S ∈ sbl_set A := h2.left
+    define at h3
+    obtain (n : Nat) (h4 : seq_by_length A n = S) from h3
+    have h5 : l ∈ S := h2.right
+    rewrite [←h4] at h5
+    define at h5
+    show l ∈ seq A from h5.left
+    done
+  · -- (←)
+    assume h1 : l ∈ seq A
+    define
+    set n : Nat := l.length
+    apply Exists.intro (seq_by_length A n)
+    apply And.intro
+    · -- Proof of seq_by_length A n ∈ sbl_set A
+      define
+      apply Exists.intro n
+      rfl
+      done
+    · -- Proof of l ∈ seq_by_length A n
+      define
+      apply And.intro h1
+      rfl
+      done
+    done
+  done","lemma Lemma_8_2_4_3 {U : Type} (A : Set U) : ⋃₀ (sbl_set A) = seq A  := by
+  ext l
+  simp [sbl_set, seq, seq_by_length]",113.50588321685791

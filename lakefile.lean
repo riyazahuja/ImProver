@@ -7,11 +7,18 @@ import Lake
 
     
 
-    require braid_project from "/Users/ahuja/Desktop/braids_better"
+    require htpi from git
+    "https://github.com/djvelleman/HTPILeanPackage.git" @ "master"
 
     @[default_target]
     lean_lib TrainingData where
 
     lean_lib Examples where
+
+    lean_exe training_data where
+    root := `scripts.training_data
+    
+    lean_exe constants where
+    root := `scripts.constants
 
     

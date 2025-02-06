@@ -99,6 +99,7 @@ def get_mathlib_vs(
         future_to_thm = [
             executor.submit(add_vs, i) for i in range(1, len(docs_chunked))
         ]
+        executor.shutdown(wait=True)
 
     return vectorstore
 

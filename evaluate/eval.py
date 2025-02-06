@@ -42,14 +42,20 @@ def eval_correctness_batched(thms, sorries_are_errors=True):
             f"Input is not a Theorem/AnnotatedTheorem obj:\nthm:\n{thm}\ntype: {type(thm)}"
         )
 
-    thms_enum = [(i, thm) for i, thm in enumerate(thms)]
-    unannotated = [item for item in thms_enum if type(item[1]) == Theorem]
-    annotated = {i: thm for item in thms_enum if type(item[1]) == AnnotatedTheorem}
-    annotated_raw = annotateTheorems([thm for _, thm in unannotated])
-    for i in range(len(annotated_raw)):
-        annotated[unannotated[i][0]] = annotated_raw[i]
+    if all([type(thm) == AnnotatedTheorem for thm in thms]):
+        thms_new = thms
+    else:
+        thms_enum = [(i, thm) for i, thm in enumerate(thms)]
+        unannotated = [item for item in thms_enum if type(item[1]) == Theorem]
+        annotated = {
+            item[0]: item[1] for item in thms_enum if type(item[1]) == AnnotatedTheorem
+        }
+        annotated_raw = annotateTheorems([thm for _, thm in unannotated])
+        for i in range(len(annotated_raw)):
+            annotated[unannotated[i][0]] = annotated_raw[i]
 
-    thms_new = [annotated[i] for i in range(len(thms))]
+        thms_new = [annotated[i] for i in range(len(thms))]
+
     output = []
     for new_thm in thms_new:
 

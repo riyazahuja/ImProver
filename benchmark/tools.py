@@ -16,6 +16,7 @@ import itertools
 from tqdm import tqdm
 from multiprocessing import cpu_count
 import re
+from collections import Counter
 
 
 def extract_data(thm, method, trajectory_position):
@@ -174,11 +175,11 @@ def process_instance(thm: AnnotatedTheorem, method, output_trajectories=False):
         "new_raw": new_raw,
         "time": processing_time,
     }, (parse_trajectories(trajectories, method) if output_trajectories else None)
-    
+
     print(
         f"({datetime.now(pytz.timezone('US/Eastern')).timetz()}) Instance Processing Completed in {time.time()-tt}s"
     )
-    
+
     return out
 
 
@@ -204,6 +205,7 @@ def process_instances(
                 ]
                 for future in concurrent.futures.as_completed(futures):
                     pbar.update(1)
+                executor.shutdown(wait=True)
     else:
         with ThreadPoolExecutor(
             max_workers=min(max_workers, len(instances))
@@ -217,6 +219,7 @@ def process_instances(
                 )
                 for i in instances
             ]
+            executor.shutdown(wait=True)
     data_raw = [future.result(timeout=1) for future in futures]
 
     data = [item for item, traj in data_raw]
@@ -264,6 +267,7 @@ def process_instancesP(instances, max_workers=None, output_trajectories=False):
                         json.dump(errors, f)
                     pass
                 pbar.update(1)
+            executor.shutdown(wait=True)
 
     return data, trajectories
 
@@ -390,6 +394,19 @@ def improver(*metrics):
     )
 
 
+def improver2(*metrics):
+    return get_methods(
+        model=["gpt-4o"],
+        fn=[refinement(best_of_n_n(prompt_flat, 5, max_workers=5), keep_best=True)],
+        n=[3],
+        annotation=[True],
+        examples=[10],
+        metric=metrics,
+        syntax_search=[True],
+        mathlib_search=[True],
+    )
+
+
 def get_cost(obj, methods):
     price_pt = {
         "gpt-4o-mini": (0.150 / 1000000, 0.600 / 1000000),
@@ -444,17 +461,15 @@ def no_errors(thms):
 
 if __name__ == "__main__":
 
-    methods = improver(length_metric())
+    methods = improver2(length_metric())
 
-    repo = getRepo("braid_project", "configs/config_knot.json")
+    repo = getRepo("htpi", "configs/config_htpi.json")
     files = {file.file_path: file for file in repo.files}
 
-    fs = [
-        files[name]
-        for name in files.keys()
-        if type(files[name]) == AnnotatedFile
-    ]
-    fs = fs[:math.floor(len(fs) * 0.8)]
+    fs = [files[name] for name in files.keys() if type(files[name]) == AnnotatedFile]
+
+    fs = fs[: math.floor(0.8 * len(fs))]
+
     thms = [
         thm
         for f in fs
@@ -462,8 +477,8 @@ if __name__ == "__main__":
         if type(f) == AnnotatedFile
         and no_errors([thm])
         and type(thm) == AnnotatedTheorem
-        and len(thm.proof) > 5
-        and len(thm.proof) < 50
+        and len(thm.proof) > 4
+        and len(thm.proof) < 30
         and ("lemma" in thm.decl or "example" in thm.decl or "theorem" in thm.decl)
     ]
 
@@ -480,22 +495,29 @@ if __name__ == "__main__":
             unique_thms.append(thm)
             seen_decls.add(trim_decl)
     thms = unique_thms
+    thms = thms[:100]
     thms = sorted(thms, key=lambda x: len(x.proof))
-
+    # thms = [thm for f in fs for thm in f.theorems]
     print(f"Benchmarking {len(thms)} theorems")
 
     data = []
     traj = []
     errors = []
 
-    # thms = thms
-    # for thm in thms:
-    #     d,t = benchmark_theorem(thm, methods, max_workers=3, output_trajectories=True)
+    # for thm in thms[:3]:
+    #     d, t = benchmark_theorem(thm, methods, max_workers=5, output_trajectories=True)
     #     data.extend(d)
     #     traj.extend(t)
-    #     save_to_csv(data, "benchmark/data/training/pnt/data2.csv")
-    #     save_to_csv(traj, "benchmark/data/training/pnt/traj2.csv")
+    #     save_to_csv(data, "benchmark/data/training/mathlib/category/data.csv")
+    #     save_to_csv(traj, "benchmark/data/training/mathlib/category/traj.csv")
 
+    latest = """theorem Theorem_4_4_6_2 {A : Type} (R : BinRel A) (B : Set A) (b : A)
+    (h1 : partial_order R) (h2 : smallestElt R b B) :
+    minimalElt R b B ∧ ∀ (c : A), minimalElt R c B → b = c"""
+
+    idx = thms.index(next(thm for thm in thms if latest in thm.decl))
+    print(idx)
+    thms = thms[idx:]
 
     workers = 3
     grouped_thms = []
@@ -517,5 +539,5 @@ if __name__ == "__main__":
 
         data.extend(d)
         traj.extend(t)
-        save_to_csv(data, "benchmark/data/training/knot/data.csv")
-        save_to_csv(traj, "benchmark/data/training/knot/traj.csv")
+        save_to_csv(data, "benchmark/data/training/htpi/data5.csv")
+        save_to_csv(traj, "benchmark/data/training/htpi/traj5.csv")

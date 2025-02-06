@@ -418,8 +418,9 @@ def prompt_flat(
         )
 
     final = coerce_trimmedThm(output)
+    anno = annotateTheorem(final)
 
-    return final, final
+    return anno, anno
 
 
 def prompt_structured(
@@ -583,19 +584,8 @@ def best_of_n(
                             examples=examples,
                             improved_context=improved_context,
                         )
-                        if i >= mixup * n
-                        else executor.submit(
-                            prompt_fn,
-                            thm,
-                            metric,
-                            prev_data=prev_data,
-                            model=model,
-                            annotation=annotation,
-                            examples=examples,
-                            improved_context=improved_context,
-                        )
                     )
-                    for i in range(n)
+                    for _ in range(n)
                 ]
                 stt = time.time()
                 for future in concurrent.futures.as_completed(futures):
@@ -603,6 +593,7 @@ def best_of_n(
                     # correct, _, _ = eval_correctness(output)
                     thms_raw.append(output)
                     trajectories.append(prompt_trajectories)
+                executor.shutdown(wait=True)
 
             correct_parsed = eval_correctness_batched(thms_raw)
             # thms.extend(
