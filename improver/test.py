@@ -2,11 +2,13 @@ from typing import List
 from pantograph.data import CompilationUnit
 from pantograph import Server
 from pantograph.expr import *
+from pantograph.server import ServerError
 import re
 import os
 import tempfile
 import subprocess
 import json
+import time
 
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -62,6 +64,7 @@ class Repo:
         self.imports = imports
 
         self.server = None
+        self.files = None
 
         if url is not None and commit is not None:
             self.is_remote = True
@@ -69,27 +72,51 @@ class Repo:
             self.is_remote = False
         else:
             raise ValueError(
-                "Please specify either a remote repo or a local project path."
+                f"Please specify either a remote repo or a local project path.\n\n{name} | {url} | {commit} | {project_path} | {imports}"
             )
 
-    def get_server(self, force=False):
+    def get_server(self, force=False) -> Server:
         if self.server is None or force:
-            self.server = Server(imports=self.imports, project_path=self.project_path)
+            print("Getting server...")
+            start = time.time()
+            self.server = Server(
+                imports=self.imports, project_path=self.get_project_path()
+            )
+            print("Server obtained after " + str(time.time() - start) + "s")
+
         return self.server
 
-    def get_project_path(self):
+    def get_project_path(self, rebuild=False) -> str:
+        if self.project_path is not None:
+            return self.project_path
         if self.is_remote:
             repos_dir = ".repos"
             os.makedirs(repos_dir, exist_ok=True)
             clone_path = os.path.join(repos_dir, self.name)
             if not os.path.exists(clone_path):
                 subprocess.run(["git", "clone", self.url, clone_path], check=True)
-            subprocess.run(["git", "checkout", self.commit], cwd=clone_path, check=True)
+                subprocess.run(
+                    ["git", "checkout", self.commit], cwd=clone_path, check=True
+                )
+                subprocess.run(
+                    ["lake", "exe", "cache", "get"], cwd=clone_path, check=True
+                )
+                subprocess.run(["lake", "build"], cwd=clone_path, check=True)
+            else:
+                subprocess.run(
+                    ["git", "checkout", self.commit], cwd=clone_path, check=True
+                )
+                if rebuild:
+                    subprocess.run(
+                        ["lake", "exe", "cache", "get"], cwd=clone_path, check=True
+                    )
+                    subprocess.run(["lake", "build"], cwd=clone_path, check=True)
             self.project_path = clone_path
+
         return self.project_path
 
     @staticmethod
-    def from_config(config: str):
+    def from_config(config: str) -> "Repo":
         with open(config, "r") as f:
             data = json.load(f)
 
@@ -100,113 +127,167 @@ class Repo:
             name=data["name"],
             url=data.get("url"),
             commit=data.get("commit"),
-            project_path=data.get("project_path"),
+            project_path=data.get("path"),
             imports=data.get("imports", ["Init"]),
         )
-        
-    def get_files(self, only_modules = True):
-        
-        
+
+    def get_files(self, calculate_modules=True, force=False) -> List["File"]:
+        if self.files is not None and not force:
+            return self.files
+
+        project_path = self.get_project_path()
+        files = []
+        for root, dirs, file_list in os.walk(project_path):
+            if ".lake" in dirs:
+                dirs.remove(".lake")  # Skip .lake directory
+            for file in file_list:
+                if file.endswith(".lean"):
+                    path = os.path.join(root, file)
+                    if calculate_modules:
+                        module_name = (
+                            os.path.relpath(path, project_path)
+                            .replace("/", ".")
+                            .replace(".lean", "")
+                        )
+                        try:
+                            output = self.get_server().env_module_read(module_name)
+                            files.append(File(path, self, is_module=True))
+                        except ServerError as e:
+                            # print(
+                            #     f"Error reading module {module_name} in file {path}: \n{e}"
+                            # )
+                            files.append(File(path, self, is_module=False))
+                    else:
+                        files.append(File(path, self))
+        self.files = files
+        return files
 
 
 class File:
     def __init__(
         self,
-        path: str,
+        full_path: str,  # in relation to the root of this project
         repo: Repo,
+        is_module: bool = None,
     ):
-        self.path = path
+        self.full_path = full_path
         self.repo = repo
         self.units = None
         self.server = None
         self.theorems = None
-        self.is_module = None
-    
-    def get_units(self):
+        self.is_module = is_module
+        self.path = os.path.relpath(full_path, repo.get_project_path())
+
+    def get_units(self) -> List[CompilationUnit]:
+        print(f"Verifying {self.path}")
+        start = time.time()
         self.units = self.repo.get_server().tactic_invocations(self.path)
+        print(f"Verified {self.path} after {time.time() - start}s")
         return self.units
-     
-    def get_server(self):
-        repo_server = self.repo.get_server()
-        
-        
-        
-        
-    def compile(self):
 
-        if not self.server:
-            imports = ["Init"]
-            self.server = Server(imports=imports, project_path=self.project)
-
-        temp_path = None
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".lean", dir=self.project, delete=False
-        ) as tmp:
-            tmp.write(self.contents)
-            temp_path = tmp.name
-
-        result = self.server.tactic_invocations(temp_path)
-        unit = result[-1]
-
-        with open(temp_path, "rb") as f:
-            bytes = f.read()
-            text = bytes[unit.i_begin : unit.i_end].decode("utf-8")
-
-        return File(
-            text,
-            self.project,
-            self.file,
-            self.file_context,
-            self.cached_environment,
-            self.server,
-        )
+    def get_server(self) -> Server:
+        self.server = self.repo.get_server()
 
 
 class Theorem:
     def __init__(
         self,
         contents: str,
-        project: str = None,
-        file: str = None,
-        file_context: str = None,
+        file: File,
+        repo: Repo,
+        original: bool = None,
         unit: CompilationUnit = None,
-        cached_environment=None,
-        server: Server = None,
     ):
         self.contents = contents
-        self.project = project
         self.file = file
-        self.file_context = file_context
+        self.repo = repo
+        self.original = original
         self.unit = unit
-        self.cached_environment = cached_environment
-        self.server = server
 
-    def compile(self):
+    def compile(self, force=False) -> CompilationUnit:
+        if self.unit is not None and not force:
+            return self.unit
 
-        if not self.server:
-            imports = ["Init"]
-            self.server = Server(imports=imports, project_path=self.project)
+        server = self.file.get_server()
 
         temp_path = None
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".lean", dir=self.project, delete=False
+            mode="w",
+            suffix=".lean",
+            dir=os.path.dirname(self.file.full_path),
+            delete=False,
         ) as tmp:
             tmp.write(self.contents)
             temp_path = tmp.name
 
-        result = self.server.tactic_invocations(temp_path)
-        unit = result[-1]
+        temp_file = File(temp_path, self.file.repo)
+        units = temp_file.get_units()
+        self.unit = units[-1]
+        return units[-1]
 
-        with open(temp_path, "rb") as f:
-            bytes = f.read()
-            text = bytes[unit.i_begin : unit.i_end].decode("utf-8")
+    @staticmethod
+    def compile_theorems(theorems: List["Theorem"], force=False) -> List["Theorem"]:
+        if not force:
+            theorems_to_compile = [
+                (i, t) for i, t in enumerate(theorems) if t.unit is None
+            ]
+            if not theorems_to_compile:
+                return theorems
+        else:
+            theorems_to_compile = theorems
 
-        return Theorem(
-            text,
-            self.project,
-            self.file,
-            self.file_context,
-            unit,
-            self.cached_environment,
-            self.server,
-        )
+        combined_contents = "\n\n\n".join(t.contents for _, t in theorems_to_compile)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".lean",
+            dir=os.path.dirname(theorems[0].file.full_path),
+            delete=True,
+        ) as tmp:
+            tmp.write(combined_contents)
+            temp_path = tmp.name
+
+        temp_file = File(temp_path, theorems[0].repo)
+        units = temp_file.get_units()
+
+        if len(units) != len(theorems_to_compile):
+            raise ValueError(
+                f"Got {len(units)} units but expected {len(theorems_to_compile)}"
+            )
+        idxs = [i for i, t in theorems_to_compile]
+        thms = [theorems[i] for i in idxs]
+        for theorem, unit in zip(thms, units):
+            theorem.unit = unit
+        enum_thms = [(idxs[i], thms[i]) for i in range(len(thms))]
+        rest_thms = [(i, t) for i, t in enumerate(theorems) if i not in idxs]
+
+        return [t for _, t in sorted(enum_thms + rest_thms, key=lambda x: x[0])]
+
+
+if __name__ == "__main__":
+    repo = Repo.from_config("configs/config_PNT.json")
+    files = {f.path: f for f in repo.get_files(calculate_modules=False)}
+    file = files["PrimeNumberTheoremAnd/Sobolev.lean"]
+    print(file.full_path)
+    units = file.get_units()
+    print("\n\n")
+
+    theorem_strings: List[Theorem] = []
+    with open(file.full_path, "rb") as f:
+        content = f.read()
+        for i, unit in enumerate(units):
+            unit_text = content[unit.i_begin : unit.i_end].decode("utf-8")
+            if (
+                (
+                    unit_text.startswith("lemma")
+                    or unit_text.startswith("theorem")
+                    or unit_text.startswith("example")
+                )
+                and unit.invocations is not None
+                and len(unit.invocations) > 0
+            ):
+                # print(f"#{i}: [{unit.i_begin},{unit.i_end}]")
+                # print(unit_text)
+                theorem_strings.append(Theorem(unit_text, file, repo))
+    thm = theorem_strings[0]
+    unit = thm.compile()
+    print(unit.__dict__)
