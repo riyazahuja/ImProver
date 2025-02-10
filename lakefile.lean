@@ -7,8 +7,8 @@ import Lake
 
     
 
-    require htpi from git
-    "https://github.com/djvelleman/HTPILeanPackage.git" @ "master"
+    require carleson from git
+    "https://github.com/fpvandoorn/carleson.git" @ "v4.15.0"
 
     @[default_target]
     lean_lib TrainingData where

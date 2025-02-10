@@ -7,7 +7,7 @@ from benchmark.tools import no_errors
 import math
 
 
-def get_theorem_idx(theorems, repo: Repo):
+def get_theorem_idx(theorems, repo: Repo) -> List[Tuple[File | AnnotatedFile, int]]:
     files = {f.file_path: f for f in repo.files}
     print(files.keys())
     file_map = [
@@ -17,15 +17,19 @@ def get_theorem_idx(theorems, repo: Repo):
     return file_map
 
 
-def cache_it(thm: Theorem | AnnotatedTheorem, f: File | AnnotatedFile, idx: int):
+def cache_it(
+    thm: Theorem | AnnotatedTheorem, f: File | AnnotatedFile, idx: int, force=False
+):
 
     output_base_dir = os.path.join(".cache", f.src, f.file_path)
     if output_base_dir.endswith(".lean"):
         output_base_dir = output_base_dir[:-5]
-
     Path(output_base_dir).parent.mkdir(parents=True, exist_ok=True)
-
     pickle_path = os.path.join(output_base_dir, idx + ".o")
+
+    if not force and os.path.exists(pickle_path):
+        print(f"Cache already exists for {pickle_path}")
+        return 0
 
     text = json.dumps({"cmd": thm.context})
     text2 = json.dumps({"pickleTo": pickle_path, "env": 0})

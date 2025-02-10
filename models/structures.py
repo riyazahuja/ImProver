@@ -191,12 +191,23 @@ def getTheorems(
         thm_messages = [
             Message(
                 severity=msg["severity"],
-                start=(msg["pos"]["line"] if msg['pos'] else None, msg["pos"]["column"] if msg['pos'] else None),
-                end=(msg["endPos"]["line"] if msg['endPos'] else None, msg["endPos"]["column"] if msg['endPos'] else None),
+                start=(
+                    msg["pos"]["line"] if msg["pos"] else None,
+                    msg["pos"]["column"] if msg["pos"] else None,
+                ),
+                end=(
+                    msg["endPos"]["line"] if msg["endPos"] else None,
+                    msg["endPos"]["column"] if msg["endPos"] else None,
+                ),
                 content=msg["data"],
                 message_src="\n".join(
                     contents.splitlines()[
-                        msg["pos"]["line"] - 1 : msg["endPos"]["line"] if msg['endPos'] else len(contents.splitlines())
+                        msg["pos"]["line"]
+                        - 1 : (
+                            msg["endPos"]["line"]
+                            if msg["endPos"]
+                            else len(contents.splitlines())
+                        )
                     ]
                 ),
             )
@@ -362,9 +373,13 @@ def getRepoDirect(repo_data, annotate=True, force=False, recursive=True):
 
     # with tqdm(total=len(files_list)) as pbar:
     for name, rel in files_list:
-        repo_files.append(
-            getFile(name, rel, project_path, annotate=annotate, force=force)
-        )
+        try:
+            repo_files.append(
+                getFile(name, rel, project_path, annotate=annotate, force=force)
+            )
+        except json.JSONDecodeError as e:
+            print(f"Error in {name} {rel}")
+            pass
         # pbar.update(1)
 
     if local:
@@ -670,7 +685,7 @@ def coerce_repl(data, thm, contents=None, infile=""):
 usePickle = False
 
 
-def annotateTheorem(thm: Theorem, usePickle=usePickle) -> AnnotatedTheorem:
+def annotateTheorem(thm: Theorem, repo: Repo, usePickle=usePickle) -> AnnotatedTheorem:
     """
     Before, in the old version, we literally ran "getTheorems" (i.e. lake exe training_data)
     and then parsed the output to get the proof steps. This was slow and inefficient.
@@ -681,6 +696,7 @@ def annotateTheorem(thm: Theorem, usePickle=usePickle) -> AnnotatedTheorem:
     """
 
     src = thm.src
+    assert repo.name == src
     path = thm.leanFile
     text = parseTheorem(thm, context=False)
 
@@ -690,21 +706,35 @@ def annotateTheorem(thm: Theorem, usePickle=usePickle) -> AnnotatedTheorem:
     file_name = os.path.basename(path).replace(".lean", "")
     binary_path = os.path.join(cache_path, file_name + ".o")
 
-    cmd_text = thm.headerless_context + "\n\n" + text
+    cmd_text = text  # thm.headerless_context + "\n\n" + text
 
     # cmd_text = cmd_text.replace("\n", "\\n")  # .replace('"', '\\"')
-    cmd = {"cmd": cmd_text, "allTactics": True, "theorems": True, "env": 0}
 
     if usePickle:
-        infile = f'{{"unpickleEnvFrom": "{binary_path}"}}'
-    else:
-        headers_lines = len(thm.context.splitlines()) - len(
-            thm.headerless_context.splitlines()
-        )
-        headers = "\n".join(thm.context.splitlines()[:headers_lines])
-        infile = json.dumps({"cmd": headers})
 
-    infile = f"{infile}\n\n{json.dumps(cmd)}"
+        files = {f.file_path: f for f in repo.files}
+        file = files[path]
+        idx = [t.decl for t in file.theorems].index(thm.decl)
+
+        pickle_path = os.path.join(cache_path, file_name + "_theorems", f"{idx}.o")
+
+        pickle = f'{{"unpickleEnvFrom": "{pickle_path}"}}'
+
+        cmd = {"cmd": text, "allTactics": True, "theorems": True, "env": 0}
+
+        infile = f"{pickle}\n\n{json.dumps(cmd)}"
+
+    else:
+
+        infile = json.dumps(
+            {
+                "cmd": parseTheorem(thm, context=True),
+                "theorems": True,
+                "allTactics": True,
+            }
+        )
+
+    # infile = f"{infile}\n\n{json.dumps(cmd)}"
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
@@ -717,14 +747,18 @@ def annotateTheorem(thm: Theorem, usePickle=usePickle) -> AnnotatedTheorem:
             capture_output=True,
             cwd=root_path,
         )
-        # print(output.stdout)
-        # print(output.stderr)
+        print(output.stdout)
+        print(output.stderr)
         # print(infile)
-        parse_to_jsonable = output.stdout.split("\n\n")
-        data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
-        # out = "\n".join(output.stdout.splitlines()[2:])
-        # print(f"\n\n{out}\n\n")
-        data = data[-1]
+        try:
+            data = json.loads(output.stdout)
+        except json.JSONDecodeError:
+            parse_to_jsonable = output.stdout.split("\n\n")
+
+            data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
+            # out = "\n".join(output.stdout.splitlines()[2:])
+            # print(f"\n\n{out}\n\n")
+            data = data[-1]
     except Exception as e:
         print(f"Error in annotateTheorem\n{e}")
         print(f"{output.stdout}")
@@ -747,6 +781,8 @@ def annotateTheorems(thms: List[Theorem], usePickle=usePickle) -> AnnotatedTheor
     Now, we parse the theorem's headerless context and raw text into a REPL command,
     and construct a .in file that initializes the environment via the binary cache and
     runs the command. Then we parse the REPL output to get a theorem object.
+
+    UPDATE 2/8: theorem caching! But pls make it pretty/pantographize it!
     """
 
     src = thms[0].src
@@ -784,21 +820,6 @@ def annotateTheorems(thms: List[Theorem], usePickle=usePickle) -> AnnotatedTheor
         cmd = {"cmd": cmd_text, "allTactics": True, "theorems": True, "env": 0}
 
         infile = f"{infile}\n\n{json.dumps(cmd)}"
-        # vers.append(
-        #     f'{{"cmd": "{cmd_text}", "allTactics": true, "theorems": true, "env": 0}}'
-        # )
-    # print("\n\n".join(vers))
-
-    #     """
-    #     {"unpickleEnvFrom": "/Users/ahuja/Desktop/ImProver2/.cache/mil/MIL/C04_Sets_and_Functions/solutions/Solutions_S01_Sets.o"}
-
-    # {"cmd": "example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by\n  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)\n  · use xs; left; exact xt\n  · use xs; right; exact xu\n\n\nexample : s \ (t ∪ u) ⊆ (s \ t) \ u  := by\n  rintro x ⟨xs, xntu⟩\n  exact ⟨⟨xs, fun xt => xntu (Or.inl xt)⟩, fun xu => xntu (Or.inr xu)⟩\n", "allTactics": true, "theorems": true, "env": 0}
-
-    # {"cmd": "example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by\n  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)\n  · use xs; left; exact xt\n  · use xs; right; exact xu\n\n\nexample : s \ (t ∪ u) ⊆ (s \ t) \ u  := by\n  rintro x ⟨xs, xntu⟩\n  exact ⟨⟨xs, fun xt => xntu (Or.inl xt)⟩, fun xu => xntu (Or.inr xu)⟩\n", "allTactics": true, "theorems": true, "env": 0}
-
-    # {"cmd": "example : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by\n  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)\n  · use xs; left; exact xt\n  · use xs; right; exact xu\n\n\nexample : s \ (t ∪ u) ⊆ (s \ t) \ u  := by\n  rintro x ⟨xs, xntu⟩\n  use xs\n  intro xt; exact xntu (Or.inl xt)\n  intro xu; exact xntu (Or.inr xu)\n", "allTactics": true, "theorems": true, "env": 0}
-
-    #     """
 
     temp = tempfile.NamedTemporaryFile(suffix=".in", dir=root_path)
     with open(temp.name, "w") as f:
@@ -811,7 +832,6 @@ def annotateTheorems(thms: List[Theorem], usePickle=usePickle) -> AnnotatedTheor
         capture_output=True,
         cwd=root_path,
     )
-    # print(output.stdout)
 
     parse_to_jsonable = output.stdout.split("\n\n")
     data = [json.loads(item) for item in parse_to_jsonable[1:] if item != ""]
@@ -834,77 +854,83 @@ def annotateTheorems(thms: List[Theorem], usePickle=usePickle) -> AnnotatedTheor
 
 
 if __name__ == "__main__":
-    repo = getRepo("Tests", "configs/config_MIL.json")
+    repo = getRepo("carleson", "configs/config_carleson.json")
     files = {file.file_path: file for file in repo.files}
-    fs = [
-        files[name]
-        for name in files.keys()
-        if "Solution" in name and "C04" in name and "S01" in name
-    ]
+    fs = [files[name] for name in files.keys() if type(files[name]) == AnnotatedFile]
 
     f = fs[0]
+    print(f.file_name)
     thms = f.theorems
     thm = thms[0]
-    ProofStep.update_forward_refs()
-    proof = [
-        ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
-        ProofStep(tactic=". use xs"),
-        ProofStep(tactic="  right"),
-        ProofStep(tactic="  exact xt"),
-        ProofStep(tactic="use 3"),
-        ProofStep(tactic="right"),
-        ProofStep(tactic="exact xu"),
-    ]
+    print(len(thms))
 
-    thm_base = Theorem(
-        decl=thm.decl,
-        proof=proof,
-        declID=thm.declID,
-        src=thm.src,
-        leanFile=thm.leanFile,
-        context=thm.context,
-        headerless_context=thm.headerless_context,
-        project_path=thm.project_path,
-    )
-
-    proof2 = [
-        ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
-        ProofStep(tactic=". use xs"),
-        ProofStep(tactic="  left"),
-        ProofStep(tactic="  exact xt"),
-        ProofStep(tactic="use xs"),
-        ProofStep(tactic="right"),
-        ProofStep(tactic="exact xu"),
-    ]
-
-    thm_base2 = Theorem(
-        decl=thm.decl,
-        proof=proof2,
-        declID=thm.declID,
-        src=thm.src,
-        leanFile=thm.leanFile,
-        context=thm.context,
-        headerless_context=thm.headerless_context,
-        project_path=thm.project_path,
-    )
-    # Timing annotateTheorems
     start_time = time.perf_counter()
-    outs = annotateTheorems([thm_base, thm_base2], usePickle=False)
+    outs = annotateTheorem(thm, repo, usePickle=True)
     end_time = time.perf_counter()
     print(f"annotateTheorems took {end_time - start_time:.4f} seconds")
+    print(parseTheorem(outs, annotation=True))
 
-    # # Timing annotateTheorem in a loop
-    # st = time.perf_counter()
-    # for i in range(6):
-    #     start_time = time.perf_counter()
-    #     if i % 2 == 0:
-    #         out = annotateTheorem(thm_base)
-    #     else:
-    #         out = annotateTheorem(thm_base2)
-    #     print(parseTheorem(out, annotation=True))
-    #     print()
-    #     end_time = time.perf_counter()
-    #     print(f"annotateTheorem call {i} took {end_time - start_time:.4f} seconds")
-    # end = time.perf_counter()
+    # ProofStep.update_forward_refs()
+    # proof = [
+    #     ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+    #     ProofStep(tactic=". use xs"),
+    #     ProofStep(tactic="  right"),
+    #     ProofStep(tactic="  exact xt"),
+    #     ProofStep(tactic="use 3"),
+    #     ProofStep(tactic="right"),
+    #     ProofStep(tactic="exact xu"),
+    # ]
 
-    # print(f"annotateTheorem took {end - st:.4f} seconds")
+    # thm_base = Theorem(
+    #     decl=thm.decl,
+    #     proof=proof,
+    #     declID=thm.declID,
+    #     src=thm.src,
+    #     leanFile=thm.leanFile,
+    #     context=thm.context,
+    #     headerless_context=thm.headerless_context,
+    #     project_path=thm.project_path,
+    # )
+
+    # proof2 = [
+    #     ProofStep(tactic="rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)"),
+    #     ProofStep(tactic=". use xs"),
+    #     ProofStep(tactic="  left"),
+    #     ProofStep(tactic="  exact xt"),
+    #     ProofStep(tactic="use xs"),
+    #     ProofStep(tactic="right"),
+    #     ProofStep(tactic="exact xu"),
+    # ]
+
+    # thm_base2 = Theorem(
+    #     decl=thm.decl,
+    #     proof=proof2,
+    #     declID=thm.declID,
+    #     src=thm.src,
+    #     leanFile=thm.leanFile,
+    #     context=thm.context,
+    #     headerless_context=thm.headerless_context,
+    #     project_path=thm.project_path,
+    # )
+    # # Timing annotateTheorems
+    # start_time = time.perf_counter()
+    # outs = annotateTheorem(thm_base2, repo, usePickle=True)
+    # end_time = time.perf_counter()
+    # print(f"annotateTheorems took {end_time - start_time:.4f} seconds")
+    # print(parseTheorem(outs, annotation=True))
+
+    # # # Timing annotateTheorem in a loop
+    # # st = time.perf_counter()
+    # # for i in range(6):
+    # #     start_time = time.perf_counter()
+    # #     if i % 2 == 0:
+    # #         out = annotateTheorem(thm_base)
+    # #     else:
+    # #         out = annotateTheorem(thm_base2)
+    # #     print(parseTheorem(out, annotation=True))
+    # #     print()
+    # #     end_time = time.perf_counter()
+    # #     print(f"annotateTheorem call {i} took {end_time - start_time:.4f} seconds")
+    # # end = time.perf_counter()
+
+    # # print(f"annotateTheorem took {end - st:.4f} seconds")
