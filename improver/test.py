@@ -13,41 +13,6 @@ import time
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-# server = Server(
-#     imports=["Mathlib.Logic.Basic"], project_path="/Users/ahuja/Desktop/mathlib4"
-# )
-# out = server.env_module_read("Mathlib.Logic.Basic")
-# for k, v in out.items():
-#     print(f"============ {k} =============")
-#     print(" ".join(v))
-# print("\n\n")
-
-# out = server.env_inspect("Ne.dite_ne_left_iff")
-# print(out)
-
-# state0 = server.goal_start("forall (p q: Prop), Or p q -> Or q p")
-# state1 = server.goal_tactic(state0, goal_id=0, tactic="intro a b c")
-# state2 = server.goal_tactic(state1, goal_id=0, tactic="have h : Or b a:= Or.comm.1 c")
-
-# server.env_add(
-#     "dumb",
-#     "forall (p q: Prop), Or p q -> Or q p",
-#     "sorry",
-# )
-
-# out = server.env_inspect("dumb", print_value=True, print_dependency=True)
-# print(out)
-
-# states = [state0, state1, state2]
-
-# for i, state in enumerate(states):
-#     print("===== " + "State " + str(i) + " =====")
-#     print("------ PP: ------")
-#     print(str(state))
-#     print("------ raw: ------\n")
-#     print(state.__repr__())
-
-
 class Repo:
     def __init__(
         self,
@@ -56,13 +21,14 @@ class Repo:
         commit: str = None,
         project_path: str = None,
         imports: List[str] = ["Init"],
+        import_file: str = "",
     ):
         self.name = name
         self.url = url
         self.commit = commit
         self.project_path = project_path
         self.imports = imports
-
+        self.import_file = import_file
         self.server = None
         self.files = None
 
@@ -129,6 +95,7 @@ class Repo:
             commit=data.get("commit"),
             project_path=data.get("path"),
             imports=data.get("imports", ["Init"]),
+            import_file=data.get("import_file", ""),
         )
 
     def get_files(self, calculate_modules=True, force=False) -> List["File"]:
@@ -166,40 +133,64 @@ class Repo:
 class File:
     def __init__(
         self,
-        full_path: str,  # in relation to the root of this project
         repo: Repo,
+        imports: List[str] = ["Init"],
+        full_path: str = None,  # in relation to the root of this project
         is_module: bool = None,
     ):
         self.full_path = full_path
         self.repo = repo
         self.units = None
+        self.imports = imports
         self.server = None
         self.theorems = None
         self.is_module = is_module
-        self.path = os.path.relpath(full_path, repo.get_project_path())
+        self.path = (
+            os.path.relpath(full_path, repo.get_project_path()) if full_path else None
+        )
+
+    def get_path(self) -> str:
+        self.path = (
+            os.path.relpath(self.full_path, repo.get_project_path())
+            if self.full_path
+            else None
+        )
+        return self.path
 
     def get_units(self) -> List[CompilationUnit]:
         print(f"Verifying {self.path}")
         start = time.time()
-        self.units = self.repo.get_server().tactic_invocations(self.path)
+        self.units = self.get_server().tactic_invocations(self.path)
         print(f"Verified {self.path} after {time.time() - start}s")
         return self.units
 
-    def get_server(self) -> Server:
-        self.server = self.repo.get_server()
+    def get_server(self, force=False) -> Server:
+        if self.server is None or force:
+            print("Getting (file) server...")
+            start = time.time()
+            self.server = Server(
+                imports=self.imports, project_path=self.repo.get_project_path()
+            )
+            print("Server obtained after " + str(time.time() - start) + "s")
+
+        return self.server
 
 
 class Theorem:
     def __init__(
         self,
         contents: str,
-        file: File,
         repo: Repo,
+        file: File = None,
         original: bool = None,
         unit: CompilationUnit = None,
     ):
         self.contents = contents
-        self.file = file
+        self.file = (
+            file
+            if file is not None
+            else File(os.path.join(repo.get_project_path(), repo.import_file), repo)
+        )
         self.repo = repo
         self.original = original
         self.unit = unit
@@ -209,21 +200,12 @@ class Theorem:
             return self.unit
 
         server = self.file.get_server()
+        # print(server)
 
-        temp_path = None
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".lean",
-            dir=os.path.dirname(self.file.full_path),
-            delete=False,
-        ) as tmp:
-            tmp.write(self.contents)
-            temp_path = tmp.name
+        units = server.load_sorry(self.contents)
 
-        temp_file = File(temp_path, self.file.repo)
-        units = temp_file.get_units()
         self.unit = units[-1]
-        return units[-1]
+        return units
 
     @staticmethod
     def compile_theorems(theorems: List["Theorem"], force=False) -> List["Theorem"]:
@@ -264,30 +246,31 @@ class Theorem:
 
 
 if __name__ == "__main__":
-    repo = Repo.from_config("configs/config_PNT.json")
-    files = {f.path: f for f in repo.get_files(calculate_modules=False)}
-    file = files["PrimeNumberTheoremAnd/Sobolev.lean"]
-    print(file.full_path)
-    units = file.get_units()
-    print("\n\n")
+    repo = Repo.from_config("configs/config_mathlib.json")
+    # files = {f.path: f for f in repo.get_files(calculate_modules=False)}
+    # file = files["Mathlib/Logic/Basic.lean"]
+    content = """variable {α : Type*}
+variable (s t u : Set α)
+open Set
 
-    theorem_strings: List[Theorem] = []
-    with open(file.full_path, "rb") as f:
-        content = f.read()
-        for i, unit in enumerate(units):
-            unit_text = content[unit.i_begin : unit.i_end].decode("utf-8")
-            if (
-                (
-                    unit_text.startswith("lemma")
-                    or unit_text.startswith("theorem")
-                    or unit_text.startswith("example")
-                )
-                and unit.invocations is not None
-                and len(unit.invocations) > 0
-            ):
-                # print(f"#{i}: [{unit.i_begin},{unit.i_end}]")
-                # print(unit_text)
-                theorem_strings.append(Theorem(unit_text, file, repo))
-    thm = theorem_strings[0]
+theorem fact : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
+  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
+  · use xs; left; exact xt
+  · use xs; right; exact xu
+"""
+    file = File(
+        repo,
+        imports=[
+            "Mathlib.Data.Set.Lattice",
+            "Mathlib.Data.Nat.Prime.Basic",
+            "Mathlib.Tactic",
+        ],
+    )
+    thm = Theorem(content, repo, file)
     unit = thm.compile()
-    print(unit.__dict__)
+    print(unit)
+    for i in unit[-1].invocations:
+        print(f"[Before]\n{i.before}")
+        print(f"[Tactic]\n{i.tactic} (using {i.used_constants})")
+        print(f"[After]\n{i.after}")
+    print("\n---------------\n")

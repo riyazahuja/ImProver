@@ -8,7 +8,6 @@ from evaluate.eval import *
 from evaluate.metrics import *
 from models.structures import *
 from models.prompt import *
-from evaluate.build_prooftree import *
 import pandas as pd
 import time
 from models.rag import *
@@ -17,13 +16,9 @@ from tqdm import tqdm
 from multiprocessing import cpu_count
 
 
-def extract_data(thm, method, trajectory_position):
-
-    if type(thm) == Theorem:
-        thm = annotateTheorem(thm)
-
+def extract_data(thm: Theorem, method, trajectory_position):
     fn, metric, kwargs = method
-    correct, messages, _ = eval_correctness(thm)
+    correct, messages = eval_correctness(thm)
 
     score = None
     if correct and metric.score_fn != None:
@@ -31,15 +26,11 @@ def extract_data(thm, method, trajectory_position):
 
     raw = parseTheorem(thm, context=False)
 
-    def parse_msg(message):
-        return f"{message.content}\n\tat: {message.message_src}"
-
     errors = "\n".join(
         [
-            parse_msg(msg)
+            msg
             for msg in messages
-            if msg.severity == "error"
-            or (msg.severity == "warning" and "sorry" in msg.content)
+            if "error" in msg or ("warning" in msg and "sorry" in msg)
         ]
     )
 
@@ -65,7 +56,6 @@ def extract_data(thm, method, trajectory_position):
 
 
 def parse_trajectories(trajectories, method, position="/"):
-    # print(f"{type(trajectories)} : {trajectories}")
     if (
         type(trajectories) == tuple
         and trajectories[0] == "BoN"
@@ -93,7 +83,7 @@ def parse_trajectories(trajectories, method, position="/"):
             )
         return output
 
-    elif type(trajectories) == Theorem or type(trajectories) == AnnotatedTheorem:
+    elif type(trajectories) == Theorem:
         # print("thm")
         return [extract_data(trajectories, method, position)]
     else:
@@ -102,49 +92,41 @@ def parse_trajectories(trajectories, method, position="/"):
         )
 
 
-def process_instance(thm: AnnotatedTheorem, method, output_trajectories=False):
+def process_instance(thm: Theorem, method, output_trajectories=False):
     start_time = time.time()
     fn, metric, kwargs = method
-    og_correct, og_messages, _ = eval_correctness(thm)
+    og_correct, og_messages = eval_correctness(thm)
     og_score = None
     if og_correct and metric.score_fn != None:
         og_score = metric.score(thm)
 
     output_thm, trajectories = fn(thm, metric, **kwargs)
 
-    new_correct, new_messages, output_anno_thm = eval_correctness(output_thm)
+    new_correct, new_messages = eval_correctness(output_thm)
     processing_time = time.time() - start_time
     new_score = None
     if new_correct and metric.score_fn != None:
-        new_score = metric.score(output_anno_thm)
+        new_score = metric.score(output_thm)
     if new_correct and og_correct:
-        delta = metric.metric(thm, output_anno_thm)
+        delta = metric.metric(thm, output_thm)
     else:
         delta = None
-    # print(
-    #     f"=============\n(METHOD : {method[2].get('examples',0)})\nOUTPUT: \n{output_thm}\n\nANNOT:\n{output_anno_thm}\n=============="
-    # )
 
     og_raw = parseTheorem(thm, context=False)
     new_raw = parseTheorem(output_thm, context=False)
 
-    def parse_msg(message):
-        return f"{message.content}\n\tat: {message.message_src}"
-
     og_errors = "\n".join(
         [
-            parse_msg(msg)
+            msg
             for msg in og_messages
-            if msg.severity == "error"
-            or (msg.severity == "warning" and "sorry" in msg.content)
+            if "error" in msg or ("warning" in msg and "sorry" in msg)
         ]
     )
     new_errors = "\n".join(
         [
-            parse_msg(msg)
+            msg
             for msg in new_messages
-            if msg.severity == "error"
-            or (msg.severity == "warning" and "sorry" in msg.content)
+            if "error" in msg or ("warning" in msg and "sorry" in msg)
         ]
     )
 
@@ -224,7 +206,7 @@ def process_instances(
 
 
 def benchmark_theorem(
-    thm: AnnotatedTheorem,
+    thm: Theorem,
     methods,
     max_workers=None,
     show_progress=False,
@@ -240,7 +222,7 @@ def benchmark_theorem(
 
 
 def benchmark_file(
-    file: AnnotatedFile,
+    file: File,
     methods,
     max_workers=None,
     show_progress=False,
@@ -257,25 +239,25 @@ def benchmark_file(
     )
 
 
-def benchmark_repo(
-    repo: Repo,
-    methods,
-    max_workers=None,
-    show_progress=False,
-    output_trajectories=False,
-):
-    anno_files = [f for f in repo.files if type(f) == AnnotatedFile]
-    thms = []
-    for f in anno_files:
-        thms.extend(f.theorems)
+# def benchmark_repo(
+#     repo: Repo,
+#     methods,
+#     max_workers=None,
+#     show_progress=False,
+#     output_trajectories=False,
+# ):
+#     anno_files = [f for f in repo.files]
+#     thms = []
+#     for f in anno_files:
+#         thms.extend(f.theorems)
 
-    instances = [(t, m) for t in thms for m in methods]
-    return process_instances(
-        instances,
-        max_workers=max_workers,
-        show_progress=show_progress,
-        output_trajectories=output_trajectories,
-    )
+#     instances = [(t, m) for t in thms for m in methods]
+#     return process_instances(
+#         instances,
+#         max_workers=max_workers,
+#         show_progress=show_progress,
+#         output_trajectories=output_trajectories,
+#     )
 
 
 def save_to_csv(data, path="data.csv"):
@@ -284,7 +266,7 @@ def save_to_csv(data, path="data.csv"):
 
 
 def get_methods(
-    fn=[prompt_structured],
+    fn=[prompt_flat],
     metric=[length_metric()],
     annotation=[False],
     model=["gpt-4-turbo"],
@@ -353,12 +335,9 @@ def get_cost(obj, methods):
         "gpt-3.5-turbo-0125": (0.5 / 1000000, 1.5 / 1000000),
     }
 
-    if type(obj) == Repo:
-        anno_files = [f for f in obj.files if type(f) == AnnotatedFile]
-        thms = [thm for f in anno_files for thm in f.theorems]
-    elif type(obj) == AnnotatedFile:
+    if type(obj) == File:
         thms = obj.theorems
-    elif type(obj) == AnnotatedTheorem:
+    elif type(obj) == Theorem:
         thms = [obj]
     else:
         raise ValueError(f"uhoh: type is \n{type(obj)}")
@@ -399,35 +378,21 @@ def no_errors(thms):
 
 if __name__ == "__main__":
 
-    methods = improver(length_metric())
+    methods = baseline(length_metric())
 
-    repo = getRepo("Tests", "configs/config_MIL.json")
-    files = {file.file_path: file for file in repo.files}
+    repo = Repo.from_config("configs/config_mathlib.json")
+    files = {f.path: f for f in repo.get_files(calculate_modules=False)}
 
-    def no_errors(thms):
-        msgs = []
-        for thm in thms:
-            msgs.extend(thm.messages)
-        errors = sum(1 for msg in msgs if msg.severity == "error") + sum(
-            1 for msg in msgs if msg.severity == "warning" and "sorry" in msg.content
+    file = files["Mathlib/Logic/Basic.lean"]
+    thms = file.get_theorems()
+    d = []
+
+    t = []
+    for thm in thms:
+        data, traj = benchmark_theorem(
+            thm, methods, max_workers=1, show_progress=True, output_trajectories=True
         )
-        return errors == 0
-
-    fs = [
-        files[name]
-        for name in files.keys()
-        if ("C04" in name) and ("S01" in name) and ("Solutions" in name)
-    ]
-
-    fs = [f for f in fs if type(f) == AnnotatedFile and len(f.theorems) != 0]
-
-    f = fs[0]
-    thm = f.theorems[0]
-    instance = (thm, methods[0])
-
-    d, t = benchmark_theorem(
-        thm, methods, max_workers=1, show_progress=True, output_trajectories=True
-    )
-    save_to_csv(d, "benchmark/data/traj_data2.csv")
-    save_to_csv(t, "benchmark/data/traj_traj2.csv")
-    # print(f"{t}")
+        d.extend(data)
+        t.extend(traj)
+        save_to_csv(d, "benchmark/data/data_test.csv")
+        save_to_csv(t, "benchmark/data/traj_test.csv")

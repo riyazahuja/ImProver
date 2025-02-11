@@ -3,7 +3,6 @@ from langchain.globals import set_debug
 import time
 
 # set_debug(True)
-# ^ For a lot of info on what langchain is up to
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -16,12 +15,14 @@ from models.structures import *
 from models.rag import *
 from evaluate.metrics import *
 from evaluate.eval import *
-from generation.recgen import *
+
+# from generation.recgen import *
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import logging
 from typing import Final
 import tiktoken
 from multiprocessing import cpu_count
+from pydantic import BaseModel, Field
 
 log_req_info = True
 
@@ -75,7 +76,7 @@ def parse_prev_data(data):
 
 
 def prompt_raw(
-    thm: AnnotatedTheorem,
+    thm: Theorem,
     metric: Metric,
     obj=str,
     model="gpt-4-turbo",
@@ -130,7 +131,6 @@ def prompt_raw(
             ("placeholder", "{mathlib_docs}"),
             ("placeholder", "{examples}"),
             ("human", "<FILE_CONTEXT>\n{context}\n</FILE_CONTEXT>"),
-            ("placeholder", "{mod_context}"),
             ("placeholder", "{prev_results}"),
             ("placeholder", "{user_prompts}"),
             ("human", "<CURRENT>\n{theorem}\n</CURRENT>"),
@@ -142,47 +142,47 @@ def prompt_raw(
             ("human", f"<{wrapper}>\n{doc.page_content}\n</{wrapper}>") for doc in docs
         ]
 
-    def parse_dependency(dep: Dependency):
-        return f"""<MODULE_CONTEXT>
-        Dependency Name: {dep.dependency} (type = {dep.kind})
-        Source: {dep.src_file}
-        Explicit? {dep.explicit}
-        Content:
-        
-        {dep.src_content}
-    </MODULE_CONTEXT>"""
+    # def parse_dependency(dep: Dependency):
+    #     return f"""<MODULE_CONTEXT>
+    #     Dependency Name: {dep.dependency} (type = {dep.kind})
+    #     Source: {dep.src_file}
+    #     Explicit? {dep.explicit}
+    #     Content:
 
-    def get_module_context(data):
-        curr_thm = data["theorem"]
-        if not improved_context:
-            return []
+    #     {dep.src_content}
+    # </MODULE_CONTEXT>"""
 
-        deps = [
-            (parse_dependency(dep), dep.dependency, dep.explicit)
-            for dep in thm.dependencies
-        ]
-        explicit = []
-        nonexplicit = []
-        for dep in deps:
-            if dep[2]:
-                explicit.append((dep[0], dep[1]))
-            else:
-                nonexplicit.append((dep[0], dep[1]))
+    # def get_module_context(data):
+    #     curr_thm = data["theorem"]
+    #     if not improved_context:
+    #         return []
 
-        def key_it(x):
-            content = data["theorem"]
-            return -1 * content.count(x[1])
+    #     deps = [
+    #         (parse_dependency(dep), dep.dependency, dep.explicit)
+    #         for dep in thm.dependencies
+    #     ]
+    #     explicit = []
+    #     nonexplicit = []
+    #     for dep in deps:
+    #         if dep[2]:
+    #             explicit.append((dep[0], dep[1]))
+    #         else:
+    #             nonexplicit.append((dep[0], dep[1]))
 
-        # def key_it(x):
-        #     lines = list(enumerate(data["theorem"].splitlines()))
-        #     found = [line[0] for line in lines if x[1] in line[1]]
-        #     if len(found) == 0:
-        #         return len(lines) + 1
-        #     else:
-        #         return found[0]
+    #     def key_it(x):
+    #         content = data["theorem"]
+    #         return -1 * content.count(x[1])
 
-        explicit.sort(key=key_it)
-        return [("human", x[0]) for x in explicit + nonexplicit]
+    #     # def key_it(x):
+    #     #     lines = list(enumerate(data["theorem"].splitlines()))
+    #     #     found = [line[0] for line in lines if x[1] in line[1]]
+    #     #     if len(found) == 0:
+    #     #         return len(lines) + 1
+    #     #     else:
+    #     #         return found[0]
+
+    #     explicit.sort(key=key_it)
+    #     return [("human", x[0]) for x in explicit + nonexplicit]
 
     def get_syntax(data):
         if not syntax_search:
@@ -238,7 +238,6 @@ def prompt_raw(
                 ),
                 syntax_docs=get_syntax,
                 mathlib_docs=get_mathlib,
-                mod_context=get_module_context,
                 examples=get_examples,
             )
             | prompt
@@ -265,7 +264,6 @@ def prompt_raw(
             ),
             syntax_docs=get_syntax,
             mathlib_docs=get_mathlib,
-            mod_context=get_module_context,
             examples=get_examples,
         )
         | prompt
@@ -305,7 +303,7 @@ def prompt_raw(
 
 
 def prompt_basic(
-    thm: AnnotatedTheorem,
+    thm: Theorem,
     metric: Metric,
     model="gpt-4-turbo",
     prev_data=[],
@@ -341,27 +339,29 @@ def prompt_basic(
     if token:
         return output
 
-    def coerce_Thm(curr):
-        ProofStep.update_forward_refs()
-        return Theorem(
-            decl=thm.decl,
-            declID=thm.declID,
-            src=thm.src,
-            leanFile=thm.leanFile,
-            context=thm.context,
-            headerless_context=thm.headerless_context,
-            proof=[ProofStep(tactic=curr.content)],
-            project_path=thm.project_path,
-            # dependencies=thm.dependencies,
-        )
+    print(output)
+    return None
+    # def coerce_Thm(curr):
+    #     ProofStep.update_forward_refs()
+    #     return Theorem(
+    #         decl=thm.decl,
+    #         declID=thm.declID,
+    #         src=thm.src,
+    #         leanFile=thm.leanFile,
+    #         context=thm.context,
+    #         headerless_context=thm.headerless_context,
+    #         proof=[ProofStep(tactic=curr.content)],
+    #         project_path=thm.project_path,
+    #         # dependencies=thm.dependencies,
+    #     )
 
-    final = coerce_Thm(output)
+    # final = coerce_Thm(output)
 
-    return final, final
+    # return final, final
 
 
 def prompt_flat(
-    thm: AnnotatedTheorem,
+    thm: Theorem,
     metric: Metric,
     model="gpt-4-turbo",
     prev_data=[],
@@ -398,93 +398,96 @@ def prompt_flat(
     if token:
         return output
     st = time.time()
+    print(output)
+    return None
+    # def coerce_trimmedThm(curr):
+    #     ProofStep.update_forward_refs()
+    #     return Theorem(
+    #         decl=thm.decl,
+    #         declID=thm.declID,
+    #         src=thm.src,
+    #         leanFile=thm.leanFile,
+    #         context=thm.context,
+    #         headerless_context=thm.headerless_context,
+    #         proof=[ProofStep(tactic=step) for step in curr.proof],
+    #         project_path=thm.project_path,
+    #         # dependencies=thm.dependencies,
+    #     )
 
-    def coerce_trimmedThm(curr):
-        ProofStep.update_forward_refs()
-        return Theorem(
-            decl=thm.decl,
-            declID=thm.declID,
-            src=thm.src,
-            leanFile=thm.leanFile,
-            context=thm.context,
-            headerless_context=thm.headerless_context,
-            proof=[ProofStep(tactic=step) for step in curr.proof],
-            project_path=thm.project_path,
-            # dependencies=thm.dependencies,
-        )
-
-    final = coerce_trimmedThm(output)
-    if log_req_info:
-        print(f"Flat obj coersion completed in {time.time()-st}s")
-    return final, final
+    # final = coerce_trimmedThm(output)
+    # if log_req_info:
+    #     print(f"Flat obj coersion completed in {time.time()-st}s")
+    # return final, final
 
 
-def prompt_structured(
-    thm: AnnotatedTheorem,
-    metric: Metric,
-    model="gpt-4-turbo",
-    prev_data=[],
-    n=None,
-    annotation=True,
-    syntax_search=False,
-    mathlib_search=False,
-    examples=0,
-    token=False,
-    improved_context=False,
-):
-    class trimmedTheorem(BaseModel):
-        decl: str = Field(
-            description='(sub)Theorem declaration (does not include ":= by") For example, a "have" statement would be the decl, and the proof of the have statement would be the (sub)proof. Similarly, a "case [Name] =>" statement would be the decl, and the case proof would be the proof.'
-        )
-        proof: List[Union[str, trimmedTheorem]] = Field(
-            ...,
-            description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)",
-        )
+# def prompt_structured(
+#     thm: Theorem,
+#     metric: Metric,
+#     model="gpt-4-turbo",
+#     prev_data=[],
+#     n=None,
+#     annotation=True,
+#     syntax_search=False,
+#     mathlib_search=False,
+#     examples=0,
+#     token=False,
+#     improved_context=False,
+# ):
+#     class trimmedTheorem(BaseModel):
+#         decl: str = Field(
+#             description='(sub)Theorem declaration (does not include ":= by") For example, a "have" statement would be the decl, and the proof of the have statement would be the (sub)proof. Similarly, a "case [Name] =>" statement would be the decl, and the case proof would be the proof.'
+#         )
+#         proof: List[Union[str, trimmedTheorem]] = Field(
+#             ...,
+#             description="Sequence of proofsteps for full proof of theorem. Each proofstep is one line/tactic in a tactic proof (str) or a subtheorem/sublemma/subproof in the format of (trimmedTheorem)",
+#         )
 
-    output = prompt_raw(
-        thm,
-        metric,
-        trimmedTheorem,
-        model=model,
-        prev_data=prev_data,
-        n=n,
-        annotation=annotation,
-        syntax_search=syntax_search,
-        mathlib_search=mathlib_search,
-        examples=examples,
-        token=token,
-        improved_context=improved_context,
-    )
+#     output = prompt_raw(
+#         thm,
+#         metric,
+#         trimmedTheorem,
+#         model=model,
+#         prev_data=prev_data,
+#         n=n,
+#         annotation=annotation,
+#         syntax_search=syntax_search,
+#         mathlib_search=mathlib_search,
+#         examples=examples,
+#         token=token,
+#         improved_context=improved_context,
+#     )
 
-    if token:
-        return output
+#     if token:
+#         return output
 
-    def coerce_PS(step):
-        ProofStep.update_forward_refs()
-        if type(step) == str:
-            return ProofStep(tactic=step)
-        return ProofStep(tactic=coerce_trimmedThm(step))
+#     print(output)
+#     return None
+#     # def coerce_PS(step):
+#     #     ProofStep.update_forward_refs()
+#     #     if type(step) == str:
+#     #         return ProofStep(tactic=step)
+#     #     return ProofStep(tactic=coerce_trimmedThm(step))
 
-    def coerce_trimmedThm(curr, force_decl=None):
-        if force_decl is not None:
-            decl = force_decl
-        else:
-            decl = curr.decl
-        return Theorem(
-            decl=decl,
-            declID=thm.declID,
-            src=thm.src,
-            leanFile=thm.leanFile,
-            context=thm.context,
-            headerless_context=thm.headerless_context,
-            proof=[coerce_PS(step) for step in curr.proof],
-            project_path=thm.project_path,
-            # dependencies=thm.dependencies,
-        )
+#     # def coerce_trimmedThm(curr, force_decl=None):
+#     #     if force_decl is not None:
+#     #         decl = force_decl
+#     #     else:
+#     #         decl = curr.decl
+#     #     return Theorem(
+#     #         decl=decl,
+#     #         declID=thm.declID,
+#     #         src=thm.src,
+#     #         leanFile=thm.leanFile,
+#     #         context=thm.context,
+#     #         headerless_context=thm.headerless_context,
+#     #         proof=[coerce_PS(step) for step in curr.proof],
+#     #         project_path=thm.project_path,
+#     #         # dependencies=thm.dependencies,
+#     #     )
 
-    final = coerce_trimmedThm(output, force_decl=thm.decl)
+#     # final = coerce_trimmedThm(output, force_decl=thm.decl)
 
-    return final, final
+#     # return final, final
 
 
 def process_one(item):
@@ -501,7 +504,7 @@ def best_of_n(
     output_trajectories=False,
 ):
     def best_of_n(
-        thm: AnnotatedTheorem,
+        thm: Theorem,
         metric: Metric,
         n: int,
         model="gpt-4-turbo",
@@ -557,51 +560,7 @@ def best_of_n(
                     for (correct, _, annotated_output) in evaluations
                 ]
             )
-            # correct, _, annotated_output = eval_correctness_batched(unannotated)
-            # thms.append((annotated_output, correct))
 
-        else:
-            st = time.time()
-            with ThreadPoolExecutor(
-                max_workers=max_workers if not match_workers else n
-            ) as executor:
-                futures = [
-                    (
-                        executor.submit(
-                            prompt_fn,
-                            thm,
-                            metric,
-                            model=model,
-                            prev_data=prev_data,
-                            annotation=annotation,
-                            syntax_search=syntax_search,
-                            mathlib_search=mathlib_search,
-                            examples=examples,
-                            improved_context=improved_context,
-                        )
-                        if i >= mixup * n
-                        else executor.submit(
-                            prompt_fn,
-                            thm,
-                            metric,
-                            prev_data=prev_data,
-                            model=model,
-                            annotation=annotation,
-                            examples=examples,
-                            improved_context=improved_context,
-                        )
-                    )
-                    for i in range(n)
-                ]
-                stt = time.time()
-                for future in futures:
-                    output, prompt_trajectories = future.result()
-                    correct, _, _ = eval_correctness(output)
-                    thms.append((output, correct))
-                    trajectories.append(prompt_trajectories)
-
-                # if log_req_info:
-                #     print(f"Evaluation competed in {time.time()-stt}s")
         if log_req_info:
             print(f"Threadpool competed in {time.time()-st}s")
 
@@ -623,7 +582,7 @@ def best_of_n(
 def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
     def refinement(
-        thm: AnnotatedTheorem,
+        thm: Theorem,
         metric: Metric,
         n: int,
         model="gpt-4-turbo",
@@ -718,7 +677,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
 def refinement_n(prompt_fn, n, prev_data_num=1, keep_best=False):
     def refinement_n(
-        thm: AnnotatedTheorem,
+        thm: Theorem,
         metric: Metric,
         model="gpt-4-turbo",
         annotation=True,
@@ -747,7 +706,7 @@ def refinement_n(prompt_fn, n, prev_data_num=1, keep_best=False):
 
 def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
     def best_of_n_n(
-        thm: AnnotatedTheorem,
+        thm: Theorem,
         metric: Metric,
         model="gpt-4-turbo",
         prev_data=[],
@@ -774,78 +733,3 @@ def best_of_n_n(prompt_fn, n, max_workers=1, max_cpus=1, mixup=0):
 
     best_of_n_n.__name__ = f"{best_of_n_n.__name__}({prompt_fn.__name__})"
     return best_of_n_n
-
-
-def recursive_generation(
-    prompt_fn,
-    max_workers=None,
-):
-    def recursive_generation(
-        thm: AnnotatedTheorem,
-        metric: Metric,
-        n: int,
-        model="gpt-4-turbo",
-        prev_data=[],
-        annotation=True,
-        syntax_search=True,
-        mathlib_search=True,
-        examples=0,
-        token=False,
-        improved_context=False,
-    ):
-        thms = []
-        trajectories = []
-        if token:
-            return (
-                prompt_fn(
-                    thm,
-                    metric,
-                    model=model,
-                    prev_data=prev_data,
-                    annotation=annotation,
-                    syntax_search=syntax_search,
-                    mathlib_search=mathlib_search,
-                    examples=examples,
-                    token=token,
-                    improved_context=improved_context,
-                )
-                * n
-            )
-
-        output, prompt_trajectories = prompt_fn(
-            thm,
-            metric,
-            model=model,
-            prev_data=prev_data,
-            annotation=annotation,
-            syntax_search=syntax_search,
-            mathlib_search=mathlib_search,
-            examples=examples,
-            improved_context=improved_context,
-        )
-        err_branches = extract_subtheorem(thm)
-        thm_text = replace_and_run(err_branches, thm)
-        new_thm = make_theorem(thm_text, thm)
-        emp_thms = make_empty_theorems(new_thm)
-        anno_emp = annotateTheorems([emp[1] for emp in emp_thms])
-        emps = [(emp_thms[i][0], anno_emp[i]) for i in range(len(anno_emp))]
-
-        output = insert_theorems(new_thm, emps)
-
-    best_of_n.__name__ = f"{best_of_n.__name__}({prompt_fn.__name__})"
-    return best_of_n
-
-
-if __name__ == "__main__":
-    root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    repo = getRepo("Tests", "configs/config_test.json")
-    files = {file.file_name: file for file in repo.files}
-    f = files["Solutions_S01_Implication_and_the_Universal_Quantifier.lean"]
-
-    thms = f.theorems
-    for thm in [thms[0]]:
-        metric = length_metric()
-        out = prompt_structured(thm, length_metric(), model="gpt-4o", examples=1)
-        print("\n")
-        print(parseTheorem(out, context=False))
