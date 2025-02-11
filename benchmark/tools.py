@@ -35,9 +35,9 @@ def extract_data(thm: Theorem, method, trajectory_position):
     )
 
     return {
-        "repo": thm.src,
-        "file": thm.leanFile,
-        "decl": thm.decl,
+        "repo": thm.repo.name,
+        "file": thm.file.get_path(),
+        "decl": thm.get_decl(),
         "method": fn.__name__,
         "n": kwargs.get("n", None) if fn.__name__ != "prompt_structured" else None,
         "metric": metric.name,
@@ -131,9 +131,9 @@ def process_instance(thm: Theorem, method, output_trajectories=False):
     )
 
     return {
-        "repo": thm.src,
-        "file": thm.leanFile,
-        "decl": thm.decl,
+        "repo": thm.repo.name,
+        "file": thm.file.get_path(),
+        "decl": thm.get_decl(),
         "method": fn.__name__,
         "n": kwargs.get("n", None) if fn.__name__ != "prompt_structured" else None,
         "metric": metric.name,
@@ -317,13 +317,13 @@ def baseline(*metrics):
 def improver(*metrics):
     return get_methods(
         model=["gpt-4o"],
-        fn=[refinement(best_of_n_n(prompt_flat, 3, max_workers=3), keep_best=True)],
+        fn=[refinement(best_of_n_n(prompt_basic, 3, max_workers=1), keep_best=True)],
         n=[5],
         annotation=[True],
-        examples=[10],
+        # examples=[10],
         metric=metrics,
-        syntax_search=[True],
-        mathlib_search=[True],
+        # syntax_search=[True],
+        # mathlib_search=[True],
     )
 
 
@@ -378,7 +378,7 @@ def no_errors(thms):
 
 if __name__ == "__main__":
 
-    methods = baseline(length_metric())
+    methods = improver(length_metric())
 
     repo = Repo.from_config("configs/config_mathlib.json")
     files = {f.path: f for f in repo.get_files(calculate_modules=False)}

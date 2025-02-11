@@ -110,6 +110,7 @@ class Repo:
             for file in file_list:
                 if file.endswith(".lean"):
                     path = os.path.join(root, file)
+
                     if calculate_modules:
                         module_name = (
                             os.path.relpath(path, project_path)
@@ -125,7 +126,17 @@ class Repo:
                             # )
                             files.append(File(path, self, is_module=False))
                     else:
-                        files.append(File(path, self))
+                        files.append(
+                            File(
+                                self,
+                                imports=[
+                                    os.path.relpath(path, self.get_project_path())
+                                    .replace("/", ".")
+                                    .replace(".lean", "")
+                                ],
+                                full_path=path,
+                            )
+                        )
         self.files = files
         return files
 
@@ -151,7 +162,7 @@ class File:
 
     def get_path(self) -> str:
         self.path = (
-            os.path.relpath(self.full_path, repo.get_project_path())
+            os.path.relpath(self.full_path, self.repo.get_project_path())
             if self.full_path
             else None
         )
@@ -203,17 +214,47 @@ class Theorem:
             else File(os.path.join(repo.get_project_path(), repo.import_file), repo)
         )
         self.repo = repo
-
+        self.context = None
+        self.decl = None
         self.unit = unit
 
-    def compile(self, force=False) -> CompilationUnit:
+    def get_context(self, force=False) -> str:
+        if self.context is not None and not force:
+            return self.context
+
+        with open(self.file.full_path, "rb") as f:
+            content = f.read()
+        unit = self.compile()
+
+        ctx = content[0 : unit.i_begin].decode("utf-8")
+        self.context = ctx
+        return ctx
+
+    def get_decl(self, force=False) -> str:
+        if self.decl is not None and not force:
+            return self.decl
+
+        with open(self.file.full_path, "rb") as f:
+            content = f.read()
+        unit = self.compile()
+
+        text = content[unit.i_begin : unit.i_end].decode("utf-8")
+        decl = text.split(":=")[0]
+        self.decl = decl
+        return decl
+
+    def compile(self, replace=False, force=False) -> CompilationUnit:
         if self.unit is not None and not force:
             return self.unit
 
         server = self.file.get_server()
         # print(server)
+        content = self.contents
+        if replace:
+            content = re.sub(r"theorem\s+\w+", "example", content)
+            content = re.sub(r"lemma\s+\w+", "example", content)
 
-        units = server.load_sorry(self.contents)
+        units = server.load_sorry(content)
 
         self.unit = units[-1]
         return units[-1]

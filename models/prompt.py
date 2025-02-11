@@ -7,6 +7,7 @@ from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 import sys
 from pathlib import Path
 
@@ -52,7 +53,8 @@ def parse_prev_data(data):
         out = curr["output"]
         correct = curr["correct"]
         msgs = curr["messages"]
-        msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
+        # msgs_txt = "\n".join([f"{msg.message_src}\t|\t{msg.content}" for msg in msgs])
+        msgs_txt = "\n".join(msgs)
         score = curr["score"]
         delta = curr["delta"]
         minmax = curr["minmax"]
@@ -93,7 +95,11 @@ def prompt_raw(
     mathlib_k = 5
     model_name = model
 
-    model = ChatOpenAI(model=model)
+    model = ChatOllama(
+        model="llama3.2",
+        temperature=0.7,
+    )
+    # model = ChatOpenAI(model=model)
 
     str_output = obj == str
     if obj == str:
@@ -123,7 +129,7 @@ def prompt_raw(
          {f"You will be given the previous {len(prev_data)} input/output pairs as well as their metric ({metric.name}) score and correctness score, as well as any error messages, for your reference to improve upon. Each of these previous results will be wrapped with <PREV I=0></PREV I=0>,...,<PREV I={len(prev_data)-1}></PREV I={len(prev_data)-1}>, with I={len(prev_data)-1} being the most recent result." if len(prev_data)!= 0 else ""}
          Remember to use lean 4 syntax, which has significant changes from the lean 3 syntax. {f"To assist with the syntax relating to the current theorem and current error messages, you will be given {syntax_k} documents to refer to for fixing these syntax issues. Each of these documents will be wrapped with <SYNTAX_DOC>...</SYNTAX_DOC>." if syntax_search else ""}
          {f"You will also recieve {mathlib_k} documents relevant to the current theorem to help with formulating your modified proof. Each of these will be wrapped with <CONTENT_DOC>...<CONTENT_DOC>" if mathlib_search else ""}
-         {"You will be given the tactic states as comments for reference." if annotation else ""} Return only the proof of the theorem, starting at the first tactic. Do not include the theorem statement or hypotheses. The current theorem will be wrapped in <CURRENT>...</CURRENT>
+         {"You will be given the tactic states as comments for reference." if annotation else ""} Return only the full theorem, starting with the same theorem declaration/statement and then your optimized proof of the theorem, starting at the first tactic. This theorem statement must match that of the current input theorem, which your goal is to optimize the proof of. The current theorem will be wrapped in <CURRENT>...</CURRENT>. Return valid lean 4 code of the theorem, and do not output the theorem context.
          """,
             ),
             ("system", "{format_instructions}"),
@@ -285,7 +291,7 @@ def prompt_raw(
     output = invoke_throttled(
         chain,
         {
-            "context": thm.context,
+            "context": thm.get_context(),
             "prev_results": prev_data_parsed,
             "theorem": parseTheorem(thm, annotation=annotation, context=False),
             "system_prompts": system_prompts,
@@ -318,7 +324,7 @@ def prompt_basic(
 
     class strProof(BaseModel):
         content: str = Field(
-            description='The entire proof of the given theorem, without the declaration or context. begin after the ":= by" at the first tactic.'
+            description="The entire proof of the given theorem, including the declaration but without any context. Output syntactically correct Lean 4 code."
         )
 
     output = prompt_raw(
@@ -338,8 +344,10 @@ def prompt_basic(
 
     if token:
         return output
+    out = Theorem(output.content, thm.repo, thm.file)
+    print(output.content)
+    return out, out
 
-    print(output)
     return None
     # def coerce_Thm(curr):
     #     ProofStep.update_forward_refs()
@@ -399,7 +407,8 @@ def prompt_flat(
         return output
     st = time.time()
     print(output)
-    return None
+    out = Theorem(output.contents, thm.repo, thm.file)
+    return out, out
     # def coerce_trimmedThm(curr):
     #     ProofStep.update_forward_refs()
     #     return Theorem(
@@ -553,7 +562,7 @@ def best_of_n(
                 )
                 unannotated.append(output)
                 trajectories.append(prompt_trajectories)
-            evaluations = eval_correctness_batched(unannotated)
+            evaluations = [(*eval_correctness(t), t) for t in unannotated]
             thms.extend(
                 [
                     (annotated_output, correct)
@@ -629,20 +638,20 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                 improved_context=improved_context,
             )
             st = time.time()
-            correct, messages, new_thm = eval_correctness(output)
+            correct, messages = eval_correctness(output)
             if log_req_info:
                 print(f"Evaluation completed in {time.time()-st}s")
             trajectories.append(prompt_trajectories)
-            curr_data = {"input": curr, "output": new_thm}
+            curr_data = {"input": curr, "output": output}
             curr_data["correct"] = correct
             curr_data["messages"] = messages
             curr_data["score"] = (
-                (metric.name, metric.score(new_thm))
+                (metric.name, metric.score(output))
                 if correct and metric.score_fn is not None
                 else None
             )
             curr_data["delta"] = (
-                (metric.name, metric.metric(curr, new_thm)) if correct else None
+                (metric.name, metric.metric(curr, output)) if correct else None
             )
             curr_data["minmax"] = metric.minmax
 
@@ -650,7 +659,7 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
 
             if not metric.lock_refinement_state:
                 if not keep_best:
-                    curr = new_thm
+                    curr = output
                 else:
                     old_correct = eval_correctness(curr)[0]
                     new_correct = correct
@@ -661,13 +670,13 @@ def refinement(prompt_fn, prev_data_num=1, keep_best=False):
                     # if both incorrect, one with less messages.
 
                     if old_correct and new_correct:
-                        curr = metric.cmp(curr, new_thm)
+                        curr = metric.cmp(curr, output)
                     elif old_correct and not new_correct:
                         pass
                     elif not old_correct and new_correct:
-                        curr = new_thm
+                        curr = output
                     else:
-                        curr = new_thm  # min(curr,new_thm,key=lambda x:len(x.messages))
+                        curr = output  # min(curr,new_thm,key=lambda x:len(x.messages))
 
         return curr, ("refine", trajectories)
 

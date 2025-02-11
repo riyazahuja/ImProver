@@ -12,7 +12,7 @@ from evaluate.metrics import *
 
 
 def eval_correctness(thm: Theorem, sorries_are_errors=True):
-    unit = thm.compile()
+    unit = thm.compile(replace=True)
     msgs = unit.messages
 
     correct = (
