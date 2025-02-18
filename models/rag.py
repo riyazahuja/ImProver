@@ -8,7 +8,9 @@ from langchain_text_splitters import (
     MarkdownHeaderTextSplitter,
 )
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+
+# from langchain_openai import OpenAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
 from concurrent.futures import ThreadPoolExecutor
 import sys
 from pathlib import Path
@@ -75,7 +77,7 @@ def get_mathlib_vs(
     n = 5000
     docs_chunked = [docs[i * n : (i + 1) * n] for i in range((len(docs) + n - 1) // n)]
 
-    embeddings = OpenAIEmbeddings(show_progress_bar=True)
+    embeddings = OllamaEmbeddings(model="llama3.2", show_progress_bar=True)
 
     vectorstore = Chroma.from_documents(
         documents=docs_chunked[0],
@@ -148,7 +150,7 @@ def get_TPiL4_vs(path=os.path.join(root_path, ".db", "src", "TPiL4")):
 
     vectorstore = Chroma.from_documents(
         documents=docs,
-        embedding=OpenAIEmbeddings(),
+        embedding=OllamaEmbeddings(model="llama3.2"),
         persist_directory=os.path.join(root_path, ".db", ".TPiL_chroma_db"),
     )
     return vectorstore
@@ -161,7 +163,7 @@ def get_metric_vs(examples, name):
     ]
     vectorstore = Chroma.from_documents(
         documents=docs,
-        embedding=OpenAIEmbeddings(),
+        embedding=OllamaEmbeddings(model="llama3.2"),
         persist_directory=os.path.join(
             root_path, ".db", "metrics", f".{name}_chroma_db"
         ),
@@ -177,7 +179,8 @@ def get_retriever(
 ):
     if vectorstore is None:
         vectordb = Chroma(
-            persist_directory=persist_dir, embedding_function=OpenAIEmbeddings()
+            persist_directory=persist_dir,
+            embedding_function=OllamaEmbeddings(model="llama3.2"),
         )
         retriever = vectordb.as_retriever(
             search_type="mmr", search_kwargs={"k": k, "filter": filterDB}
@@ -194,7 +197,7 @@ if __name__ == "__main__":
     # get_mathlib_vs()
     db = Chroma(
         persist_directory=os.path.join(root_path, ".db/.mathlib_chroma_db"),
-        embedding_function=OpenAIEmbeddings(),
+        embedding_function=OllamaEmbeddings(model="llama3.2"),
     )
 
     retriever = get_retriever(

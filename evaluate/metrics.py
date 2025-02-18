@@ -4,7 +4,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from models.structures import *
 from models.rag import *
-from evaluate.build_prooftree import *
+
+# from evaluate.build_prooftree import *
 
 
 """
@@ -714,15 +715,5 @@ if __name__ == "__main__":
     for i, thm in enumerate(thms):
         if type(thm) == Theorem:
             thm = annotateTheorem(thm)
-        G, p, l = getProofTree(thm)
-        score = calculate_modularity(G)
-
-        save_tree(
-            G,
-            p,
-            l,
-            os.path.join(root_path, ".trees", "mod", f"thm_{i}.png"),
-            show_mod=True,
-        )
 
         print(f"{thm.decl}\n {score}\n=========")
