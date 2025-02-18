@@ -12,7 +12,7 @@ set_option autoImplicit true
 -- theorems are given by a list of names, and modules are given by a list of names
 
 
-def insert_state_comments (step:CompilationStep) : IO String := do
+def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String := none) : IO String := do
   let mut trees := step.trees
   trees := trees.flatMap InfoTree.retainTacticInfo
   trees := trees.flatMap InfoTree.retainOriginal
@@ -21,7 +21,9 @@ def insert_state_comments (step:CompilationStep) : IO String := do
   let L₁ ← (trees.flatMap InfoTree.tactics).mapM TacticInvocation.rangeAndStates
   let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
   let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
-  let mut src := ({str:=step.src.str, stopPos := step.src.stopPos, startPos := 0} : Substring).toString.splitOn "\n"
+  let mut src := match pre_elab_str with
+                  | none => ({str:=step.src.str, stopPos := step.src.stopPos, startPos := 0} : Substring).toString.splitOn "\n"
+                  | some str => (({str:=step.src.str, stopPos := step.src.startPos, startPos := 0} : Substring).toString ++ str).splitOn "\n"
   let mut inserted : Std.HashSet Nat := Std.HashSet.ofList [10000000]
   for item in L₃.reverse do
     let ⟨⟨⟨l, c⟩, _⟩, sb, sa⟩ := item
@@ -49,7 +51,7 @@ then we will print out the theorem with the proof states interleaved.
 
 def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
   let proofAsSorry := ({} : KVMap).insert `debug.proofAsSorry (.ofBool true)
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none proofAsSorry (← findLean mod).toString
+  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} (← findLean mod).toString
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
 
@@ -64,8 +66,21 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
     let contents := cmd.src.toString
     IO.println s!"COMPILATION STEP CONTENTS:\n {contents}"
     let prev_state := cmd.before
-    --now, let's add the comment to the theorem, and run it after the prev env
-    let elaborated_steps := Lean.Elab.IO.processInput' contents (some prev_state) {} (← findLean mod).toString
+
+    let thm_str := contents
+    let context := ({str:=cmd.src.str,startPos := 0, stopPos := cmd.src.startPos} : Substring).toString
+    let metric := s!"LENGTH"
+    -- let llm_output_str ← IO.Process.output {
+    --   cmd := ".venv/bin/python3",
+    --   args := #["scripts/model.py", thm_str, context, metric]
+    -- }
+    let llm_output := contents--llm_output_str.stdout
+    -- let llm_err := llm_output_str.stderr
+
+    -- IO.println s!"LLM OUTPUT:\n {llm_output}"
+    -- IO.println s!"LLM ERR:\n {llm_err}"
+
+    let elaborated_steps := Lean.Elab.IO.processInput' llm_output (some prev_state) {}
 
     let head? ← elaborated_steps.uncons
     match head? with
@@ -80,20 +95,11 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
       -- else
       IO.println s!"AFTER ELAB CONTENTS:\n {← insert_state_comments head}"
 
-
-      let thm_str ← insert_state_comments head
-      let context := ({str:=head.src.str,startPos := 0, stopPos := head.src.startPos} : Substring).toString
-      let metric := s!"LENGTH"
-      let llm_output_str ← IO.Process.output {
-        cmd := ".venv/bin/python3",
-        args := #["scripts/model.py", thm_str, context, metric]
-      }
-      let llm_output := llm_output_str.stdout
-      let llm_err := llm_output_str.stderr
-
-      IO.println s!"LLM OUTPUT:\n {llm_output}"
-      IO.println s!"LLM ERR:\n {llm_err}"
+      let msgs := head.msgs
+      for m in msgs do
+        IO.eprintln (bombEmoji ++ (← m.data.toString))
 
 
 
-#eval runAtDecls `Mathlib.Logic.Hydra (some [`Relation.cutExpand_le_invImage_lex])
+
+#eval runAtDecls `Mathlib.Logic.Hydra -- (some [`Relation.cutExpand_le_invImage_lex])
