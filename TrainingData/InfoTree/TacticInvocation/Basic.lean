@@ -51,23 +51,23 @@ def formatMainGoal (t : TacticInvocation) : IO Format :=
   t.runMetaM (fun g => do ppExpr (← instantiateMVars (← g.getType)))
 
 def goalState (t : TacticInvocation) : IO (List Format) := do
-  t.runMetaMGoalsBefore (fun gs => gs.mapM fun g => do Meta.ppGoal g)
+  t.runMetaMGoalsBefore (fun gs => gs.mapM fun g => do withOptions (fun o => (o.set `pp.notation false).set `pp.fullNames true) $ Meta.ppGoal g)
 
 def goalStateAfter (t : TacticInvocation) : IO (List Format) := do
-  t.runMetaMGoalsAfter (fun gs => gs.mapM fun g => do Meta.ppGoal g)
+  t.runMetaMGoalsAfter (fun gs => gs.mapM fun g => do withOptions (fun o => (o.set `pp.notation false).set `pp.fullNames true) $ Meta.ppGoal g)
 
 def mainGoalStateBefore (t : TacticInvocation) : IO Format := do
   t.runMetaMGoalsBefore (fun gs => do
     match gs.head? with
     | none => pure ""
-    | some g => Meta.ppGoal g
+    | some g => withOptions (fun o => (o.set `pp.notation false).set `pp.fullNames true) $ Meta.ppGoal g
   )
 
 def mainGoalStateAfter (t : TacticInvocation) : IO Format := do
   t.runMetaMGoalsAfter (fun gs => do
     match gs.head? with
     | none => pure ""
-    | some g => Meta.ppGoal g
+    | some g => withOptions (fun o => (o.set `pp.notation false).set `pp.fullNames true) $ Meta.ppGoal g
   )
 
 def ppExpr (t : TacticInvocation) (e : Expr) : IO Format :=
@@ -75,14 +75,13 @@ def ppExpr (t : TacticInvocation) (e : Expr) : IO Format :=
 
 end Lean.Elab.TacticInvocation
 
-
 namespace Lean.Elab.InfoTree
 
 /--
 Finds all tactic invocations in an `InfoTree`,
 ignoring structuring tactics (e.g. `by`, `;`, multiline tactics, parenthesized tactics).
 -/
-def tactics_new (t : InfoTree) : List TacticInvocation :=
+def tactics (t : InfoTree) : List TacticInvocation :=
   t.findTacticNodes.map (fun ⟨i, ctx, children⟩ => ⟨i, ctx, children⟩)
     |>.filter fun i => i.info.isSubstantive
 
