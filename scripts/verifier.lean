@@ -1,4 +1,4 @@
-import TrainingData.Frontend
+-- import TrainingData.Frontend
 import Cli
 import scripts.state_comments
 
@@ -67,20 +67,8 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
     IO.println s!"COMPILATION STEP CONTENTS:\n {contents}"
     let prev_state := cmd.before
 
-    let thm_str := contents
-    let context := ({str:=cmd.src.str,startPos := 0, stopPos := cmd.src.startPos} : Substring).toString
-    let metric := s!"LENGTH"
-    -- let llm_output_str ← IO.Process.output {
-    --   cmd := ".venv/bin/python3",
-    --   args := #["scripts/model.py", thm_str, context, metric]
-    -- }
-    let llm_output := contents--llm_output_str.stdout
-    -- let llm_err := llm_output_str.stderr
+    let elaborated_steps := Lean.Elab.IO.processInput' contents (some prev_state) {}
 
-    -- IO.println s!"LLM OUTPUT:\n {llm_output}"
-    -- IO.println s!"LLM ERR:\n {llm_err}"
-
-    let elaborated_steps := Lean.Elab.IO.processInput' llm_output (some prev_state) {}
 
     let head? ← elaborated_steps.uncons
     match head? with
@@ -93,6 +81,8 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
       -- if not (head.after.constants.map₂.contains ci.name) then
       --   IO.eprintln s!"Expected {ci.name} to be in the elaborated steps, but it was not:\n {(head.diff.map (fun info=>info.name))}"
       -- else
+      IO.println s!"CONSTANTS:\n{head.before.constants.map₂.toList.map (fun (x,v)=>x)}"
+      IO.println s!"CONSTANTS:\n{head.after.constants.map₂.toList.map (fun (x,v)=>x)}"
       IO.println s!"AFTER ELAB CONTENTS:\n {← insert_state_comments head}"
 
       let msgs := head.msgs
@@ -101,5 +91,7 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
 
 
 
+
+#eval runAtDecls `temp.temp
 
 #eval runAtDecls `Mathlib.Logic.Hydra -- (some [`Relation.cutExpand_le_invImage_lex])
