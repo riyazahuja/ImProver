@@ -2,7 +2,7 @@
 import Cli
 import scripts.state_comments
 
-open Lean Core Elab IO Meta Term Tactic
+open Lean Core Elab IO Meta Term Command Tactic
 
 set_option autoImplicit true
 
@@ -21,6 +21,8 @@ def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String :=
   let L₁ ← (trees.flatMap InfoTree.tactics).mapM TacticInvocation.rangeAndStates
   let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
   let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
+  /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
+    maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
   let mut src := match pre_elab_str with
                   | none => ({str:=step.src.str, stopPos := step.src.stopPos, startPos := 0} : Substring).toString.splitOn "\n"
                   | some str => (({str:=step.src.str, stopPos := step.src.startPos, startPos := 0} : Substring).toString ++ str).splitOn "\n"
@@ -38,6 +40,15 @@ def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String :=
   let out := ("\n".intercalate src)
   return out
 
+def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
+  { state with
+    scopes := state.scopes.map fun s : Scope =>
+      { s with opts := Id.run do
+          let mut opts := s.opts
+          for (k, v) in options do
+            opts := opts.insert k v
+          opts } }
+
 /-- Our verifier needs two parts: First evaluate a whole module (for each module in config)
 with the proof as sorry option on. this should return a bunch of compilationSteps.
 Then on each decl in this module in the include list, we run the "improvement loop"
@@ -50,8 +61,11 @@ then we will print out the theorem with the proof states interleaved.
 --/
 
 def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
+  let fileName := (← findLean mod).toString
+
+  /- TODO: I don't know if proofAsSorry is actually working -/
   let proofAsSorry := ({} : KVMap).insert `debug.proofAsSorry (.ofBool true)
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} (← findLean mod).toString
+  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none proofAsSorry fileName
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
 
@@ -63,33 +77,65 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
     unless cmd.msgs.isEmpty do
       throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
 
-    let contents := cmd.src.toString
-    IO.println s!"COMPILATION STEP CONTENTS:\n {contents}"
-    let prev_state := cmd.before
+    let contentsBefore : Substring := match cmd.src with
+      | ⟨s, b, _⟩ => ⟨s, 0, b⟩
+    let srcCommand := cmd.src.toString
+    IO.println s!"COMPILATION STEP CONTENTS:\n{srcCommand.dropRightWhile (· == '\n')}"
 
-    let elaborated_steps := Lean.Elab.IO.processInput' contents (some prev_state) {}
+    /- Presumably, interaction with the LLM improver agent happens here.
+      Given e.g. the srcCommand (source theorem before improvement),
+      or e.g. ← insert_state_comments cmd (source theorem before improvement + state comments),
+      the LLM outputs its proof improvement candidates to newCommandCandidates.
+      Here we (1) don't do any changes and (2) replace rfl by sorry as a toy example. -/
+    let newCommandCandidates := [
+      srcCommand,
+      srcCommand.replace "rfl" "sorry"
+    ]
 
+    let options := ({} : KVMap)
+      |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
+      |>.insert `debug.proofAsSorry (.ofBool false) -- turn proof checking back on
 
-    let head? ← elaborated_steps.uncons
-    match head? with
-    | none =>
-      IO.println s!"No elaborated steps"
-    | some (head, _) =>
-      -- Should probably check that ci is actually in the diff? But the below code is a bit finnicky with namespaces.
-      -- works fine without it anyways
+    /- Run proof candidates in parallel -/
+    let tasks := newCommandCandidates.map fun newCommand => IO.asTask do
+      let mut msgs := #[]
+      let mut correct := false
+      let elaborated_steps := Lean.Elab.IO.compilationSteps
+        (Parser.mkInputContext (contentsBefore.toString ++ newCommand) fileName)
+        cmd.parserStateBefore
+        (cmd.commandStateBefore.withOptions options)
 
-      -- if not (head.after.constants.map₂.contains ci.name) then
-      --   IO.eprintln s!"Expected {ci.name} to be in the elaborated steps, but it was not:\n {(head.diff.map (fun info=>info.name))}"
-      -- else
-      IO.println s!"CONSTANTS:\n{head.before.constants.map₂.toList.map (fun (x,v)=>x)}"
-      IO.println s!"CONSTANTS:\n{head.after.constants.map₂.toList.map (fun (x,v)=>x)}"
-      IO.println s!"AFTER ELAB CONTENTS:\n {← insert_state_comments head}"
+      let head? ← elaborated_steps.uncons
+      match head? with
+      | none =>
+        msgs := msgs.push s!"No elaborated steps"
+      | some (head, _) =>
+        -- Should probably check that ci is actually in the diff? But the below code is a bit finnicky with namespaces.
+        -- works fine without it anyways
 
-      let msgs := head.msgs
-      for m in msgs do
-        IO.eprintln (bombEmoji ++ (← m.data.toString))
+        -- if not (head.after.constants.map₂.contains ci.name) then
+        --   IO.eprintln s!"Expected {ci.name} to be in the elaborated steps, but it was not:\n {(head.diff.map (fun info=>info.name))}"
+        -- else
+        msgs := msgs.push s!"NEW COMMAND:\n{newCommand}"
+        msgs := msgs.push s!"CONSTANTS:\n{head.before.constants.map₂.toList.map (fun (x,v)=>x)}"
+        msgs := msgs.push s!"CONSTANTS:\n{head.after.constants.map₂.toList.map (fun (x,v)=>x)}"
+        msgs := msgs.push s!"AFTER ELAB CONTENTS:\n {← insert_state_comments head}"
 
+        /- Any errors in the improved proof will be caught here -/
+        for m in head.msgs do
+          msgs := msgs.push (bombEmoji ++ (← m.data.toString))
+        correct := head.msgs.isEmpty
 
+      return (correct, msgs)
+
+    let results ← tasks.mapM fun (t : BaseIO _) => do
+      IO.ofExcept <| (← t).get
+    for result in results do
+      IO.println "============================================="
+      let (correct, msgs) := result
+      IO.println s!"Correct: {correct}"
+      for msg in msgs do
+        IO.println msg
 
 
 #eval runAtDecls `temp.temp
