@@ -85,9 +85,12 @@ def runAtDecls (mod : Name) (decls : Option (List Name) := none): IO Unit := do
     /- Presumably, interaction with the LLM improver agent happens here.
       Given e.g. the srcCommand (source theorem before improvement),
       or e.g. ← insert_state_comments cmd (source theorem before improvement + state comments),
-      the LLM outputs its proof improvement candidate to newCommand.
-      Here we replace rfl by sorry as a toy example. -/
-    let newCommandCandidates := [srcCommand.replace "rfl" "sorry"]
+      the LLM outputs its proof improvement candidates to newCommandCandidates.
+      Here we (1) don't do any changes and (2) replace rfl by sorry as a toy example. -/
+    let newCommandCandidates := [
+      srcCommand,
+      srcCommand.replace "rfl" "sorry"
+    ]
 
     let options := ({} : KVMap)
       |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
