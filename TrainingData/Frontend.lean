@@ -87,6 +87,8 @@ structure CompilationStep where
   after : Environment
   msgs : List Message
   trees : List InfoTree
+  parserStateBefore : Parser.ModuleParserState
+  commandStateBefore : Command.State
 
 namespace CompilationStep
 
@@ -96,6 +98,7 @@ Process one command, returning a `CompilationStep` and
 -/
 def one : FrontendM (CompilationStep × Bool) := do
   let s := (← get).commandState
+  let parserStateBefore := (← get).parserState
   let before := s.env
   let done ← processCommand
   let stx := (← get).commands.back
@@ -104,7 +107,7 @@ def one : FrontendM (CompilationStep × Bool) := do
   let after := s'.env
   let msgs := s'.messages.unreported.drop s.messages.unreported.size
   let trees := s'.infoState.trees.drop s.infoState.trees.size
-  return ({ src, stx, before, after, msgs, trees }, done)
+  return ({ src, stx, before, after, msgs, trees, parserStateBefore, commandStateBefore := s }, done)
 
 /-- Process all commands in the input. -/
 partial def all : FrontendM (List CompilationStep) := do
