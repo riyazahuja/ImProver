@@ -92,3 +92,5 @@ Prints the modified source code to stdout."
 /-- `lake exe state_comments` -/
 def main (args : List String) : IO UInt32 :=
   state_comments.validate args
+
+#eval main ["temp.temp"]

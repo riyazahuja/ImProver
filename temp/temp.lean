@@ -1,51 +1,149 @@
-import Aesop
+import Mathlib.Data.Set.Lattice
+import Mathlib.Data.Nat.Prime.Basic
+import Mathlib.Tactic
 
-def p := True
-def q := True
-axiom p_eq_true : p = True
-axiom q_eq_true : q = True
+section
+variable {α : Type*}
+variable (s t u : Set α)
+open Set
 
-namespace TacticProofs
+theorem theorem1 : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
+  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
+  · use xs; left; exact xt
+  · use xs; right; exact xu
 
-theorem list_eq_self1 (l : List α) : l = l := by
-  cases l
-  . have : p = True := by exact p_eq_true
-    rfl
-  . have : q = True := q_eq_true
-    rfl
+theorem theorem2 : s \ (t ∪ u) ⊆ (s \ t) \ u := by
+  rintro x ⟨xs, xntu⟩
+  constructor
+  use xs
+  · intro xt
+    exact xntu (Or.inl xt)
+  intro xu
+  apply xntu (Or.inr xu)
 
-theorem list_eq_self2 (α : Type) (l : List α) : l = l := by
-  exact list_eq_self1 l
+theorem theorem3 : s ∩ t = t ∩ s :=
+    Subset.antisymm
+    (fun x ⟨xs, xt⟩ ↦ ⟨xt, xs⟩) fun x ⟨xt, xs⟩ ↦ ⟨xs, xt⟩
 
-theorem list_eq_self3 (α : Type) (l : List α) : l = l := by
-  cases l <;> simp [p_eq_true, q_eq_true]
+theorem theorem4 : s ∩ (s ∪ t) = s := by
+  ext x; constructor
+  · rintro ⟨xs, _⟩
+    exact xs
+  · intro xs
+    use xs; left; exact xs
 
-theorem test1 (x : Nat) : x = x := by rfl
+theorem theorem5 : s ∪ s ∩ t = s := by
+  ext x; constructor
+  · rintro (xs | ⟨xs, xt⟩) <;> exact xs
+  · intro xs; left; exact xs
 
-theorem test2 (x : α) : x = x := by rfl
+theorem theorem6 : s \ t ∪ t = s ∪ t := by
+  ext x; constructor
+  · rintro (⟨xs, nxt⟩ | xt)
+    · left
+      exact xs
+    · right
+      exact xt
+  by_cases h : x ∈ t
+  · intro
+    right
+    exact h
+  rintro (xs | xt)
+  · left
+    use xs
+  right; exact xt
 
-theorem test3 (α : Type _) (x : α) : x = x := by rfl
+theorem theorem7 : s \ t ∪ t \ s = (s ∪ t) \ (s ∩ t) := by
+  ext x; constructor
+  · rintro (⟨xs, xnt⟩ | ⟨xt, xns⟩)
+    · constructor
+      left
+      exact xs
+      rintro ⟨_, xt⟩
+      contradiction
+    · constructor
+      right
+      exact xt
+      rintro ⟨xs, _⟩
+      contradiction
+  rintro ⟨xs | xt, nxst⟩
+  · left
+    use xs
+    intro xt
+    apply nxst
+    constructor <;> assumption
+  · right; use xt; intro xs
+    apply nxst
+    constructor <;> assumption
 
-theorem test4 (α : Type) (x : α) : x = x := by rfl
+theorem theorem8 : { n | Nat.Prime n } ∩ { n | n > 2 } ⊆ { n | ¬Even n } := by
+  intro n
+  simp
+  intro nprime n_gt
+  rcases Nat.Prime.eq_two_or_odd nprime with h | h
+  · rw [h]
+    linarith
+  · rw [Nat.odd_iff, h]
 
-theorem zero_eq_zero : 0 = 0 := by omega
+end
 
-theorem skolemizationTest1 (α : Type) [Inhabited α] (p : Prop) (f : α → Prop) (h : p ∨ ∃ x : α, f x) : p ∨ ∃ x : α, f x := by
-  exact h -- `skolemizeAll` can succeed because `α` is known to be inhabited
+section
 
-theorem skolemizationTest2 (α : Type) (p : Prop) (f : α → Prop) (h : p ∨ ∃ x : α, f x) : p ∨ ∃ x : α, f x := by
-  exact h -- `skolemizeAll` fails because `α` isn't known to be inhabited and the fact that `α` isn't inhabited doesn't follow from `h`
+variable (s t : Set ℕ)
 
-end TacticProofs
+section
+variable (ssubt : s ⊆ t)
 
-namespace TermProofs
+example (h₀ : ∀ x ∈ t, ¬Even x) (h₁ : ∀ x ∈ t, Prime x) : ∀ x ∈ s, ¬Even x ∧ Prime x := by
+  intro x xs
+  constructor
+  · apply h₀ x (ssubt xs)
+  apply h₁ x (ssubt xs)
 
-theorem termProof1 : 0 = 0 := rfl
+example (h : ∃ x ∈ s, ¬Even x ∧ Prime x) : ∃ x ∈ t, Prime x := by
+  rcases h with ⟨x, xs, _, px⟩
+  use x, ssubt xs
 
-theorem termProof2 (x : Nat) : x + 0 = x := Nat.add_zero x
+end
 
-theorem termProof3 (p q : Prop) (h : p → q) (hp : p) : q := h hp
+end
 
-theorem termProof4 (b : Prop) (h : a → b) : a → b := h
+section
+variable {α I : Type*}
+variable (A B : I → Set α)
+variable (s : Set α)
 
-end TermProofs
+open Set
+
+theorem theorem9 : (s ∪ ⋂ i, A i) = ⋂ i, A i ∪ s := by
+  ext x
+  simp only [mem_union, mem_iInter]
+  constructor
+  · rintro (xs | xI)
+    · intro i
+      right
+      exact xs
+    intro i
+    left
+    exact xI i
+  intro h
+  by_cases xs : x ∈ s
+  · left
+    exact xs
+  right
+  intro i
+  cases h i
+  · assumption
+  contradiction
+
+def primes : Set ℕ :=
+  { x | Nat.Prime x }
+
+theorem theorem10 : (⋃ p ∈ primes, { x | x ≤ p }) = univ := by
+  apply eq_univ_of_forall
+  intro x
+  simp
+  rcases Nat.exists_infinite_primes x with ⟨p, pge, primep⟩
+  use p, primep
+
+end
