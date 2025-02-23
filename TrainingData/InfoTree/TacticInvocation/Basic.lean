@@ -81,8 +81,17 @@ namespace Lean.Elab.InfoTree
 Finds all tactic invocations in an `InfoTree`,
 ignoring structuring tactics (e.g. `by`, `;`, multiline tactics, parenthesized tactics).
 -/
+def tactics_new (trees : List InfoTree) : List TacticInvocation :=
+  let trees := trees.flatMap retainOriginal
+  let trees := trees.flatMap retainTacticInfo
+  let trees := trees.flatMap retainSubstantive
+
+  trees.flatMap (fun tree => tree.findTacticNodes.map (fun ⟨i, ctx, children⟩ => ⟨i, ctx, children⟩)
+    |>.filter fun i => i.info.isSubstantive)
+
 def tactics (t : InfoTree) : List TacticInvocation :=
   t.findTacticNodes.map (fun ⟨i, ctx, children⟩ => ⟨i, ctx, children⟩)
     |>.filter fun i => i.info.isSubstantive
+
 
 end Lean.Elab.InfoTree

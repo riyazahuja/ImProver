@@ -2,6 +2,8 @@ import Mathlib.Data.Set.Lattice
 import Mathlib.Data.Nat.Prime.Basic
 import Mathlib.Tactic
 
+-- set_option debug.byAsSorry true
+
 section
 variable {α : Type*}
 variable (s t u : Set α)

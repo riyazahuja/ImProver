@@ -1,6 +1,8 @@
 -- import TrainingData.Frontend
 import Cli
 import scripts.state_comments
+import TrainingData.InfoTree.Basic
+import TrainingData.InfoTree.TacticInvocation.Basic
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
@@ -123,7 +125,10 @@ def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
 def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List String) : IO (List (Option (String × CompilationStep))) := do
   let options := ({} : KVMap)
       |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
-      |>.insert `debug.proofAsSorry (.ofBool false) -- turn proof checking back on
+      |>.insert `debug.byAsSorry (.ofBool false) -- proofAsSorry not working???
+      |>.insert `linter.unusedVariables (.ofBool true)
+      |>.insert `linter.unusedTactic (.ofBool true)
+      |>.insert `linter.unreachableTactic (.ofBool true)
 
   let fileName := (← findLean mod).toString
 
@@ -151,31 +156,37 @@ def ImProver (config : ImProverConfig): IO Unit := do
   let fileName := (← findLean mod).toString
   let mut trajectories_json := []
   /- TODO: I don't know if proofAsSorry is actually working -/
-  let proofAsSorry := ({} : KVMap).insert `debug.proofAsSorry (.ofBool true)
+  let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
+    |>.insert `linter.unusedVariables (.ofBool false)
+    |>.insert `linter.unusedTactic (.ofBool false)
+    |>.insert `linter.unreachableTactic (.ofBool false)
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none proofAsSorry fileName
-
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
   for (cmd, ci) in targets do
     if decls.isSome && !(decls.get!.contains ci.name) then
       continue
     IO.println s!"============================================="
     IO.println s!"Processing {ci.name} in {mod}"
+
+
+    let tacs :=  InfoTree.tactics_new cmd.trees
+    let tacs ← tacs.mapM (fun t => t.pp)
+    IO.println s!"Tactics: {tacs.length}"
+    IO.println s!"Tactics: {tacs}"
     IO.println s!"---------------------------------------------"
 
     for m in cmd.msgs do IO.eprintln (bombEmoji ++ (← m.data.toString))
-    unless cmd.msgs.isEmpty do
-      throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
+    -- unless cmd.msgs.isEmpty do
+    --   throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
 
     -- let newCommandCandidates ← promptModel cmd (best_of_n := 5)
     let newCommandCandidates ← promptModel_debug cmd
     let resultantSteps := (← elaborateVariants cmd mod newCommandCandidates).filterMap (fun x => x)
 
-
-
-
     let instances : List ImprovedTheoremInstance ← resultantSteps.mapM (fun (model_output,head) => do
       let correct := head.msgs.isEmpty
-      let metric_score := head.trees.flatMap (fun tree=>tree.tactics) |>.length
+      let metric_score := InfoTree.tactics_new head.trees |>.length
+
       let state_comments ← insert_state_comments head
 
       let msgs ← head.msgs.mapM (fun msg => do
@@ -220,4 +231,4 @@ def ImProver (config : ImProverConfig): IO Unit := do
 
 
 
-#eval ImProver {mod:=`temp.temp, decls:= some [`theorem1]}
+#eval ImProver {mod:=`temp.temp, decls:=(some [`theorem1])}
