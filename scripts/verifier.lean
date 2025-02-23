@@ -30,10 +30,11 @@ def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String :=
   let L₁ ← (trees.flatMap InfoTree.tactics).mapM TacticInvocation.rangeAndStates
   let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
   let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
+
   /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
     maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
   let mut src := match pre_elab_str with
-                  | none => step.src.toString.splitOn "\n"
+                  | none => step.src.str.splitOn "\n"
                   | some str => (({str:=step.src.str, stopPos := step.src.startPos, startPos := 0} : Substring).toString ++ str).splitOn "\n"
   let mut inserted : Std.HashSet Nat := Std.HashSet.ofList [10000000]
   for item in L₃.reverse do
@@ -202,7 +203,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
       let ⟨original, newCommand,elabed, correct, metric, msgs⟩ := i
       IO.println s!"Original:\n {original}"
       IO.println s!"Model Output:\n {newCommand}"
-      IO.println s!"Compiled:\n {elabed}"
+      IO.println s!"Annotated:\n {elabed}"
       IO.println s!"Correct: {correct}"
       IO.println s!"Metric: {metric}"
       for msg in msgs do
