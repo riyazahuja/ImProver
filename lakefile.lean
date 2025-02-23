@@ -18,53 +18,10 @@ lean_lib temp where
 
 lean_lib Examples where
 
--- lean_exe training_data where
---   root := `scripts.training_data
---   supportInterpreter := true
+lean_lib scripts where
 
--- lean_exe full_proof_training_data where
---   root := `scripts.full_proof_training_data
---   supportInterpreter := true
 
 @[default_target]
-lean_exe state_comments where
-  root := `scripts.state_comments
+lean_exe ImProver where
+  root := `scripts.verifier
   supportInterpreter := true
-
--- lean_exe premises where
---   root := `scripts.premises
---   supportInterpreter := true
-
--- @[default_target]
--- lean_exe training_data_with_premises where
---   root := `scripts.training_data_with_premises
---   supportInterpreter := true
-
--- @[default_target]
--- lean_exe tactic_benchmark where
---   root := `scripts.tactic_benchmark
---   supportInterpreter := true
-
--- @[default_target]
--- lean_exe add_imports where
---   root := `scripts.add_imports
---   supportInterpreter := true
-
--- lean_exe all_modules where
---   root := `scripts.all_modules
---   supportInterpreter := true
-
--- @[default_target]
--- lean_exe declarations where
---   root := `scripts.declarations
---   supportInterpreter := true
-
--- @[default_target]
--- lean_exe imports where
---   root := `scripts.imports
---   supportInterpreter := true
-
--- @[default_target]
--- lean_exe update_hammer_blacklist where
---   root := `scripts.update_hammer_blacklist
---   supportInterpreter := true

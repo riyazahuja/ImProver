@@ -153,6 +153,7 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
 
 
 def ImProver (config : ImProverConfig): IO Unit := do
+  searchPathRef.set compile_time_search_path%
   let ⟨mod, decls, json_path⟩ := config
   let fileName := (← findLean mod).toString
   let mut trajectories_json := []
@@ -231,5 +232,38 @@ def ImProver (config : ImProverConfig): IO Unit := do
 
 
 
+def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
+  let module := args.positionalArg! "module" |>.as! ModuleName
+  let decls := args.flag! "decls" |>.as! String
+  let json_path := args.flag! "json_path" |>.as! String
 
-#eval ImProver {mod:=`temp.temp, decls:=(some [`theorem1])}
+  let mod :Name := module
+  let decls := if decls == "" then none else some (decls.splitOn "," |>.map String.toName)
+  let json_path := if json_path == "" then none else some json_path
+  ImProver {mod:=mod, decls:=decls, jsonPath:=json_path}
+  return 0
+
+/-- Setting up command line options and help text for `lake exe state_comments`. -/
+def improver : Cmd := `[Cli|
+  improver VIA ImProver_CLI; ["0.0.1"]
+"Modify a Lean file by inserting comments after every tactic invocation showing the goal.
+Prints the modified source code to stdout."
+
+  FLAGS:
+    decls: String; "(comma-separated) List of declarations to process. (Blank for all)"
+    json_path : String; "Path to save the JSON output. (Blank for stdout)"
+
+  ARGS:
+    module : ModuleName; "Lean module to compile and annotate with state comments."
+
+  EXTENSIONS:
+    defaultValues! #[("decls", ""), ("json_path", "")]
+]
+
+/-- `lake exe state_comments` -/
+def main (args : List String) : IO UInt32 :=
+  improver.validate args
+
+
+
+-- #eval ImProver {mod:=`temp.temp, decls:=(some [`theorem1])}
