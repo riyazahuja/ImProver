@@ -8,6 +8,13 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 
 set_option autoImplicit true
 
+/- Configuration options for ImProver below -/
+structure ImProverConfig where
+  targetModule : Name
+  decls : Option (List Name) := none
+  jsonPath : Option String := none
+
+/- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/
 structure ImprovedTheoremInstance where
   originalTheorem : String
   modelOutput : String
@@ -16,11 +23,75 @@ structure ImprovedTheoremInstance where
   metricScore : Nat
   msgs : List String
 
-structure ImProverConfig where
-  mod : Name
-  decls : Option (List Name) := none
-  jsonPath : Option String := none
+/- Prompts the model running on an available web interface
+  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
+def promptModel (cmd : CompilationStep) (model : String := "nutPace/Improver-DeepSeek-R1-Distill-Qwen-7B_full")
+  (endpoint: String := "http://0.0.0.0:8000/v1/chat/completions") (best_of_n : Nat := 1) : IO (List String) := do
+  let srcCommand := cmd.src.toString
+  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
 
+  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  let jsonPayload : Json := Json.mkObj [
+      ("model", Json.str model),
+      ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
+      ("max_tokens", Json.num <| JsonNumber.fromNat 4096)
+    ]
+  let args := #[
+    "-X", "POST",
+    "-H", "Content-Type: application/json",
+    "-d", s!"{jsonPayload.compress}",
+    endpoint
+  ]
+
+  /- In parallel, send json via POST request using curl to the endpoint and await responses -/
+  let tasks := List.range (best_of_n) |>.map fun _ => IO.asTask (prio := Task.Priority.dedicated) do
+
+    let out_json ← IO.Process.output {
+      cmd := "curl",
+      args := args
+    }
+    return out_json
+
+  let newCommandCandidates ← tasks.mapM fun (t : BaseIO _) => do
+    IO.ofExcept <| (← t).get
+
+  /- Parse response as JSON -/
+  let newCommandCandidates ← newCommandCandidates.mapM (fun out_json => do
+    let out_json_parsed : Json := (match Json.parse out_json.stdout with
+                          | Except.error _ => none
+                          | Except.ok msg => some msg).get!
+
+    /- Find correct field -/
+    let out := match out_json_parsed with
+              | Json.obj kvs => match kvs.find compare "choices" with
+                | some (Json.arr choices) => match choices[0]? with
+                  | some (Json.obj choice) => match choice.find compare "message" with
+                    | some (Json.obj message) => match message.find compare "content" with
+                      | some (Json.str s) => some s
+                      | _ => none
+                    | _ =>none
+                  | _ => none
+                | _ => none
+              | _ => none
+
+    let modelOutput := out.get!
+
+    /- Cut out context/tags -/
+    let tagOpen  := "<IMPROVED>"
+    let tagClose := "</IMPROVED>"
+    let trimmed_out := modelOutput.stripPrefix tagOpen |>.stripSuffix tagClose
+
+    return trimmed_out)
+
+  return newCommandCandidates
+
+/- Returns a dummy response (for debugging when model is offline) -/
+def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
+  let srcCommand := cmd.src.toString
+  return ["--DEBUG\n"++srcCommand]
+
+
+/- Adds comments about the goal state of the proof after each tactic -/
 def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String := none) : IO String := do
   let mut trees := step.trees
   trees := trees.flatMap InfoTree.retainTacticInfo
@@ -50,6 +121,7 @@ def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String :=
   let out := ("\n".intercalate src)
   return out
 
+/- Not sure what this is for but the file doesn't run without it :| -/
 def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
   { state with
     scopes := state.scopes.map fun s : Scope =>
@@ -60,69 +132,8 @@ def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options 
           opts } }
 
 
-def promptModel (cmd : CompilationStep) (model : String := "nutPace/Improver-DeepSeek-R1-Distill-Qwen-7B_full")
-  (endpoint: String := "http://0.0.0.0:8000/v1/chat/completions") (best_of_n : Nat := 1) : IO (List String) := do
-  let srcCommand := cmd.src.toString
-  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
-
-  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
-  let jsonPayload : Json := Json.mkObj [
-      ("model", Json.str model),
-      ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
-      ("max_tokens", Json.num <| JsonNumber.fromNat 4096)
-    ]
-  let args := #[
-    "-X", "POST",
-    "-H", "Content-Type: application/json",
-    "-d", s!"{jsonPayload.compress}",
-    endpoint
-  ]
-
-  let tasks := List.range (best_of_n) |>.map fun _ => IO.asTask (prio := Task.Priority.dedicated) do
-
-    let out_json ← IO.Process.output {
-      cmd := "curl",
-      args := args
-    }
-    return out_json
-
-  let newCommandCandidates ← tasks.mapM fun (t : BaseIO _) => do
-    IO.ofExcept <| (← t).get
-
-
-  let newCommandCandidates ← newCommandCandidates.mapM (fun out_json => do
-    let out_json_parsed : Json := (match Json.parse out_json.stdout with
-                          | Except.error _ => none
-                          | Except.ok msg => some msg).get!
-
-    let out := match out_json_parsed with
-              | Json.obj kvs => match kvs.find compare "choices" with
-                | some (Json.arr choices) => match choices[0]? with
-                  | some (Json.obj choice) => match choice.find compare "message" with
-                    | some (Json.obj message) => match message.find compare "content" with
-                      | some (Json.str s) => some s
-                      | _ => none
-                    | _ =>none
-                  | _ => none
-                | _ => none
-              | _ => none
-
-    let modelOutput := out.get!
-
-    let tagOpen  := "<IMPROVED>"
-    let tagClose := "</IMPROVED>"
-    let trimmed_out := modelOutput.stripPrefix tagOpen |>.stripSuffix tagClose
-
-    return trimmed_out)
-
-  return newCommandCandidates
-
-
-def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
-  let srcCommand := cmd.src.toString
-  return ["--DEBUG\n"++srcCommand]
-
-
+/- An efficient way to verify each new proof candidate that the model outputs
+    Requires the original proof's compilation steps, the module name, and a list of new proof candidates (as strings) to verify -/
 def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List String) : IO (List (Option (String × CompilationStep))) := do
   let options := ({} : KVMap)
       |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
@@ -136,12 +147,14 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
   let contentsBefore : Substring := match original.src with
     | ⟨s, b, _⟩ => ⟨s, 0, b⟩
 
+  /- Multithreading stuff to verify each new proof on separate threads -/
   let tasks := variants.map fun newCommand => IO.asTask (prio := Task.Priority.dedicated) do
+    /- Parse and compile each proof... -/
     let elaborated_steps := Lean.Elab.IO.compilationSteps
       (Parser.mkInputContext (contentsBefore.toString ++ newCommand) fileName)
       original.parserStateBefore
       (original.commandStateBefore.withOptions options)
-
+    /- ...and return the ones that work (otherwise none) -/
     let head? ← elaborated_steps.uncons
     return match head? with
       | none => none
@@ -151,40 +164,52 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
     IO.ofExcept <| (← t).get
   return results
 
-
+/-- Main call to the ImProver framework
+    Processes the theorems given as a list in `decls` in the module `targetModule`,
+      and writes the original and improved proofs, along with relevant metrics, to the JSON file at `json_path` (if any) -/
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
-  let ⟨mod, decls, json_path⟩ := config
-  let fileName := (← findLean mod).toString
+  let ⟨targetModule, decls, json_path⟩ := config
+  let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
+
+  /- Handle incomplete proofs with "sorry" in them -/
   /- TODO: I don't know if proofAsSorry is actually working -/
   let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
     |>.insert `linter.unusedVariables (.ofBool false)
     |>.insert `linter.unusedTactic (.ofBool false)
     |>.insert `linter.unreachableTactic (.ofBool false)
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none proofAsSorry fileName
+
+  /- Process the actual source code from our module -/
+  let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none proofAsSorry fileName -- Hmm... looks like processInput has a way to accept a previously modified environment. Could this be the way around some of our performance issues...?
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
   for (cmd, ci) in targets do
     if decls.isSome && !(decls.get!.contains ci.name) then
       continue
     IO.println s!"============================================="
-    IO.println s!"Processing {ci.name} in {mod}"
+    IO.println s!"Processing {ci.name} in {targetModule}"
 
-
+    /- For each declaration, get the individual tactics involved in each one -/
     let tacs :=  InfoTree.tactics_new cmd.trees
     let tacs ← tacs.mapM (fun t => t.pp)
-    IO.println s!"Tactics: {tacs.length}"
-    IO.println s!"Tactics: {tacs}"
+    IO.println s!"Number of tactics: {tacs.length}"
+    IO.println s!"Tactic names: {tacs}"
     IO.println s!"---------------------------------------------"
 
+    /- Print out what the verifier is yelling at us about -/
+    /- TODO: why does it always think there's a single "sorry" proof even when there's not?? -/
     for m in cmd.msgs do IO.eprintln (bombEmoji ++ (← m.data.toString))
     -- unless cmd.msgs.isEmpty do
     --   throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
 
+    /- Prompt the model for an improved version of the proof -/
     -- let newCommandCandidates ← promptModel cmd (best_of_n := 5)
     let newCommandCandidates ← promptModel_debug cmd
-    let resultantSteps := (← elaborateVariants cmd mod newCommandCandidates).filterMap (fun x => x)
 
+    /- Verify the new proof candidates -/
+    let resultantSteps := (← elaborateVariants cmd targetModule newCommandCandidates).filterMap (fun x => x)
+
+    /- Create a list of structures that contain each original theorem, the model's (possibly) improved version, whether it worked, the goal state after each tactic, and relevant metrics -/
     let instances : List ImprovedTheoremInstance ← resultantSteps.mapM (fun (model_output,head) => do
       let correct := head.msgs.isEmpty
       let metric_score := InfoTree.tactics_new head.trees |>.length
@@ -198,7 +223,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
       return ⟨cmd.src.toString, model_output, state_comments, correct, metric_score, msgs⟩
     )
 
-
+    /- Print out the results for each instance -/
     for i in instances do
       IO.println "-------------------------------------------------"
       let ⟨original, newCommand,elabed, correct, metric, msgs⟩ := i
@@ -211,10 +236,11 @@ def ImProver (config : ImProverConfig): IO Unit := do
         IO.println msg
       IO.println "-------------------------------------------------"
 
+    /- Make a JSON with the info we've gathered -/
     let trajectories_json_new := instances.map (fun i =>
       let ⟨original,newCmd,elabed, correct,metric,msgs⟩ := i
       Json.mkObj [
-        ("module", Json.str mod.toString),
+        ("module", Json.str targetModule.toString),
         ("original", original),
         ("new", Json.str newCmd),
         ("annotated",Json.str elabed),
@@ -223,7 +249,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
         ("errors", Json.str ("\n\n".intercalate msgs))
         ])
     trajectories_json := trajectories_json ++ trajectories_json_new
-
+  /- If a path to a JSON has been provided, then write all the info there -/
   let trajectories := Json.arr (trajectories_json.toArray)
   match json_path with
   | some path =>
@@ -231,7 +257,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
   | none => pure ()
 
 
-
+/-- Configures a command-line interface for ImProver -/
 def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "module" |>.as! ModuleName
   let decls := args.flag! "decls" |>.as! String
@@ -240,7 +266,7 @@ def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let mod :Name := module
   let decls := if decls == "" then none else some (decls.splitOn "," |>.map String.toName)
   let json_path := if json_path == "" then none else some json_path
-  ImProver {mod:=mod, decls:=decls, jsonPath:=json_path}
+  ImProver {targetModule:=mod, decls:=decls, jsonPath:=json_path}
   return 0
 
 /-- Setting up command line options and help text for `lake exe state_comments`. -/
@@ -266,4 +292,4 @@ def main (args : List String) : IO UInt32 :=
 
 
 
--- #eval ImProver {mod:=`temp.temp, decls:=(some [`theorem1])}
+#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2])}
