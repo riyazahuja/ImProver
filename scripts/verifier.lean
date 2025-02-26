@@ -65,9 +65,10 @@ def insert_state_comments (step:CompilationStep) : IO String := do
 
 
 /- Returns a dummy response (for debugging when model is offline) -/
-def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
+def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
   let srcCommand := cmd.src.toString
-  return ["--DEBUG\n"++srcCommand]
+  let bon := config.best_of_n
+  return List.range bon |>.map (fun i => s!"--DEBUG: {i}\n{srcCommand}")
 
 /- Prompts the model running on an available web interface
   Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
@@ -75,7 +76,7 @@ def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List Str
   let ⟨_,_,model, endpoint, best_of_n, annotation?, _, _⟩ := config
 
   if model == "DEBUG" then
-    return ← promptModel_debug cmd
+    return ← promptModel_debug cmd config
 
   let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
   -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
@@ -199,8 +200,12 @@ def ImProver (config : ImProverConfig): IO Unit := do
 
   let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName -- Hmm... looks like processInput has a way to accept a previously modified environment. Could this be the way around some of our performance issues...?
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
+  -- let cis := (← targets.map (fun ⟨_, i⟩ => i.name) |>.force).eraseDups
   for (cmd, ci) in targets do
-    if decls.isSome && !(decls.get!.contains ci.name) then
+    let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
+    if decls.isSome && !(decls.get!.contains ci_name_stem) then
+      -- IO.eprintln s!"Skipping {ci_name_stem} in {targetModule} - Check decls!\n{cis}"
+      -- return
       continue
     IO.println s!"============================================="
     IO.println s!"Processing {ci.name} in {targetModule}"
@@ -359,6 +364,5 @@ def improver : Cmd := `[Cli|
 def main (args : List String) : IO UInt32 :=
   improver.validate args
 
-#print ImProverConfig
 
--- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=(some "test.json")}
+-- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1]), annotation?:= true, best_of_n:= 5, jsonPath:=(some "test2.json")}
