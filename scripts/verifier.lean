@@ -36,27 +36,31 @@ structure ImprovedTheoremInstance where
 
 /- Adds comments about the goal state of the proof after each tactic -/
 def insert_state_comments (step:CompilationStep) : IO String := do
-  let mut trees := step.trees
-  trees := trees.flatMap InfoTree.retainTacticInfo
-  trees := trees.flatMap InfoTree.retainOriginal
-  trees := trees.flatMap InfoTree.retainSubstantive
+  /- Get relevant tactic nodes -/
+  let tactics := step.trees
+    |>.flatMap InfoTree.retainTacticInfo
+    |>.flatMap InfoTree.retainOriginal
+    |>.flatMap InfoTree.retainSubstantive
+    |>.flatMap InfoTree.tactics
 
-  let L₁ ← (trees.flatMap InfoTree.tactics).mapM TacticInvocation.rangeAndStates
-  let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
-  let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
-
+  let tacticStates ← tactics.mapM TacticInvocation.rangeAndStates
+  let separatedStates := dropEnclosed tacticStates |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
+  let formattedStates := (separatedStates.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
   /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
     maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
+
   let mut src := ({str := step.src.str, startPos := 0, stopPos := step.src.stopPos} : Substring).toString.splitOn "\n"
   let mut inserted : Std.HashSet Nat := Std.HashSet.ofList [10000000]
-  for item in L₃.reverse do
+
+  /- insert each of the goal states into the existing proof string -/
+  for item in formattedStates.reverse do
     let ⟨⟨⟨l, c⟩, _⟩, sb, sa⟩ := item
     if sa.contains "🎉 no goals" then
-      src := src.insertIdx l $ stateComment sa c
+      src := src.insertIdx l <| stateComment sa c
     if inserted.contains (l-1) then
-      src := src.set (l-1) $ stateComment sb c
+      src := src.set (l-1) <| stateComment sb c
     else
-      src := src.insertIdx (l-1) $ stateComment sb c
+      src := src.insertIdx (l-1) <| stateComment sb c
       inserted := inserted.insert (l-1)
   let out := ("\n".intercalate src)
   let trim_out := ({str := out, startPos := step.src.startPos, stopPos := out.endPos}:Substring).toString
@@ -218,7 +222,6 @@ def ImProver (config : ImProverConfig): IO Unit := do
     IO.println s!"---------------------------------------------"
 
     /- Print out what the verifier is yelling at us about -/
-    /- TODO: why does it always think there's a single "sorry" proof even when there's not?? -/
     let oldMsgs ← cmd.msgs.filterMapM (fun msg => do
         if msg.severity != .error then
           return none
