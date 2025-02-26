@@ -105,7 +105,7 @@ def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String :=
   /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
     maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
   let mut src := match pre_elab_str with
-                  | none => step.src.str.splitOn "\n"
+                  | none => ({str := step.src.str, startPos := 0, stopPos := step.src.stopPos} : Substring).toString.splitOn "\n"
                   | some str => (({str:=step.src.str, stopPos := step.src.startPos, startPos := 0} : Substring).toString ++ str).splitOn "\n"
   let mut inserted : Std.HashSet Nat := Std.HashSet.ofList [10000000]
   for item in L₃.reverse do
@@ -117,9 +117,9 @@ def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String :=
     else
       src := src.insertIdx (l-1) $ stateComment sb c
       inserted := inserted.insert (l-1)
-
   let out := ("\n".intercalate src)
-  return out
+  let trim_out := ({str := out, startPos := step.src.startPos, stopPos := out.endPos}:Substring).toString
+  return trim_out
 
 /- Not sure what this is for but the file doesn't run without it :| -/
 def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
