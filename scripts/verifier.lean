@@ -12,25 +12,75 @@ set_option autoImplicit true
 structure ImProverConfig where
   targetModule : Name
   decls : Option (List Name) := none
+  model : String := "DEBUG"
+  endpoint : String := "http://0.0.0.0:8000/v1/chat/completions"
+  best_of_n : Nat := 1
+  annotation? : Bool := false
+  proofAsSorry : Bool := true
   jsonPath : Option String := none
 
 /- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/
 structure ImprovedTheoremInstance where
+  name : String
   originalTheorem : String
   modelOutput : String
-  stateComments : String
-  correct : Bool
-  metricScore : Nat
-  msgs : List String
+  annotatedOutput : String
+  oldCorrect : Bool
+  newCorrect : Bool
+  oldScore : Option Float
+  newScore : Option Float
+  delta : Option Float
+  old_msgs : List String
+  new_msgs : List String
+  config : ImProverConfig
+
+/- Adds comments about the goal state of the proof after each tactic -/
+def insert_state_comments (step:CompilationStep) : IO String := do
+  let mut trees := step.trees
+  trees := trees.flatMap InfoTree.retainTacticInfo
+  trees := trees.flatMap InfoTree.retainOriginal
+  trees := trees.flatMap InfoTree.retainSubstantive
+
+  let L₁ ← (trees.flatMap InfoTree.tactics).mapM TacticInvocation.rangeAndStates
+  let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
+  let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
+
+  /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
+    maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
+  let mut src := ({str := step.src.str, startPos := 0, stopPos := step.src.stopPos} : Substring).toString.splitOn "\n"
+  let mut inserted : Std.HashSet Nat := Std.HashSet.ofList [10000000]
+  for item in L₃.reverse do
+    let ⟨⟨⟨l, c⟩, _⟩, sb, sa⟩ := item
+    if sa.contains "🎉 no goals" then
+      src := src.insertIdx l $ stateComment sa c
+    if inserted.contains (l-1) then
+      src := src.set (l-1) $ stateComment sb c
+    else
+      src := src.insertIdx (l-1) $ stateComment sb c
+      inserted := inserted.insert (l-1)
+  let out := ("\n".intercalate src)
+  let trim_out := ({str := out, startPos := step.src.startPos, stopPos := out.endPos}:Substring).toString
+  return trim_out
+
+
+
+/- Returns a dummy response (for debugging when model is offline) -/
+def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
+  let srcCommand := cmd.src.toString
+  return ["--DEBUG\n"++srcCommand]
 
 /- Prompts the model running on an available web interface
   Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
-def promptModel (cmd : CompilationStep) (model : String := "nutPace/Improver-DeepSeek-R1-Distill-Qwen-7B_full")
-  (endpoint: String := "http://0.0.0.0:8000/v1/chat/completions") (best_of_n : Nat := 1) : IO (List String) := do
-  let srcCommand := cmd.src.toString
-  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
+def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let ⟨_,_,model, endpoint, best_of_n, annotation?, _, _⟩ := config
 
-  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  if model == "DEBUG" then
+    return ← promptModel_debug cmd
+
+  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
+  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
@@ -85,41 +135,6 @@ def promptModel (cmd : CompilationStep) (model : String := "nutPace/Improver-Dee
 
   return newCommandCandidates
 
-/- Returns a dummy response (for debugging when model is offline) -/
-def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
-  let srcCommand := cmd.src.toString
-  return ["--DEBUG\n"++srcCommand]
-
-
-/- Adds comments about the goal state of the proof after each tactic -/
-def insert_state_comments (step:CompilationStep) (pre_elab_str: Option String := none) : IO String := do
-  let mut trees := step.trees
-  trees := trees.flatMap InfoTree.retainTacticInfo
-  trees := trees.flatMap InfoTree.retainOriginal
-  trees := trees.flatMap InfoTree.retainSubstantive
-
-  let L₁ ← (trees.flatMap InfoTree.tactics).mapM TacticInvocation.rangeAndStates
-  let L₂ := dropEnclosed L₁ |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
-  let L₃ := (L₂.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
-
-  /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
-    maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
-  let mut src := match pre_elab_str with
-                  | none => ({str := step.src.str, startPos := 0, stopPos := step.src.stopPos} : Substring).toString.splitOn "\n"
-                  | some str => (({str:=step.src.str, stopPos := step.src.startPos, startPos := 0} : Substring).toString ++ str).splitOn "\n"
-  let mut inserted : Std.HashSet Nat := Std.HashSet.ofList [10000000]
-  for item in L₃.reverse do
-    let ⟨⟨⟨l, c⟩, _⟩, sb, sa⟩ := item
-    if sa.contains "🎉 no goals" then
-      src := src.insertIdx l $ stateComment sa c
-    if inserted.contains (l-1) then
-      src := src.set (l-1) $ stateComment sb c
-    else
-      src := src.insertIdx (l-1) $ stateComment sb c
-      inserted := inserted.insert (l-1)
-  let out := ("\n".intercalate src)
-  let trim_out := ({str := out, startPos := step.src.startPos, stopPos := out.endPos}:Substring).toString
-  return trim_out
 
 /- Not sure what this is for but the file doesn't run without it :| -/
 def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
@@ -137,7 +152,7 @@ def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options 
 def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List String) : IO (List (Option (String × CompilationStep))) := do
   let options := ({} : KVMap)
       |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
-      |>.insert `debug.byAsSorry (.ofBool false) -- proofAsSorry not working???
+      |>.insert `debug.byAsSorry (.ofBool false)
       |>.insert `linter.unusedVariables (.ofBool true)
       |>.insert `linter.unusedTactic (.ofBool true)
       |>.insert `linter.unreachableTactic (.ofBool true)
@@ -169,7 +184,7 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
       and writes the original and improved proofs, along with relevant metrics, to the JSON file at `json_path` (if any) -/
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
-  let ⟨targetModule, decls, json_path⟩ := config
+  let ⟨targetModule, decls, _, _, _, _, proofAsSorry?, json_path⟩ := config
   let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
 
@@ -181,7 +196,8 @@ def ImProver (config : ImProverConfig): IO Unit := do
     |>.insert `linter.unreachableTactic (.ofBool false)
 
   /- Process the actual source code from our module -/
-  let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none proofAsSorry fileName -- Hmm... looks like processInput has a way to accept a previously modified environment. Could this be the way around some of our performance issues...?
+
+  let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName -- Hmm... looks like processInput has a way to accept a previously modified environment. Could this be the way around some of our performance issues...?
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
   for (cmd, ci) in targets do
     if decls.isSome && !(decls.get!.contains ci.name) then
@@ -193,60 +209,100 @@ def ImProver (config : ImProverConfig): IO Unit := do
     let tacs :=  InfoTree.tactics_new cmd.trees
     let tacs ← tacs.mapM (fun t => t.pp)
     IO.println s!"Number of tactics: {tacs.length}"
-    IO.println s!"Tactic names: {tacs}"
+    IO.println s!"Tactics: {tacs}"
     IO.println s!"---------------------------------------------"
 
     /- Print out what the verifier is yelling at us about -/
     /- TODO: why does it always think there's a single "sorry" proof even when there's not?? -/
-    for m in cmd.msgs do IO.eprintln (bombEmoji ++ (← m.data.toString))
+    let oldMsgs ← cmd.msgs.filterMapM (fun msg => do
+        if msg.severity != .error then
+          return none
+        let m ← msg.data.toString
+        return some (bombEmoji++m))
+
+    for m in oldMsgs do IO.eprintln m
+
+    let old_correct := oldMsgs.isEmpty
+    let old_score := if old_correct then some (tacs.length.toFloat) else none
     -- unless cmd.msgs.isEmpty do
     --   throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
 
     /- Prompt the model for an improved version of the proof -/
     -- let newCommandCandidates ← promptModel cmd (best_of_n := 5)
-    let newCommandCandidates ← promptModel_debug cmd
+    let newCommandCandidates ← promptModel cmd config
 
     /- Verify the new proof candidates -/
     let resultantSteps := (← elaborateVariants cmd targetModule newCommandCandidates).filterMap (fun x => x)
 
     /- Create a list of structures that contain each original theorem, the model's (possibly) improved version, whether it worked, the goal state after each tactic, and relevant metrics -/
     let instances : List ImprovedTheoremInstance ← resultantSteps.mapM (fun (model_output,head) => do
-      let correct := head.msgs.isEmpty
-      let metric_score := InfoTree.tactics_new head.trees |>.length
 
       let state_comments ← insert_state_comments head
 
-      let msgs ← head.msgs.mapM (fun msg => do
+      let msgs ← head.msgs.filterMapM (fun msg => do
+        if msg.severity != .error then
+          return none
         let m ← msg.data.toString
-        return bombEmoji++m)
+        return some (bombEmoji++m))
 
-      return ⟨cmd.src.toString, model_output, state_comments, correct, metric_score, msgs⟩
+      let correct := msgs.isEmpty
+      let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
+
+
+      let delta := if correct && old_correct then (
+          if old_score.get! == 0 then
+            some (-1 : Float)
+          else
+            some ((old_score.get! - metric_score.get!) / (old_score.get!))
+          )
+        else none
+
+      return ⟨ci.name.toString, cmd.src.toString, model_output, state_comments, old_correct, correct, old_score, metric_score, delta, oldMsgs, msgs, config⟩
     )
 
     /- Print out the results for each instance -/
     for i in instances do
       IO.println "-------------------------------------------------"
-      let ⟨original, newCommand,elabed, correct, metric, msgs⟩ := i
+
+      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, _, msgs, _⟩ := i
+      IO.println s!"Name:\n {name}"
       IO.println s!"Original:\n {original}"
-      IO.println s!"Model Output:\n {newCommand}"
-      IO.println s!"Annotated:\n {elabed}"
-      IO.println s!"Correct: {correct}"
-      IO.println s!"Metric: {metric}"
+      IO.println s!"Correct: {oldCorrect}"
+      IO.println s!"Metric: {oldScore}"
+      IO.println s!"Model Output:\n {modelOutput}"
+      IO.println s!"Correct: {newCorrect}"
+      IO.println s!"Metric: {newScore}"
+      IO.println s!"Delta: {delta}"
       for msg in msgs do
         IO.println msg
       IO.println "-------------------------------------------------"
 
     /- Make a JSON with the info we've gathered -/
     let trajectories_json_new := instances.map (fun i =>
-      let ⟨original,newCmd,elabed, correct,metric,msgs⟩ := i
+      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, oldMsgs, msgs, config⟩ := i
+
       Json.mkObj [
-        ("module", Json.str targetModule.toString),
-        ("original", original),
-        ("new", Json.str newCmd),
-        ("annotated",Json.str elabed),
-        ("correct",Json.bool correct),
-        ("metric",Json.num <| JsonNumber.fromNat metric),
-        ("errors", Json.str ("\n\n".intercalate msgs))
+
+        ("module", Json.str config.targetModule.toString),
+        ("decl", Json.str name),
+        ("method", Json.str "best_of_n"),
+        ("n", Json.num <| JsonNumber.fromNat config.best_of_n),
+        ("metric", Json.str "LENGTH"),
+        ("model", Json.str config.model),
+        ("annotation", Json.bool config.annotation?),
+        ("syntax_search", Json.bool false),
+        ("mathlib_search", Json.bool false),
+        ("examples", Json.num <| JsonNumber.fromNat 0),
+        ("og_correct", Json.bool oldCorrect),
+        ("og_errors", "\n\n".intercalate oldMsgs),
+        ("og_score", Json.num <| (JsonNumber.fromFloat? (oldScore.getD (-1)) |>.getRight?).get!),
+        ("new_correct", Json.bool newCorrect),
+        ("new_errors", "\n\n".intercalate msgs),
+        ("new_score", Json.num <| (JsonNumber.fromFloat? (newScore.getD (-1)) |>.getRight?).get!),
+        ("delta", Json.num <| (JsonNumber.fromFloat? (delta.getD (-1)) |>.getRight?).get!),
+        ("og_raw", Json.str original),
+        ("new_raw", Json.str modelOutput),
+        ("time",Json.num <| JsonNumber.fromInt (-1))
         ])
     trajectories_json := trajectories_json ++ trajectories_json_new
   /- If a path to a JSON has been provided, then write all the info there -/
@@ -292,4 +348,4 @@ def main (args : List String) : IO UInt32 :=
 
 
 
-#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2])}
+-- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=(some "test.json")}
