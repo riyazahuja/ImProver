@@ -316,36 +316,49 @@ def ImProver (config : ImProverConfig): IO Unit := do
 /-- Configures a command-line interface for ImProver -/
 def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "module" |>.as! ModuleName
+  let mod :Name := module
   let decls := args.flag! "decls" |>.as! String
   let json_path := args.flag! "json_path" |>.as! String
-
-  let mod :Name := module
   let decls := if decls == "" then none else some (decls.splitOn "," |>.map String.toName)
   let json_path := if json_path == "" then none else some json_path
-  ImProver {targetModule:=mod, decls:=decls, jsonPath:=json_path}
+  let model := args.flag! "model" |>.as! String
+  let endpoint := args.flag! "endpoint" |>.as! String
+  let best_of_n := args.flag! "best_of_n" |>.as! Nat
+  let annotation := args.flag! "annotation" |>.as! Bool
+  let proofAsSorry := args.flag! "proofAsSorry" |>.as! Bool
+
+  let config : ImProverConfig := {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, proofAsSorry:=proofAsSorry, jsonPath:=json_path}
+
+  ImProver config
   return 0
 
 /-- Setting up command line options and help text for `lake exe state_comments`. -/
 def improver : Cmd := `[Cli|
   improver VIA ImProver_CLI; ["0.0.1"]
-"Modify a Lean file by inserting comments after every tactic invocation showing the goal.
-Prints the modified source code to stdout."
+"Run ImProver on (specific decls in a) Lean file."
 
   FLAGS:
     decls: String; "(comma-separated) List of declarations to process. (Blank for all)"
+    model : String; "Model to use. (Default: DEBUG)"
+    endpoint : String; "Endpoint to use. (Default: http://0.0.0.0:8000/v1/chat/completions)"
+    best_of_n : Nat; "Number of attempts to make. (Default: 1)"
+    annotation : Bool; "Forward proof states to model. (Default: false)"
+    proofAsSorry : Bool; "Run initial file with proofAsSorry option enabled. (Default: true)"
     json_path : String; "Path to save the JSON output. (Blank for stdout)"
 
   ARGS:
     module : ModuleName; "Lean module to compile and annotate with state comments."
 
   EXTENSIONS:
-    defaultValues! #[("decls", ""), ("json_path", "")]
+    defaultValues! #[("decls", ""), ("json_path", ""),
+    ("model", "DEBUG"), ("endpoint", "http://0.0.0.0:8000/v1/chat/completions"),
+    ("best_of_n", "1"), ("annotation", "false"), ("proofAsSorry", "true")]
 ]
 
 /-- `lake exe state_comments` -/
 def main (args : List String) : IO UInt32 :=
   improver.validate args
 
-
+#print ImProverConfig
 
 -- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=(some "test.json")}
