@@ -26,10 +26,12 @@ def rangeAndStates (i : TacticInvocation) : IO (Range × String × String) := do
 
 end Lean.Elab.TacticInvocation
 
+/- Helper function to recursively find and keep only the largest disjoint intervals -/
 partial def dropEnclosed (L : List (Range × String × String)) : List (Range × String × String) :=
   let L' := L.filter fun ⟨r, _, _⟩ => ¬ L.any fun ⟨r', _, _⟩ => r < r'
   if L' = L then L' else dropEnclosed L'
 
+/- Helper function to format goal state strings -/
 def formatState (s : String) : List String :=
   if s = "" then ["🎉 no goals"] else
   let lines := (s.splitOn "\n").map fun l =>
