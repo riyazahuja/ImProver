@@ -337,7 +337,7 @@ def modelDebug : ImProverModel := {
   best_of_n := 1
 }
 
-def modelSFT : ImProverModel := {
+def modelDefault : ImProverModel := {
   name := "modelSFT",
   endpoint := some "http://0.0.0.0:8000/v1/chat/completions",
   generate_fn := promptModel_curl,
@@ -402,4 +402,4 @@ def main (args : List String) : IO UInt32 :=
 #print ImProverConfig
 
 -- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=(some "test.json"), model=modelDebu}
-#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=none, model:=modelDebug}
+#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=none, model:=modelDefault}
