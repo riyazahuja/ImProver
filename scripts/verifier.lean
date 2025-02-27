@@ -8,16 +8,26 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 
 set_option autoImplicit true
 
-/- Configuration options for ImProver below -/
+/- Configuration for the model that ImProver gets its responses from -/
+structure ImProverModel where
+  name : String
+  endpoint : Option String := some "http://0.0.0.0:8000/v1/chat/completions"
+  generate_fn : String → String → Option String → Nat → IO (List String)
+  best_of_n : Nat := 1
+
+def ImProverModel.generate (self : ImProverModel) : String → IO (List String) :=
+  fun p => self.generate_fn p self.name self.endpoint self.best_of_n
+
+
+/- Configuration options for ImProver itself -/
 structure ImProverConfig where
   targetModule : Name
   decls : Option (List Name) := none
-  model : String := "DEBUG"
-  endpoint : String := "http://0.0.0.0:8000/v1/chat/completions"
-  best_of_n : Nat := 1
+  model : ImProverModel
   annotation? : Bool := false
   proofAsSorry : Bool := true
   jsonPath : Option String := none
+
 
 /- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/
 structure ImprovedTheoremInstance where
@@ -67,26 +77,14 @@ def insert_state_comments (step:CompilationStep) : IO String := do
   return trim_out
 
 
-
 /- Returns a dummy response (for debugging when model is offline) -/
-def promptModel_debug (cmd : CompilationStep) : IO (List String) := do
-  let srcCommand := cmd.src.toString
-  return ["--DEBUG\n"++srcCommand]
+def promptModel_debug (prompt : String) (_ : String) (_ : Option String) (_ : Nat) : IO (List String) := do
+  return ["--DEBUG\n"++prompt]
 
-/- Prompts the model running on an available web interface
-  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
-def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, annotation?, _, _⟩ := config
-
-  if model == "DEBUG" then
-    return ← promptModel_debug cmd
-
-  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
-  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
-  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
-  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+/- Prompts the model running on an available web interface -/
+def promptModel_curl (prompt : String) (modelName : String) (endpoint : Option String) (best_of_n : Nat) : IO (List String) := do
   let jsonPayload : Json := Json.mkObj [
-      ("model", Json.str model),
+      ("model", Json.str modelName),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
       ("max_tokens", Json.num <| JsonNumber.fromNat 4096)
     ]
@@ -94,7 +92,7 @@ def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List Str
     "-X", "POST",
     "-H", "Content-Type: application/json",
     "-d", s!"{jsonPayload.compress}",
-    endpoint
+    endpoint.get!
   ]
 
   /- In parallel, send json via POST request using curl to the endpoint and await responses -/
@@ -138,6 +136,22 @@ def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List Str
     return trimmed_out)
 
   return newCommandCandidates
+
+
+/- Prompts the specified model to improve the given theorem
+  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
+def getModelOutput (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let ⟨_,_,model, annotation?, _, _⟩ := config
+  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
+  let prompt : String := if model.name == s!"DEBUG" then
+    -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
+    let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+    s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  else
+    srcCommand
+
+  return ← model.generate prompt
 
 
 /- Not sure what this is for but the file doesn't run without it :| -/
@@ -188,7 +202,7 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
       and writes the original and improved proofs, along with relevant metrics, to the JSON file at `json_path` (if any) -/
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
-  let ⟨targetModule, decls, _, _, _, _, proofAsSorry?, json_path⟩ := config
+  let ⟨targetModule, decls, _, _, proofAsSorry?, json_path⟩ := config
   let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
 
@@ -231,8 +245,8 @@ def ImProver (config : ImProverConfig): IO Unit := do
     --   throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
 
     /- Prompt the model for an improved version of the proof -/
-    -- let newCommandCandidates ← promptModel cmd (best_of_n := 5)
-    let newCommandCandidates ← promptModel cmd config
+    -- let newCommandCandidates ← getModelOutput cmd (best_of_n := 5)
+    let newCommandCandidates ← getModelOutput cmd config
 
     /- Verify the new proof candidates -/
     let resultantSteps := (← elaborateVariants cmd targetModule newCommandCandidates).filterMap (fun x => x)
@@ -289,9 +303,9 @@ def ImProver (config : ImProverConfig): IO Unit := do
         ("module", Json.str config.targetModule.toString),
         ("decl", Json.str name),
         ("method", Json.str "best_of_n"),
-        ("n", Json.num <| JsonNumber.fromNat config.best_of_n),
+        ("n", Json.num <| JsonNumber.fromNat config.model.best_of_n),
         ("metric", Json.str "LENGTH"),
-        ("model", Json.str config.model),
+        ("model", Json.str config.model.name),
         ("annotation", Json.bool config.annotation?),
         ("syntax_search", Json.bool false),
         ("mathlib_search", Json.bool false),
@@ -315,6 +329,21 @@ def ImProver (config : ImProverConfig): IO Unit := do
     IO.FS.writeFile path (trajectories.compress)
   | none => pure ()
 
+/- Some default models -/
+def modelDebug : ImProverModel := {
+  name := "DEBUG",
+  endpoint := none,
+  generate_fn := promptModel_debug,
+  best_of_n := 1
+}
+
+def modelSFT : ImProverModel := {
+  name := "modelSFT",
+  endpoint := some "http://0.0.0.0:8000/v1/chat/completions",
+  generate_fn := promptModel_curl,
+  best_of_n := 5
+}
+
 
 /-- Configures a command-line interface for ImProver -/
 def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
@@ -329,8 +358,16 @@ def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let best_of_n := args.flag! "best_of_n" |>.as! Nat
   let annotation := args.flag! "annotation" |>.as! Bool
   let proofAsSorry := args.flag! "proofAsSorry" |>.as! Bool
+  let model : ImProverModel := {
+    name := model,
+    endpoint := if endpoint == "" then none else some endpoint,
+    generate_fn := match model with
+      | "DEBUG" => promptModel_debug
+      | _ => promptModel_curl,
+    best_of_n := best_of_n
+  }
 
-  let config : ImProverConfig := {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, proofAsSorry:=proofAsSorry, jsonPath:=json_path}
+  let config : ImProverConfig := {targetModule:=mod, decls:=decls, model:=model, annotation?:=annotation, proofAsSorry:=proofAsSorry, jsonPath:=json_path}
 
   ImProver config
   return 0
@@ -364,4 +401,5 @@ def main (args : List String) : IO UInt32 :=
 
 #print ImProverConfig
 
--- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=(some "test.json")}
+-- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=(some "test.json"), model=modelDebu}
+#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1, `theorem2]), annotation?:= true, jsonPath:=none, model:=modelDebug}
