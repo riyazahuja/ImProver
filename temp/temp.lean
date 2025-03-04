@@ -9,6 +9,10 @@ variable {α : Type*}
 variable (s t u : Set α)
 open Set
 
+theorem i_forgor : ∀ (n : Nat), n ≥ 3 → ¬(∃ (a b c : Nat), a > 0 → b > 0 → c > 0 → a^n + b^n = c^n) := by
+  intro n nge3
+  sorry
+
 theorem theorem1 : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
   rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
   · use xs; left; exact xt

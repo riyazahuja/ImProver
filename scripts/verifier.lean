@@ -16,8 +16,10 @@ structure ImProverConfig where
   endpoint : String := "http://0.0.0.0:8000/v1/chat/completions"
   best_of_n : Nat := 1
   annotation? : Bool := false
-  proofAsSorry : Bool := true
+  proofAsSorry : Bool := false
   jsonPath : Option String := none
+  metric := "length"
+  prompt := "default"
 
 /- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/
 structure ImprovedTheoremInstance where
@@ -45,7 +47,7 @@ def insert_state_comments (step:CompilationStep) : IO String := do
 
   let tacticStates ← tactics.mapM TacticInvocation.rangeAndStates
   let separatedStates := dropEnclosed tacticStates |>.filter fun ⟨⟨⟨l₁, _⟩, ⟨l₂, _⟩⟩, _, _⟩  => l₁ = l₂
-  let formattedStates := (separatedStates.map fun ⟨r, sb, sa⟩ => (r, formatState sb, formatState sa))
+  let formattedStates := (separatedStates.map fun ⟨r, sb, sa⟩ => (r, formatState sb (some 80), formatState sa (some 80)))
   /- **TODO**: I changed the logic in runAtDecls below, so now `step.src` is a substring of a different string,
     maybe (all preceding contents ++ this theorem). So the below (might) have to be changed -/
 
@@ -66,6 +68,55 @@ def insert_state_comments (step:CompilationStep) : IO String := do
   let trim_out := ({str := out, startPos := step.src.startPos, stopPos := out.endPos}:Substring).toString
   return trim_out
 
+/- Helper function to return plaintext of a theorem annotated with goal states -/
+def annotateTheorems (targetModule : Name) (decls : Option (List Name)) (proofAsSorry? : Bool) : IO (List String) := do
+  searchPathRef.set compile_time_search_path%
+  let fileName := (← findLean targetModule).toString
+
+  /- Handle incomplete proofs with "sorry" in them -/
+  let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
+    |>.insert `linter.unusedVariables (.ofBool false)
+    |>.insert `linter.unusedTactic (.ofBool false)
+    |>.insert `linter.unreachableTactic (.ofBool false)
+
+  /- Process the actual source code from our module -/
+  let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName
+  let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
+
+  let mut annotatedTheorems := []
+
+  for (cmd, ci) in targets do
+    let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
+    if (decls.isSome && !(decls.get!.contains ci_name_stem)) then
+      continue
+    let state_comments ← insert_state_comments cmd
+    annotatedTheorems := annotatedTheorems ++ [state_comments]
+    IO.println s!"{state_comments}"
+
+  return annotatedTheorems
+
+
+/- Metric of theorem improvement: number of tactics used in a theorem -/
+def metric_length (cmd:CompilationStep) :=
+  InfoTree.tactics_new cmd.trees |>.length |>.toFloat
+
+/- Returns metric function from name (for ease of use from command line) -/
+def get_metric (metric_name : String) : CompilationStep → Float :=
+  match metric_name with
+  | "length" => metric_length
+  | _ => fun _ => 0.0
+
+/- Model system prompt asking it to shorten the length of the theorem -/
+def length_prompt (config : ImProverConfig) (cmd : CompilationStep) : IO String := do
+  let srcCommand ← if config.annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if config.annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  return prompt
+
+/- Returns the prompt function from a name -/
+def get_prompt (prompt_name : String) :=
+  match prompt_name with
+  | _ => length_prompt
 
 
 /- Returns a dummy response (for debugging when model is offline) -/
@@ -77,15 +128,15 @@ def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (Li
 /- Prompts the model running on an available web interface
   Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
 def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, annotation?, _, _⟩ := config
+  let ⟨_,_,model, endpoint, best_of_n, _, _, _, _, prompt_name⟩ := config
 
   if model == "DEBUG" then
     return ← promptModel_debug cmd config
 
-  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
-  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
-  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
-  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+  -- let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+  -- let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  let prompt ← get_prompt prompt_name config cmd
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
@@ -189,7 +240,7 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
       and writes the original and improved proofs, along with relevant metrics, to the JSON file at `json_path` (if any) -/
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
-  let ⟨targetModule, decls, _, _, _, _, proofAsSorry?, json_path⟩ := config
+  let ⟨targetModule, decls, _, _, _, _, proofAsSorry?, json_path, metric_name, _⟩ := config
   let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
 
@@ -202,14 +253,12 @@ def ImProver (config : ImProverConfig): IO Unit := do
 
   /- Process the actual source code from our module -/
 
-  let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName -- Hmm... looks like processInput has a way to accept a previously modified environment. Could this be the way around some of our performance issues...?
+  let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
-  -- let cis := (← targets.map (fun ⟨_, i⟩ => i.name) |>.force).eraseDups
+
   for (cmd, ci) in targets do
     let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
     if decls.isSome && !(decls.get!.contains ci_name_stem) then
-      -- IO.eprintln s!"Skipping {ci_name_stem} in {targetModule} - Check decls!\n{cis}"
-      -- return
       continue
     IO.println s!"============================================="
     IO.println s!"Processing {ci.name} in {targetModule}"
@@ -231,12 +280,10 @@ def ImProver (config : ImProverConfig): IO Unit := do
     for m in oldMsgs do IO.eprintln m
 
     let old_correct := oldMsgs.isEmpty
-    let old_score := if old_correct then some (tacs.length.toFloat) else none
-    -- unless cmd.msgs.isEmpty do
-    --   throw <| IO.userError s!"Unexpected messages in: {mod} during elaboration of {cmd.stx}"
+    -- let old_score := if old_correct then some (tacs.length.toFloat) else none
+    let old_score := if old_correct then some (get_metric metric_name cmd) else none
 
     /- Prompt the model for an improved version of the proof -/
-    -- let newCommandCandidates ← promptModel cmd (best_of_n := 5)
     let newCommandCandidates ← promptModel cmd config
 
     /- Verify the new proof candidates -/
@@ -254,8 +301,8 @@ def ImProver (config : ImProverConfig): IO Unit := do
         return some (bombEmoji++m))
 
       let correct := msgs.isEmpty
-      let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
-
+      -- let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
+      let metric_score := if correct then some (get_metric metric_name head) else none
 
       let delta := if correct && old_correct then (
           if old_score.get! == 0 then
@@ -277,7 +324,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
       IO.println s!"Original:\n {original}"
       IO.println s!"Correct: {oldCorrect}"
       IO.println s!"Metric: {oldScore}"
-      IO.println s!"Model Output:\n {modelOutput}"
+      IO.println s!"\n\nModel Output:\n {modelOutput}"
       IO.println s!"Correct: {newCorrect}"
       IO.println s!"Metric: {newScore}"
       IO.println s!"Delta: {delta}"
@@ -351,7 +398,7 @@ def improver : Cmd := `[Cli|
     endpoint : String; "Endpoint to use. (Default: http://0.0.0.0:8000/v1/chat/completions)"
     best_of_n : Nat; "Number of attempts to make. (Default: 1)"
     annotation : Bool; "Forward proof states to model. (Default: false)"
-    proofAsSorry : Bool; "Run initial file with proofAsSorry option enabled. (Default: true)"
+    proofAsSorry : Bool; "Convert all tactics to \"sorry\" for faster execution. (Default: false)"
     json_path : String; "Path to save the JSON output. (Blank for stdout)"
 
   ARGS:
@@ -369,3 +416,4 @@ def main (args : List String) : IO UInt32 :=
 
 
 -- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1]), annotation?:= true, best_of_n:= 5, jsonPath:=(some "test2.json")}
+#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1]), annotation?:= true, best_of_n:= 5, jsonPath:=none, proofAsSorry:=false}
