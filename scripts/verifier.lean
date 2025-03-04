@@ -74,22 +74,18 @@ def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (Li
   let bon := config.best_of_n
   return List.range bon |>.map (fun i => s!"--DEBUG: {i}\n{srcCommand}")
 
-/- Prompts the model running on an available web interface
-  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
-def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
   let ⟨_,_,model, endpoint, best_of_n, annotation?, _, _⟩ := config
 
-  if model == "DEBUG" then
-    return ← promptModel_debug cmd config
-
   let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
   -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
   let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
   let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
-      ("max_tokens", Json.num <| JsonNumber.fromNat 4096)
+      ("max_tokens", Json.num <| JsonNumber.fromNat <| 256)
     ]
   let args := #[
     "-X", "POST",
@@ -139,6 +135,58 @@ def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List Str
     return trimmed_out)
 
   return newCommandCandidates
+
+
+
+
+def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let ⟨_,_,model, endpoint, best_of_n, annotation?, _, _⟩ := config
+
+  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
+  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
+  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+
+  let jsonPayload : Json := Json.mkObj [
+      ("model", Json.str model),
+      ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
+      ("max_tokens", Json.num <| JsonNumber.fromNat 256)
+    ]
+  -- Call Python script with JSON payload
+  let out ← IO.Process.output {
+    cmd := "/home/riyaza/miniconda3/envs/.venv10/bin/python3",
+    args := #["scripts/send_batched.py", jsonPayload.compress, toString best_of_n, endpoint]
+  }
+  IO.println out.stdout
+  IO.println out.stderr
+  let stdout := out.stdout.trim
+  let contents := match stdout.splitOn "<RESPONSE>" |>.reverse with
+  | []   => ""
+  | last :: _ => last
+
+  let responses := Json.parse (contents)
+    |>.toOption.getD (Json.arr #[])
+    |>.getArr?.toOption.getD (#[])
+    |>.map (fun j => j.getStr?.toOption.getD "")
+  IO.println responses
+  -- Process each response to extract content between IMPROVED tags
+  let newCommandCandidates := responses.map (fun response =>
+    let tagOpen  := "<IMPROVED>"
+    let tagClose := "</IMPROVED>"
+    response.stripPrefix tagOpen |>.stripSuffix tagClose)
+
+  return newCommandCandidates.toList
+
+
+/- Prompts the model running on an available web interface
+  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
+def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  match config.model with
+  | "DEBUG" => return ← promptModel_debug cmd config
+  | _ => return ← promptModel_batched cmd config
+
+
 
 
 /- Not sure what this is for but the file doesn't run without it :| -/
@@ -368,4 +416,4 @@ def main (args : List String) : IO UInt32 :=
   improver.validate args
 
 
--- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1]), annotation?:= true, best_of_n:= 5, jsonPath:=(some "test2.json")}
+-- #eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t1]), best_of_n:= 60, jsonPath:=(some "improver_outputs/MIL/Llama-8B/MIL_C04_Sets_and_Functions_solutions_Solutions_S01_Sets.json"), proofAsSorry:=false, model:="Llama-8B"}
