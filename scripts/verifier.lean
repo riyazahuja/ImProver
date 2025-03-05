@@ -3,6 +3,7 @@ import Cli
 import scripts.state_comments
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
+import ImportGraph.RequiredModules
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
@@ -16,10 +17,17 @@ structure ImProverConfig where
   endpoint : String := "http://0.0.0.0:8000/v1/chat/completions"
   best_of_n : Nat := 1
   annotation? : Bool := false
+  context? : Bool := false
   proofAsSorry : Bool := false
   jsonPath : Option String := none
   metric := "length"
   prompt := "default"
+
+structure ExternalContext where
+  name : Name
+  kind : String
+  module : Name
+  text : String
 
 /- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/
 structure ImprovedTheoremInstance where
@@ -119,28 +127,95 @@ def get_prompt (prompt_name : String) :=
   | _ => length_prompt
 
 
+def getUsedConstantsAsSet (t : TacticInfo) : NameSet :=
+  let set := t.goalsBefore
+    |>.filterMap t.mctxAfter.getExprAssignmentCore?
+    |>.map Expr.getUsedConstantsAsSet
+    |>.foldl .union .empty
+
+  set
+
+def getKind (const_map : ConstMap) (m : Name) : String :=
+  let local_const := const_map.map₂
+  let ext_const := const_map.map₁
+  let c := local_const.find? m
+  match c with
+  | none => match ext_const[m]? with
+    | some d => match d with
+      | .axiomInfo _ => "axiom"
+      | .defnInfo _ => "def"
+      | .thmInfo _ => "theorem"
+      | .opaqueInfo _ => "opaque"
+      | .quotInfo _ => "quot"
+      | .inductInfo _ => "inductive"
+      | .ctorInfo _ => "constructor"
+      | .recInfo _ => "recursor"
+    | none => "Not Found"
+  | some c => match c with
+    | .axiomInfo _ => "axiom (internal)"
+    | .defnInfo _ => "def (internal)"
+    | .thmInfo _ => "theorem (internal)"
+    | .opaqueInfo _ => "opaque (internal)"
+    | .quotInfo _ => "quot (internal)"
+    | .inductInfo _ => "inductive (internal)"
+    | .ctorInfo _ => "constructor (internal)"
+    | .recInfo _ => "recursor (internal)"
+
+def get_context (step:CompilationStep) : IO (List ExternalContext) := do
+  let constants := step.trees
+    |>.flatMap InfoTree.retainTacticInfo
+    |>.flatMap InfoTree.retainOriginal
+    |>.flatMap InfoTree.retainSubstantive
+    |>.flatMap (fun t => t.findTacticNodes.map (fun ⟨i, _⟩ => (getUsedConstantsAsSet i).toList))
+    |>.flatten
+    |>.eraseDups
+
+  let pf_env := step.commandStateBefore.env
+  let modules := constants.map (fun c => (c,pf_env.getModuleFor? c |>.getD (Name.anonymous)))
+  let consts_mods_kind := modules.map (fun (c, m) => (c, m, getKind pf_env.constants c))
+  let mods := (modules.map fun x => x.2) |>.eraseDups |>.filter fun m => m != Name.anonymous
+  let constant_info ← CoreM.withImportModules mods.toArray do
+    let mut out := []
+    for (c, module, kind) in consts_mods_kind do
+      let rgs := ((← findDeclarationRanges? c).getD default).range
+      -- let module := ((pf_env.getModuleFor? c).getD (Name.anonymous))
+      let modulePath ← findLean module
+      let fileContents ← IO.FS.readFile modulePath.toString
+      -- get the source code within range
+      let declTextList := if rgs.pos.line == 0 then [] else
+        fileContents.splitOn "\n"
+          |>.drop (rgs.pos.line - 1)
+          |>.take (rgs.endPos.line - rgs.pos.line + 1)
+      let declText := "\n".intercalate declTextList
+
+      out := (ExternalContext.mk c kind module declText)::out
+    return out
+  return constant_info
+
+
+
+
 /- Returns a dummy response (for debugging when model is offline) -/
 def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
   let srcCommand := cmd.src.toString
   let bon := config.best_of_n
   return List.range bon |>.map (fun i => s!"--DEBUG: {i}\n{srcCommand}")
 
-/- Prompts the model running on an available web interface
-  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
-def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, _, _, _, _, prompt_name⟩ := config
 
-  if model == "DEBUG" then
-    return ← promptModel_debug cmd config
+def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let ⟨_,_,model, endpoint, best_of_n, annotation?, context?, _, _, _, prompt_name⟩ := config
 
   -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
+  -- -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
   -- let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
   -- let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   let prompt ← get_prompt prompt_name config cmd
+
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
-      ("max_tokens", Json.num <| JsonNumber.fromNat 4096)
+      ("max_tokens", Json.num <| JsonNumber.fromNat <| 256)
     ]
   let args := #[
     "-X", "POST",
@@ -192,6 +267,58 @@ def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List Str
   return newCommandCandidates
 
 
+
+
+def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let ⟨_,_,model, endpoint, best_of_n, annotation?,context?, _, _, _, prompt_name⟩ := config
+
+  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
+  -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
+  -- let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+  -- let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  let prompt ← get_prompt prompt_name config cmd
+
+  let jsonPayload : Json := Json.mkObj [
+      ("model", Json.str model),
+      ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
+      ("max_tokens", Json.num <| JsonNumber.fromNat 256)
+    ]
+  -- Call Python script with JSON payload
+  let out ← IO.Process.output {
+    cmd := "/home/riyaza/miniconda3/envs/.venv10/bin/python3",
+    args := #["scripts/send_batched.py", jsonPayload.compress, toString best_of_n, endpoint]
+  }
+
+  let stdout := out.stdout.trim
+  let contents := match stdout.splitOn "<RESPONSE>" |>.reverse with
+  | []   => ""
+  | last :: _ => last
+
+  let responses := Json.parse (contents)
+    |>.toOption.getD (Json.arr #[])
+    |>.getArr?.toOption.getD (#[])
+    |>.map (fun j => j.getStr?.toOption.getD "")
+  IO.println responses
+  -- Process each response to extract content between IMPROVED tags
+  let newCommandCandidates := responses.map (fun response =>
+    let tagOpen  := "<IMPROVED>"
+    let tagClose := "</IMPROVED>"
+    response.stripPrefix tagOpen |>.stripSuffix tagClose)
+
+  return newCommandCandidates.toList
+
+
+/- Prompts the model running on an available web interface
+  Takes a (compiled) theorem, a model name, an endpoint (URL to interface), and the number of separate attempts the model should make (best_of_n) -/
+def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  match config.model with
+  | "DEBUG" => return ← promptModel_debug cmd config
+  | _ => return ← promptModel_batched cmd config
+
+
+
+
 /- Not sure what this is for but the file doesn't run without it :| -/
 def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
   { state with
@@ -240,12 +367,13 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
       and writes the original and improved proofs, along with relevant metrics, to the JSON file at `json_path` (if any) -/
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
-  let ⟨targetModule, decls, _, _, _, _, proofAsSorry?, json_path, metric_name, _⟩ := config
+  let ⟨targetModule, decls, _, _, _, _,_, proofAsSorry?, json_path, metric_name, _⟩ := config
   let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
 
   /- Handle incomplete proofs with "sorry" in them -/
   /- TODO: I don't know if proofAsSorry is actually working -/
+
   let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
     |>.insert `linter.unusedVariables (.ofBool false)
     |>.insert `linter.unusedTactic (.ofBool false)
@@ -268,6 +396,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
     let tacs ← tacs.mapM (fun t => t.pp)
     IO.println s!"Number of tactics: {tacs.length}"
     IO.println s!"Tactics: {tacs}"
+
     IO.println s!"---------------------------------------------"
 
     /- Print out what the verifier is yelling at us about -/
@@ -407,7 +536,7 @@ def improver : Cmd := `[Cli|
   EXTENSIONS:
     defaultValues! #[("decls", ""), ("json_path", ""),
     ("model", "DEBUG"), ("endpoint", "http://0.0.0.0:8000/v1/chat/completions"),
-    ("best_of_n", "1"), ("annotation", "false"), ("proofAsSorry", "true")]
+    ("best_of_n", "1"), ("annotation", "false"), ("proofAsSorry", "false")]
 ]
 
 /-- `lake exe state_comments` -/
@@ -415,5 +544,4 @@ def main (args : List String) : IO UInt32 :=
   improver.validate args
 
 
--- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1]), annotation?:= true, best_of_n:= 5, jsonPath:=(some "test2.json")}
-#eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem1]), annotation?:= true, best_of_n:= 5, jsonPath:=none, proofAsSorry:=false}
+#eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t1]), best_of_n:= 1}

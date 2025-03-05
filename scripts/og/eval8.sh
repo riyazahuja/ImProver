@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=improver_eval
-#SBATCH --output=logs/improver_eval.out
-#SBATCH --error=logs/improver_eval.err
+#SBATCH --job-name=improver_eval8
+#SBATCH --output=logs/improver_eval8.out
+#SBATCH --error=logs/improver_eval8.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -13,15 +13,15 @@
 
 source $HOME/miniconda3/bin/activate .venv10
 
-export MODEL_PATH=/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Qwen-1.5B_full
-export MODEL_NAME=Qwen-1.5B_full
+export MODEL_PATH=/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Llama-8B_full/checkpoint-920
+export MODEL_NAME=Llama-8B
 
-#vllm serve $MODEL_PATH --served-model-name $MODEL_NAME &
 vllm serve $MODEL_PATH --served-model-name $MODEL_NAME &
 
 cd ~/eval_improver/ImProver
 
 lake build scripts.verifier
+
 
 echo "Waiting for vLLM server to start..."
 until curl -s http://localhost:8000/model_info > /dev/null; do
@@ -29,8 +29,7 @@ until curl -s http://localhost:8000/model_info > /dev/null; do
 done
 echo "vLLM server is up and running."
 
-
-python3 scripts/eval_improver.py 60 $MODEL_NAME 8000
+python3 scripts/eval.py 60 $MODEL_NAME
 
 
 
