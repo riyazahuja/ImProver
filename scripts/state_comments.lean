@@ -31,14 +31,18 @@ partial def dropEnclosed (L : List (Range × String × String)) : List (Range ×
   let L' := L.filter fun ⟨r, _, _⟩ => ¬ L.any fun ⟨r', _, _⟩ => r < r'
   if L' = L then L' else dropEnclosed L'
 
-/- Helper function to format goal state strings -/
-def formatState (s : String) : List String :=
+/- Helper function to format goal state strings:  -/
+/- REQUIRES: cutoff_length = None or cutoff_length = Some n for n >= 2 -/
+def formatState (s : String) (cutoff_length : Option Nat) : List String :=
   if s = "" then ["🎉 no goals"] else
-  let lines := (s.splitOn "\n").map fun l =>
-    if l.length > 80 then
-      l.take 78 ++ " …"
-    else
-      l
+  let lines := (s.splitOn "\n").map fun line =>
+    match cutoff_length with
+    | none => line
+    | some len =>
+      if line.length > len then
+        line.take (len-2) ++ " …"
+      else
+        line
   lines
 
 def String.indent (s : String) (k : Nat) : String := ⟨List.replicate k ' '⟩ ++ s
