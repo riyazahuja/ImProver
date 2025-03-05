@@ -30,7 +30,7 @@ done
 echo "vLLM server is up and running."
 
 
-python3 scripts/eval.py 60 $MODEL_NAME
+python3 scripts/eval_improver.py 60 $MODEL_NAME 8000
 
 
 
