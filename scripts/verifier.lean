@@ -81,7 +81,7 @@ def annotateTheorems (targetModule : Name) (decls : Option (List Name)) (proofAs
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean targetModule).toString
 
-  /- Handle incomplete proofs with "sorry" in them -/
+  /- Replace all tactics with "sorry" for faster execution -/
   let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
     |>.insert `linter.unusedVariables (.ofBool false)
     |>.insert `linter.unusedTactic (.ofBool false)

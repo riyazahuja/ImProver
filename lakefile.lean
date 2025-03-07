@@ -22,8 +22,13 @@ lean_lib Examples where
 
 lean_lib scripts where
 
+lean_lib RAG where
+
 
 @[default_target]
 lean_exe ImProver where
   root := `scripts.verifier
   supportInterpreter := true
+
+lean_exe AnnotateTheorems where
+  root := `RAG.AnnotateTheorems
