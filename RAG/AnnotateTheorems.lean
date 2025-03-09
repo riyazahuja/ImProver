@@ -6,6 +6,8 @@ import ImportGraph.RequiredModules
 import Lake.Load
 import Lake
 
+import Lean.Elab.Frontend
+
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
 /- Adds comments about the goal state of the proof after each tactic -/
@@ -64,21 +66,21 @@ def annotateTheorems (targetModule : Name) (decls : Option (List Name)) : IO (Li
     return []
 
 /- Sends annotated theorems to the Python process over HTTP -/
--- def sendCurlInfo (endpoint : String) (module : Name) (theorems : IO (List String)) : IO Bool:= do
---   let jsonPayload : Json := Json.mkObj [
---       ("filename", Json.str <| (← (findLean module)).toString),
---       ("theorems", Json.arr <| Array.mk <| (← theorems).map fun x => Json.str x)
---     ]
---   let args := #[
---     "-X", "POST",
---     "-H", "Content-Type: application/json",
---     "-d", s!"{jsonPayload.compress}",
---     endpoint
---   ]
---   let _ := IO.Process.output { cmd := "curl", args := args }
---   return true
+def sendCurlInfo (endpoint : String) (module : Name) (theorems : IO (List String)) : IO Bool:= do
+  let jsonPayload : Json := Json.mkObj [
+      ("filename", Json.str <| (← (findLean module)).toString),
+      ("theorems", Json.arr <| Array.mk <| (← theorems).map fun x => Json.str x)
+    ]
+  let args := #[
+    "-X", "POST",
+    "-H", "Content-Type: application/json",
+    "-d", s!"{jsonPayload.compress}",
+    endpoint
+  ]
+  let _ ← IO.Process.output { cmd := "curl", args := args }
+  return true
 
--- def sendCurlDefault := sendCurlInfo "http://localhost:5000/annotate"
+def sendCurlDefault := sendCurlInfo "http://localhost:8000/"
 
 def sendInfoStdout (module : Name) (theorems : IO (List String)) : IO Bool:= do
   let jsonPayload : Json := Json.mkObj [
@@ -112,7 +114,7 @@ def chunk (chunkSize : Nat) (l : List α) := (
     | a::acc =>
       if a.length < chunkSize then (n::a)::acc else [n]::a::acc) [[]] l)
 
-def annotateMathlib : IO Unit := do
+def annotateMathlibStdio : IO Unit := do
   let modules := (← getMathlibModules mathlibPathDefault)
   let processModule := fun (module : Name) => do
     let theorems := annotateTheorems module none
@@ -122,26 +124,55 @@ def annotateMathlib : IO Unit := do
     else return pure ""
 
   -- Cringe version
-  -- let out ← modules.mapM processModule
+  let out ← modules.mapM processModule
 
   -- Extreme version ( !!! takes 50+GB of memory !!!)
-  let num_threads := 5
-  let batch_size := 100
-  let batches := chunk batch_size modules
-  for b in batches do
-    let thread_tasks := chunk (batch_size/num_threads) b
-    let results := thread_tasks.map (fun c => IO.asTask (prio := Task.Priority.dedicated) do
-      let out ← c.mapM processModule
-      return out)
-    let formatted ← results.mapM fun (t : BaseIO _) => do
-      IO.ofExcept <| (← t).get
+  -- let num_threads := 5
+  -- let batch_size := 100
+  -- let batches := chunk batch_size modules
+  -- for b in batches do
+  --   let thread_tasks := chunk (batch_size/num_threads) b
+  --   let results := thread_tasks.map (fun c => IO.asTask (prio := Task.Priority.dedicated) do
+  --     let out ← c.mapM processModule
+  --     return out)
+  --   let formatted ← results.mapM fun (t : BaseIO _) => do
+  --     IO.ofExcept <| (← t).get
 
-    for f in formatted do
-      for line in f do
-        IO.println (← line)
+  --   for f in formatted do
+  --     for line in f do
+  --       IO.println (← line)
 
+def annotateMathlibCurl (endpoint : String): IO Unit := do
+  let num_threads := 1
+  let modules := (← getMathlibModules mathlibPathDefault)
+  let processModule := fun (module : Name)  => do
+    let theorems := annotateTheorems module none
+    if (!(← theorems).isEmpty) then
+      let _ ← sendCurlInfo endpoint module theorems
+      return
+    else
+      return
+  let chunked := chunk (modules.length / num_threads + 1) modules
+  let results := chunked.map (fun c => IO.asTask (prio := Task.Priority.dedicated) do
+      let _ ← c.mapM processModule
+      return)
+  let _ ← results.mapM fun (t : BaseIO _) => do
+    IO.ofExcept <| (← t).get
 
-def main : IO Unit := do annotateMathlib
+  /- Tell the server we're done -/
+  let jsonPayload : Json := Json.mkObj [
+    ("status", Json.str "done")
+    ]
+  let args := #[
+    "-X", "POST",
+    "-H", "Content-Type: application/json",
+    "-d", s!"{jsonPayload.compress}",
+    endpoint
+  ]
+  let _ ← IO.Process.output { cmd := "curl", args := args }
+  return ()
 
+def main : IO Unit := do annotateMathlibStdio
+-- def main : IO Unit := do annotateMathlibCurl "http://localhost:8000/"
 
 /- lake exe AnnotateTheorems -/
