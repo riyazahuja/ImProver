@@ -128,12 +128,24 @@ partial def Lean.Expr.explicitConstants : Expr → MetaM NameSet
 | .mdata _ e => e.explicitConstants
 | _ => return NameSet.empty
 
-def getExplicitConstantsAsSet (t : TacticInfo) : MetaM NameSet := do
+def getExplicitConstantsAsSet (t : TacticInfo) : MetaM (List Name) := do
   let set ← t.goalsBefore
     |>.filterMap t.mctxAfter.getExprAssignmentCore?
     |>.mapM Expr.explicitConstants
 
-  return set.foldl .union .empty
+  let out : NameSet := set.foldl .union .empty
+  let out2 : List Name := out.toList
+  return out2
+
+partial def go (s : Syntax) (acc : Array Name) : Array Name :=
+  match s with
+  | Syntax.ident _ _ name _ => acc.push name
+  | Syntax.node _ _ args => args.foldl (fun acc s' => go s' acc) acc
+  | _ => acc
+
+def getConstants (step : CompilationStep) : MetaM (List Name) := do
+  let idents : Array Name := go step.stx #[]
+  return idents.toList
 
 def getUsedConstantsAsSet (t : TacticInfo) : NameSet :=
   let set := t.goalsBefore
@@ -170,22 +182,35 @@ def getKind (const_map : ConstMap) (m : Name) : String :=
     | .ctorInfo _ => "constructor (internal)"
     | .recInfo _ => "recursor (internal)"
 
+def isAuxLemma : Name → Bool
+| .num (.str _ "_auxLemma") _ => true
+| _ => false
+
 def get_context (step:CompilationStep) : IO (List ExternalContext) := do
-  let constants := step.trees
+  let tactics := step.trees
     |>.flatMap InfoTree.retainTacticInfo
     |>.flatMap InfoTree.retainOriginal
     |>.flatMap InfoTree.retainSubstantive
-    |>.flatMap (fun t => t.findTacticNodes.map (fun ⟨i, _⟩ => (getUsedConstantsAsSet i).toList))
-    |>.flatten
-    |>.eraseDups
 
   let pf_env := step.commandStateBefore.env
+  let ctx : Core.Context := {fileName := "", fileMap := default}
+  let state : Core.State := {env := pf_env}
+  let metaExplicitConstants := tactics.mapM (fun t => t.findTacticNodes.mapM (fun ⟨i,_⟩ => (getExplicitConstantsAsSet i)))
+  let explicit_constants_raw ← MetaM.toIO metaExplicitConstants ctx state
+  let constants := explicit_constants_raw.1.flatMap .flatten |>.eraseDups
+  let constants ← MetaM.toIO (getConstants step) ctx state
+  let constants := constants.1.eraseDups
+
   let modules := constants.map (fun c => (c,pf_env.getModuleFor? c |>.getD (Name.anonymous)))
   let consts_mods_kind := modules.map (fun (c, m) => (c, m, getKind pf_env.constants c))
   let mods := (modules.map fun x => x.2) |>.eraseDups |>.filter fun m => m != Name.anonymous
+  let allowed_kinds := ["theorem", "def","theorem (internal)", "def (internal)"]
   let constant_info ← CoreM.withImportModules mods.toArray do
     let mut out := []
     for (c, module, kind) in consts_mods_kind do
+      if isAuxLemma c || kind ∉ allowed_kinds then
+        continue
+
       let rgs := ((← findDeclarationRanges? c).getD default).range
       -- let module := ((pf_env.getModuleFor? c).getD (Name.anonymous))
       let modulePath ← findLean module
@@ -600,4 +625,5 @@ def main (args : List String) : IO UInt32 :=
   improver.validate args
 
 
--- #eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t1]), best_of_n:= 1, context?:=true}
+#eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`theorem8]), best_of_n:= 1, context?:=true}
+-- #eval ImProver {targetModule:=`temp.temp, decls:=(some [`theorem8]), best_of_n:= 1, context?:=true}
