@@ -227,20 +227,20 @@ if __name__ == "__main__":
         if args.setup:
             _setup(cwd=args.cwd, rebuild=args.rebuild)
 
-        if args.run:
-            name = name.replace("«", "").replace("»", "")
-            src_dir = os.path.join(args.cwd, ".cache", name)
-            if os.path.isdir(src_dir):
-                shutil.rmtree(src_dir)
+        # if args.run:
+        #     name = name.replace("«", "").replace("»", "")
+        #     src_dir = os.path.join(args.cwd, ".cache", name)
+        #     if os.path.isdir(src_dir):
+        #         shutil.rmtree(src_dir)
 
-            _run(
-                cwd=args.cwd,
-                name=name,
-                import_file=source["import_file"],
-                old_version=(
-                    False if "old_version" not in source else source["old_version"]
-                ),
-                max_workers=args.max_workers,
-                start=args.start,
-                local_path=source["path"] if local else None,
-            )
+        #     _run(
+        #         cwd=args.cwd,
+        #         name=name,
+        #         import_file=source["import_file"],
+        #         old_version=(
+        #             False if "old_version" not in source else source["old_version"]
+        #         ),
+        #         max_workers=args.max_workers,
+        #         start=args.start,
+        #         local_path=source["path"] if local else None,
+        #     )

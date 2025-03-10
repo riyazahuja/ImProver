@@ -5,6 +5,14 @@ import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 import ImportGraph.RequiredModules
 
+
+import Lean.Util.SearchPath
+import Mathlib.Lean.CoreM
+import Mathlib.Control.Basic
+import Mathlib.Lean.Expr.Basic
+import Batteries.Lean.HashMap
+
+
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
 set_option autoImplicit true
@@ -104,33 +112,34 @@ def annotateTheorems (targetModule : Name) (decls : Option (List Name)) (proofAs
   return annotatedTheorems
 
 
-/- Metric of theorem improvement: number of tactics used in a theorem -/
-def metric_length (cmd:CompilationStep) :=
-  InfoTree.tactics_new cmd.trees |>.length |>.toFloat
+partial def Lean.Expr.explicitConstants : Expr → MetaM NameSet
+| .app f x => do
+  -- We wrap with `try?` here because on tiny fraction of declarations in Mathlib,
+  -- e.g. `Computation.exists_of_mem_parallel`, this fails with an error like
+  -- `function expected ?m.88 ?m.93`.
+  match (← try? (inferType f)) with
+  | some (.forallE _ _ _ .default) => return (← f.explicitConstants) ++ (← x.explicitConstants)
+  | _ => f.explicitConstants
+| .lam _ t b _ => do b.instantiate1 (← mkFreshExprMVar t) |>.explicitConstants
+| .forallE _ t b _ => do b.instantiate1 (← mkFreshExprMVar t) |>.explicitConstants
+| .letE n t v b _ => return (← v.explicitConstants)
+    ++ (← withLetDecl n t v fun fvar => (b.instantiate1 fvar).explicitConstants)
+| .const n _ => return NameSet.empty.insert n
+| .mdata _ e => e.explicitConstants
+| _ => return NameSet.empty
 
-/- Returns metric function from name (for ease of use from command line) -/
-def get_metric (metric_name : String) : CompilationStep → Float :=
-  match metric_name with
-  | "length" => metric_length
-  | _ => fun _ => 0.0
+def getExplicitConstantsAsSet (t : TacticInfo) : MetaM NameSet := do
+  let set ← t.goalsBefore
+    |>.filterMap t.mctxAfter.getExprAssignmentCore?
+    |>.mapM Expr.explicitConstants
 
-/- Model system prompt asking it to shorten the length of the theorem -/
-def length_prompt (config : ImProverConfig) (cmd : CompilationStep) : IO String := do
-  let srcCommand ← if config.annotation? then (insert_state_comments cmd) else pure cmd.src.toString
-  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
-  let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if config.annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
-  return prompt
-
-/- Returns the prompt function from a name -/
-def get_prompt (prompt_name : String) :=
-  match prompt_name with
-  | _ => length_prompt
-
+  return set.foldl .union .empty
 
 def getUsedConstantsAsSet (t : TacticInfo) : NameSet :=
   let set := t.goalsBefore
     |>.filterMap t.mctxAfter.getExprAssignmentCore?
     |>.map Expr.getUsedConstantsAsSet
+    -- |>.map Expr
     |>.foldl .union .empty
 
   set
@@ -195,15 +204,46 @@ def get_context (step:CompilationStep) : IO (List ExternalContext) := do
 
 
 
+
+/- Metric of theorem improvement: number of tactics used in a theorem -/
+def metric_length (cmd:CompilationStep) :=
+  InfoTree.tactics_new cmd.trees |>.length |>.toFloat
+
+/- Returns metric function from name (for ease of use from command line) -/
+def get_metric (metric_name : String) : CompilationStep → Float :=
+  match metric_name with
+  | "length" => metric_length
+  | _ => fun _ => 0.0
+
+/- Model system prompt asking it to shorten the length of the theorem -/
+def length_prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem."
+
+/- Returns the prompt function from a name -/
+def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : CompilationStep) : IO String := do
+  let main_prompt := match prompt_name with
+  | _ => length_prompt
+
+  let srcCommand ← if config.annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
+  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response."
+
+  let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
+  let context_string : String ← if config.context? then do
+      let context ← get_context cmd
+      let data := context.map (fun c => s!"<ITEM>\n--name={c.name}\n--context_item_type={c.kind}\n{c.text}\n</ITEM>")
+      pure <| "\n".intercalate data
+    else pure ""
+
+
+  let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.context? then context_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.{if config.context? then ("\n\n<CONTEXT>\n" ++ context_string ++ "\n</CONTEXT>\n\n") else "\n\n"}<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  return prompt
+
+
+
+
 /- Returns a dummy response (for debugging when model is offline) -/
 def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let srcCommand := cmd.src.toString
-  let bon := config.best_of_n
-  return List.range bon |>.map (fun i => s!"--DEBUG: {i}\n{srcCommand}")
-
-
-def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, annotation?, context?, _, _, _, prompt_name⟩ := config
+  let ⟨_,_,model, endpoint, best_of_n, _, _, _, _, _, prompt_name⟩ := config
 
   -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
 
@@ -211,7 +251,23 @@ def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (L
   -- let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
   -- let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   let prompt ← get_prompt prompt_name config cmd
+  IO.println s!"Prompt:\n{prompt}"
 
+  let srcCommand := cmd.src.toString
+  let bon := config.best_of_n
+  return List.range bon |>.map (fun i => s!"--DEBUG: {i}\n{srcCommand}")
+
+
+def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let ⟨_,_,model, endpoint, best_of_n, _, _, _, _, _, prompt_name⟩ := config
+
+  -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+
+  -- -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
+  -- let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
+  -- let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  let prompt ← get_prompt prompt_name config cmd
+  IO.println s!"Prompt:\n{prompt}"
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
@@ -270,15 +326,15 @@ def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (L
 
 
 def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, annotation?,context?, _, _, _, prompt_name⟩ := config
+  let ⟨_,_,model, endpoint, best_of_n, annotation?,_, _, _, _, prompt_name⟩ := config
 
-  let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+  -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
 
   -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
   -- let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. "
   -- let prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.{if annotation? then annotation_prompt else " "}Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   let prompt ← get_prompt prompt_name config cmd
-
+  IO.println s!"Prompt:\n{prompt}"
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
@@ -544,4 +600,4 @@ def main (args : List String) : IO UInt32 :=
   improver.validate args
 
 
-#eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t1]), best_of_n:= 1}
+-- #eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t1]), best_of_n:= 1, context?:=true}
