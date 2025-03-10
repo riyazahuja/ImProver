@@ -16,14 +16,17 @@ require «doc-gen4» from git "https://github.com/leanprover/doc-gen4" @ "v4.15.
 @[default_target]
 lean_lib TrainingData where
 
+@[default_target]
+lean_lib ImProver where
+
+
 lean_lib temp where
 
 lean_lib Examples where
 
-lean_lib scripts where
 
 
 @[default_target]
-lean_exe ImProver where
-  root := `scripts.verifier
+lean_exe improver where
+  root := `ImProver.improver
   supportInterpreter := true
