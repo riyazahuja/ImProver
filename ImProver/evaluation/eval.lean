@@ -3,7 +3,6 @@ import Cli
 import ImProver.prompting.state_comments
 import ImProver.prompting.context
 import ImProver.prompting.prompts
-import ImProver.inference.inference
 import ImProver.utils
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic

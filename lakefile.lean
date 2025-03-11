@@ -13,7 +13,7 @@ require mil from git
 
 require «doc-gen4» from git "https://github.com/leanprover/doc-gen4" @ "v4.15.0"
 
-@[default_target]
+
 lean_lib TrainingData where
 
 @[default_target]

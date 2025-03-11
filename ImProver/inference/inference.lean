@@ -3,11 +3,12 @@ import Cli
 import ImProver.prompting.state_comments
 import ImProver.prompting.context
 import ImProver.prompting.prompts
+import ImProver.evaluation.eval
 import ImProver.utils
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 import ImportGraph.RequiredModules
-
+import Lean.Util.Trace
 
 import Lean.Util.SearchPath
 import Mathlib.Lean.CoreM
@@ -101,7 +102,7 @@ def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (L
 
 
 def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, annotation?,_, _, _, _, prompt_name⟩ := config
+  let ⟨_,_,model, endpoint, best_of_n, _,_, _, _, _, prompt_name⟩ := config
 
   -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
 
@@ -138,6 +139,111 @@ def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (
     response.stripPrefix tagOpen |>.stripSuffix tagClose)
 
   return newCommandCandidates.toList
+
+
+
+def score (step : CompilationStep) (config : ImProverConfig): IO Float := do
+  let metric_name := config.metric
+  let msgs ← step.msgs.filterMapM (fun msg => do
+        if msg.severity != .error then
+          return none
+        let m ← msg.data.toString
+        return some (bombEmoji++m))
+  let correct := msgs.isEmpty
+
+  let metric_score := if correct then get_metric metric_name step else -1
+
+  return metric_score
+
+def promptModel_refine (cmd : CompilationStep) (config : ImProverConfig) (num_steps : Nat) (keep_best? : Bool := True): IO (CompilationStep × List (List CompilationStep)) := do
+  let ⟨targetModule,_,model, endpoint, best_of_n, _,_, _, _, _, prompt_name⟩ := config
+  let build_payload := fun c => do
+    let prompt ← get_prompt prompt_name config c
+    return Json.mkObj [
+      ("model", Json.str model),
+      ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
+      ("max_tokens", Json.num <| JsonNumber.fromNat 256)
+    ]
+
+  let process_output (out : Process.Output) : IO (List String) := do
+    let stdout := out.stdout.trim
+    let contents := match stdout.splitOn "<RESPONSE>" |>.reverse with
+    | []   => ""
+    | last :: _ => last
+
+    let responses := Json.parse (contents)
+      |>.toOption.getD (Json.arr #[])
+      |>.getArr?.toOption.getD (#[])
+      |>.map (fun j => j.getStr?.toOption.getD "")
+    IO.println responses
+    -- Process each response to extract content between IMPROVED tags
+    let newCommandCandidates := responses.map (fun response =>
+      let tagOpen  := "<IMPROVED>"
+      let tagClose := "</IMPROVED>"
+      response.stripPrefix tagOpen |>.stripSuffix tagClose)
+    return newCommandCandidates.toList
+
+  let mut best : CompilationStep := cmd
+  let mut traj : List (List CompilationStep) := []
+  for _ in List.range num_steps do
+    let jsonPayload ← build_payload best
+    let out ← IO.Process.output {
+      cmd := "/home/riyaza/miniconda3/envs/.venv10/bin/python3",
+      args := #["ImProver/evaluation/send_batched.py", jsonPayload.compress, toString best_of_n, endpoint]
+    }
+    let variants ← process_output out
+    let resultantSteps := (← elaborateVariants best targetModule variants) |>.filterMap (fun x => x) |>.map (fun x => x.2)
+    traj := resultantSteps :: traj
+    let cmp := fun curr_best new => do
+      let old_score : Float ← score curr_best config
+      let new_score : Float ← score new config
+      let old_pos : Bool := old_score ≥ 0
+      let new_pos : Bool := new_score ≥ 0
+      let out : CompilationStep := match (old_pos, new_pos) with
+      | (true, true) => if new_score < old_score then new else curr_best
+      | (true, false) => curr_best
+      | (false, true) => new
+      | (false, false) => curr_best
+      return out
+
+    let best_result : CompilationStep ← resultantSteps.foldlM cmp best
+
+    if keep_best? then
+      best ← cmp best_result best
+    else
+      best := best_result
+  return (best, traj.reverse)
+
+
+
+
+    -- if keep_best? then
+    --   return process_one best_result (remaining_steps - 1) best_result
+    -- else
+    --   return process_one best_result (remaining_steps - 1) best
+
+    -- let initial := if keep_best? then best else resultantSteps.head!.2
+    -- let best_step := resultantSteps.foldl (fun curr_best curr_step => do
+    --   let get_msgs (step : CompilationStep) ← step.msgs.filterMapM (fun msg => do
+    --     if msg.severity != .error then
+    --       return none
+    --     let m ← msg.data.toString
+    --     return some (bombEmoji++m))
+
+    --   let old_correct := get_msgs curr_best |>.isEmpty
+    --   let new_correct := get_msgs curr_step |>.isEmpty
+    --   match (old_correct, new_correct) with
+    --   | (true, true) => none
+    --   | _ => none
+    -- ) initial
+
+
+
+
+
+
+
+
 
 
 /- Prompts the model running on an available web interface
