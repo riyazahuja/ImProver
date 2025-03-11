@@ -141,8 +141,8 @@ def test_average_speed():
     get_database_retriever(replace=True, max_docs=1000)
     print(f"Time per chunk: {(time.time() - start) / 1000}")
 
-def annotate_all_packages():
-    for package_dir in os.listdir(os.path.join(ROOT_PATH, ".lake", "packages")):
+def annotate_all_packages(project_home=ROOT_PATH):
+    for package_dir in os.listdir(os.path.join(project_home, ".lake", "packages")):
         if os.path.isdir(os.path.join(ROOT_PATH, ".lake", "packages", package_dir, package_dir.title())):
             save_annotated_library(library_name=package_dir,
                                    path=os.path.join(ROOT_PATH, ".lake", "packages", package_dir))
