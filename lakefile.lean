@@ -30,5 +30,5 @@ lean_exe ImProver where
   root := `scripts.verifier
   supportInterpreter := true
 
-lean_exe AnnotateImports where
-  root := `RAG.AnnotateImports
+lean_exe StateComments where
+  root := `scripts.standalone_state_comments

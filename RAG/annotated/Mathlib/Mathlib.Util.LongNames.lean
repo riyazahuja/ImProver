@@ -1,0 +1,36 @@
+/-- Helper function for `#long_names` and `#long_instances`. -/
+def printNameHashMap (h : Std.HashMap Name (Array Name)) : IO Unit :=
+  for (m, names) in h.toList do
+    IO.println "----"
+    IO.println <| m.toString ++ ":"
+    for n in names do
+      IO.println n
+
+
+/--
+Lists all declarations with a long name, gathered according to the module they are defined in.
+Use as `#long_names` or `#long_names 100` to specify the length.
+-/
+elab "#long_names " N:(num)? : command =>
+  Command.runTermElabM fun _ => do
+    let N := N.map TSyntax.getNat |>.getD 50
+    let namesByModule ← allNamesByModule (fun n => n.toString.length > N)
+    let namesByModule := namesByModule.filter fun m _ => m.getRoot.toString = "Mathlib"
+    printNameHashMap namesByModule
+
+
+/--
+Lists all instances with a long name beginning with `inst`,
+gathered according to the module they are defined in.
+This is useful for finding automatically named instances with absurd names.
+
+Use as `#long_names` or `#long_names 100` to specify the length.
+-/
+elab "#long_instances " N:(num)?: command =>
+  Command.runTermElabM fun _ => do
+    let N := N.map TSyntax.getNat |>.getD 50
+    let namesByModule ← allNamesByModule
+      (fun n => n.lastComponentAsString.startsWith "inst" && n.lastComponentAsString.length > N)
+    let namesByModule := namesByModule.filter fun m _ => m.getRoot.toString = "Mathlib"
+    printNameHashMap namesByModule
+

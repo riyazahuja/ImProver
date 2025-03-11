@@ -9,32 +9,81 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 
 from langchain_ollama import OllamaEmbeddings
-from concurrent.futures import ProcessPoolExecutor, wait, ALL_COMPLETED
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import os, json, shutil, copy
 import subprocess, threading
 import http.server
 
 
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(ROOT_PATH, ".db", ".mathlib_annotated_db")
+# DB_PATH = os.path.join(ROOT_PATH, ".db", ".mathlib_annotated_db")
 
 
 # Processed with the ntp-toolkit repository
-def annotated_thms_generator_file(path_to_ntp_toolkit=os.path.join(os.path.abspath(os.path.join(ROOT_PATH, os.pardir)), "ntp-toolkit", "Examples", "mathlib", "StateComments")):
+def annotated_thms_generator_file(
+        path_to_ntp_toolkit=os.path.join(
+            os.path.abspath(os.path.join(ROOT_PATH, os.pardir)),
+                                           "ntp-toolkit",
+                                           "Examples",
+                                           "mathlib",
+                                           "StateComments")):
     for file in os.listdir(path_to_ntp_toolkit):
         if file.endswith(".lean"):
             with open(os.path.join(path_to_ntp_toolkit, file), "r") as f:
                 yield file, [f.read()]
 
-def create_mathlib_database(replace=False, max_docs=None, save_annotations=False, path_to_annotated=os.path.join(os.path.abspath(os.path.join(ROOT_PATH, os.pardir)), "ntp-toolkit", "Examples", "mathlib", "StateComments")):
-    if replace:
-        if os.path.exists(DB_PATH):
-            shutil.rmtree(DB_PATH)
+def get_library_lean_files(library_name="Mathlib",
+                           path=os.path.join(ROOT_PATH,
+                                             ".lake",
+                                             "packages",
+                                             "mathlib",
+                                             "Mathlib")):
+    cmd = f"find {path} -type f -name \"*.lean\" -print"
+    files = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.split("\n")
+    for i in range(len(files)):
+        try:
+            files[i] = (library_name + files[i].split(library_name)[1]).replace("/", ".").split(".lean")[0]
+        except IndexError:
+            files[i] = ""
+    return list(filter(None, files))
 
-    loader = DirectoryLoader(path_to_annotated,
-                             glob="**/*.lean",
-                             show_progress=True,
-                             loader_cls=TextLoader
+def save_annotated_library(library_name="Mathlib",
+                           path=os.path.join(ROOT_PATH,
+                                             ".lake",
+                                             "packages",
+                                             "mathlib",
+                                             "Mathlib")):
+    modules = get_library_lean_files(library_name, path)
+    # modules = ['Mathlib.Tactic.LinearCombination.Lemmas', 'Mathlib.Tactic.ToAdditive', 'Mathlib.Tactic.Algebraize', 'Mathlib.Tactic.CancelDenoms.Core', 'Mathlib.Tactic.Continuity.Init', 'Mathlib.Tactic.Check', 'Mathlib.Tactic.Generalize', 'Mathlib.Tactic.ExtractGoal', 'Mathlib.Tactic.SuccessIfFailWithMsg', 'Mathlib.Tactic.Clear_']
+    if not os.path.exists(os.path.join(ROOT_PATH, "RAG", "annotated", library_name)):
+        os.makedirs(os.path.join(ROOT_PATH, "RAG", "annotated", library_name))
+    def annotateModule(module):
+        cmd = ["lake", "exe", "StateComments", module]
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, universal_newlines=True, cwd=ROOT_PATH)
+        with open(os.path.join(ROOT_PATH, "RAG", "annotated", library_name, f"{module}.lean"), "w") as f:
+            f.write(out.stdout)
+        print(f"Annotated {module}")
+        return out.stdout
+    futures = []
+    with ThreadPoolExecutor() as executor:
+        for module in modules:
+            futures.append(executor.submit(annotateModule, module))
+    # for future in futures:
+    #     print(future.result())
+
+def create_database_of_annotated(replace=False, max_docs=None, package_name="Mathlib"):
+    path_to_annotated = os.path.join(ROOT_PATH, "RAG", "annotated", package_name)
+    if not os.path.exists(path_to_annotated):
+        print(f"No annotated theorems found at {path_to_annotated}. Run save_annotated_library() to generate them.")
+
+    database_path = os.path.join(ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db")
+
+    if replace:
+        if os.path.exists(database_path):
+            shutil.rmtree(database_path)
+
+    loader = DirectoryLoader(
+        path_to_annotated, glob="**/*.lean", show_progress=True, loader_cls=TextLoader
     )
     docs = loader.load()
     lean_splitters = [
@@ -59,7 +108,10 @@ def create_mathlib_database(replace=False, max_docs=None, save_annotations=False
     docs = splitter.split_documents(docs)
     print("Number of chunks:", len(docs))
     embeddings = OllamaEmbeddings(model="llama3.2")
-    vectorstore = Chroma(collection_name="Annotated_Mathlib_Theorems", persist_directory=DB_PATH, embedding_function=embeddings)
+    vectorstore = Chroma(
+        collection_name="Annotated_Mathlib_Theorems",
+        persist_directory=database_path,
+        embedding_function=embeddings)
 
     def embed(doc):
         return embeddings.embed_query(doc.page_content)
@@ -71,29 +123,37 @@ def create_mathlib_database(replace=False, max_docs=None, save_annotations=False
     vectorstore.add_documents(docs, embeddings=emb)
     return vectorstore
 
-def get_mathlib_retriever(number_to_retrieve=6, filter={}):
+def get_database_retriever(package_name="Mathlib",number_to_retrieve=6, filter={}):
+    database_path = os.path.join(ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db")
     embeddings = OllamaEmbeddings(model="llama3.2")
-    database = Chroma(collection_name="Annotated_Mathlib_Theorems", persist_directory=DB_PATH, embedding_function=embeddings)
-    return database.as_retriever(search_type="mmr", search_kwargs={"k": number_to_retrieve, "filter": filter})
+    database = Chroma(collection_name=f"Annotated_Theorems_{package_name}",
+                      persist_directory=database_path,
+                      embedding_function=embeddings)
+    return database.as_retriever(
+        search_type="mmr", search_kwargs={"k": number_to_retrieve, "filter": filter}
+    )
 
 def test_average_speed():
     import time
     start = time.time()
-    create_mathlib_database(replace=True, max_docs=1000)
+    get_database_retriever(replace=True, max_docs=1000)
     print(f"Time per chunk: {(time.time() - start) / 1000}")
 
+def annotate_all_packages():
+    for package_dir in os.listdir(os.path.join(ROOT_PATH, ".lake", "packages")):
+        if os.path.isdir(os.path.join(ROOT_PATH, ".lake", "packages", package_dir, package_dir.title())):
+            save_annotated_library(library_name=package_dir,
+                                   path=os.path.join(ROOT_PATH, ".lake", "packages", package_dir))
+
 if __name__ == '__main__':
-    # clone ntp-toolkit repository
-    parent_dir = os.path.abspath(os.path.join(ROOT_PATH, os.pardir))
-    if not os.path.exists(os.path.join(parent_dir, "ntp-toolkit")):
-        subprocess.run(["git", "clone", "https://github.com/cmu-l3/ntp-toolkit.git"], cwd=os.path.abspath(os.path.join(ROOT_PATH, os.pardir)))
-        subprocess.run(f"python3 scripts/extract_repos.py --cwd {os.path.join(parent_dir, "ntp-toolkit")} --config {ROOT_PATH}/RAG/config_mathlib_v4.16.json --state_comments")
+    # Annotate and save theorems
+    # save_annotated_library()
 
     # Compile the database (takes a hot minute)
-    create_mathlib_database(replace=True)
+    create_database_of_annotated(replace=True)
 
     # Test retrieval
-    # retriever = get_mathlib_retriever()
+    # retriever = get_database_retriever()
     # output = retriever.invoke("""elab "generalize'" h:ident " : " t:term:51 " = " x:ident : tactic => do""")
     # for doc in output:
     #     print(f"[{doc.metadata}]")

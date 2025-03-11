@@ -1,0 +1,67 @@
+/-- Any (fiber) functor `F : C ⥤ FintypeCat` naturally factors via
+the forgetful functor from `Action FintypeCat (MonCat.of (Aut F))` to `FintypeCat`. -/
+def functorToAction : C ⥤ Action FintypeCat.{u} (MonCat.of (Aut F)) where
+  obj X := Action.FintypeCat.ofMulAction (Aut F) (F.obj X)
+  map f := {
+    hom := F.map f
+    comm := fun g ↦ symm <| g.hom.naturality f
+  }
+
+
+lemma functorToAction_comp_forget₂_eq : functorToAction F ⋙ forget₂ _ FintypeCat = F := rfl
+
+
+@[simp]
+lemma functorToAction_map {X Y : C} (f : X ⟶ Y) : ((functorToAction F).map f).hom = F.map f :=
+  rfl
+
+
+instance (X : C) : MulAction (Aut X) ((functorToAction F).obj X).V :=
+  inferInstanceAs <| MulAction (Aut X) (F.obj X)
+
+
+instance (X : C) [IsGalois X] : MulAction.IsPretransitive (Aut X) ((functorToAction F).obj X).V :=
+  isPretransitive_of_isGalois F X
+
+
+instance : Functor.Faithful (functorToAction F) :=
+  have : Functor.Faithful (functorToAction F ⋙ forget₂ _ FintypeCat) :=
+    inferInstanceAs <| Functor.Faithful F
+  Functor.Faithful.of_comp (functorToAction F) (forget₂ _ FintypeCat)
+
+
+instance : PreservesMonomorphisms (functorToAction F) :=
+  have : PreservesMonomorphisms (functorToAction F ⋙ forget₂ _ FintypeCat) :=
+    inferInstanceAs <| PreservesMonomorphisms F
+  preservesMonomorphisms_of_preserves_of_reflects (functorToAction F) (forget₂ _ FintypeCat)
+
+
+instance : ReflectsMonomorphisms (functorToAction F) := reflectsMonomorphisms_of_faithful _
+
+
+instance : Functor.ReflectsIsomorphisms (functorToAction F) where
+  reflects f _ :=
+    have : IsIso (F.map f) := (forget₂ _ FintypeCat).map_isIso ((functorToAction F).map f)
+    isIso_of_reflects_iso f F
+
+
+noncomputable instance : PreservesFiniteCoproducts (functorToAction F) :=
+  ⟨fun J _ ↦ Action.preservesColimitsOfShape_of_preserves (functorToAction F)
+    (inferInstanceAs <| PreservesColimitsOfShape (Discrete J) F)⟩
+
+
+noncomputable instance : PreservesFiniteProducts (functorToAction F) :=
+  ⟨fun J _ ↦ Action.preservesLimitsOfShape_of_preserves (functorToAction F)
+    (inferInstanceAs <| PreservesLimitsOfShape (Discrete J) F)⟩
+
+
+noncomputable instance (G : Type*) [Group G] [Finite G] :
+    PreservesColimitsOfShape (SingleObj G) (functorToAction F) :=
+  Action.preservesColimitsOfShape_of_preserves _ <|
+    inferInstanceAs <| PreservesColimitsOfShape (SingleObj G) F
+
+
+instance : PreservesIsConnected (functorToAction F) :=
+  ⟨fun {X} _ ↦ FintypeCat.Action.isConnected_of_transitive (Aut F) (F.obj X)⟩
+
+
