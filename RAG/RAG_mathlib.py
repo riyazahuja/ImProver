@@ -21,15 +21,6 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Processed with the ntp-toolkit repository
 def annotated_thms_generator_file(
-    path_to_ntp_toolkit=os.path.join(
-        os.path.abspath(ROOT_PATH),
-        "ntp-toolkit",
-        "Examples",
-        "mathlib",
-        "StateComments",
-    )
-):
-def annotated_thms_generator_file(
         path_to_ntp_toolkit=os.path.join(
             os.path.abspath(os.path.join(ROOT_PATH, os.pardir)),
                                            "ntp-toolkit",
