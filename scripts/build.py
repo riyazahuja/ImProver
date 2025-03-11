@@ -11,16 +11,23 @@ cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _lakefile_local(path, name, cwd):
-    lakefile_path = os.path.join(path, "lakefile.lean")
-    if os.path.isfile(lakefile_path):
-        with open(lakefile_path, "r") as f:
-            text = f.read()
+    lakefile_path_possibilities = [
+        os.path.join(path, "lakefile.lean"),
+        os.path.join(path, "lakefile.toml"),
+    ]
+    lakefile_path = [p for p in lakefile_path_possibilities if os.path.isfile(p)]
+    if len(lakefile_path) > 0:
+        lakefile_path = lakefile_path[0]
     else:
-        text = ""
+        raise ValueError(f"lakefile.lean or lakefile.toml not found in {path}")
+
+    with open(lakefile_path, "r") as f:
+        text = f.read()
 
     mathlib_text = ""
     if "require mathlib from git" not in text and name != "mathlib":
         mathlib_text = 'require mathlib from git\n    "https://github.com/leanprover-community/mathlib4.git"'
+
     contents = """import Lake
     open Lake DSL
 
@@ -138,34 +145,6 @@ def _import_file(name, import_file, old_version, local_path=None):
             return os.path.join("lake-packages", name, import_file)
         else:
             return os.path.join(".lake", "packages", name, import_file)
-
-
-def _run(cwd, name, import_file, old_version, max_workers, start, local_path):
-
-    flags = ""
-    if max_workers is not None:
-        flags += " --max-workers %d" % max_workers
-    if local_path is None:
-        proj_path = os.path.join(cwd, ".lake", "packages", name)
-    else:
-        proj_path = local_path
-
-    start_path = os.path.join(proj_path, start)
-    # print(f"== {start_path} ==")
-    flags += " --start %s --proj-path %s" % (start_path, proj_path)
-    subprocess.Popen(
-        [
-            "python3 %s/scripts/run_pipeline.py --output-base-dir .cache/%s --cwd %s --import-file %s %s"
-            % (
-                cwd,
-                name,  # .capitalize(),
-                cwd,
-                _import_file(name, import_file, old_version, local_path),
-                flags,
-            )
-        ],
-        shell=True,
-    ).wait()
 
 
 if __name__ == "__main__":
