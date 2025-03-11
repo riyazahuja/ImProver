@@ -21,6 +21,15 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Processed with the ntp-toolkit repository
 def annotated_thms_generator_file(
+    path_to_ntp_toolkit=os.path.join(
+        os.path.abspath(ROOT_PATH),
+        "ntp-toolkit",
+        "Examples",
+        "mathlib",
+        "StateComments",
+    )
+):
+def annotated_thms_generator_file(
         path_to_ntp_toolkit=os.path.join(
             os.path.abspath(os.path.join(ROOT_PATH, os.pardir)),
                                            "ntp-toolkit",
@@ -85,6 +94,7 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
     loader = DirectoryLoader(
         path_to_annotated, glob="**/*.lean", show_progress=True, loader_cls=TextLoader
     )
+
     docs = loader.load()
     lean_splitters = [
         "\ntheorem ",
@@ -135,6 +145,7 @@ def get_database_retriever(package_name="Mathlib",number_to_retrieve=6, filter={
 
 def test_average_speed():
     import time
+
     start = time.time()
     get_database_retriever(replace=True, max_docs=1000)
     print(f"Time per chunk: {(time.time() - start) / 1000}")
@@ -159,5 +170,3 @@ if __name__ == '__main__':
     #     print(f"[{doc.metadata}]")
     #     print(doc.page_content)
     #     print("===============")
-
-
