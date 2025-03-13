@@ -47,7 +47,7 @@ def run_improver(file_info, repo, n):
     decls_str = ",".join(decls)
     module = module.replace("/", ".").replace(".lean", "")
     # Create output JSON path
-    output_json = f"improver_outputs/{repo}/{module.replace('.', '_')}.json"
+    output_json = f"improver_outputs_new/{repo}/{module.replace('.', '_')}.json"
 
     # Construct the lake command
     cmd = [
@@ -79,7 +79,7 @@ def run_improver(file_info, repo, n):
 def get_data(test_set, repo, n):
 
     # Create output directory if it doesn't exist
-    os.makedirs(f"improver_outputs/{repo}", exist_ok=True)
+    os.makedirs(f"improver_outputs_new/{repo}", exist_ok=True)
 
     # Read the test set
     with open(test_set, "r") as f:
@@ -118,14 +118,14 @@ def get_data(test_set, repo, n):
             print(f"Error reading {json_file}: {str(e)}")
 
     # Save combined results
-    with open(f"improver_outputs/{repo}/improver_combined_results.json", "w") as f:
+    with open(f"improver_outputs_new/{repo}/improver_combined_results.json", "w") as f:
         json.dump(combined_results, f, indent=2)
 
 
 def to_csv(repo, model):
     # Read the combined results
     with open(
-        f"improver_outputs/{repo}/{model}/improver_combined_results.json", "r"
+        f"improver_outputs_new/{repo}/{model}/improver_combined_results.json", "r"
     ) as f:
         combined_results = json.load(f)
 
@@ -133,13 +133,12 @@ def to_csv(repo, model):
     df = pd.DataFrame(combined_results)
 
     # Save the DataFrame to a CSV file
-    output_csv = f"improver_outputs/{repo}/{model}/improver_combined_results.csv"
+    output_csv = f"improver_outputs_new/{repo}/{model}/improver_combined_results.csv"
     df.to_csv(output_csv, index=False)
     print(f"Results saved to {output_csv}")
 
 
-def main(model, ns):
-    repo = "MIL"
+def main(model, ns,repo):
     n = max(ns)
 
     # First run ImProver to get data
@@ -152,7 +151,7 @@ def main(model, ns):
     sys.path.append("benchmark")
 
     # Load and analyze the data
-    df = pd.read_csv(f"improver_outputs/{repo}/{model}/improver_combined_results.csv")
+    df = pd.read_csv(f"improver_outputs_new/{repo}/{model}/improver_combined_results.csv")
     # For each n in ns, take first n trajectories from the max n run
     metrics_by_n = {}
     for n_prime in ns:
@@ -183,16 +182,16 @@ def main(model, ns):
         )
 
         # Save the current filtered dataframe
-        filtered_df.to_csv(
-            f"improver_outputs/{repo}/{model}/improver_n{n_prime}_filtered.csv",
-            index=False,
-        )
+        # filtered_df.to_csv(
+        #     f"improver_outputs_new/{repo}/{model}/improver_n{n_prime}_filtered.csv",
+        #     index=False,
+        # )
 
         # Load the specific file
-        filtered_df = pd.read_csv("improver_outputs/MIL/filtered-1shot.csv")
+        # filtered_df = pd.read_csv("improver_outputs_new/MIL/filtered-1shot.csv")
 
         # filtered_df.to_csv(
-        #     f"improver_outputs/{repo}/{model}/improver_n{n_prime}_filtered.csv",
+        #     f"improver_outputs_new/{repo}/{model}/improver_n{n_prime}_filtered.csv",
         #     index=False,
         # )
 
@@ -200,6 +199,7 @@ def main(model, ns):
         # Calculate metrics with the filtered dataframe
         metrics = calculate_metrics(filtered_df)
         metrics_by_n[n_prime] = metrics
+        
         print(f"\nMetrics for n={n_prime}:")
         for k, v in metrics.items():
             print(f"{k}: {v}")
@@ -227,17 +227,20 @@ def main(model, ns):
         plt.legend()
         plt.grid(True)
         plt.ylim(0, 1)  # Set y-axis limits from 0 to 1
-        plt.savefig(f"improver_outputs/{repo}/{model}/metrics_plot.png")
+        plt.savefig(f"improver_outputs_new/{repo}/{model}/metrics_plot.png")
         plt.close()
 
     # get_data(test_set,repo,n)
 
 
 if __name__ == "__main__":
-    ns = [1] + list(range(5, 61, 5))
+    repos = ['MIL',"Mathlib","Compfiles"]
+    # ns = [1] + list(range(5, 61, 5))
+    ns= range(1,11)
     if len(sys.argv) < 2:
         print("Usage: python eval.py <model1> <model2> ...")
         sys.exit(1)
     models = sys.argv[1:]
     for model in models:
-        main(model, ns)
+        for repo in repos:
+            main(model, ns,repo)

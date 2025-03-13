@@ -11,6 +11,10 @@ package «lean-training-data» {
 require mil from git
   "https://github.com/riyazahuja/Improver_MIL" @ "new"
 
+
+require compfiles from git
+  "https://github.com/dwrensha/compfiles" @ "c09159effc5eeb64903482db764e3ed5f14c8ee2"
+
 require «doc-gen4» from git "https://github.com/leanprover/doc-gen4" @ "v4.15.0"
 
 
@@ -21,6 +25,7 @@ lean_lib ImProver where
 
 
 lean_lib temp where
+
 
 lean_lib Examples where
 

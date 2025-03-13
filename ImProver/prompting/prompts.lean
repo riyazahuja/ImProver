@@ -47,9 +47,10 @@ def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : Compilat
   let main_prompt := match prompt_name with
   | _ => length_prompt
 
-  let srcCommand ← if config.annotation? then (insert_state_comments cmd) else pure cmd.src.toString
+  let srcCommand := cmd.src.toString
 
-  let annotation_prompt : String := s!" The goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response."
+  let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
+  let annotation_string : String ← if config.annotation? then (insert_state_comments cmd) else pure ""
 
   let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
   let context_string : String ← if config.context? then do
@@ -59,5 +60,5 @@ def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : Compilat
     else pure ""
 
 
-  let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.context? then context_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.{if config.context? then ("\n\n<CONTEXT>\n" ++ context_string ++ "\n</CONTEXT>\n\n") else "\n\n"}<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.context? then context_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.{if config.context? then ("\n\n<CONTEXT>\n" ++ context_string ++ "\n</CONTEXT>\n\n") else "\n\n"}{if config.annotation? then "<ANNOTATION>\n" ++ annotation_string ++ "\n</ANNOTATION>\n\n" else ""}<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   return prompt

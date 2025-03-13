@@ -103,7 +103,6 @@ def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (L
 
 def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
   let ⟨_,_,model, endpoint, best_of_n, _,_, _, _, _, prompt_name⟩ := config
-
   -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
 
   -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
@@ -114,12 +113,12 @@ def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (
   let jsonPayload : Json := Json.mkObj [
       ("model", Json.str model),
       ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
-      ("max_tokens", Json.num <| JsonNumber.fromNat 256)
+      ("max_tokens", Json.num <| JsonNumber.fromNat 1024)
     ]
   -- Call Python script with JSON payload
   let out ← IO.Process.output {
-    cmd := "/home/riyaza/miniconda3/envs/.venv10/bin/python3",
-    args := #["ImProver/evaluation/send_batched.py", jsonPayload.compress, toString best_of_n, endpoint]
+    cmd := "/home/riyaza/miniconda3/envs/env/bin/python3",
+    args := #["ImProver/inference/send_batched.py", jsonPayload.compress, toString best_of_n, endpoint]
   }
 
   let stdout := out.stdout.trim

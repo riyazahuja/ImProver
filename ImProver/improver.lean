@@ -16,7 +16,7 @@ import Mathlib.Lean.CoreM
 import Mathlib.Control.Basic
 import Mathlib.Lean.Expr.Basic
 import Batteries.Lean.HashMap
-
+-- import Compfiles
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
@@ -30,6 +30,7 @@ set_option autoImplicit true
       and writes the original and improved proofs, along with relevant metrics, to the JSON file at `json_path` (if any) -/
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
+
   let ⟨targetModule, decls, _, _, _, _,_, proofAsSorry?, json_path, metric_name, _⟩ := config
   let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
@@ -43,10 +44,8 @@ def ImProver (config : ImProverConfig): IO Unit := do
     |>.insert `linter.unreachableTactic (.ofBool false)
 
   /- Process the actual source code from our module -/
-
   let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
-
   for (cmd, ci) in targets do
     let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
     if decls.isSome && !(decls.get!.contains ci_name_stem) then
@@ -172,9 +171,11 @@ def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let endpoint := args.flag! "endpoint" |>.as! String
   let best_of_n := args.flag! "best_of_n" |>.as! Nat
   let annotation := args.flag! "annotation" |>.as! Bool
+  let context := args.flag! "context" |>.as! Bool
+
   let proofAsSorry := args.flag! "proofAsSorry" |>.as! Bool
 
-  let config : ImProverConfig := {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, proofAsSorry:=proofAsSorry, jsonPath:=json_path}
+  let config : ImProverConfig := {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, context? := context, proofAsSorry:=proofAsSorry, jsonPath:=json_path}
 
   ImProver config
   return 0
@@ -190,8 +191,10 @@ def improver : Cmd := `[Cli|
     endpoint : String; "Endpoint to use. (Default: http://0.0.0.0:8000/v1/chat/completions)"
     best_of_n : Nat; "Number of attempts to make. (Default: 1)"
     annotation : Bool; "Forward proof states to model. (Default: false)"
+    context : String; "Forward context to model. (Default: false)"
     proofAsSorry : Bool; "Convert all tactics to \"sorry\" for faster execution. (Default: false)"
     json_path : String; "Path to save the JSON output. (Blank for stdout)"
+
 
   ARGS:
     module : ModuleName; "Lean module to compile and annotate with state comments."
@@ -199,12 +202,20 @@ def improver : Cmd := `[Cli|
   EXTENSIONS:
     defaultValues! #[("decls", ""), ("json_path", ""),
     ("model", "DEBUG"), ("endpoint", "http://0.0.0.0:8000/v1/chat/completions"),
-    ("best_of_n", "1"), ("annotation", "false"), ("proofAsSorry", "false")]
+    ("best_of_n", "1"), ("annotation", "false"), ("context", "false"), ("proofAsSorry", "false")]
 ]
 
 /-- `lake exe state_comments` -/
 def main (args : List String) : IO UInt32 :=
   improver.validate args
+
+
+
+def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1, context?:=true, annotation?:=false, model:="Llama-8B"}
+-- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
+
+
+-- #eval ImProver test_config
 
 
 -- #eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`theorem8]), best_of_n:= 1, context?:=true}
