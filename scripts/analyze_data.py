@@ -145,7 +145,7 @@ def main(model, ns,repo):
     # get_data(test_set, repo, n)
 
     # Convert results to CSV
-    to_csv(repo, model)
+    # to_csv(repo, model)
 
     # Import extract functions
     sys.path.append("benchmark")
@@ -236,7 +236,7 @@ def main(model, ns,repo):
 if __name__ == "__main__":
     repos = ['MIL',"Mathlib","Compfiles"]
     # ns = [1] + list(range(5, 61, 5))
-    ns= range(1,11)
+    ns= [1] + list(range(4,65,4))
     if len(sys.argv) < 2:
         print("Usage: python eval.py <model1> <model2> ...")
         sys.exit(1)
