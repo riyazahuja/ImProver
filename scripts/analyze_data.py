@@ -138,20 +138,18 @@ def to_csv(repo, model):
     print(f"Results saved to {output_csv}")
 
 
-def main(model, ns,repo):
+def calc_stats(df, ns):
     n = max(ns)
 
     # First run ImProver to get data
     # get_data(test_set, repo, n)
 
     # Convert results to CSV
-    # to_csv(repo, model)
 
     # Import extract functions
     sys.path.append("benchmark")
 
     # Load and analyze the data
-    df = pd.read_csv(f"improver_outputs_new/{repo}/{model}/improver_combined_results.csv")
     # For each n in ns, take first n trajectories from the max n run
     metrics_by_n = {}
     for n_prime in ns:
@@ -199,7 +197,123 @@ def main(model, ns,repo):
         # Calculate metrics with the filtered dataframe
         metrics = calculate_metrics(filtered_df)
         metrics_by_n[n_prime] = metrics
-        
+
+        print(f"\nMetrics for n={n_prime}:")
+        for k, v in metrics.items():
+            print(f"{k}: {v}")
+
+        # Create lists to store metrics for plotting
+        ns_list = list(metrics_by_n.keys())
+        accuracy = [metrics_by_n[n]["accuracy"] for n in ns_list]
+        nonzero_accuracy = [metrics_by_n[n]["nonzero_accuracy"] for n in ns_list]
+        mean_improvement = [metrics_by_n[n]["improvement"] for n in ns_list]
+        mean_nonzero_improvement = [
+            metrics_by_n[n]["nonzero_improvement"] for n in ns_list
+        ]
+        # Create the plot
+        plt.figure(figsize=(10, 6))
+        plt.plot(ns_list, accuracy, "b-", label="Accuracy")
+        plt.plot(ns_list, nonzero_accuracy, "r-", label="Nonzero Accuracy")
+        plt.plot(ns_list, mean_improvement, "g-", label="Mean Improvement")
+        plt.plot(
+            ns_list, mean_nonzero_improvement, "y-", label="Mean Nonzero Improvement"
+        )
+
+        plt.xlabel("Number of Attempts (n)")
+        plt.ylabel("Metric Value")
+        plt.title("ImProver Metrics vs Number of Attempts")
+        plt.legend()
+        plt.grid(True)
+        plt.ylim(0, 1)  # Set y-axis limits from 0 to 1
+        plt.savefig(f"improver_outputs_new/{model}_plot.png")
+        plt.close()
+
+    # get_data(test_set,repo,n)
+
+
+def aggregate(model, ns, repos):
+    # Create a list to store all DataFrames
+    all_dfs = []
+
+    # Iterate over each repo and read the CSV files
+    for repo in repos:
+        csv_file = f"improver_outputs_new/{repo}/{model}/improver_combined_results.csv"
+        if os.path.exists(csv_file):
+            df = pd.read_csv(csv_file)
+            # Add a new column to identify the repo
+            df["repo"] = repo
+            all_dfs.append(df)
+
+    # Concatenate all DataFrames into one
+    combined_df = pd.concat(all_dfs, ignore_index=True)
+
+    calc_stats(combined_df, ns)
+
+
+def main(model, ns, repo):
+    n = max(ns)
+
+    # First run ImProver to get data
+    # get_data(test_set, repo, n)
+
+    # Convert results to CSV
+    to_csv(repo, model)
+
+    # Import extract functions
+    sys.path.append("benchmark")
+
+    # Load and analyze the data
+    df = pd.read_csv(
+        f"improver_outputs_new/{repo}/{model}/improver_combined_results.csv"
+    )
+    # For each n in ns, take first n trajectories from the max n run
+    metrics_by_n = {}
+    for n_prime in ns:
+        # Create a copy of the dataframe
+        filtered_df = df.copy()
+
+        # Group by module and decl to handle each declaration separately
+        filtered_df["row_num"] = filtered_df.groupby(["module", "decl"]).cumcount()
+
+        # Keep only first n_prime rows for each decl
+        filtered_df = filtered_df[filtered_df["row_num"] < n_prime]
+
+        # For each decl, keep only the best row based on criteria
+        def select_best_row(group):
+            # If any row has new_correct = True, select from those
+            correct_rows = group[group["new_correct"] == True]
+            if len(correct_rows) > 0:
+                # Among correct rows, return the one with minimal new_score
+                return correct_rows.nsmallest(1, "new_score")
+            # If no correct rows, return the first row
+            return group.iloc[:1]
+
+        # Apply the selection process to each group
+        filtered_df = (
+            filtered_df.groupby(["module", "decl"])
+            .apply(select_best_row)
+            .reset_index(drop=True)
+        )
+
+        # Save the current filtered dataframe
+        # filtered_df.to_csv(
+        #     f"improver_outputs_new/{repo}/{model}/improver_n{n_prime}_filtered.csv",
+        #     index=False,
+        # )
+
+        # Load the specific file
+        # filtered_df = pd.read_csv("improver_outputs_new/MIL/filtered-1shot.csv")
+
+        # filtered_df.to_csv(
+        #     f"improver_outputs_new/{repo}/{model}/improver_n{n_prime}_filtered.csv",
+        #     index=False,
+        # )
+
+        # print(filtered_df)
+        # Calculate metrics with the filtered dataframe
+        metrics = calculate_metrics(filtered_df)
+        metrics_by_n[n_prime] = metrics
+
         print(f"\nMetrics for n={n_prime}:")
         for k, v in metrics.items():
             print(f"{k}: {v}")
@@ -234,13 +348,14 @@ def main(model, ns,repo):
 
 
 if __name__ == "__main__":
-    repos = ['MIL',"Mathlib","Compfiles"]
+    repos = ["MIL", "Mathlib", "Compfiles"]
     # ns = [1] + list(range(5, 61, 5))
-    ns= [1] + list(range(4,65,4))
+    ns = [1] + list(range(4, 65, 4))
     if len(sys.argv) < 2:
         print("Usage: python eval.py <model1> <model2> ...")
         sys.exit(1)
     models = sys.argv[1:]
     for model in models:
-        for repo in repos:
-            main(model, ns,repo)
+        # for repo in repos:
+        #     main(model, ns, repo)
+        aggregate(model, ns, repos)
