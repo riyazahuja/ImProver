@@ -3,6 +3,7 @@ import Cli
 import ImProver.prompting.state_comments
 import ImProver.prompting.context
 import ImProver.prompting.prompts
+import ImProver.prompting.rag
 import ImProver.evaluation.eval
 import ImProver.utils
 import TrainingData.InfoTree.Basic
@@ -26,6 +27,7 @@ set_option autoImplicit true
 def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
   let prompt_name := config.prompt
 
+
   let prompt ← get_prompt prompt_name config cmd
   IO.println s!"Prompt:\n{prompt}"
 
@@ -35,8 +37,11 @@ def promptModel_debug (cmd : CompilationStep) (config : ImProverConfig) : IO (Li
 
 
 def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, _, _, _, _, _, prompt_name⟩ := config
 
+  let model := config.model
+  let endpoint := config.endpoint
+  let best_of_n := config.best_of_n
+  let prompt_name := config.prompt
   -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
 
   -- -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
@@ -102,7 +107,10 @@ def promptModel_server (cmd : CompilationStep) (config : ImProverConfig) : IO (L
 
 
 def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
-  let ⟨_,_,model, endpoint, best_of_n, _,_, _, _, _, prompt_name⟩ := config
+  let model := config.model
+  let endpoint := config.endpoint
+  let best_of_n := config.best_of_n
+  let prompt_name := config.prompt
   -- let srcCommand ← if annotation? then (insert_state_comments cmd) else pure cmd.src.toString
 
   -- IO.println s!"srcCommand:\n{srcCommand.dropRightWhile (· == '\n')}"
@@ -155,7 +163,12 @@ def score (step : CompilationStep) (config : ImProverConfig): IO Float := do
   return metric_score
 
 def promptModel_refine (cmd : CompilationStep) (config : ImProverConfig) (num_steps : Nat) (keep_best? : Bool := True): IO (CompilationStep × List (List CompilationStep)) := do
-  let ⟨targetModule,_,model, endpoint, best_of_n, _,_, _, _, _, prompt_name⟩ := config
+  let targetModule := config.targetModule
+  let model := config.model
+  let endpoint := config.endpoint
+  let best_of_n := config.best_of_n
+  let prompt_name := config.prompt
+
   let build_payload := fun c => do
     let prompt ← get_prompt prompt_name config c
     return Json.mkObj [

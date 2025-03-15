@@ -35,10 +35,12 @@ structure ImProverConfig where
   best_of_n : Nat := 1
   annotation? : Bool := false
   context? : Bool := false
-  proofAsSorry : Bool := false
+  rag? : Nat := 0
+  proofAsSorry? : Bool := false
   jsonPath : Option String := none
   metric := "length"
   prompt := "default"
+  retrievalFilter : List Name := []
 
 
 /- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/

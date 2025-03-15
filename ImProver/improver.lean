@@ -1,14 +1,17 @@
 -- import TrainingData.Frontend
-import Cli
 import ImProver.prompting.state_comments
 import ImProver.prompting.context
+import Cli
 import ImProver.prompting.prompts
 import ImProver.inference.inference
 import ImProver.evaluation.eval
 import ImProver.utils
+import ImProver.prompting.rag
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 import ImportGraph.RequiredModules
+import ImportGraph.Imports
+
 
 
 import Lean.Util.SearchPath
@@ -31,7 +34,14 @@ set_option autoImplicit true
 def ImProver (config : ImProverConfig): IO Unit := do
   searchPathRef.set compile_time_search_path%
 
-  let ⟨targetModule, decls, _, _, _, _,_, proofAsSorry?, json_path, metric_name, _⟩ := config
+  -- let ⟨targetModule, decls, _, _, _, _,_, proofAsSorry?, json_path, metric_name, _⟩ := config
+  let targetModule := config.targetModule
+  let decls := config.decls
+  let proofAsSorry? := config.proofAsSorry?
+  let json_path := config.jsonPath
+  let metric_name := config.metric
+
+
   let fileName := (← findLean targetModule).toString
   let mut trajectories_json := []
 
@@ -46,6 +56,17 @@ def ImProver (config : ImProverConfig): IO Unit := do
   /- Process the actual source code from our module -/
   let steps := Lean.Elab.IO.processInput' (← moduleSource targetModule) none (if proofAsSorry? then proofAsSorry else {}) fileName
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
+
+
+  let config ← if config.rag? == 0 then pure config
+    else
+      let fst ← steps.uncons
+      let fst_step := match fst with
+        | some (c, _) => initialize_retrieval config c
+        | none => pure config
+      fst_step
+
+
   for (cmd, ci) in targets do
     let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
     if decls.isSome && !(decls.get!.contains ci_name_stem) then
@@ -136,9 +157,9 @@ def ImProver (config : ImProverConfig): IO Unit := do
         ("metric", Json.str "LENGTH"),
         ("model", Json.str config.model),
         ("annotation", Json.bool config.annotation?),
-        ("syntax_search", Json.bool false),
-        ("mathlib_search", Json.bool false),
-        ("examples", Json.num <| JsonNumber.fromNat 0),
+        ("context", Json.bool config.annotation?),
+        ("rag", Json.bool config.annotation?),
+        -- ("examples", Json.num <| JsonNumber.fromNat 0),
         ("og_correct", Json.bool oldCorrect),
         ("og_errors", "\n\n".intercalate oldMsgs),
         ("og_score", Json.num <| (JsonNumber.fromFloat? (oldScore.getD (-1)) |>.getRight?).get!),
@@ -172,10 +193,12 @@ def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let best_of_n := args.flag! "best_of_n" |>.as! Nat
   let annotation := args.flag! "annotation" |>.as! Bool
   let context := args.flag! "context" |>.as! Bool
+  let rag := args.flag! "rag" |>.as! Nat
 
   let proofAsSorry := args.flag! "proofAsSorry" |>.as! Bool
 
-  let config : ImProverConfig := {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, context? := context, proofAsSorry:=proofAsSorry, jsonPath:=json_path}
+  let config : ImProverConfig :=
+    {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, context? := context, rag? := rag, proofAsSorry?:=proofAsSorry, jsonPath:=json_path}
 
   ImProver config
   return 0
@@ -191,7 +214,8 @@ def improver : Cmd := `[Cli|
     endpoint : String; "Endpoint to use. (Default: http://0.0.0.0:8000/v1/chat/completions)"
     best_of_n : Nat; "Number of attempts to make. (Default: 1)"
     annotation : Bool; "Forward proof states to model. (Default: false)"
-    context : String; "Forward context to model. (Default: false)"
+    context : Bool; "Forward context to model. (Default: false)"
+    rag : Nat; "Number of mathlib documents to retrieve. (Default: 0)"
     proofAsSorry : Bool; "Convert all tactics to \"sorry\" for faster execution. (Default: false)"
     json_path : String; "Path to save the JSON output. (Blank for stdout)"
 
@@ -202,7 +226,7 @@ def improver : Cmd := `[Cli|
   EXTENSIONS:
     defaultValues! #[("decls", ""), ("json_path", ""),
     ("model", "DEBUG"), ("endpoint", "http://0.0.0.0:8000/v1/chat/completions"),
-    ("best_of_n", "1"), ("annotation", "false"), ("context", "false"), ("proofAsSorry", "false")]
+    ("best_of_n", "1"), ("annotation", "false"), ("context", "false"), ("context", "0"), ("proofAsSorry", "false")]
 ]
 
 /-- `lake exe state_comments` -/
@@ -211,7 +235,7 @@ def main (args : List String) : IO UInt32 :=
 
 
 
-def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1, context?:=true, annotation?:=false, model:="Llama-8B"}
+def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), rag?:=1}
 -- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
 
 

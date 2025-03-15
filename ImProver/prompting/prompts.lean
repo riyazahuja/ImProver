@@ -5,6 +5,7 @@ import TrainingData.InfoTree.TacticInvocation.Basic
 import ImportGraph.RequiredModules
 import ImProver.utils
 import ImProver.prompting.context
+import ImProver.prompting.rag
 
 import Lean.Util.SearchPath
 import Mathlib.Lean.CoreM
@@ -60,5 +61,12 @@ def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : Compilat
     else pure ""
 
 
-  let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.context? then context_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.{if config.context? then ("\n\n<CONTEXT>\n" ++ context_string ++ "\n</CONTEXT>\n\n") else "\n\n"}{if config.annotation? then "<ANNOTATION>\n" ++ annotation_string ++ "\n</ANNOTATION>\n\n" else ""}<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
+  let rag_prompt : String := s!" The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
+  let rag_string : String ← if config.rag? > 0 then do
+      let items ← retrieve cmd config
+      let data := items.map (fun c => s!"<DOC>\n{c}\n</DOC>")
+      pure <| "\n".intercalate data
+    else pure ""
+
+  let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.context? then context_prompt else ""}{if config.rag? != 0 then rag_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n{if config.context? then ("<CONTEXT>\n" ++ context_string ++ "\n</CONTEXT>\n\n") else ""}{if config.rag? != 0 then "<RETRIEVED>\n" ++ rag_string ++ "\n</RETRIEVED>\n\n" else ""}{if config.annotation? then "<ANNOTATION>\n" ++ annotation_string ++ "\n</ANNOTATION>\n\n" else ""}<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
   return prompt

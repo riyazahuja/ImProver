@@ -3,26 +3,25 @@ from langchain.globals import set_debug
 
 set_debug(False)
 
-from langchain_core.documents import Document
-from langchain_community.document_loaders import TextLoader, DirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from langchain_chroma import Chroma
 
 from langchain_ollama import OllamaEmbeddings
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-import os, json, shutil, copy
-import subprocess, threading
+
+import os, json, sys
 import argparse
-import http.server
 
 
-ROOT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+METADATA_PATH = "/Users/ahuja/Desktop/ImProver_rewrite/RAG/annotated/Mathlib/"
 
 
-def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
+def get_database_retriever(package_name="Mathlib", number_to_retrieve=5):
     database_path = os.path.join(
         ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
     )
+    print(database_path)
     embeddings = OllamaEmbeddings(model="llama3.2")
 
     database = Chroma(
@@ -41,11 +40,11 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(
             description="Retrieve related Mathlib theorems"
         )
-        parser.add_argument(
-            "k",
-            type=int,
-            help="Number of documents to retrieve",
-        )
+        # parser.add_argument(
+        #     "k",
+        #     type=int,
+        #     help="Number of documents to retrieve",
+        # )
         parser.add_argument(
             "json_query",
             help='JSON string containing the query in format {"query": "your query here"}',
@@ -58,6 +57,8 @@ if __name__ == "__main__":
     try:
         query_data = json.loads(args.json_query)
         query = query_data.get("query", "")
+        k = query_data.get("k", 5)  # Default to 5 if not provided
+        imports = query_data.get("imports", None)
         if not query:
             raise ValueError("Missing 'query' field in JSON")
     except json.JSONDecodeError:
@@ -68,12 +69,30 @@ if __name__ == "__main__":
         exit(1)
 
     # Use command line args to adjust retriever and prompt
-    retriever = get_database_retriever(number_to_retrieve=args.k)
+    retriever = get_database_retriever(number_to_retrieve=k)
 
-    output = retriever.invoke(query)
-    print(output)
-    print(type(output))
+    # Define a list of sources to retrieve from
+    source_paths = imports
+    # [
+    #     "Mathlib.RingTheory.MvPolynomial.Groebner.lean",
+    #     # Add more source paths here as needed
+    # ]
+    source_paths = [os.path.join(METADATA_PATH, path) for path in source_paths]
+
+    # Use $in operator to match any of the specified sources
+    if imports:
+
+        output = retriever.invoke(
+            query,
+            filter={"source": {"$in": source_paths}},
+        )
+    else:
+        output = retriever.invoke(query)
+
     for doc in output:
-        print(f"[{doc.metadata}]")
+        src = doc.metadata.get("source", "Unknown source")
+        src = src.replace(".lean", "")
+
+        print(f"--src: {src}")
         print(doc.page_content)
-        print("===============")
+        print("<BREAK>")
