@@ -40,15 +40,18 @@ def retrieve (step : CompilationStep) (config: ImProverConfig) : IO (List String
   let data : Json := Json.mkObj
     [("query", Json.str query),
       ("k", Json.num <| JsonNumber.fromNat config.rag?),
-     ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
+    --  ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
     ]
 
   let out ← IO.Process.output {
-    cmd := "python3",
+    cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
     args := #["ImProver/prompting/rag.py", data.compress]
   }
 
   let stdout := out.stdout.trim
+  IO.println stdout
+  IO.println "ERROR:"
+  IO.println out.stderr
   let items := stdout.splitOn "<BREAK>"
-
+  let items := if items.isEmpty then [] else items.take (items.length - 1)
   return items

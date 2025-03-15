@@ -10,6 +10,7 @@ from langchain_ollama import OllamaEmbeddings
 
 import os, json, sys
 import argparse
+import re
 
 
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,7 +22,6 @@ def get_database_retriever(package_name="Mathlib", number_to_retrieve=5):
     database_path = os.path.join(
         ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
     )
-    print(database_path)
     embeddings = OllamaEmbeddings(model="llama3.2")
 
     database = Chroma(
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     retriever = get_database_retriever(number_to_retrieve=k)
 
     # Define a list of sources to retrieve from
-    source_paths = imports
+    source_paths = imports if imports else []
     # [
     #     "Mathlib.RingTheory.MvPolynomial.Groebner.lean",
     #     # Add more source paths here as needed
@@ -93,6 +93,17 @@ if __name__ == "__main__":
         src = doc.metadata.get("source", "Unknown source")
         src = src.replace(".lean", "")
 
-        print(f"--src: {src}")
-        print(doc.page_content)
+        contents = doc.page_content
+        # sp = contents.split(":=", 1)
+        # head = sp[0]
+        # proof = "".join(sp[1:])  # Join the rest in case there are multiple :=
+
+        # optionally remove state comments
+        contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
+        # Remove lines that are all whitespace
+        contents = "\n".join(line for line in contents.split("\n") if line.strip())
+
+        # contents = head + ":=" + proof
+        print(f"--src: {src.strip()}")
+        print(contents)
         print("<BREAK>")
