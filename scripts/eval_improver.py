@@ -18,6 +18,7 @@ def run_improver(file_info, args, repo):
     dataset=args[3]
     annotation=args[4]
     context = args[5]
+    rag = args[6]
 
     # Convert decls list to comma-separated string
     decls_str = ",".join(decls)
@@ -46,6 +47,8 @@ def run_improver(file_info, args, repo):
         annotation,
         "--context",
         context,
+        "--rag",
+        f"{rag}",
         module,
     ]
 
@@ -161,14 +164,14 @@ def main(repo, *args):
     ) as f:
         json.dump(combined_results, f, indent=2)
         
-    parse_json_to_csv(json_path,csv_path)
+    # parse_json_to_csv(json_path,csv_path)
         
     
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 7:
-        print("Usage: python eval.py <n> <model> <port> <dataset> <annotation?> <context>")
+    if len(sys.argv) != 8:
+        print("Usage: python eval.py <n> <model> <port> <dataset> <annotation?> <context> <rag>")
         sys.exit(1)
     
     test_set = sys.argv[4]
@@ -188,4 +191,4 @@ if __name__ == "__main__":
     # context = sys.argv[7]
     
     
-        main(repo, *sys.argv[1:7])
+        main(repo, *sys.argv[1:8])

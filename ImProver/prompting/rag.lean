@@ -44,7 +44,7 @@ def retrieve (step : CompilationStep) (config: ImProverConfig) : IO (List String
     ]
 
   let out ← IO.Process.output {
-    cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
+    cmd := "/home/riyaza/miniconda3/envs/env/bin/python3",
     args := #["ImProver/prompting/rag.py", data.compress]
   }
 

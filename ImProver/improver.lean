@@ -226,7 +226,7 @@ def improver : Cmd := `[Cli|
   EXTENSIONS:
     defaultValues! #[("decls", ""), ("json_path", ""),
     ("model", "DEBUG"), ("endpoint", "http://0.0.0.0:8000/v1/chat/completions"),
-    ("best_of_n", "1"), ("annotation", "false"), ("context", "false"), ("context", "0"), ("proofAsSorry", "false")]
+    ("best_of_n", "1"), ("annotation", "false"), ("context", "false"), ("rag", "0"), ("proofAsSorry", "false")]
 ]
 
 /-- `lake exe state_comments` -/
@@ -235,9 +235,8 @@ def main (args : List String) : IO UInt32 :=
 
 
 
-def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), rag?:=3}
+def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8])}
 -- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
-
 
 
 -- #eval ImProver test_config
