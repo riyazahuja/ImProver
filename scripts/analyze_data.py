@@ -152,6 +152,7 @@ def calc_stats(df, ns):
     # Load and analyze the data
     # For each n in ns, take first n trajectories from the max n run
     metrics_by_n = {}
+    print(f"Data for {model} on all repos:")
     for n_prime in ns:
         # Create a copy of the dataframe
         filtered_df = df.copy()
@@ -245,6 +246,7 @@ def aggregate(model, ns, repos):
             all_dfs.append(df)
 
     # Concatenate all DataFrames into one
+
     combined_df = pd.concat(all_dfs, ignore_index=True)
 
     calc_stats(combined_df, ns)
@@ -268,6 +270,7 @@ def main(model, ns, repo):
     )
     # For each n in ns, take first n trajectories from the max n run
     metrics_by_n = {}
+    print(f"Data for {model} on {repo}:")
     for n_prime in ns:
         # Create a copy of the dataframe
         filtered_df = df.copy()
@@ -348,9 +351,10 @@ def main(model, ns, repo):
 
 
 if __name__ == "__main__":
-    repos = ["MIL", "Mathlib", "Compfiles"]
+    repos = ["MIL"]  # , "Mathlib", "Compfiles"]
     # ns = [1] + list(range(5, 61, 5))
-    ns = [1] + list(range(4, 65, 4))
+    # ns = [1] + list(range(4, 65, 4))
+    ns = [64]
     if len(sys.argv) < 2:
         print("Usage: python eval.py <model1> <model2> ...")
         sys.exit(1)
