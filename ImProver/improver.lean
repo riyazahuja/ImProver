@@ -124,14 +124,32 @@ def ImProver (config : ImProverConfig): IO Unit := do
           )
         else none
 
-      return ⟨ci.name.toString, cmd.src.toString, model_output, state_comments, old_correct, correct, old_score, metric_score, delta, oldMsgs, msgs, config⟩
+      let original_prompt ← get_prompt config.prompt config cmd
+      let utilization ← if config.rag? == 0 then pure 0.0 else calculate_utilization original_prompt model_output
+
+
+
+      return ImprovedTheoremInstance.mk ci.name.toString
+        cmd.src.toString
+        model_output
+        state_comments
+        old_correct
+        correct
+        old_score
+        metric_score
+        delta
+        oldMsgs
+        msgs
+        original_prompt
+        utilization
+        config
     )
 
     /- Print out the results for each instance -/
     for i in instances do
       IO.println "-------------------------------------------------"
 
-      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, _, msgs, _⟩ := i
+      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, _, msgs, _, utilization, _⟩ := i
       IO.println s!"Name:\n {name}"
       IO.println s!"Original:\n {original}"
       IO.println s!"Correct: {oldCorrect}"
@@ -140,16 +158,15 @@ def ImProver (config : ImProverConfig): IO Unit := do
       IO.println s!"Correct: {newCorrect}"
       IO.println s!"Metric: {newScore}"
       IO.println s!"Delta: {delta}"
+      IO.println s!"RAG Utilization: {utilization}"
       for msg in msgs do
         IO.println msg
       IO.println "-------------------------------------------------"
 
     /- Make a JSON with the info we've gathered -/
     let trajectories_json_new := instances.map (fun i =>
-      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, oldMsgs, msgs, config⟩ := i
-
+      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, oldMsgs, msgs, og_prompt, utilization, config⟩ := i
       Json.mkObj [
-
         ("module", Json.str config.targetModule.toString),
         ("decl", Json.str name),
         ("method", Json.str "best_of_n"),
@@ -157,9 +174,9 @@ def ImProver (config : ImProverConfig): IO Unit := do
         ("metric", Json.str "LENGTH"),
         ("model", Json.str config.model),
         ("annotation", Json.bool config.annotation?),
-        ("context", Json.bool config.annotation?),
-        ("rag", Json.bool config.annotation?),
-        -- ("examples", Json.num <| JsonNumber.fromNat 0),
+        ("context", Json.bool config.context?),
+        ("rag", Json.num <| JsonNumber.fromNat config.rag?),
+        ("rag_utilization", Json.num <| (JsonNumber.fromFloat? utilization |>.getRight?).get!),
         ("og_correct", Json.bool oldCorrect),
         ("og_errors", "\n\n".intercalate oldMsgs),
         ("og_score", Json.num <| (JsonNumber.fromFloat? (oldScore.getD (-1)) |>.getRight?).get!),
@@ -169,6 +186,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
         ("delta", Json.num <| (JsonNumber.fromFloat? (delta.getD (-1)) |>.getRight?).get!),
         ("og_raw", Json.str original),
         ("new_raw", Json.str modelOutput),
+        ("original_prompt", Json.str og_prompt),
         ("time",Json.num <| JsonNumber.fromInt (-1))
         ])
     trajectories_json := trajectories_json ++ trajectories_json_new
@@ -239,7 +257,7 @@ def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.s
 -- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
 
 
--- #eval ImProver test_config
+#eval ImProver test_config
 
 
 -- #eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`theorem8]), best_of_n:= 1, context?:=true}
