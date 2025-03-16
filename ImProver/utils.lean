@@ -57,7 +57,6 @@ structure ImprovedTheoremInstance where
   old_msgs : List String
   new_msgs : List String
   original_prompt : String
-  rag_utilization : Float := 0.0
   config : ImProverConfig
 
 

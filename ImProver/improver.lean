@@ -39,7 +39,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
   let decls := config.decls
   let proofAsSorry? := config.proofAsSorry?
   let json_path := config.jsonPath
-  let metric_name := config.metric
+
 
 
   let fileName := (← findLean targetModule).toString
@@ -82,19 +82,6 @@ def ImProver (config : ImProverConfig): IO Unit := do
 
     IO.println s!"---------------------------------------------"
 
-    /- Print out what the verifier is yelling at us about -/
-    let oldMsgs ← cmd.msgs.filterMapM (fun msg => do
-        if msg.severity != .error then
-          return none
-        let m ← msg.data.toString
-        return some (bombEmoji++m))
-
-    for m in oldMsgs do IO.eprintln m
-
-    let old_correct := oldMsgs.isEmpty
-    -- let old_score := if old_correct then some (tacs.length.toFloat) else none
-    let old_score := if old_correct then some (get_metric metric_name cmd) else none
-
     /- Prompt the model for an improved version of the proof -/
     let newCommandCandidates ← promptModel cmd config
 
@@ -102,54 +89,13 @@ def ImProver (config : ImProverConfig): IO Unit := do
     let resultantSteps := (← elaborateVariants cmd targetModule newCommandCandidates).filterMap (fun x => x)
 
     /- Create a list of structures that contain each original theorem, the model's (possibly) improved version, whether it worked, the goal state after each tactic, and relevant metrics -/
-    let instances : List ImprovedTheoremInstance ← resultantSteps.mapM (fun (model_output,head) => do
-
-      let state_comments ← insert_state_comments head
-
-      let msgs ← head.msgs.filterMapM (fun msg => do
-        if msg.severity != .error then
-          return none
-        let m ← msg.data.toString
-        return some (bombEmoji++m))
-
-      let correct := msgs.isEmpty
-      -- let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
-      let metric_score := if correct then some (get_metric metric_name head) else none
-
-      let delta := if correct && old_correct then (
-          if old_score.get! == 0 then
-            some (-1 : Float)
-          else
-            some ((old_score.get! - metric_score.get!) / (old_score.get!))
-          )
-        else none
-
-      let original_prompt ← get_prompt config.prompt config cmd
-      let utilization ← if config.rag? == 0 then pure 0.0 else calculate_utilization original_prompt model_output
-
-
-
-      return ImprovedTheoremInstance.mk ci.name.toString
-        cmd.src.toString
-        model_output
-        state_comments
-        old_correct
-        correct
-        old_score
-        metric_score
-        delta
-        oldMsgs
-        msgs
-        original_prompt
-        utilization
-        config
-    )
+    let instances ← calculateInstances ci cmd resultantSteps config
 
     /- Print out the results for each instance -/
     for i in instances do
       IO.println "-------------------------------------------------"
 
-      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, _, msgs, _, utilization, _⟩ := i
+      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, _, msgs, _, _⟩ := i
       IO.println s!"Name:\n {name}"
       IO.println s!"Original:\n {original}"
       IO.println s!"Correct: {oldCorrect}"
@@ -158,14 +104,13 @@ def ImProver (config : ImProverConfig): IO Unit := do
       IO.println s!"Correct: {newCorrect}"
       IO.println s!"Metric: {newScore}"
       IO.println s!"Delta: {delta}"
-      IO.println s!"RAG Utilization: {utilization}"
       for msg in msgs do
         IO.println msg
       IO.println "-------------------------------------------------"
 
     /- Make a JSON with the info we've gathered -/
     let trajectories_json_new := instances.map (fun i =>
-      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, oldMsgs, msgs, og_prompt, utilization, config⟩ := i
+      let ⟨name, original, modelOutput, _, oldCorrect, newCorrect, oldScore, newScore, delta, oldMsgs, msgs, og_prompt, config⟩ := i
       Json.mkObj [
         ("module", Json.str config.targetModule.toString),
         ("decl", Json.str name),
@@ -176,7 +121,6 @@ def ImProver (config : ImProverConfig): IO Unit := do
         ("annotation", Json.bool config.annotation?),
         ("context", Json.bool config.context?),
         ("rag", Json.num <| JsonNumber.fromNat config.rag?),
-        ("rag_utilization", Json.num <| (JsonNumber.fromFloat? utilization |>.getRight?).get!),
         ("og_correct", Json.bool oldCorrect),
         ("og_errors", "\n\n".intercalate oldMsgs),
         ("og_score", Json.num <| (JsonNumber.fromFloat? (oldScore.getD (-1)) |>.getRight?).get!),
