@@ -1,0 +1,425 @@
+/--
+A functor is *reflective*, or *a reflective inclusion*, if it is fully faithful and right adjoint.
+-/
+class Reflective (R : D ⥤ C) extends R.Full, R.Faithful where
+  /-- a choice of a left adjoint to `R` -/
+  L : C ⥤ D
+  /-- `R` is a right adjoint -/
+  adj : L ⊣ R
+
+
+/-- The reflector `C ⥤ D` when `R : D ⥤ C` is reflective. -/
+def reflector [Reflective i] : C ⥤ D := Reflective.L (R := i)
+
+
+/-- The adjunction `reflector i ⊣ i` when `i` is reflective. -/
+def reflectorAdjunction [Reflective i] : reflector i ⊣ i := Reflective.adj
+
+
+instance [Reflective i] : i.IsRightAdjoint := ⟨_, ⟨reflectorAdjunction i⟩⟩
+
+
+instance [Reflective i] : (reflector i).IsLeftAdjoint := ⟨_, ⟨reflectorAdjunction i⟩⟩
+
+
+/-- A reflective functor is fully faithful. -/
+def Functor.fullyFaithfulOfReflective [Reflective i] : i.FullyFaithful :=
+  (reflectorAdjunction i).fullyFaithfulROfIsIsoCounit
+
+-- TODO: This holds more generally for idempotent adjunctions, not just reflective adjunctions.
+
+/-- For a reflective functor `i` (with left adjoint `L`), with unit `η`, we have `η_iL = iL η`.
+-/
+theorem unit_obj_eq_map_unit [Reflective i] (X : C) :
+    (reflectorAdjunction i).unit.app (i.obj ((reflector i).obj X)) =
+      i.map ((reflector i).map ((reflectorAdjunction i).unit.app X)) := by
+  rw [← cancel_mono (i.map ((reflectorAdjunction i).counit.app ((reflector i).obj X))),
+    ← i.map_comp]
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝ : CategoryTheory.Reflective i
+    X : C
+    ⊢ Eq (CategoryTheory.CategoryStruct.comp ((CategoryTheory.reflectorAdjunction  …
+  -/
+  simp
+  /-
+    🎉 no goals
+  -/
+
+
+/-- If `A` is essentially in the image of a reflective functor `i`, then `η_A` is an isomorphism.
+This gives that the "witness" for `A` being in the essential image can instead be given as the
+reflection of `A`, with the isomorphism as `η_A`.
+
+(For any `B` in the reflective subcategory, we automatically have that `ε_B` is an iso.)
+-/
+theorem Functor.essImage.unit_isIso [Reflective i] {A : C} (h : A ∈ i.essImage) :
+    IsIso ((reflectorAdjunction i).unit.app A) := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝ : CategoryTheory.Reflective i
+    A : C
+    h : Membership.mem i.essImage A
+    ⊢ CategoryTheory.IsIso ((CategoryTheory.reflectorAdjunction i).unit.app A)
+  -/
+  rwa [isIso_unit_app_iff_mem_essImage]
+  /-
+    🎉 no goals
+  -/
+
+
+/-- If `η_A` is a split monomorphism, then `A` is in the reflective subcategory. -/
+theorem mem_essImage_of_unit_isSplitMono [Reflective i] {A : C}
+    [IsSplitMono ((reflectorAdjunction i).unit.app A)] : A ∈ i.essImage := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+    inst✝² : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝¹ : CategoryTheory.Reflective i
+    A : C
+    inst✝ : CategoryTheory.IsSplitMono ((CategoryTheory.reflectorAdjunction i).uni …
+    ⊢ Membership.mem i.essImage A
+  -/
+  let η : 𝟭 C ⟶ reflector i ⋙ i := (reflectorAdjunction i).unit
+  haveI : IsIso (η.app (i.obj ((reflector i).obj A))) :=
+    Functor.essImage.unit_isIso ((i.obj_mem_essImage _))
+  have : Epi (η.app A) := by
+    refine @epi_of_epi _ _ _ _ _ (retraction (η.app A)) (η.app A) ?_
+    rw [show retraction _ ≫ η.app A = _ from η.naturality (retraction (η.app A))]
+    apply epi_comp (η.app (i.obj ((reflector i).obj A)))
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+    inst✝² : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝¹ : CategoryTheory.Reflective i
+    A : C
+    inst✝ : CategoryTheory.IsSplitMono ((CategoryTheory.reflectorAdjunction i).uni …
+    η : Quiver.Hom (CategoryTheory.Functor.id C) ((CategoryTheory.reflector i).com …
+    this✝ : CategoryTheory.IsIso (η.app (i.obj ((CategoryTheory.reflector i).obj A …
+    this : CategoryTheory.Epi (η.app A)
+    ⊢ Membership.mem i.essImage A
+  -/
+  haveI := isIso_of_epi_of_isSplitMono (η.app A)
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+    inst✝² : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝¹ : CategoryTheory.Reflective i
+    A : C
+    inst✝ : CategoryTheory.IsSplitMono ((CategoryTheory.reflectorAdjunction i).uni …
+    η : Quiver.Hom (CategoryTheory.Functor.id C) ((CategoryTheory.reflector i).com …
+    this✝¹ : CategoryTheory.IsIso (η.app (i.obj ((CategoryTheory.reflector i).obj  …
+    this✝ : CategoryTheory.Epi (η.app A)
+    this : CategoryTheory.IsIso (η.app A)
+    ⊢ Membership.mem i.essImage A
+  -/
+  exact (reflectorAdjunction i).mem_essImage_of_unit_isIso A
+  /-
+    🎉 no goals
+  -/
+
+
+/-- Composition of reflective functors. -/
+instance Reflective.comp (F : C ⥤ D) (G : D ⥤ E) [Reflective F] [Reflective G] :
+    Reflective (F ⋙ G) where
+  L := reflector G ⋙ reflector F
+  adj := (reflectorAdjunction G).comp (reflectorAdjunction F)
+
+
+/-- (Implementation) Auxiliary definition for `unitCompPartialBijective`. -/
+def unitCompPartialBijectiveAux [Reflective i] (A : C) (B : D) :
+    (A ⟶ i.obj B) ≃ (i.obj ((reflector i).obj A) ⟶ i.obj B) :=
+  ((reflectorAdjunction i).homEquiv _ _).symm.trans
+    (Functor.FullyFaithful.ofFullyFaithful i).homEquiv
+
+
+/-- The description of the inverse of the bijection `unitCompPartialBijectiveAux`. -/
+theorem unitCompPartialBijectiveAux_symm_apply [Reflective i] {A : C} {B : D}
+    (f : i.obj ((reflector i).obj A) ⟶ i.obj B) :
+    (unitCompPartialBijectiveAux _ _).symm f = (reflectorAdjunction i).unit.app A ≫ f := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝ : CategoryTheory.Reflective i
+    A : C
+    B : D
+    f : Quiver.Hom (i.obj ((CategoryTheory.reflector i).obj A)) (i.obj B)
+    ⊢ Eq ((CategoryTheory.unitCompPartialBijectiveAux A B).symm f) (CategoryTheory …
+  -/
+  simp [unitCompPartialBijectiveAux, Adjunction.homEquiv_unit]
+  /-
+    🎉 no goals
+  -/
+
+
+/-- If `i` has a reflector `L`, then the function `(i.obj (L.obj A) ⟶ B) → (A ⟶ B)` given by
+precomposing with `η.app A` is a bijection provided `B` is in the essential image of `i`.
+That is, the function `fun (f : i.obj (L.obj A) ⟶ B) ↦ η.app A ≫ f` is bijective,
+as long as `B` is in the essential image of `i`.
+This definition gives an equivalence: the key property that the inverse can be described
+nicely is shown in `unitCompPartialBijective_symm_apply`.
+
+This establishes there is a natural bijection `(A ⟶ B) ≃ (i.obj (L.obj A) ⟶ B)`. In other words,
+from the point of view of objects in `D`, `A` and `i.obj (L.obj A)` look the same: specifically
+that `η.app A` is an isomorphism.
+-/
+def unitCompPartialBijective [Reflective i] (A : C) {B : C} (hB : B ∈ i.essImage) :
+    (A ⟶ B) ≃ (i.obj ((reflector i).obj A) ⟶ B) :=
+  calc
+    (A ⟶ B) ≃ (A ⟶ i.obj (Functor.essImage.witness hB)) := Iso.homCongr (Iso.refl _) hB.getIso.symm
+    _ ≃ (i.obj _ ⟶ i.obj (Functor.essImage.witness hB)) := unitCompPartialBijectiveAux _ _
+    _ ≃ (i.obj ((reflector i).obj A) ⟶ B) :=
+      Iso.homCongr (Iso.refl _) (Functor.essImage.getIso hB)
+
+
+@[simp]
+theorem unitCompPartialBijective_symm_apply [Reflective i] (A : C) {B : C} (hB : B ∈ i.essImage)
+    (f) : (unitCompPartialBijective A hB).symm f = (reflectorAdjunction i).unit.app A ≫ f := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝ : CategoryTheory.Reflective i
+    A B : C
+    hB : Membership.mem i.essImage B
+    f : Quiver.Hom (i.obj ((CategoryTheory.reflector i).obj A)) B
+    ⊢ Eq ((CategoryTheory.unitCompPartialBijective A hB).symm f) (CategoryTheory.C …
+  -/
+  simp [unitCompPartialBijective, unitCompPartialBijectiveAux_symm_apply]
+  /-
+    🎉 no goals
+  -/
+
+
+theorem unitCompPartialBijective_symm_natural [Reflective i] (A : C) {B B' : C} (h : B ⟶ B')
+    (hB : B ∈ i.essImage) (hB' : B' ∈ i.essImage) (f : i.obj ((reflector i).obj A) ⟶ B) :
+    (unitCompPartialBijective A hB').symm (f ≫ h) = (unitCompPartialBijective A hB).symm f ≫ h := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝ : CategoryTheory.Reflective i
+    A B B' : C
+    h : Quiver.Hom B B'
+    hB : Membership.mem i.essImage B
+    hB' : Membership.mem i.essImage B'
+    f : Quiver.Hom (i.obj ((CategoryTheory.reflector i).obj A)) B
+    ⊢ Eq ((CategoryTheory.unitCompPartialBijective A hB').symm (CategoryTheory.Cat …
+  -/
+  simp
+  /-
+    🎉 no goals
+  -/
+
+
+theorem unitCompPartialBijective_natural [Reflective i] (A : C) {B B' : C} (h : B ⟶ B')
+    (hB : B ∈ i.essImage) (hB' : B' ∈ i.essImage) (f : A ⟶ B) :
+    (unitCompPartialBijective A hB') (f ≫ h) = unitCompPartialBijective A hB f ≫ h := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    i : CategoryTheory.Functor D C
+    inst✝ : CategoryTheory.Reflective i
+    A B B' : C
+    h : Quiver.Hom B B'
+    hB : Membership.mem i.essImage B
+    hB' : Membership.mem i.essImage B'
+    f : Quiver.Hom A B
+    ⊢ Eq ((CategoryTheory.unitCompPartialBijective A hB') (CategoryTheory.Category …
+  -/
+  rw [← Equiv.eq_symm_apply, unitCompPartialBijective_symm_natural A h, Equiv.symm_apply_apply]
+  /-
+    🎉 no goals
+  -/
+
+
+instance [Reflective i] (X : Functor.EssImageSubcategory i) :
+  IsIso (NatTrans.app (reflectorAdjunction i).unit X.obj) :=
+Functor.essImage.unit_isIso X.property
+
+-- These attributes are necessary to make automation work in `equivEssImageOfReflective`.
+-- Making them global doesn't break anything elsewhere, but this is enough for now.
+-- TODO: investigate further.
+
+attribute [local simp 900] Functor.essImageInclusion_map in
+attribute [local ext] Functor.essImage_ext in
+/-- If `i : D ⥤ C` is reflective, the inverse functor of `i ≌ F.essImage` can be explicitly
+defined by the reflector. -/
+@[simps]
+def equivEssImageOfReflective [Reflective i] : D ≌ i.EssImageSubcategory where
+  functor := i.toEssImage
+  inverse := i.essImageInclusion ⋙ reflector i
+  unitIso := (asIso <| (reflectorAdjunction i).counit).symm
+  counitIso := Functor.fullyFaithfulCancelRight i.essImageInclusion <|
+    /-
+      C : Type u₁
+      D : Type u₂
+      E : Type u₃
+      inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+      inst✝² : CategoryTheory.Category.{v₂, u₂} D
+      inst✝¹ : CategoryTheory.Category.{v₃, u₃} E
+      i : CategoryTheory.Functor D C
+      inst✝ : CategoryTheory.Reflective i
+      ⊢ ∀ {X Y : i.EssImageSubcategory} (f : Quiver.Hom X Y), Eq (CategoryTheory.Cat …
+    -/
+    NatIso.ofComponents (fun X ↦ (asIso ((reflectorAdjunction i).unit.app X.obj)).symm)
+    /-
+      🎉 no goals
+    -/
+
+
+/--
+A functor is *coreflective*, or *a coreflective inclusion*, if it is fully faithful and left
+adjoint.
+-/
+class Coreflective (L : C ⥤ D) extends L.Full, L.Faithful where
+  /-- a choice of a right adjoint to `L` -/
+  R : D ⥤ C
+  /-- `L` is a left adjoint -/
+  adj : L ⊣ R
+
+
+/-- The coreflector `D ⥤ C` when `L : C ⥤ D` is coreflective. -/
+def coreflector [Coreflective j] : D ⥤ C := Coreflective.R (L := j)
+
+
+/-- The adjunction `j ⊣ coreflector j` when `j` is coreflective. -/
+def coreflectorAdjunction [Coreflective j] : j ⊣ coreflector j := Coreflective.adj
+
+
+instance [Coreflective j] : j.IsLeftAdjoint := ⟨_, ⟨coreflectorAdjunction j⟩⟩
+
+
+instance [Coreflective j] : (coreflector j).IsRightAdjoint := ⟨_, ⟨coreflectorAdjunction j⟩⟩
+
+
+/-- A coreflective functor is fully faithful. -/
+def Functor.fullyFaithfulOfCoreflective [Coreflective j] : j.FullyFaithful :=
+  (coreflectorAdjunction j).fullyFaithfulLOfIsIsoUnit
+
+
+lemma counit_obj_eq_map_counit [Coreflective j] (X : D) :
+    (coreflectorAdjunction j).counit.app (j.obj ((coreflector j).obj X)) =
+      j.map ((coreflector j).map ((coreflectorAdjunction j).counit.app X)) := by
+  rw [← cancel_epi (j.map ((coreflectorAdjunction j).unit.app ((coreflector j).obj X))),
+    ← j.map_comp]
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    j : CategoryTheory.Functor C D
+    inst✝ : CategoryTheory.Coreflective j
+    X : D
+    ⊢ Eq (CategoryTheory.CategoryStruct.comp (j.map ((CategoryTheory.coreflectorAd …
+  -/
+  simp
+  /-
+    🎉 no goals
+  -/
+
+
+lemma Functor.essImage.counit_isIso [Coreflective j] {A : D} (h : A ∈ j.essImage) :
+    IsIso ((coreflectorAdjunction j).counit.app A) := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝² : CategoryTheory.Category.{v₁, u₁} C
+    inst✝¹ : CategoryTheory.Category.{v₂, u₂} D
+    j : CategoryTheory.Functor C D
+    inst✝ : CategoryTheory.Coreflective j
+    A : D
+    h : Membership.mem j.essImage A
+    ⊢ CategoryTheory.IsIso ((CategoryTheory.coreflectorAdjunction j).counit.app A)
+  -/
+  rwa [isIso_counit_app_iff_mem_essImage]
+  /-
+    🎉 no goals
+  -/
+
+
+lemma mem_essImage_of_counit_isSplitEpi [Coreflective j] {A : D}
+    [IsSplitEpi ((coreflectorAdjunction j).counit.app A)] : A ∈ j.essImage := by
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+    inst✝² : CategoryTheory.Category.{v₂, u₂} D
+    j : CategoryTheory.Functor C D
+    inst✝¹ : CategoryTheory.Coreflective j
+    A : D
+    inst✝ : CategoryTheory.IsSplitEpi ((CategoryTheory.coreflectorAdjunction j).co …
+    ⊢ Membership.mem j.essImage A
+  -/
+  let ε : coreflector j ⋙ j ⟶ 𝟭 D  := (coreflectorAdjunction j).counit
+  haveI : IsIso (ε.app (j.obj ((coreflector j).obj A))) :=
+    Functor.essImage.counit_isIso ((j.obj_mem_essImage _))
+  have : Mono (ε.app A) := by
+    refine @mono_of_mono _ _ _ _ _ (ε.app A) (section_ (ε.app A)) ?_
+    rw [show ε.app A ≫ section_ _ = _ from (ε.naturality (section_ (ε.app A))).symm]
+    apply mono_comp _ (ε.app (j.obj ((coreflector j).obj A)))
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+    inst✝² : CategoryTheory.Category.{v₂, u₂} D
+    j : CategoryTheory.Functor C D
+    inst✝¹ : CategoryTheory.Coreflective j
+    A : D
+    inst✝ : CategoryTheory.IsSplitEpi ((CategoryTheory.coreflectorAdjunction j).co …
+    ε : Quiver.Hom ((CategoryTheory.coreflector j).comp j) (CategoryTheory.Functor …
+    this✝ : CategoryTheory.IsIso (ε.app (j.obj ((CategoryTheory.coreflector j).obj …
+    this : CategoryTheory.Mono (ε.app A)
+    ⊢ Membership.mem j.essImage A
+  -/
+  haveI := isIso_of_mono_of_isSplitEpi (ε.app A)
+  /-
+    C : Type u₁
+    D : Type u₂
+    inst✝³ : CategoryTheory.Category.{v₁, u₁} C
+    inst✝² : CategoryTheory.Category.{v₂, u₂} D
+    j : CategoryTheory.Functor C D
+    inst✝¹ : CategoryTheory.Coreflective j
+    A : D
+    inst✝ : CategoryTheory.IsSplitEpi ((CategoryTheory.coreflectorAdjunction j).co …
+    ε : Quiver.Hom ((CategoryTheory.coreflector j).comp j) (CategoryTheory.Functor …
+    this✝¹ : CategoryTheory.IsIso (ε.app (j.obj ((CategoryTheory.coreflector j).ob …
+    this✝ : CategoryTheory.Mono (ε.app A)
+    this : CategoryTheory.IsIso (ε.app A)
+    ⊢ Membership.mem j.essImage A
+  -/
+  exact (coreflectorAdjunction j).mem_essImage_of_counit_isIso A
+  /-
+    🎉 no goals
+  -/
+
+
+instance Coreflective.comp (F : C ⥤ D) (G : D ⥤ E) [Coreflective F] [Coreflective G] :
+    Coreflective (F ⋙ G) where
+  R := coreflector G ⋙ coreflector F
+  adj := (coreflectorAdjunction F).comp (coreflectorAdjunction G)
+
+

@@ -1,0 +1,505 @@
+theorem le_min_iff : c ≤ min a b ↔ c ≤ a ∧ c ≤ b :=
+  le_inf_iff
+
+
+theorem le_max_iff : a ≤ max b c ↔ a ≤ b ∨ a ≤ c :=
+  le_sup_iff
+
+
+theorem min_le_iff : min a b ≤ c ↔ a ≤ c ∨ b ≤ c :=
+  inf_le_iff
+
+
+theorem max_le_iff : max a b ≤ c ↔ a ≤ c ∧ b ≤ c :=
+  sup_le_iff
+
+
+theorem lt_min_iff : a < min b c ↔ a < b ∧ a < c :=
+  lt_inf_iff
+
+
+theorem lt_max_iff : a < max b c ↔ a < b ∨ a < c :=
+  lt_sup_iff
+
+
+theorem min_lt_iff : min a b < c ↔ a < c ∨ b < c :=
+  inf_lt_iff
+
+
+theorem max_lt_iff : max a b < c ↔ a < c ∧ b < c :=
+  sup_lt_iff
+
+
+theorem max_le_max : a ≤ c → b ≤ d → max a b ≤ max c d :=
+  sup_le_sup
+
+
+theorem max_le_max_left (c) (h : a ≤ b) : max c a ≤ max c b := sup_le_sup_left h c
+
+
+theorem max_le_max_right (c) (h : a ≤ b) : max a c ≤ max b c := sup_le_sup_right h c
+
+
+theorem min_le_min : a ≤ c → b ≤ d → min a b ≤ min c d :=
+  inf_le_inf
+
+
+theorem min_le_min_left (c) (h : a ≤ b) : min c a ≤ min c b := inf_le_inf_left c h
+
+
+theorem min_le_min_right (c) (h : a ≤ b) : min a c ≤ min b c := inf_le_inf_right c h
+
+
+theorem le_max_of_le_left : a ≤ b → a ≤ max b c :=
+  le_sup_of_le_left
+
+
+theorem le_max_of_le_right : a ≤ c → a ≤ max b c :=
+  le_sup_of_le_right
+
+
+theorem lt_max_of_lt_left (h : a < b) : a < max b c :=
+  h.trans_le (le_max_left b c)
+
+
+theorem lt_max_of_lt_right (h : a < c) : a < max b c :=
+  h.trans_le (le_max_right b c)
+
+
+theorem min_le_of_left_le : a ≤ c → min a b ≤ c :=
+  inf_le_of_left_le
+
+
+theorem min_le_of_right_le : b ≤ c → min a b ≤ c :=
+  inf_le_of_right_le
+
+
+theorem min_lt_of_left_lt (h : a < c) : min a b < c :=
+  (min_le_left a b).trans_lt h
+
+
+theorem min_lt_of_right_lt (h : b < c) : min a b < c :=
+  (min_le_right a b).trans_lt h
+
+
+lemma max_min_distrib_left (a b c : α) : max a (min b c) = min (max a b) (max a c) :=
+  sup_inf_left _ _ _
+
+
+lemma max_min_distrib_right (a b c : α) : max (min a b) c = min (max a c) (max b c) :=
+  sup_inf_right _ _ _
+
+
+lemma min_max_distrib_left (a b c : α) : min a (max b c) = max (min a b) (min a c) :=
+  inf_sup_left _ _ _
+
+
+lemma min_max_distrib_right (a b c : α) : min (max a b) c = max (min a c) (min b c) :=
+  inf_sup_right _ _ _
+
+
+theorem min_le_max : min a b ≤ max a b :=
+  le_trans (min_le_left a b) (le_max_left a b)
+
+
+theorem min_eq_left_iff : min a b = a ↔ a ≤ b :=
+  inf_eq_left
+
+
+theorem min_eq_right_iff : min a b = b ↔ b ≤ a :=
+  inf_eq_right
+
+
+theorem max_eq_left_iff : max a b = a ↔ b ≤ a :=
+  sup_eq_left
+
+
+theorem max_eq_right_iff : max a b = b ↔ a ≤ b :=
+  sup_eq_right
+
+
+/-- For elements `a` and `b` of a linear order, either `min a b = a` and `a ≤ b`,
+    or `min a b = b` and `b < a`.
+    Use cases on this lemma to automate linarith in inequalities -/
+theorem min_cases (a b : α) : min a b = a ∧ a ≤ b ∨ min a b = b ∧ b < a := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b : α
+    ⊢ Or (And (Eq (Min.min a b) a) (LE.le a b)) (And (Eq (Min.min a b) b) (LT.lt b …
+  -/
+  by_cases h : a ≤ b
+    /-
+      case pos
+      α : Type u
+      inst✝ : LinearOrder α
+      a b : α
+      h : LE.le a b
+      ⊢ Or (And (Eq (Min.min a b) a) (LE.le a b)) (And (Eq (Min.min a b) b) (LT.lt b …
+    -/
+  · left
+    /-
+      case pos.h
+      α : Type u
+      inst✝ : LinearOrder α
+      a b : α
+      h : LE.le a b
+      ⊢ And (Eq (Min.min a b) a) (LE.le a b)
+    -/
+    exact ⟨min_eq_left h, h⟩
+    /-
+      🎉 no goals
+    -/
+    /-
+      case neg
+      α : Type u
+      inst✝ : LinearOrder α
+      a b : α
+      h : Not (LE.le a b)
+      ⊢ Or (And (Eq (Min.min a b) a) (LE.le a b)) (And (Eq (Min.min a b) b) (LT.lt b …
+    -/
+  · right
+    /-
+      case neg.h
+      α : Type u
+      inst✝ : LinearOrder α
+      a b : α
+      h : Not (LE.le a b)
+      ⊢ And (Eq (Min.min a b) b) (LT.lt b a)
+    -/
+    exact ⟨min_eq_right (le_of_lt (not_le.mp h)), not_le.mp h⟩
+    /-
+      🎉 no goals
+    -/
+
+
+/-- For elements `a` and `b` of a linear order, either `max a b = a` and `b ≤ a`,
+    or `max a b = b` and `a < b`.
+    Use cases on this lemma to automate linarith in inequalities -/
+theorem max_cases (a b : α) : max a b = a ∧ b ≤ a ∨ max a b = b ∧ a < b :=
+  @min_cases αᵒᵈ _ a b
+
+
+theorem min_eq_iff : min a b = c ↔ a = c ∧ a ≤ b ∨ b = c ∧ b ≤ a := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Iff (Eq (Min.min a b) c) (Or (And (Eq a c) (LE.le a b)) (And (Eq b c) (LE.le …
+  -/
+  constructor
+    /-
+      case mp
+      α : Type u
+      inst✝ : LinearOrder α
+      a b c : α
+      ⊢ Eq (Min.min a b) c → Or (And (Eq a c) (LE.le a b)) (And (Eq b c) (LE.le b a))
+    -/
+  · intro h
+    /-
+      case mp
+      α : Type u
+      inst✝ : LinearOrder α
+      a b c : α
+      h : Eq (Min.min a b) c
+      ⊢ Or (And (Eq a c) (LE.le a b)) (And (Eq b c) (LE.le b a))
+    -/
+                                                                   /-
+                                                                     🎉 no goals
+                                                                   -/
+    refine Or.imp (fun h' => ?_) (fun h' => ?_) (le_total a b) <;> exact ⟨by simpa [h'] using h, h'⟩
+                                                                   /-
+                                                                     🎉 no goals
+                                                                   -/
+    /-
+      case mpr
+      α : Type u
+      inst✝ : LinearOrder α
+      a b c : α
+      ⊢ Or (And (Eq a c) (LE.le a b)) (And (Eq b c) (LE.le b a)) → Eq (Min.min a b) c
+    -/
+                                     /-
+                                       🎉 no goals
+                                     -/
+  · rintro (⟨rfl, h⟩ | ⟨rfl, h⟩) <;> simp [h]
+                                     /-
+                                       🎉 no goals
+                                     -/
+
+
+theorem max_eq_iff : max a b = c ↔ a = c ∧ b ≤ a ∨ b = c ∧ a ≤ b :=
+  @min_eq_iff αᵒᵈ _ a b c
+
+
+theorem min_lt_min_left_iff : min a c < min b c ↔ a < b ∧ a < c := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Iff (LT.lt (Min.min a c) (Min.min b c)) (And (LT.lt a b) (LT.lt a c))
+  -/
+  simp_rw [lt_min_iff, min_lt_iff, or_iff_left (lt_irrefl _)]
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Iff (And (Or (LT.lt a b) (LT.lt c b)) (LT.lt a c)) (And (LT.lt a b) (LT.lt a …
+  -/
+  exact and_congr_left fun h => or_iff_left_of_imp h.trans
+  /-
+    🎉 no goals
+  -/
+
+
+theorem min_lt_min_right_iff : min a b < min a c ↔ b < c ∧ b < a := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Iff (LT.lt (Min.min a b) (Min.min a c)) (And (LT.lt b c) (LT.lt b a))
+  -/
+  simp_rw [min_comm a, min_lt_min_left_iff]
+  /-
+    🎉 no goals
+  -/
+
+
+theorem max_lt_max_left_iff : max a c < max b c ↔ a < b ∧ c < b :=
+  @min_lt_min_left_iff αᵒᵈ _ _ _ _
+
+
+theorem max_lt_max_right_iff : max a b < max a c ↔ b < c ∧ a < c :=
+  @min_lt_min_right_iff αᵒᵈ _ _ _ _
+
+
+/-- An instance asserting that `max a a = a` -/
+instance max_idem : Std.IdempotentOp (α := α) max where
+                   /-
+                     α : Type u
+                     β : Type v
+                     inst✝¹ : LinearOrder α
+                     inst✝ : LinearOrder β
+                     f : α → β
+                     s : Set α
+                     a b c d : α
+                     ⊢ ∀ (x : α), Eq (Max.max x x) x
+                   -/
+  idempotent := by simp
+                   /-
+                     🎉 no goals
+                   -/
+
+-- short-circuit type class inference
+
+/-- An instance asserting that `min a a = a` -/
+instance min_idem : Std.IdempotentOp (α := α) min where
+                   /-
+                     α : Type u
+                     β : Type v
+                     inst✝¹ : LinearOrder α
+                     inst✝ : LinearOrder β
+                     f : α → β
+                     s : Set α
+                     a b c d : α
+                     ⊢ ∀ (x : α), Eq (Min.min x x) x
+                   -/
+  idempotent := by simp
+                   /-
+                     🎉 no goals
+                   -/
+
+-- short-circuit type class inference
+
+theorem min_lt_max : min a b < max a b ↔ a ≠ b :=
+  inf_lt_sup
+
+-- Porting note: was `by simp [lt_max_iff, max_lt_iff, *]`
+
+theorem max_lt_max (h₁ : a < c) (h₂ : b < d) : max a b < max c d :=
+  max_lt (lt_max_of_lt_left h₁) (lt_max_of_lt_right h₂)
+
+
+theorem min_lt_min (h₁ : a < c) (h₂ : b < d) : min a b < min c d :=
+  @max_lt_max αᵒᵈ _ _ _ _ _ h₁ h₂
+
+
+theorem min_right_comm (a b c : α) : min (min a b) c = min (min a c) b := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Eq (Min.min (Min.min a b) c) (Min.min (Min.min a c) b)
+  -/
+  rw [min_assoc, min_comm b, min_assoc]
+  /-
+    🎉 no goals
+  -/
+
+
+theorem Max.left_comm (a b c : α) : max a (max b c) = max b (max a c) := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Eq (Max.max a (Max.max b c)) (Max.max b (Max.max a c))
+  -/
+  rw [← max_assoc, max_comm a, max_assoc]
+  /-
+    🎉 no goals
+  -/
+
+
+theorem Max.right_comm (a b c : α) : max (max a b) c = max (max a c) b := by
+  /-
+    α : Type u
+    inst✝ : LinearOrder α
+    a b c : α
+    ⊢ Eq (Max.max (Max.max a b) c) (Max.max (Max.max a c) b)
+  -/
+  rw [max_assoc, max_comm b, max_assoc]
+  /-
+    🎉 no goals
+  -/
+
+
+theorem MonotoneOn.map_max (hf : MonotoneOn f s) (ha : a ∈ s) (hb : b ∈ s) : f (max a b) =
+    max (f a) (f b) := by
+  /-
+    α : Type u
+    β : Type v
+    inst✝¹ : LinearOrder α
+    inst✝ : LinearOrder β
+    f : α → β
+    s : Set α
+    a b : α
+    hf : MonotoneOn f s
+    ha : Membership.mem s a
+    hb : Membership.mem s b
+    ⊢ Eq (f (Max.max a b)) (Max.max (f a) (f b))
+  -/
+  rcases le_total a b with h | h <;>
+    /-
+      case inl
+      α : Type u
+      β : Type v
+      inst✝¹ : LinearOrder α
+      inst✝ : LinearOrder β
+      f : α → β
+      s : Set α
+      a b : α
+      hf : MonotoneOn f s
+      ha : Membership.mem s a
+      hb : Membership.mem s b
+      h : LE.le a b
+      ⊢ Eq (f (Max.max a b)) (Max.max (f a) (f b))
+    -/
+    /-
+      🎉 no goals
+    -/
+    simp only [max_eq_right, max_eq_left, hf ha hb, hf hb ha, h]
+    /-
+      🎉 no goals
+    -/
+
+
+theorem MonotoneOn.map_min (hf : MonotoneOn f s) (ha : a ∈ s) (hb : b ∈ s) : f (min a b) =
+    min (f a) (f b) := hf.dual.map_max ha hb
+
+
+theorem AntitoneOn.map_max (hf : AntitoneOn f s) (ha : a ∈ s) (hb : b ∈ s) : f (max a b) =
+    min (f a) (f b) := hf.dual_right.map_max ha hb
+
+
+theorem AntitoneOn.map_min (hf : AntitoneOn f s) (ha : a ∈ s) (hb : b ∈ s) : f (min a b) =
+    max (f a) (f b) := hf.dual.map_max ha hb
+
+
+theorem Monotone.map_max (hf : Monotone f) : f (max a b) = max (f a) (f b) := by
+  /-
+    α : Type u
+    β : Type v
+    inst✝¹ : LinearOrder α
+    inst✝ : LinearOrder β
+    f : α → β
+    a b : α
+    hf : Monotone f
+    ⊢ Eq (f (Max.max a b)) (Max.max (f a) (f b))
+  -/
+                                     /-
+                                       🎉 no goals
+                                     -/
+  rcases le_total a b with h | h <;> simp [h, hf h]
+                                     /-
+                                       🎉 no goals
+                                     -/
+
+
+theorem Monotone.map_min (hf : Monotone f) : f (min a b) = min (f a) (f b) :=
+  hf.dual.map_max
+
+
+theorem Antitone.map_max (hf : Antitone f) : f (max a b) = min (f a) (f b) := by
+  /-
+    α : Type u
+    β : Type v
+    inst✝¹ : LinearOrder α
+    inst✝ : LinearOrder β
+    f : α → β
+    a b : α
+    hf : Antitone f
+    ⊢ Eq (f (Max.max a b)) (Min.min (f a) (f b))
+  -/
+                                     /-
+                                       🎉 no goals
+                                     -/
+  rcases le_total a b with h | h <;> simp [h, hf h]
+                                     /-
+                                       🎉 no goals
+                                     -/
+
+
+theorem Antitone.map_min (hf : Antitone f) : f (min a b) = max (f a) (f b) :=
+  hf.dual.map_max
+
+
+                                                               /-
+                                                                 α : Type u
+                                                                 inst✝ : LinearOrder α
+                                                                 a b : α
+                                                                 ⊢ Or (Eq (Min.min a b) a) (Eq (Min.min a b) b)
+                                                               -/
+                                                                                      /-
+                                                                                        🎉 no goals
+                                                                                      -/
+theorem min_choice (a b : α) : min a b = a ∨ min a b = b := by cases le_total a b <;> simp [*]
+                                                                                      /-
+                                                                                        🎉 no goals
+                                                                                      -/
+
+
+theorem max_choice (a b : α) : max a b = a ∨ max a b = b :=
+  @min_choice αᵒᵈ _ a b
+
+
+theorem le_of_max_le_left {a b c : α} (h : max a b ≤ c) : a ≤ c :=
+  le_trans (le_max_left _ _) h
+
+
+theorem le_of_max_le_right {a b c : α} (h : max a b ≤ c) : b ≤ c :=
+  le_trans (le_max_right _ _) h
+
+
+instance instCommutativeMax : Std.Commutative (α := α) max where comm := max_comm
+
+instance instAssociativeMax : Std.Associative (α := α) max where assoc := max_assoc
+
+instance instCommutativeMin : Std.Commutative (α := α) min where comm := min_comm
+
+instance instAssociativeMin : Std.Associative (α := α) min where assoc := min_assoc
+
+
+theorem max_left_commutative : LeftCommutative (max : α → α → α) := ⟨max_left_comm⟩
+
+theorem min_left_commutative : LeftCommutative (min : α → α → α) := ⟨min_left_comm⟩
+
+

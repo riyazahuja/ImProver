@@ -30,8 +30,16 @@ lean_lib temp where
 lean_lib Examples where
 
 
+lean_lib RAG where
+
 
 @[default_target]
 lean_exe improver where
   root := `ImProver.improver
   supportInterpreter := true
+
+lean_exe StateComments where
+  root := `scripts.standalone_state_comments
+
+lean_exe extract_states where
+  root := `scripts.extract_states

@@ -1,0 +1,37 @@
+/--
+Tactic version of `Lean.Elab.Command.elabCheck`.
+Elaborates `term` without modifying tactic/elab/meta state.
+Info messages are placed at `tk`.
+-/
+def elabCheckTactic (tk : Syntax) (ignoreStuckTC : Bool) (term : Term) : TacticM Unit :=
+  withoutModifyingStateWithInfoAndMessages <| withMainContext do
+    if let `($_:ident) := term then
+      -- show signature for `#check ident`
+      try
+        for c in (← realizeGlobalConstWithInfos term) do
+          addCompletionInfo <| .id term c (danglingDot := false) {} none
+          logInfoAt tk <| MessageData.signature c
+          return
+      catch _ => pure ()  -- identifier might not be a constant but constant + projection
+    let e ← Term.elabTerm term none
+    Term.synthesizeSyntheticMVarsNoPostponing (ignoreStuckTC := ignoreStuckTC)
+    let e ← Term.levelMVarToParam (← instantiateMVars e)
+    let type ← inferType e
+    if e.isSyntheticSorry then
+      return
+    logInfoAt tk m!"{e} : {type}"
+
+
+/--
+The `#check t` tactic elaborates the term `t` and then pretty prints it with its type as `e : ty`.
+
+If `t` is an identifier, then it pretty prints a type declaration form
+for the global constant `t` instead.
+Use `#check (t)` to pretty print it as an elaborated expression.
+
+Like the `#check` command, the `#check` tactic allows stuck typeclass instance problems.
+These become metavariables in the output.
+-/
+elab tk:"#check " colGt term:term : tactic => elabCheckTactic tk true term
+
+
