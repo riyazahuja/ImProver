@@ -32,3 +32,6 @@ lean_exe ImProver where
 
 lean_exe StateComments where
   root := `scripts.standalone_state_comments
+
+lean_exe extract_states where
+  root := `scripts.extract_states
