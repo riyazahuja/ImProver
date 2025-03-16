@@ -257,7 +257,7 @@ def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.s
 -- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
 
 
-#eval ImProver test_config
+-- #eval ImProver test_config
 
 
 -- #eval ImProver {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`theorem8]), best_of_n:= 1, context?:=true}

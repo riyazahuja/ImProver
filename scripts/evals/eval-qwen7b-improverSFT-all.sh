@@ -12,7 +12,7 @@
 
 
 source $HOME/miniconda3/bin/activate env
-
+export PATH="/data/user_data/riyaza/ollama/bin":$PATH
 
 
 # export MODEL_PATH=/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Llama-8B_4096

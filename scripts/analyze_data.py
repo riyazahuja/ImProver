@@ -351,15 +351,15 @@ def main(model, ns, repo):
 
 
 if __name__ == "__main__":
-    repos = ["MIL"]  # , "Mathlib", "Compfiles"]
+    repos = ["MIL", "Mathlib", "Compfiles"]
     # ns = [1] + list(range(5, 61, 5))
-    # ns = [1] + list(range(4, 65, 4))
-    ns = [64]
+    ns = [1] + list(range(4, 65, 4))
+    # ns = [64]
     if len(sys.argv) < 2:
         print("Usage: python eval.py <model1> <model2> ...")
         sys.exit(1)
     models = sys.argv[1:]
     for model in models:
-        # for repo in repos:
-        #     main(model, ns, repo)
+        for repo in repos:
+            main(model, ns, repo)
         aggregate(model, ns, repos)
