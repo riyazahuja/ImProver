@@ -55,7 +55,13 @@ def calculate_token_counts(prompts_df, tokenizer):
     token_counts = []
 
     for prompt in prompts_df["original_prompt"]:
-        tokens = tokenizer.encode(prompt)
+        if pd.isna(prompt):
+            token_counts.append(0)
+            continue
+            
+        # Ensure prompt is a string
+        prompt_str = str(prompt)
+        tokens = tokenizer.encode(prompt_str)
         token_counts.append(len(tokens))
 
     prompts_df["token_count"] = token_counts
