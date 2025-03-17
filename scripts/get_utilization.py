@@ -166,9 +166,7 @@ def calc_stats(df, ns):
         # For each decl, keep only the best row based on criteria
         def select_best_row(group):
             # If any row has new_correct = True, select from those
-            correct_rows = group[
-                (group["new_correct"] == True) & (group["new_raw"] != "")
-            ]
+            correct_rows = group[group["new_correct"] == True]
             if len(correct_rows) > 0:
                 # Among correct rows, return the one with minimal new_score
                 return correct_rows.nsmallest(1, "new_score")
@@ -182,42 +180,104 @@ def calc_stats(df, ns):
             .reset_index(drop=True)
         )
 
-        # print(filtered_df)
-        # Calculate metrics with the filtered dataframe
-        metrics = calculate_metrics(filtered_df)
-        metrics_by_n[n_prime] = metrics
+        # Calculate utilization for each declaration
+        filtered_df["utilization_score"] = 0.0
+        filtered_df["used_names"] = None
+        filtered_df["total_names"] = 0
 
-        print(f"\nMetrics for n={n_prime}:")
-        for k, v in metrics.items():
-            print(f"{k}: {v}")
+        positive_util_indices = []  # Store indices of rows with positive utilization
 
-        # Create lists to store metrics for plotting
-        ns_list = list(metrics_by_n.keys())
-        accuracy = [metrics_by_n[n]["accuracy"] for n in ns_list]
-        nonzero_accuracy = [metrics_by_n[n]["nonzero_accuracy"] for n in ns_list]
-        mean_improvement = [metrics_by_n[n]["improvement"] for n in ns_list]
-        mean_nonzero_improvement = [
-            metrics_by_n[n]["nonzero_improvement"] for n in ns_list
-        ]
-        # Create the plot
-        plt.figure(figsize=(10, 6))
-        plt.plot(ns_list, accuracy, "b-", label="Accuracy")
-        plt.plot(ns_list, nonzero_accuracy, "r-", label="Nonzero Accuracy")
-        plt.plot(ns_list, mean_improvement, "g-", label="Mean Improvement")
-        plt.plot(
-            ns_list, mean_nonzero_improvement, "y-", label="Mean Nonzero Improvement"
+        for idx, row in filtered_df.iterrows():
+            # Extract original prompt and new raw code
+            original_prompt = row.get("original_prompt", "")
+            new_raw = row.get("new_raw", "")
+
+            # Skip if either field is missing
+            if not isinstance(original_prompt, str) or not isinstance(new_raw, str):
+                continue
+
+            # Extract content between <RETRIEVED> tags - get the second instance
+            retrieved_matches = re.findall(
+                r"<RETRIEVED>(.*?)</RETRIEVED>",
+                original_prompt,
+                re.DOTALL | re.MULTILINE,
+            )
+            if len(retrieved_matches) < 2:  # Check if we have at least 2 matches
+                continue
+
+            retrieved_content = retrieved_matches[1]  # Take the second match
+            # Extract all <DOC> blocks
+            doc_blocks = re.findall(r"<DOC>(.*?)</DOC>", retrieved_content, re.DOTALL)
+
+            # Extract names from theorem name, lemma name, or def name patterns
+            names = []
+            for doc in doc_blocks:
+                # Match "theorem name", "lemma name", or "def name" patterns
+                matches = re.findall(
+                    r"(theorem|lemma|def)\s+([\w.\'_]+)", doc, re.IGNORECASE
+                )
+                names.extend([match[1] for match in matches])
+
+            # Count how many names appear in the new_raw
+            if names:  # Only calculate if we found names
+                used_names = [name for name in names if name in new_raw]
+                utilization = len(used_names) / len(names) if len(names) > 0 else 0
+
+            # Store utilization data in the dataframe
+            filtered_df.at[idx, "utilization_score"] = utilization
+            filtered_df.at[idx, "used_names"] = used_names
+            filtered_df.at[idx, "total_names"] = len(names)
+
+            if utilization > 0:
+                positive_util_indices.append(idx)
+
+        # Create dataframe of rows with positive utilization
+        positive_util_df = (
+            filtered_df.loc[positive_util_indices].copy()
+            if positive_util_indices
+            else pd.DataFrame()
         )
 
-        plt.xlabel("Number of Attempts (n)")
-        plt.ylabel("Metric Value")
-        plt.title("ImProver Metrics vs Number of Attempts")
-        plt.legend()
-        plt.grid(True)
-        plt.ylim(0, 1)  # Set y-axis limits from 0 to 1
-        plt.savefig(f"improver_outputs_new/{model}_plot.png")
+        # Calculate average utilization
+        utilization_scores = filtered_df["utilization_score"].tolist()
+        avg_utilization = (
+            sum(utilization_scores) / len(utilization_scores)
+            if utilization_scores
+            else 0
+        )
+        print(f"Average utilization score for n={n_prime}: {avg_utilization:.2f}")
+
+        # Create a directory for utilization plots if it doesn't exist
+        os.makedirs("utilization_plots", exist_ok=True)
+
+        # Plot distribution of utilization scores
+        plt.figure(figsize=(10, 6))
+        plt.hist(utilization_scores, bins=10, range=(0, 1), edgecolor="black")
+        plt.title(
+            f"Distribution of Utilization Scores for n={n_prime} (avg: {avg_utilization:.2f})"
+        )
+        plt.xlabel("Utilization Score")
+        plt.ylabel("Number of Declarations")
+        plt.grid(alpha=0.3)
+        plt.savefig(f"utilization_plots/utilization_distribution_n{n_prime}.png")
         plt.close()
 
-    # get_data(test_set,repo,n)
+        # Save rows with positive utilization to file
+        if not positive_util_df.empty:
+            print(
+                f"Found {len(positive_util_df)} rows with positive utilization for n={n_prime}"
+            )
+            positive_util_df.to_csv(
+                f"utilization_plots/positive_utilization_n{n_prime}.csv", index=False
+            )
+
+            # Also print top 5 rows with highest utilization
+            print("\nTop 5 rows with highest utilization:")
+            top_rows = positive_util_df.nlargest(5, "utilization_score")
+            for i, (_, row) in enumerate(top_rows.iterrows(), 1):
+                print(
+                    f"{i}. Module: {row['module']}, Decl: {row['decl']}, Score: {row['utilization_score']:.2f}, Used: {len(row['used_names'])}/{row['total_names']}"
+                )
 
 
 def aggregate(model, ns, repos):
@@ -239,117 +299,17 @@ def aggregate(model, ns, repos):
 
     calc_stats(combined_df, ns)
 
-
-def main(model, ns, repo):
-    n = max(ns)
-
-    # First run ImProver to get data
-    # get_data(test_set, repo, n)
-
-    # Convert results to CSV
-    to_csv(repo, model)
-
-    # Import extract functions
-    sys.path.append("benchmark")
-
-    # Load and analyze the data
-    df = pd.read_csv(
-        f"improver_outputs_new/{repo}/{model}/improver_combined_results.csv"
-    )
-    # For each n in ns, take first n trajectories from the max n run
-    metrics_by_n = {}
-    print(f"Data for {model} on {repo}:")
-    for n_prime in ns:
-        # Create a copy of the dataframe
-        filtered_df = df.copy()
-
-        # Group by module and decl to handle each declaration separately
-        filtered_df["row_num"] = filtered_df.groupby(["module", "decl"]).cumcount()
-
-        # Keep only first n_prime rows for each decl
-        filtered_df = filtered_df[filtered_df["row_num"] < n_prime]
-
-        # For each decl, keep only the best row based on criteria
-        def select_best_row(group):
-            # If any row has new_correct = True, select from those
-            correct_rows = group[
-                (group["new_correct"] == True) & (group["new_raw"] != "")
-            ]
-            if len(correct_rows) > 0:
-                # Among correct rows, return the one with minimal new_score
-                return correct_rows.nsmallest(1, "new_score")
-            # If no correct rows, return the first row
-            return group.iloc[:1]
-
-        # Apply the selection process to each group
-        filtered_df = (
-            filtered_df.groupby(["module", "decl"])
-            .apply(select_best_row)
-            .reset_index(drop=True)
-        )
-
-        # Save the current filtered dataframe
-        # filtered_df.to_csv(
-        #     f"improver_outputs_new/{repo}/{model}/improver_n{n_prime}_filtered.csv",
-        #     index=False,
-        # )
-
-        # Load the specific file
-        # filtered_df = pd.read_csv("improver_outputs_new/MIL/filtered-1shot.csv")
-
-        # filtered_df.to_csv(
-        #     f"improver_outputs_new/{repo}/{model}/improver_n{n_prime}_filtered.csv",
-        #     index=False,
-        # )
-
-        # print(filtered_df)
-        # Calculate metrics with the filtered dataframe
-        metrics = calculate_metrics(filtered_df)
-        metrics_by_n[n_prime] = metrics
-
-        print(f"\nMetrics for n={n_prime}:")
-        for k, v in metrics.items():
-            print(f"{k}: {v}")
-
-        # Create lists to store metrics for plotting
-        ns_list = list(metrics_by_n.keys())
-        accuracy = [metrics_by_n[n]["accuracy"] for n in ns_list]
-        nonzero_accuracy = [metrics_by_n[n]["nonzero_accuracy"] for n in ns_list]
-        mean_improvement = [metrics_by_n[n]["improvement"] for n in ns_list]
-        mean_nonzero_improvement = [
-            metrics_by_n[n]["nonzero_improvement"] for n in ns_list
-        ]
-        # Create the plot
-        plt.figure(figsize=(10, 6))
-        plt.plot(ns_list, accuracy, "b-", label="Accuracy")
-        plt.plot(ns_list, nonzero_accuracy, "r-", label="Nonzero Accuracy")
-        plt.plot(ns_list, mean_improvement, "g-", label="Mean Improvement")
-        plt.plot(
-            ns_list, mean_nonzero_improvement, "y-", label="Mean Nonzero Improvement"
-        )
-
-        plt.xlabel("Number of Attempts (n)")
-        plt.ylabel("Metric Value")
-        plt.title("ImProver Metrics vs Number of Attempts")
-        plt.legend()
-        plt.grid(True)
-        plt.ylim(0, 1)  # Set y-axis limits from 0 to 1
-        plt.savefig(f"improver_outputs_new/{repo}/{model}/metrics_plot.png")
-        plt.close()
-
     # get_data(test_set,repo,n)
 
 
 if __name__ == "__main__":
     repos = ["MIL", "Mathlib", "Compfiles"]
     # ns = [1] + list(range(5, 61, 5))
-    ns = [1] + list(range(4, 65, 4))
-    # ns = [64]
+    # ns = [1] + list(range(4, 65, 4))
+    ns = [64]
     if len(sys.argv) < 2:
         print("Usage: python eval.py <model1> <model2> ...")
         sys.exit(1)
     models = sys.argv[1:]
     for model in models:
-        for repo in repos:
-            main(model, ns, repo)
         aggregate(model, ns, repos)

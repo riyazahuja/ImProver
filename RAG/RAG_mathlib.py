@@ -100,7 +100,7 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
         )
 
     database_path = os.path.join(
-        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db2"
+        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
     )
 
     if replace:
@@ -136,7 +136,7 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
     # embeddings = OllamaEmbeddings(model="llama3.2")
 
     embeddings = HuggingFaceEmbeddings(
-        model_name="/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Qwen-7B-improverSFT"
+        model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
     )
 
     vectorstore = Chroma(
@@ -158,7 +158,7 @@ def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter=
         ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db2"
     )
     embeddings = HuggingFaceEmbeddings(
-        model_name="/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Qwen-7B-improverSFT"
+        model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
     )
     # database = Chroma(
     #     collection_name=f"Annotated_{package_name}_Theorems",
