@@ -149,6 +149,50 @@ def promptModel_batched (cmd : CompilationStep) (config : ImProverConfig) : IO (
 
 
 
+def promptModel_debug_raw (prompt : String) (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  IO.println "IN DEBUG"
+  IO.println s!"Prompt:\n{prompt}"
+
+  let srcCommand := cmd.src.toString
+  let bon := config.best_of_n
+  return List.range bon |>.map (fun i => s!"--DEBUG: {i}\n{srcCommand}")
+
+def promptModel_batched_raw (prompt : String) (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  let model := config.model
+  let endpoint := config.endpoint
+  let best_of_n := config.best_of_n
+
+  IO.println s!"Prompt:\n{prompt}"
+  let jsonPayload : Json := Json.mkObj [
+      ("model", Json.str model),
+      ("messages", Json.arr #[Json.mkObj [("role",Json.str "user"),("content", Json.str prompt)]]),
+      ("max_tokens", Json.num <| JsonNumber.fromNat 1024)
+    ]
+  -- Call Python script with JSON payload
+  let out ← IO.Process.output {
+    cmd := "/home/riyaza/miniconda3/envs/env/bin/python3",
+    args := #["ImProver/inference/send_batched.py", jsonPayload.compress, toString best_of_n, endpoint]
+  }
+
+  let stdout := out.stdout.trim
+  let contents := match stdout.splitOn "<RESPONSE>" |>.reverse with
+  | []   => ""
+  | last :: _ => last
+
+  let responses := Json.parse (contents)
+    |>.toOption.getD (Json.arr #[])
+    |>.getArr?.toOption.getD (#[])
+    |>.map (fun j => j.getStr?.toOption.getD "")
+  IO.println responses
+  -- Process each response to extract content between IMPROVED tags
+  let newCommandCandidates := responses.map (fun response =>
+    let tagOpen  := "<IMPROVED>"
+    let tagClose := "</IMPROVED>"
+    response.stripPrefix tagOpen |>.stripSuffix tagClose)
+
+  return newCommandCandidates.toList
+
+
 def score (step : CompilationStep) (config : ImProverConfig): IO Float := do
   let metric_name := config.metric
   let msgs ← step.msgs.filterMapM (fun msg => do
@@ -229,32 +273,6 @@ def promptModel_refine (cmd : CompilationStep) (config : ImProverConfig) (num_st
 
 
 
-    -- if keep_best? then
-    --   return process_one best_result (remaining_steps - 1) best_result
-    -- else
-    --   return process_one best_result (remaining_steps - 1) best
-
-    -- let initial := if keep_best? then best else resultantSteps.head!.2
-    -- let best_step := resultantSteps.foldl (fun curr_best curr_step => do
-    --   let get_msgs (step : CompilationStep) ← step.msgs.filterMapM (fun msg => do
-    --     if msg.severity != .error then
-    --       return none
-    --     let m ← msg.data.toString
-    --     return some (bombEmoji++m))
-
-    --   let old_correct := get_msgs curr_best |>.isEmpty
-    --   let new_correct := get_msgs curr_step |>.isEmpty
-    --   match (old_correct, new_correct) with
-    --   | (true, true) => none
-    --   | _ => none
-    -- ) initial
-
-
-
-
-
-
-
 
 
 
@@ -264,3 +282,8 @@ def promptModel (cmd : CompilationStep) (config : ImProverConfig) : IO (List Str
   match config.model with
   | "DEBUG" => return ← promptModel_debug cmd config
   | _ => return ← promptModel_batched cmd config
+
+def promptModel_raw (prompt : String) (cmd : CompilationStep) (config : ImProverConfig) : IO (List String) := do
+  match config.model with
+  | "DEBUG" => return ← promptModel_debug_raw prompt cmd config
+  | _ => return ← promptModel_batched_raw prompt cmd config

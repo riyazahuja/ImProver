@@ -40,9 +40,9 @@ def retrieve (step : CompilationStep) (config: ImProverConfig) : IO (List String
   let data : Json := Json.mkObj
     [("query", Json.str query),
       ("k", Json.num <| JsonNumber.fromNat config.rag?),
-    --  ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
+     ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
     ]
-
+  IO.println data.compress
   let out ← IO.Process.output {
     cmd := "/home/riyaza/miniconda3/envs/env/bin/python3",
     args := #["ImProver/prompting/rag.py", data.compress]
@@ -55,6 +55,38 @@ def retrieve (step : CompilationStep) (config: ImProverConfig) : IO (List String
   let items := stdout.splitOn "<BREAK>"
   let items := if items.isEmpty then [] else items.take (items.length - 1)
   return items
+
+
+def retrieve_batch (steps : Array CompilationStep) (config: ImProverConfig) : IO (Array (CompilationStep × (List String))) := do
+  let queries : Array String ← steps.mapM insert_state_comments
+
+  let data : Json := Json.mkObj
+    [("queries", Json.arr <| queries.map (fun q => Json.str q)),
+      ("k", Json.num <| JsonNumber.fromNat config.rag?),
+    --  ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
+    ]
+
+  let out ← IO.Process.output {
+    -- cmd := "/home/riyaza/miniconda3/envs/env/bin/python3",
+    cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
+    args := #["ImProver/prompting/rag_batched.py", data.compress]
+  }
+
+  let stdout := out.stdout.trim
+  -- IO.println out.stde/rr
+  -- IO.println "OUT"
+  -- IO.println out.stdout
+  let json? := Json.parse stdout |>.toOption
+  let json := match json? with
+  | some j => j
+  | none => Json.mkObj []
+
+  let data : Array (Array String) := fromJson? json |>.toOption |>.getD #[]
+  let data := data.map (fun d => d.toList)
+  let out := steps.zip data
+  return out
+
+
 
 
 

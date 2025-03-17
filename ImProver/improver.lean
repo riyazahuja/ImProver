@@ -66,11 +66,20 @@ def ImProver (config : ImProverConfig): IO Unit := do
         | none => pure config
       fst_step
 
+  let mut targets_new : Array (CompilationStep × ConstantInfo) := #[]
 
   for (cmd, ci) in targets do
     let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
     if decls.isSome && !(decls.get!.contains ci_name_stem) then
       continue
+    targets_new := targets_new.push (cmd, ci)
+
+
+  let targets_with_prompts ← get_prompt_batched config.prompt config <| targets_new.map (fun (c,_) => c)
+  -- IO.println s!"PROMPTS GENERATED: {targets_with_prompts.size}"
+  -- IO.println s!"TARGETS: {targets_new.size}"
+
+  for ((cmd, ci), prompt) in targets_new.zip targets_with_prompts do
     IO.println s!"============================================="
     IO.println s!"Processing {ci.name} in {targetModule}"
 
@@ -83,13 +92,15 @@ def ImProver (config : ImProverConfig): IO Unit := do
     IO.println s!"---------------------------------------------"
 
     /- Prompt the model for an improved version of the proof -/
-    let newCommandCandidates ← promptModel cmd config
+    let newCommandCandidates ← promptModel_raw prompt cmd config
 
     /- Verify the new proof candidates -/
     let resultantSteps := (← elaborateVariants cmd targetModule newCommandCandidates).filterMap (fun x => x)
-
+    IO.println "before instances"
     /- Create a list of structures that contain each original theorem, the model's (possibly) improved version, whether it worked, the goal state after each tactic, and relevant metrics -/
-    let instances ← calculateInstances ci cmd resultantSteps config
+    let instances ← calculateInstancesWithPrompt ci cmd resultantSteps config prompt
+    IO.println "after instances"
+
 
     /- Print out the results for each instance -/
     for i in instances do
@@ -197,7 +208,7 @@ def main (args : List String) : IO UInt32 :=
 
 
 
-def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8])}
+def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), rag?:=5}
 -- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
 
 

@@ -133,11 +133,11 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
     )
     docs = splitter.split_documents(docs)
     print("Number of chunks:", len(docs))
-    # embeddings = OllamaEmbeddings(model="llama3.2")
+    embeddings = OllamaEmbeddings(model="llama3.2")
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
-    )
+    # embeddings = HuggingFaceEmbeddings(
+    #     model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
+    # )
 
     vectorstore = Chroma(
         collection_name="Annotated_Mathlib_Theorems",
@@ -157,9 +157,10 @@ def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter=
     database_path = os.path.join(
         ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db2"
     )
-    embeddings = HuggingFaceEmbeddings(
-        model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
-    )
+    # embeddings = HuggingFaceEmbeddings(
+    #     model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
+    # )
+    embeddings = OllamaEmbeddings(model="llama3.2")
     # database = Chroma(
     #     collection_name=f"Annotated_{package_name}_Theorems",
     #     # persist_directory=database_path,

@@ -59,11 +59,10 @@ def elaborateVariants (original : CompilationStep) (mod: Name) (variants : List 
   return results
 
 
-
+-- note that this calls get_prompt FOR EACH INSTANCE: BAD IF YOU'RE DOING RAG
 def calculateInstances (ci : ConstantInfo) (cmd : CompilationStep)
 (resultantSteps : List (String × CompilationStep)) (config : ImProverConfig)
 : IO (List ImprovedTheoremInstance) := do
-
   let metric_name := config.metric
   let oldMsgs ← cmd.msgs.filterMapM (fun msg => do
         if msg.severity != .error then
@@ -121,6 +120,67 @@ def calculateInstances (ci : ConstantInfo) (cmd : CompilationStep)
 
 
 
+def calculateInstancesWithPrompt (ci : ConstantInfo) (cmd : CompilationStep)
+(resultantSteps : List (String × CompilationStep)) (config : ImProverConfig) (prompt: String)
+: IO (List ImprovedTheoremInstance) := do
+  let metric_name := config.metric
+  let oldMsgs ← cmd.msgs.filterMapM (fun msg => do
+        if msg.severity != .error then
+          return none
+        let m ← msg.data.toString
+        return some (bombEmoji++m))
+
+
+
+  let old_correct := oldMsgs.isEmpty && cmd.trees.length > 0
+  -- let old_score := if old_correct then some (tacs.length.toFloat) else none
+  let old_score := if old_correct then some (get_metric metric_name cmd) else none
+
+
+  let instances : List ImprovedTheoremInstance ← resultantSteps.mapM (fun (model_output,head) => do
+
+    let state_comments ← insert_state_comments head
+
+    let msgs ← head.msgs.filterMapM (fun msg => do
+      if msg.severity != .error then
+        return none
+      let m ← msg.data.toString
+      return some (bombEmoji++m))
+
+    let correct := msgs.isEmpty && head.trees.length > 0
+    -- let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
+    let metric_score := if correct then some (get_metric metric_name head) else none
+
+    let delta := if correct && old_correct then (
+        if old_score.get! == 0 then
+          some (-1 : Float)
+        else
+          some ((old_score.get! - metric_score.get!) / (old_score.get!))
+        )
+      else none
+
+    let name : String := ci.name.toString
+
+    return ImprovedTheoremInstance.mk name
+      cmd.src.toString
+      model_output
+      state_comments
+      old_correct
+      correct
+      old_score
+      metric_score
+      delta
+      oldMsgs
+      msgs
+      prompt
+      config
+  )
+  return instances
+
+
+
+
+-- for llm metric
 def calculateInstances_batched (ci : ConstantInfo) (cmd : CompilationStep)
 (resultantSteps : List (String × CompilationStep)) (config : ImProverConfig)
 : IO (List ImprovedTheoremInstance) := do
