@@ -41,20 +41,6 @@ theorem maximal_of_no_maximal {P : Ideal α}
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.SetTheory.ZFC.Ordinal
-theorem isOrdinal_empty : IsOrdinal ∅ :=
-  ⟨isTransitive_empty, fun _ _ H ↦ (not_mem_empty _ H).elim⟩
-theorem isOrdinal_not_mem_univ : IsOrdinal ∉ Class.univ.{u} := by
-  rintro ⟨x, hx, -⟩
-  suffices IsOrdinal x by
-    apply Class.mem_irrefl x
-    rwa [Class.coe_mem, hx]
-  refine ⟨fun y hy z hz ↦ ?_, fun hyz hzw hwx ↦ ?_⟩ <;> rw [← Class.coe_apply, hx] at *
-  exacts [hy.mem hz, hwx.mem_trans hyz hzw]
-
-</DOC>
-<DOC>
-
 --src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Order.Minimal
 theorem Minimal.or (h : Minimal (fun x ↦ P x ∨ Q x) x) : Minimal P x ∨ Minimal Q x := by
   obtain ⟨h | h, hmin⟩ := h
@@ -77,17 +63,26 @@ set_option linter.unusedVariables false in
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.NumberTheory.ArithmeticFunction
-theorem id_apply {x : ℕ} : id x = x :=
-  rfl
-def pow (k : ℕ) : ArithmeticFunction ℕ :=
-  id.ppow k
-@[simp]
-theorem pow_apply {k n : ℕ} : pow k n = if k = 0 ∧ n = 0 then 0 else n ^ k := by
-  cases k
-  · simp [pow]
-  rename_i k  -- Porting note: added
-  simp [pow, k.succ_pos.ne']
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.Finsupp.BigOperators
+theorem Multiset.support_sum_subset [AddCommMonoid M] (s : Multiset (ι →₀ M)) :
+    s.sum.support ⊆ (s.map Finsupp.support).sup := by
+  induction s using Quot.inductionOn
+  simpa only [Multiset.quot_mk_to_coe'', Multiset.sum_coe, Multiset.map_coe, Multiset.sup_coe,
+    List.foldr_map] using List.support_sum_subset _
+theorem Finset.support_sum_subset [AddCommMonoid M] (s : Finset (ι →₀ M)) :
+    (s.sum id).support ⊆ Finset.sup s Finsupp.support := by
+  classical convert Multiset.support_sum_subset s.1; simp
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.Rat.Defs
+theorem natCast_div_eq_divInt (n d : ℕ) : (n : ℚ) / d = n /. d := Rat.intCast_div_eq_divInt n d
+theorem divInt_mul_divInt_cancel {x : ℤ} (hx : x ≠ 0) (n d : ℤ) : n /. x * (x /. d) = n /. d := by
+  by_cases hd : d = 0
+  · rw [hd]
+    simp
+  rw [divInt_mul_divInt _ _ hx hd, x.mul_comm, divInt_mul_right hx]
 
 </DOC>
 </RETRIEVED>
@@ -155,6 +150,15 @@ protected theorem tsub_le_tsub_iff_left (ha : AddLECancellable a) (hc : AddLECan
 </DOC>
 <DOC>
 
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.RingTheory.Polynomial.Content
+theorem content_X_pow {k : ℕ} : content ((X : R[X]) ^ k) = 1 := by
+  induction' k with k hi
+  · simp
+  rw [pow_succ', content_X_mul, hi]
+
+</DOC>
+<DOC>
+
 --src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.Finite.Prod
 protected theorem Finite.offDiag {s : Set α} (hs : s.Finite) : s.offDiag.Finite :=
   (hs.prod hs).subset s.offDiag_subset_prod
@@ -163,15 +167,6 @@ protected theorem Finite.image2 (f : α → β → γ) (hs : s.Finite) (ht : t.F
   have := hs.to_subtype
   have := ht.to_subtype
   apply toFinite
-
-</DOC>
-<DOC>
-
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.RingTheory.Polynomial.Content
-theorem content_X_pow {k : ℕ} : content ((X : R[X]) ^ k) = 1 := by
-  induction' k with k hi
-  · simp
-  rw [pow_succ', content_X_mul, hi]
 
 </DOC>
 <DOC>
@@ -269,31 +264,20 @@ theorem reflTransSymmAux_mem_I (x : I × I) : reflTransSymmAux x ∈ I := by
 ",23,"theorem reflTransSymmAux_mem_I (x : I × I) : reflTransSymmAux x ∈ I  := by
   dsimp only [reflTransSymmAux]
   split_ifs
-  exact ⟨流浪者乘积, 浘 orbits $ (1:0 ≤ _ → _)⟩",-1,"theorem val_cast_eq_val_of_lt {m n : ℕ} [nzm : NeZero m] {a : ZMod m}
-    (h : a.val < n) : (a.cast : ZMod n).val = a.val  := by
-  cases m with
-  | zero => cases nzm; simp_all
-  | succ m =>
-    cases n with
-    | zero => cases nzm; simp_all
-    | succ n => exact Fin.val_cast_of_lt h
-theorem cast_cast_zmod_of_le {m n : ℕ} [hm : NeZero m] (h : m ≤ n) (a : ZMod m) :
-    (cast (cast a : ZMod n) : ZMod m) = a   := by
-  have : NeZero n := ⟨((Nat.zero_lt_of_ne_zero hm.out).trans_le h).ne'⟩
-  rw [cast_eq_val, val_cast_eq_val_of_lt (a.val_lt.trans_le h), natCast_zmod_val]
-
-",9,Mathlib.AlgebraicTopology.FundamentalGroupoid.Basic,Qwen-7B-ImproverSFT-RAG,Path.Homotopy.reflTransSymmAux_mem_I
+  exact ⟨流浪者乘积, 浘 orbits $ (1:0 ≤ _ → _)⟩",-1,,0,Mathlib.AlgebraicTopology.FundamentalGroupoid.Basic,Qwen-7B-ImproverSFT-RAG,Path.Homotopy.reflTransSymmAux_mem_I
 "Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>. Include the output in the <IMPROVED>...</IMPROVED> tag.
 
 <RETRIEVED>
 <DOC>
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Closed.Cartesian
-theorem strict_initial {I : C} (t : IsInitial I) (f : A ⟶ I) : IsIso f := by
-  haveI : Mono f := by
-    rw [← ChosenFiniteProducts.lift_snd (𝟙 A) f, ← zeroMul_hom t]
-    exact mono_comp _ _
-  haveI : IsSplitEpi f := IsSplitEpi.mk' ⟨t.to _, t.hom_ext _ _⟩
-  apply isIso_of_mono_of_isSplitEpi
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Order.Sub.Basic
+theorem tsub_lt_of_lt (h : a < b) : a - c < b :=
+  lt_of_le_of_lt tsub_le_self h
+protected theorem tsub_le_tsub_iff_left (ha : AddLECancellable a) (hc : AddLECancellable c)
+    (h : c ≤ a) : a - b ≤ a - c ↔ c ≤ b := by
+  refine ⟨?_, fun h => tsub_le_tsub_left h a⟩
+  rw [tsub_le_iff_left, ← hc.add_tsub_assoc_of_le h, hc.le_tsub_iff_right (h.trans le_add_self),
+    add_comm b]
+  apply ha
 
 </DOC>
 <DOC>
@@ -328,16 +312,34 @@ theorem liftIco_coe_apply {f : 𝕜 → B} {x : 𝕜} (hx : x ∈ Ico a (a + p))
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.SetTheory.ZFC.Ordinal
-theorem isOrdinal_empty : IsOrdinal ∅ :=
-  ⟨isTransitive_empty, fun _ _ H ↦ (not_mem_empty _ H).elim⟩
-theorem isOrdinal_not_mem_univ : IsOrdinal ∉ Class.univ.{u} := by
-  rintro ⟨x, hx, -⟩
-  suffices IsOrdinal x by
-    apply Class.mem_irrefl x
-    rwa [Class.coe_mem, hx]
-  refine ⟨fun y hy z hz ↦ ?_, fun hyz hzw hwx ↦ ?_⟩ <;> rw [← Class.coe_apply, hx] at *
-  exacts [hy.mem hz, hwx.mem_trans hyz hzw]
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.Nat.Digits
+theorem ofDigits_eq_sum_map_with_index_aux (b : ℕ) (l : List ℕ) :
+    ((List.range l.length).zipWith ((fun i a : ℕ => a * b ^ (i + 1))) l).sum =
+      b * ((List.range l.length).zipWith (fun i a => a * b ^ i) l).sum := by
+  suffices
+    (List.range l.length).zipWith (fun i a : ℕ => a * b ^ (i + 1)) l =
+      (List.range l.length).zipWith (fun i a => b * (a * b ^ i)) l
+    by simp [this]
+  congr; ext; simp [pow_succ]; ring
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Order.Filter.Finite
+theorem mem_iInf_of_finite {ι : Type*} [Finite ι] {α : Type*} {f : ι → Filter α} (s) :
+    (s ∈ ⨅ i, f i) ↔ ∃ t : ι → Set α, (∀ i, t i ∈ f i) ∧ s = ⋂ i, t i := by
+  refine ⟨exists_iInter_of_mem_iInf, ?_⟩
+  rintro ⟨t, ht, rfl⟩
+  exact iInter_mem.2 fun i => mem_iInf_of_mem i (ht i)
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Order.Minimal
+theorem Minimal.or (h : Minimal (fun x ↦ P x ∨ Q x) x) : Minimal P x ∨ Minimal Q x := by
+  obtain ⟨h | h, hmin⟩ := h
+  · exact .inl ⟨h, fun y hy hyx ↦ hmin (Or.inl hy) hyx⟩
+  exact .inr ⟨h, fun y hy hyx ↦ hmin (Or.inr hy) hyx⟩
 
 </DOC>
 <DOC>
@@ -352,43 +354,23 @@ theorem toReal_max (hr : a ≠ ∞) (hp : b ≠ ∞) :
     simp only [h, ENNReal.toReal_mono hr h, max_eq_left]
 
 </DOC>
-<DOC>
-
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.RingTheory.Ideal.Maximal
-theorem maximal_of_no_maximal {P : Ideal α}
-    (hmax : ∀ m : Ideal α, P < m → ¬IsMaximal m) (J : Ideal α) (hPJ : P < J) : J = ⊤ := by
-  by_contra hnonmax
-  rcases exists_le_maximal J hnonmax with ⟨M, hM1, hM2⟩
-  exact hmax M (lt_of_lt_of_le hPJ hM2) hM1
-
-</DOC>
-<DOC>
-
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.RingTheory.Polynomial.Content
-theorem content_X_pow {k : ℕ} : content ((X : R[X]) ^ k) = 1 := by
-  induction' k with k hi
-  · simp
-  rw [pow_succ', content_X_mul, hi]
-
-</DOC>
 </RETRIEVED>
 
 <CURRENT>
-theorem transReflReparamAux_mem_I (t : I) : transReflReparamAux t ∈ I := by
-  unfold transReflReparamAux
+theorem transAssocReparamAux_mem_I (t : I) : transAssocReparamAux t ∈ I := by
+  unfold transAssocReparamAux
   split_ifs <;> constructor <;> linarith [unitInterval.le_one t, unitInterval.nonneg t]
 
 
 </CURRENT>
 
-<IMPROVED>","theorem transReflReparamAux_mem_I (t : I) : transReflReparamAux t ∈ I := by
-  unfold transReflReparamAux
+<IMPROVED>","theorem transAssocReparamAux_mem_I (t : I) : transAssocReparamAux t ∈ I := by
+  unfold transAssocReparamAux
   split_ifs <;> constructor <;> linarith [unitInterval.le_one t, unitInterval.nonneg t]
 
-",8,"theorem transReflReparamAux_mem_I (t : I) : transReflReparamAux t ∈ I  := by
-  unfold transReflReparamAux
-  split_ifs <;> constructor <;> linarith [unitInterval.le_one t, unitInterval.nonneg t]
-",8,,0,Mathlib.AlgebraicTopology.FundamentalGroupoid.Basic,Qwen-7B-ImproverSFT-RAG,Path.Homotopy.transReflReparamAux_mem_I
+",11,"theorem transAssocReparamAux_mem_I (t : I) : transAssocReparamAux t ∈ I  := by
+  unfold transAssocReparamAux
+  split_ifs <;> constructor <;> linarith [unitInterval.le_one t, unitInterval.nonneg t]",11,,0,Mathlib.AlgebraicTopology.FundamentalGroupoid.Basic,Qwen-7B-ImproverSFT-RAG,Path.Homotopy.transAssocReparamAux_mem_I
 "Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>. Include the output in the <IMPROVED>...</IMPROVED> tag.
 
 <RETRIEVED>
@@ -436,17 +418,6 @@ protected theorem Finite.image2 (f : α → β → γ) (hs : s.Finite) (ht : t.F
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Closed.Cartesian
-theorem strict_initial {I : C} (t : IsInitial I) (f : A ⟶ I) : IsIso f := by
-  haveI : Mono f := by
-    rw [← ChosenFiniteProducts.lift_snd (𝟙 A) f, ← zeroMul_hom t]
-    exact mono_comp _ _
-  haveI : IsSplitEpi f := IsSplitEpi.mk' ⟨t.to _, t.hom_ext _ _⟩
-  apply isIso_of_mono_of_isSplitEpi
-
-</DOC>
-<DOC>
-
 --src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.RingTheory.MvPowerSeries.Basic
 theorem coeff_apply (f : MvPowerSeries σ R) (d : σ →₀ ℕ) : coeff R d f = f d :=
   rfl
@@ -458,6 +429,18 @@ theorem monomial_def [DecidableEq σ] (n : σ →₀ ℕ) :
   rw [monomial]
   -- unify the `Decidable` arguments
   convert rfl
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Topology.Instances.AddCircle
+theorem liftIoc_coe_apply {f : 𝕜 → B} {x : 𝕜} (hx : x ∈ Ioc a (a + p)) :
+    liftIoc p a f ↑x = f x := by
+  have : (equivIoc p a) x = ⟨x, hx⟩ := by
+    rw [Equiv.apply_eq_iff_eq_symm_apply]
+    rfl
+  rw [liftIoc, comp_apply, this]
+  rfl
 
 </DOC>
 <DOC>
@@ -475,14 +458,19 @@ theorem degree_mul_leadingCoeff_self_inv (p : K[X]) :
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Analysis.Normed.Lp.PiLp
-theorem aux_uniformity_eq : 𝓤 (PiLp p β) = 𝓤[Pi.uniformSpace _] := by
-  have A : IsUniformInducing (WithLp.equiv p (∀ i, β i)) :=
-    (antilipschitzWith_equiv_aux p β).isUniformInducing
-      (lipschitzWith_equiv_aux p β).uniformContinuous
-  have : (fun x : PiLp p β × PiLp p β => (WithLp.equiv p _ x.fst, WithLp.equiv p _ x.snd)) = id :=
-    by ext i <;> rfl
-  rw [← A.comap_uniformity, this, comap_id]
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Abelian.FunctorCategory
+theorem coimageImageComparison_app' :
+    (coimageImageComparison α).app X =
+      (coimageObjIso α X).hom ≫ coimageImageComparison (α.app X) ≫ (imageObjIso α X).inv := by
+  simp only [coimageImageComparison_app, Iso.hom_inv_id_assoc, Iso.hom_inv_id, Category.assoc,
+    Category.comp_id]
+instance functor_category_isIso_coimageImageComparison :
+    IsIso (Abelian.coimageImageComparison α) := by
+  have : ∀ X : C, IsIso ((Abelian.coimageImageComparison α).app X) := by
+    intros
+    rw [coimageImageComparison_app']
+    infer_instance
+  apply NatIso.isIso_of_isIso_app
 
 </DOC>
 </RETRIEVED>
@@ -637,23 +625,34 @@ alias independent_iff_forall_dfinsupp := iSupIndep_iff_forall_dfinsupp
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Category.Ring.Basic
-lemma coe_of (R : Type u) [CommSemiring R] : (of R : Type u) = R :=
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Category.ModuleCat.Basic
+lemma coe_of (X : Type v) [Ring X] [Module R X] : (of R X : Type v) = X :=
   rfl
-lemma of_carrier (R : CommSemiRingCat.{u}) : of R = R := rfl
+-- Ensure the roundtrips are reducibly defeq (so tactics like `rw` can see through them).
 variable {R} in
 @[ext]
-structure Hom (R S : CommSemiRingCat) where
+structure Hom (M N : ModuleCat.{v} R) where
   private mk ::
-  hom : R →+* S
-instance : Category CommSemiRingCat where
-  Hom R S := Hom R S
-  id R := ⟨RingHom.id R⟩
+  hom : M →ₗ[R] N
+instance moduleCategory : Category.{v, max (v+1) u} (ModuleCat.{v} R) where
+  Hom M N := Hom M N
+  id _ := ⟨LinearMap.id⟩
   comp f g := ⟨g.hom.comp f.hom⟩
-instance {R S : CommSemiRingCat.{u}} : CoeFun (R ⟶ S) (fun _ ↦ R → S) where
+instance {M N : ModuleCat.{v} R} : CoeFun (M ⟶ N) (fun _ ↦ M → N) where
   coe f := f.hom
 @[simp]
-lemma hom_id {R : CommSemiRingCat} : (𝟙 R : R ⟶ R).hom = RingHom.id R := rfl
+lemma hom_id {M : ModuleCat.{v} R} : (𝟙 M : M ⟶ M).hom = LinearMap.id := rfl
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Analysis.Normed.Algebra.Unitization
+theorem continuous_inr : Continuous (inr : A → Unitization 𝕜 A) :=
+  isometry_inr.continuous
+lemma dist_inr (a b : A) : dist (a : Unitization 𝕜 A) (b : Unitization 𝕜 A) = dist a b :=
+  isometry_inr.dist_eq a b
+lemma nndist_inr (a b : A) : nndist (a : Unitization 𝕜 A) (b : Unitization 𝕜 A) = nndist a b :=
+  isometry_inr.nndist_eq a b
 
 </DOC>
 <DOC>
@@ -670,17 +669,6 @@ theorem coeff_smul {n : ℕ} {a : R} {f : R[X]} : (a • f).coeff n = a * f.coef
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Analysis.Normed.Algebra.Unitization
-theorem continuous_inr : Continuous (inr : A → Unitization 𝕜 A) :=
-  isometry_inr.continuous
-lemma dist_inr (a b : A) : dist (a : Unitization 𝕜 A) (b : Unitization 𝕜 A) = dist a b :=
-  isometry_inr.dist_eq a b
-lemma nndist_inr (a b : A) : nndist (a : Unitization 𝕜 A) (b : Unitization 𝕜 A) = nndist a b :=
-  isometry_inr.nndist_eq a b
-
-</DOC>
-<DOC>
-
 --src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.List.Destutter
 theorem length_destutter'_congr [IsEquiv α Rᶜ] (hab : ¬R a b) :
     (l.destutter' R a).length = (l.destutter' R b).length :=
@@ -689,13 +677,9 @@ theorem length_destutter'_congr [IsEquiv α Rᶜ] (hab : ¬R a b) :
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Category.Ring.Basic
-lemma hom_id {R : RingCat} : (𝟙 R : R ⟶ R).hom = RingHom.id R := rfl
-lemma id_apply (R : RingCat) (r : R) :
-    (𝟙 R : R ⟶ R) r = r := by simp
-@[simp]
-lemma hom_comp {R S T : RingCat} (f : R ⟶ S) (g : S ⟶ T) :
-    (f ≫ g).hom = g.hom.comp f.hom := rfl
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Order.Heyting.Regular
+theorem isRegular_bot : IsRegular (⊥ : α) := by rw [IsRegular, compl_bot, compl_top]
+theorem isRegular_top : IsRegular (⊤ : α) := by rw [IsRegular, compl_top, compl_bot]
 
 </DOC>
 </RETRIEVED>
@@ -714,88 +698,232 @@ private theorem start_path : f x₀ = g x₂ := by convert hfg 0 <;> simp only [
 
 <RETRIEVED>
 <DOC>
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Limits.Shapes.SequentialProduct
-noncomputable def functorMap : ∀ n,
-    functorObj M N (n + 1) ⟶ functorObj M N n := by
-  intro n
-  refine Limits.Pi.map fun m ↦ if h : m < n then eqToHom ?_ else
-    if h' : m < n + 1 then eqToHom ?_ ≫ f m ≫ eqToHom ?_ else eqToHom ?_
-  all_goals split_ifs; try rfl; try omega
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Group.Opposite
+def MonoidHom.op {M N} [MulOneClass M] [MulOneClass N] : (M →* N) ≃ (Mᵐᵒᵖ →* Nᵐᵒᵖ) where
+  toFun f :=
+    { toFun := MulOpposite.op ∘ f ∘ unop, map_one' := congrArg MulOpposite.op f.map_one,
+      map_mul' := fun x y => unop_injective (f.map_mul y.unop x.unop) }
+  invFun f :=
+    { toFun := unop ∘ f ∘ MulOpposite.op, map_one' := congrArg unop f.map_one,
+      map_mul' := fun x y => congrArg unop (f.map_mul (MulOpposite.op y) (MulOpposite.op x)) }
+  left_inv _ := rfl
+  right_inv _ := rfl
+@[to_additive (attr := simp)
+      ""The 'unopposite' of an additive monoid homomorphism `Mᵃᵒᵖ →+ Nᵃᵒᵖ`. Inverse to
+      `AddMonoidHom.op`.""]
 
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.AlgebraicTopology.DoldKan.NCompGamma
-instance : IsIso (Γ₂N₂.natTrans : (N₂ : Karoubi (SimplicialObject C) ⥤ _) ⋙ _ ⟶ _) := by
-  have : ∀ P : Karoubi (SimplicialObject C), IsIso (Γ₂N₂.natTrans.app P) := by
-    intro P
-    have : IsIso (N₂.map (Γ₂N₂.natTrans.app P)) := by
-      have h := identity_N₂_objectwise P
-      erw [hom_comp_eq_id] at h
-      rw [h]
-      infer_instance
-    exact isIso_of_reflects_iso _ N₂
-  apply NatIso.isIso_of_isIso_app
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.BigOperators.Finsupp
+@[to_additive
+      "" Taking a sum over `f : α →₀ M` is the same as adding the value on a
+      single element `y ∈ f.support` to the sum over `erase y f`. ""]
 
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Homology.TotalComplexSymmetry
-noncomputable def totalFlipIsoX (j : J) : (K.flip.total c).X j ≅ (K.total c).X j where
-  hom := K.flip.totalDesc (fun i₂ i₁ h => ComplexShape.σ c₁ c₂ c i₁ i₂ • K.ιTotal c i₁ i₂ j (by
-    rw [← ComplexShape.π_symm c₁ c₂ c i₁ i₂, h]))
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.GroupTheory.FreeGroup.Basic
+@[to_additive ""If `x` and `y` are distinct letters and `w₁ w₂` are words such that `x + w₁` reduces
+  to `y + w₂`, then `w₁` reduces to `-x + y + w₂`.""]
 
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Category.ModuleCat.Presheaf.Free
-variable {R} in
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Triangulated.Basic
+def triangleMorphismId (T : Triangle C) : TriangleMorphism T T where
+  hom₁ := 𝟙 T.obj₁
+  hom₂ := 𝟙 T.obj₂
+  hom₃ := 𝟙 T.obj₃
+instance (T : Triangle C) : Inhabited (TriangleMorphism T T) :=
+  ⟨triangleMorphismId T⟩
 @[simps]
-noncomputable def freeObj (F : Cᵒᵖ ⥤ Type u) : PresheafOfModules.{u} R where
-  obj X := (ModuleCat.free (R.obj X)).obj (F.obj X)
-  map {X Y} f := ModuleCat.freeDesc (fun x ↦ ModuleCat.freeMk (F.map f x))
-  map_id := by aesop
+def TriangleMorphism.comp (f : TriangleMorphism T₁ T₂) (g : TriangleMorphism T₂ T₃) :
+    TriangleMorphism T₁ T₃ where
+  hom₁ := f.hom₁ ≫ g.hom₁
+  hom₂ := f.hom₂ ≫ g.hom₂
+  hom₃ := f.hom₃ ≫ g.hom₃
+@[simps]
+instance triangleCategory : Category (Triangle C) where
+  Hom A B := TriangleMorphism A B
+  id A := triangleMorphismId A
+  comp f g := f.comp g
+@[ext]
 
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Order.BooleanAlgebra
--- See note [reducible non instances]
-abbrev GeneralizedBooleanAlgebra.toBooleanAlgebra [GeneralizedBooleanAlgebra α] [OrderTop α] :
-    BooleanAlgebra α where
-  __ := ‹GeneralizedBooleanAlgebra α›
-  __ := GeneralizedBooleanAlgebra.toOrderBot
-  __ := ‹OrderTop α›
-  compl a := ⊤ \ a
-  inf_compl_le_bot _ := disjoint_sdiff_self_right.le_bot
-  top_le_sup_compl _ := le_sup_sdiff
-  sdiff_eq _ _ := by
-      -- Porting note: changed `rw` to `erw` here.
-      -- https://github.com/leanprover-community/mathlib4/issues/5164
-      erw [← inf_sdiff_assoc, inf_top_eq]
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Topology.Algebra.InfiniteSum.Nonarchimedean
+@[to_additive ""Let `G` be a nonarchimedean additive abelian group, and let `f : α → G` be a function
+that tends to zero on the filter of cofinite sets. For each finite subset of `α`, consider the
+partial sum of `f` on that subset. These partial sums form a Cauchy filter.""]
 
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Closed.Cartesian
-theorem strict_initial {I : C} (t : IsInitial I) (f : A ⟶ I) : IsIso f := by
-  haveI : Mono f := by
-    rw [← ChosenFiniteProducts.lift_snd (𝟙 A) f, ← zeroMul_hom t]
-    exact mono_comp _ _
-  haveI : IsSplitEpi f := IsSplitEpi.mk' ⟨t.to _, t.hom_ext _ _⟩
-  apply isIso_of_mono_of_isSplitEpi
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Combinatorics.Additive.ETransform
+@[to_additive (attr := simps) ""The **Dyson e-transform**.
+Turns `(s, t)` into `(s ∪ e +ᵥ t, t ∩ -e +ᵥ s)`. This reduces the sum of the two sets.""]
+def mulDysonETransform : Finset α × Finset α :=
+  (x.1 ∪ e • x.2, x.2 ∩ e⁻¹ • x.1)
+@[to_additive]
 
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.Int.ModEq
-@[gcongr]
-protected theorem mul (h₁ : a ≡ b [ZMOD n]) (h₂ : c ≡ d [ZMOD n]) : a * c ≡ b * d [ZMOD n] :=
-  (h₂.mul_left _).trans (h₁.mul_right _)
-@[gcongr] protected theorem pow (m : ℕ) (h : a ≡ b [ZMOD n]) : a ^ m ≡ b ^ m [ZMOD n] := by
-  induction' m with d hd; · rfl
-  rw [pow_succ, pow_succ]
-  exact hd.mul h
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Analysis.NormedSpace.Multilinear.Basic
+@[simp] lemma iteratedFDerivComponent_apply {α : Type*} [Fintype α]
+    (f : ContinuousMultilinearMap 𝕜 E₁ G) {s : Set ι} (e : α ≃ s) [DecidablePred (· ∈ s)]
+    (v : ∀ i : {a : ι // a ∉ s}, E₁ i) (w : α → (∀ i, E₁ i)) :
+    f.iteratedFDerivComponent e v w =
+      f (fun j ↦ if h : j ∈ s then w (e.symm ⟨j, h⟩) j else v ⟨j, h⟩) := by
+  simp [iteratedFDerivComponent, MultilinearMap.iteratedFDerivComponent,
+    MultilinearMap.domDomRestrictₗ]
+
+</DOC>
+</RETRIEVED>
+
+<CURRENT>
+/-- The map taking the pi product of a family of fundamental groupoids to the fundamental
+groupoid of the pi product. This is actually an isomorphism (see `piIso`)
+-/
+@[simps]
+def piToPiTop : (∀ i, πₓ (X i)) ⥤ πₓ (TopCat.of (∀ i, X i)) where
+  obj g := ⟨fun i => (g i).as⟩
+  map p := Path.Homotopic.pi p
+  map_id x := by
+    change (Path.Homotopic.pi fun i => ⟦_⟧) = _
+    simp only [FundamentalGroupoid.id_eq_path_refl, Path.Homotopic.pi_lift]
+    rfl
+  map_comp f g := (Path.Homotopic.comp_pi_eq_pi_comp f g).symm
+
+
+</CURRENT>
+
+<IMPROVED>","/-- The map taking the pi product of a family of fundamental groupoids to the fundamental
+groupoid of the pi product. This is actually an isomorphism (see `piIso`)
+-/
+@[simps]
+def piToPiTop : (∀ i, πₓ (X i)) ⥤ πₓ (TopCat.of (∀ i, X i)) where
+  obj g := ⟨fun i => (g i).as⟩
+  map p := Path.Homotopic.pi p
+  map_id x := by
+    change (Path.Homotopic.pi fun i => ⟦_⟧) = _
+    simp only [FundamentalGroupoid.id_eq_path_refl, Path.Homotopic.pi_lift]
+    rfl
+  map_comp f g := (Path.Homotopic.comp_pi_eq_pi_comp f g).symm
+
+",3,"/-- The map taking the pi product of a family of fundamental groupoids to the fundamental
+groupoid of the pi product. This is actually an isomorphism (see `piIso`)
+-/
+@[simps]
+def piToPiTop : (∀ i, πₓ (X i)) ⥤ πₓ (TopCat.of (∀ i, X i)) where
+  obj g  := ⟨fun i => (g i).as⟩
+  map p  := Path.Homotopic.pi p
+  map_id x := by
+    change (Path.Homotopic.pi fun i => ⟦_⟧) = _ -- broken in Lemma 2.2
+    simp only [FundamentalGroupoid.id_eq_path_refl, Path.Homotopic.pi_lift]
+    rfl
+  map_comp f g  := (Path.Homotopic.comp_pi_eq_pi_comp f g).symm
+
+
+",3,,0,Mathlib.AlgebraicTopology.FundamentalGroupoid.Product,Qwen-7B-ImproverSFT-RAG,FundamentalGroupoidFunctor.piToPiTop
+"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>. Include the output in the <IMPROVED>...</IMPROVED> tag.
+
+<RETRIEVED>
+<DOC>
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.AlgebraicTopology.SimplexCategory
+theorem Hom.ext {n} {a b : Truncated n} (f g : a ⟶ b) :
+    f.toOrderHom = g.toOrderHom → f = g := SimplexCategory.Hom.ext _ _
+instance : ConcreteCategory.{0} SimplexCategory where
+  forget :=
+    { obj := fun i => Fin (i.len + 1)
+      map := fun f => f.toOrderHom }
+  forget_faithful := ⟨fun h => by ext : 2; exact h⟩
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Topology.Homotopy.Basic
+@[simps!] def compContinuousMap {f₀ f₁ : C(X, Y)} (F : f₀.HomotopyRel f₁ S) (g : C(Y, Z)) :
+    (g.comp f₀).HomotopyRel (g.comp f₁) S where
+  toHomotopy := F.hcomp (ContinuousMap.Homotopy.refl g)
+  prop' t x hx := congr_arg g (F.prop t x hx)
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Tactic.Ring.Basic
+def ExProd.evalInv {a : Q($α)} (czα : Option Q(CharZero $α)) (va : ExProd sα a) :
+    AtomM (Result (ExProd sα) q($a⁻¹)) := do
+  Lean.Core.checkSystem decl_name%.toString
+  match va with
+  | .const c hc =>
+    let ra := Result.ofRawRat c a hc
+    match NormNum.evalInv.core q($a⁻¹) a ra dα czα with
+    | some rc =>
+      let ⟨zc, hc⟩ := rc.toRatNZ.get!
+      let ⟨c, pc⟩ := rc.toRawEq
+      pure ⟨c, .const zc hc, pc⟩
+    | none =>
+      let ⟨_, vc, pc⟩ ← evalInvAtom sα dα a
+      pure ⟨_, vc.toProd (ExProd.mkNat sℕ 1).2, q(toProd_pf $pc)⟩
+  | .mul (x := a₁) (e := _a₂) _va₁ va₂ va₃ => do
+    let ⟨_b₁, vb₁, pb₁⟩ ← evalInvAtom sα dα a₁
+    let ⟨_b₃, vb₃, pb₃⟩ ← va₃.evalInv czα
+    let ⟨c, vc, (pc : Q($_b₃ * ($_b₁ ^ $_a₂ * Nat.rawCast 1) = $c))⟩ ←
+      evalMulProd sα vb₃ (vb₁.toProd va₂)
+    pure ⟨c, vc, (q(inv_mul $pb₁ $pb₃ $pc) : Expr)⟩
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Algebra.Subalgebra.Basic
+theorem toSubmodule_injective : Function.Injective (toSubmodule : Subalgebra R A → Submodule R A) :=
+  fun _S₁ _S₂ h => SetLike.ext (SetLike.ext_iff.mp h :)
+instance (priority := low) module' [Semiring R'] [SMul R' R] [Module R' A] [IsScalarTower R' R A] :
+    Module R' S :=
+  S.toSubmodule.module'
+instance : Module R S :=
+  S.module'
+instance [Semiring R'] [SMul R' R] [Module R' A] [IsScalarTower R' R A] : IsScalarTower R' R S :=
+  inferInstanceAs (IsScalarTower R' R (toSubmodule S))
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Category.Ring.Basic
+lemma coe_of (R : Type u) [Ring R] : (of R : Type u) = R :=
+  rfl
+lemma of_carrier (R : RingCat.{u}) : of R = R := rfl
+variable {R} in
+@[ext]
+structure Hom (R S : RingCat) where
+  private mk ::
+  hom : R →+* S
+instance : Category RingCat where
+  Hom R S := Hom R S
+  id R := ⟨RingHom.id R⟩
+  comp f g := ⟨g.hom.comp f.hom⟩
+instance {R S : RingCat.{u}} : CoeFun (R ⟶ S) (fun _ ↦ R → S) where
+  coe f := f.hom
+@[simp]
+lemma hom_id {R : RingCat} : (𝟙 R : R ⟶ R).hom = RingHom.id R := rfl
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.List.Destutter
+theorem length_destutter'_congr [IsEquiv α Rᶜ] (hab : ¬R a b) :
+    (l.destutter' R a).length = (l.destutter' R b).length :=
+  (length_destutter'_cotrans_ge hab).antisymm <| length_destutter'_cotrans_ge (symm hab : Rᶜ b a)
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.MeasureTheory.Function.UniformIntegrable
+@[deprecated (since := ""2024-07-27"")]
+alias Memℒp.snormEssSup_indicator_norm_ge_eq_zero := Memℒp.eLpNormEssSup_indicator_norm_ge_eq_zero
 
 </DOC>
 </RETRIEVED>
@@ -892,6 +1020,32 @@ noncomputable instance {P' : TopCat.{u} → Prop}
 </DOC>
 <DOC>
 
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.AlgebraicGeometry.ProjectiveSpectrum.StructureSheaf
+ma : Membership.mem Va ↑x
+    ia : Quiver.Hom Va (Opposite.unop U)
+    ja : Nat
+    ra : A
+    ra_mem : Membership.mem (𝒜 ja) ra
+    sa : A
+    sa_mem : Membership.mem (𝒜 ja) sa
+    hwa : ∀ (x : Subtype fun x => Membership.mem Va x), Not (Membership.mem (↑x).a …
+    wa : ∀ (x : Subtype fun x => Membership.mem Va x), Eq ((fun x => a ((fun x =>  …
+    ⊢ Exists fun V => Exists fun x => Exists fun i => (AlgebraicGeometry.Projectiv …
+  -/
+  rcases hb x with ⟨Vb, mb, ib, jb, ⟨rb, rb_mem⟩, ⟨sb, sb_mem⟩, hwb, wb⟩
+  refine
+    ⟨Va ⊓ Vb, ⟨ma, mb⟩, Opens.infLELeft _ _ ≫ ia, ja + jb,
+      ⟨ra * rb, SetLike.mul_mem_graded ra_mem rb_mem⟩,
+      ⟨sa * sb, SetLike.mul_mem_graded sa_mem sb_mem⟩, fun y =>
+      y.1.asHomogeneousIdeal.toIdeal.primeCompl.mul_mem (hwa ⟨y.1, y.2.1⟩) (hwb ⟨y.1, y.2.2⟩),
+      fun y ↦ ?_⟩
+  simp only [Pi.mul_apply, wa ⟨y.1, y.2.1⟩, wb ⟨y.1, y.2.2⟩, ext_iff_val, val_mul, val_mk,
+    Localization.mk_mul]
+  /-
+
+</DOC>
+<DOC>
+
 --src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Analysis.NormedSpace.Multilinear.Basic
 @[simp] lemma iteratedFDerivComponent_apply {α : Type*} [Fintype α]
     (f : ContinuousMultilinearMap 𝕜 E₁ G) {s : Set ι} (e : α ≃ s) [DecidablePred (· ∈ s)]
@@ -921,39 +1075,6 @@ zero_add, indicator_of_mem (mem_Ioo.mpr ⟨div_pos one_pos hx, this⟩), g_modif
     simp_rw [rpow_neg (one_div_pos.mpr hx).le, one_div, inv_rpow hx.le, inv_inv]
   · simp [f_modif, g_modif]
     /-
-
-</DOC>
-<DOC>
-
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Monoidal.Hopf_
-theorem mul_antipode₁ (A : Hopf_ C) :
-    (A.X.comul.hom ⊗ A.X.comul.hom) ≫
-      (α_ A.X.X.X A.X.X.X (A.X.X.X ⊗ A.X.X.X)).hom ≫
-      A.X.X.X ◁ (α_ A.X.X.X A.X.X.X A.X.X.X).inv ≫
-      A.X.X.X ◁ (β_ A.X.X.X A.X.X.X).hom ▷ A.X.X.X ≫
-      (α_ A.X.X.X (A.X.X.X ⊗ A.X.X.X) A.X.X.X).inv ≫
-      (α_ A.X.X.X A.X.X.X A.X.X.X).inv ▷ A.X.X.X ≫
-      A.X.X.mul ▷ A.X.X.X ▷ A.X.X.X ≫
-      A.antipode ▷ A.X.X.X ▷ A.X.X.X ≫
-      (α_ A.X.X.X A.X.X.X A.X.X.X).hom ≫
-      A.X.X.X ◁ A.X.X.mul ≫
-      A.X.X.mul =
-    (A.X.counit.hom ⊗ A.X.counit.hom) ≫ (λ_ (𝟙_ C)).hom ≫ A.X.X.one := by
-  slice_lhs 8 9 =>
-    rw [associator_naturality_left]
-  slice_lhs 9 10 =>
-    rw [← whisker_exchange]
-  slice_lhs 7 8 =>
-    rw [associator_naturality_left]
-  slice_lhs 8 9 =>
-    rw [← tensorHom_def]
-  simp only [Mon_.monMonoidalStruct_tensorObj_X, Category.assoc, pentagon_inv_inv_hom_hom_inv_assoc,
-    Mon_.tensorUnit_X]
-  slice_lhs 1 7 =>
-    erw [Bimon_.compatibility]
-  slice_lhs 2 4 =>
-    rw [antipode_left]
-  /-
 
 </DOC>
 <DOC>
@@ -1093,6 +1214,34 @@ instance [Semiring R'] [SMul R' R] [Module R' A] [IsScalarTower R' R A] : IsScal
 </DOC>
 <DOC>
 
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.CategoryTheory.Galois.Basic
+lemma surjective_on_fiber_of_epi {X Y : C} (f : X ⟶ Y) [Epi f] : Function.Surjective (F.map f) :=
+  surjective_of_epi (FintypeCat.incl.map (F.map f))
+
+</DOC>
+<DOC>
+
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Algebra.Category.Ring.Basic
+lemma coe_of (R : Type u) [Ring R] : (of R : Type u) = R :=
+  rfl
+lemma of_carrier (R : RingCat.{u}) : of R = R := rfl
+variable {R} in
+@[ext]
+structure Hom (R S : RingCat) where
+  private mk ::
+  hom : R →+* S
+instance : Category RingCat where
+  Hom R S := Hom R S
+  id R := ⟨RingHom.id R⟩
+  comp f g := ⟨g.hom.comp f.hom⟩
+instance {R S : RingCat.{u}} : CoeFun (R ⟶ S) (fun _ ↦ R → S) where
+  coe f := f.hom
+@[simp]
+lemma hom_id {R : RingCat} : (𝟙 R : R ⟶ R).hom = RingHom.id R := rfl
+
+</DOC>
+<DOC>
+
 --src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.AlgebraicTopology.SimplexCategory
 theorem Hom.ext {n} {a b : Truncated n} (f g : a ⟶ b) :
     f.toOrderHom = g.toOrderHom → f = g := SimplexCategory.Hom.ext _ _
@@ -1105,30 +1254,10 @@ instance : ConcreteCategory.{0} SimplexCategory where
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.Complex.Module
-theorem coe_basisOneI : ⇑basisOneI = ![1, I] :=
-  funext fun i =>
-    Basis.apply_eq_iff.mpr <|
-      Finsupp.ext fun j => by
-        fin_cases i <;> fin_cases j <;>
-          -- Porting note: removed `only`, consider squeezing again
-          simp [coe_basisOneI_repr, Finsupp.single_eq_of_ne, Matrix.cons_val_zero,
-            Matrix.cons_val_one, Matrix.head_cons, Fin.one_eq_zero_iff, Ne, not_false_iff, I_re,
-            Nat.succ_succ_ne_one, one_im, I_im, one_re, Finsupp.single_eq_same, Fin.zero_eq_one_iff]
-instance (priority := 900) Module.complexToReal (E : Type*) [AddCommGroup E] [Module ℂ E] :
-    Module ℝ E :=
-  RestrictScalars.module ℝ ℂ E
-
-</DOC>
-<DOC>
-
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Analysis.Normed.Algebra.Unitization
-theorem continuous_inr : Continuous (inr : A → Unitization 𝕜 A) :=
-  isometry_inr.continuous
-lemma dist_inr (a b : A) : dist (a : Unitization 𝕜 A) (b : Unitization 𝕜 A) = dist a b :=
-  isometry_inr.dist_eq a b
-lemma nndist_inr (a b : A) : nndist (a : Unitization 𝕜 A) (b : Unitization 𝕜 A) = nndist a b :=
-  isometry_inr.nndist_eq a b
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.List.Destutter
+theorem length_destutter'_congr [IsEquiv α Rᶜ] (hab : ¬R a b) :
+    (l.destutter' R a).length = (l.destutter' R b).length :=
+  (length_destutter'_cotrans_ge hab).antisymm <| length_destutter'_cotrans_ge (symm hab : Rᶜ b a)
 
 </DOC>
 <DOC>
@@ -1139,14 +1268,6 @@ theorem mem_conj_support (k : ConjAct (Perm α)) (g : Perm α) (a : α) :
   simp only [mem_support, ConjAct.smul_def, not_iff_not, coe_mul,
     Function.comp_apply, ConjAct.ofConjAct_inv]
   apply Equiv.apply_eq_iff_eq_symm_apply
-
-</DOC>
-<DOC>
-
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.List.Destutter
-theorem length_destutter'_congr [IsEquiv α Rᶜ] (hab : ¬R a b) :
-    (l.destutter' R a).length = (l.destutter' R b).length :=
-  (length_destutter'_cotrans_ge hab).antisymm <| length_destutter'_cotrans_ge (symm hab : Rᶜ b a)
 
 </DOC>
 </RETRIEVED>
@@ -1183,16 +1304,7 @@ theorem simply_connected_iff_paths_homotopic {Y : Type*} [TopologicalSpace Y] :
   exact ⟨inferInstance, fun x y => ⟨uniqueOfSubsingleton ⟦PathConnectedSpace.somePath x y⟧⟩⟩⟩
 
 
-",8,"/-!
-  This theorem is somewhat _heuristic_ in nature.  -/
-
-theorem simply_connected_iff_paths_homotopic {Y : Type*} [TopologicalSpace Y] :
-    SimplyConnectedSpace Y ↔
-      PathConnectedSpace Y ∧ ∀ x y : Y, Subsingleton (Path.Homotopic.Quotient x y)   := by
-  ⟨by rintro; constructor <;> infer_instance, by rintro ⟨hx, hy⟩; rw [hx, hy]⟩
-
-
-",0,Mathlib.AlgebraicTopology.FundamentalGroupoid.SimplyConnected,Qwen-7B-ImproverSFT-RAG,simply_connected_iff_paths_homotopic
+",8,,0,Mathlib.AlgebraicTopology.FundamentalGroupoid.SimplyConnected,Qwen-7B-ImproverSFT-RAG,simply_connected_iff_paths_homotopic
 "Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>. Include the output in the <IMPROVED>...</IMPROVED> tag.
 
 <RETRIEVED>
@@ -1275,14 +1387,17 @@ theorem Finset.support_sum_subset [AddCommMonoid M] (s : Finset (ι →₀ M)) :
 </DOC>
 <DOC>
 
---src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.Data.ENNReal.Real
-theorem toNNReal_lt_of_lt_coe (h : a < p) : a.toNNReal < p :=
-  @toNNReal_coe p ▸ toNNReal_strict_mono coe_ne_top h
-theorem toReal_max (hr : a ≠ ∞) (hp : b ≠ ∞) :
-    ENNReal.toReal (max a b) = max (ENNReal.toReal a) (ENNReal.toReal b) :=
-  (le_total a b).elim
-    (fun h => by simp only [h, ENNReal.toReal_mono hp h, max_eq_right]) fun h => by
-    simp only [h, ENNReal.toReal_mono hr h, max_eq_left]
+--src: /home/riyaza/eval_improver/improver/RAG/annotated/Mathlib/Mathlib.NumberTheory.ArithmeticFunction
+theorem id_apply {x : ℕ} : id x = x :=
+  rfl
+def pow (k : ℕ) : ArithmeticFunction ℕ :=
+  id.ppow k
+@[simp]
+theorem pow_apply {k n : ℕ} : pow k n = if k = 0 ∧ n = 0 then 0 else n ^ k := by
+  cases k
+  · simp [pow]
+  rename_i k  -- Porting note: added
+  simp [pow, k.succ_pos.ne']
 
 </DOC>
 </RETRIEVED>
