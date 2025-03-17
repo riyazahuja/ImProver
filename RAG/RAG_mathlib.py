@@ -8,6 +8,8 @@ from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+
 from langchain_ollama import OllamaEmbeddings
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import os, json, shutil, copy
@@ -98,7 +100,7 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
         )
 
     database_path = os.path.join(
-        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
+        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db2"
     )
 
     if replace:
@@ -131,30 +133,33 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
     )
     docs = splitter.split_documents(docs)
     print("Number of chunks:", len(docs))
-    embeddings = OllamaEmbeddings(model="llama3.2")
+    # embeddings = OllamaEmbeddings(model="llama3.2")
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Qwen-7B-improverSFT"
+    )
+
     vectorstore = Chroma(
         collection_name="Annotated_Mathlib_Theorems",
         persist_directory=database_path,
         embedding_function=embeddings,
     )
 
-    def embed(doc):
-        return embeddings.embed_query(doc.page_content)
-
     docs = docs[:max_docs] if max_docs is not None else docs
     docs = docs[:100]
     # vectorstore.add_documents(docs)
-    with ProcessPoolExecutor() as executor:
-        emb = executor.map(embed, docs)
-    vectorstore.add_documents(docs, embeddings=emb)
+
+    vectorstore.add_documents(docs)
     return vectorstore
 
 
 def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
     database_path = os.path.join(
-        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
+        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db2"
     )
-    embeddings = OllamaEmbeddings(model="llama3.2")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="/data/user_data/riyaza/saved_models/DeepSeek-R1-Distill-Qwen-7B-improverSFT"
+    )
     # database = Chroma(
     #     collection_name=f"Annotated_{package_name}_Theorems",
     #     # persist_directory=database_path,
@@ -196,19 +201,19 @@ if __name__ == "__main__":
     # save_annotated_library()
 
     # Compile the database (takes a hot minute)
-    # create_database_of_annotated(replace=True)
+    create_database_of_annotated(replace=True)
 
     # Test retrieval
-    retriever = get_database_retriever()
-    output = retriever.invoke(
-        """variable (m) in
-/-- Delete the leading term in a multivariate polynomial (for some monomial order) -/
-noncomputable def subLTerm (f : MvPolynomial σ R) : MvPolynomial σ R :=
-  f - monomial (m.degree f) (m.lCoeff f)"""
-    )
-    print(output)
-    print(type(output))
-    for doc in output:
-        print(f"[{doc.metadata}]")
-        print(doc.page_content)
-        print("===============")
+#     retriever = get_database_retriever()
+#     output = retriever.invoke(
+#         """variable (m) in
+# /-- Delete the leading term in a multivariate polynomial (for some monomial order) -/
+# noncomputable def subLTerm (f : MvPolynomial σ R) : MvPolynomial σ R :=
+#   f - monomial (m.degree f) (m.lCoeff f)"""
+#     )
+#     print(output)
+#     print(type(output))
+#     for doc in output:
+#         print(f"[{doc.metadata}]")
+#         print(doc.page_content)
+#         print("===============")
