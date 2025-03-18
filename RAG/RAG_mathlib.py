@@ -1,5 +1,7 @@
 from __future__ import annotations
 from langchain.globals import set_debug
+import time
+
 # from ollama import embeddings
 
 set_debug(False)
@@ -61,15 +63,19 @@ def get_library_lean_files(
 def save_annotated_library(
     library_name="Mathlib",
     path=os.path.join(ROOT_PATH, ".lake", "packages", "mathlib", "Mathlib"),
-    style="new"
+    style="new",
 ):
     modules = get_library_lean_files(library_name, path)
     # modules = ['Mathlib.Data.Finset.MulAntidiagonal', 'Mathlib.Data.Complex.Cardinality', 'Mathlib.Topology.Category.TopCat.EffectiveEpi']
     if style == "new":
-        if not os.path.exists(os.path.join(ROOT_PATH, "RAG", "annotated_new", library_name)):
+        if not os.path.exists(
+            os.path.join(ROOT_PATH, "RAG", "annotated_new", library_name)
+        ):
             os.makedirs(os.path.join(ROOT_PATH, "RAG", "annotated_new", library_name))
     else:
-        if not os.path.exists(os.path.join(ROOT_PATH, "RAG", "annotated", library_name)):
+        if not os.path.exists(
+            os.path.join(ROOT_PATH, "RAG", "annotated", library_name)
+        ):
             os.makedirs(os.path.join(ROOT_PATH, "RAG", "annotated", library_name))
 
     def annotateModule(module):
@@ -85,7 +91,13 @@ def save_annotated_library(
             )
             if out.stdout:
                 with open(
-                    os.path.join(ROOT_PATH, "RAG", "annotated_new", library_name, f"{module}.jsonl"),
+                    os.path.join(
+                        ROOT_PATH,
+                        "RAG",
+                        "annotated_new",
+                        library_name,
+                        f"{module}.jsonl",
+                    ),
                     "w",
                 ) as f:
                     f.write(out.stdout)
@@ -102,7 +114,9 @@ def save_annotated_library(
                 cwd=ROOT_PATH,
             )
             with open(
-                os.path.join(ROOT_PATH, "RAG", "annotated", library_name, f"{module}.lean"),
+                os.path.join(
+                    ROOT_PATH, "RAG", "annotated", library_name, f"{module}.lean"
+                ),
                 "w",
             ) as f:
                 f.write(out.stdout)
@@ -163,7 +177,6 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
     #     model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
     # )
 
-
     vectorstore = Chroma(
         collection_name="Annotated_Mathlib_Theorems",
         persist_directory=database_path,
@@ -178,8 +191,9 @@ def create_database_of_annotated(replace=False, max_docs=None, package_name="Mat
     return vectorstore
 
 
-
-def create_database_initial_proofstate(replace=False, max_docs=None, package_name="Mathlib"):
+def create_database_initial_proofstate(
+    replace=False, max_docs=None, package_name="Mathlib"
+):
     path_to_annotated = os.path.join(ROOT_PATH, "RAG", "annotated_new", package_name)
     if not os.path.exists(path_to_annotated):
         print(
@@ -208,7 +222,15 @@ def create_database_initial_proofstate(replace=False, max_docs=None, package_nam
                     j = json.loads(line)
                     # print(j["initialProofState"][:1000])
                     # print("\n\n----------------\n\n")
-                    docs.append(Document(page_content=j["initialProofState"], metadata={"decl" : j["decl"]}))
+                    docs.append(
+                        Document(
+                            page_content=j["initialProofState"],
+                            metadata={
+                                "decl": j["decl"],
+                                "source": file.replace(".jsonl", ""),
+                            },
+                        )
+                    )
 
     # embeddings = OllamaEmbeddings(model="llama3.2")
     # embeddings = HuggingFaceEmbeddings(
@@ -217,7 +239,7 @@ def create_database_initial_proofstate(replace=False, max_docs=None, package_nam
     embeddings = HuggingFaceEmbeddings(
         model_name="hanwenzhu/all-distilroberta-v1-lr2e-4-bs256-nneg3-ml-mar13"
     )
-
+    print("Embeddings loaded!")
     vectorstore = Chroma(
         collection_name="Mathlib_initial_proofstate_db",
         persist_directory=database_path,
@@ -227,10 +249,22 @@ def create_database_initial_proofstate(replace=False, max_docs=None, package_nam
     docs = docs[:max_docs] if max_docs is not None else docs
     # docs = docs[:100]
     # vectorstore.add_documents(docs)
-
-    vectorstore.add_documents(docs)
+    chunksize = 1000
+    print(f"Chroma loaded, adding {len(docs)} documents...")
+    st = time.time()
+    num_complete = 0
+    for i in range(0, len(docs), chunksize):
+        end = min(i + chunksize, len(docs))
+        vectorstore.add_documents(docs[i:end])
+        num_complete += chunksize
+        num_left = len(docs) - num_complete
+        total_time = time.time() - st
+        time_remaining = total_time * num_left / num_complete
+        print(f"Added chunk {i//chunksize}/{len(docs)//chunksize}")
+        print(f"    [{round(total_time/60,2)}m | {round(time_remaining / 60,2)} m]")
+    # vectorstore.add_documents(docs)
+    print("Documents added!")
     return vectorstore
-
 
 
 def get_database_retriever_old(package_name="Mathlib", number_to_retrieve=6, filter={}):
@@ -259,23 +293,16 @@ def get_database_retriever_old(package_name="Mathlib", number_to_retrieve=6, fil
         search_type="mmr", search_kwargs={"k": number_to_retrieve}
     )
 
+
 def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
     database_path = os.path.join(
         ROOT_PATH, ".db", f"{package_name.lower()}_initial_proofstate_db"
     )
-    # embeddings = HuggingFaceEmbeddings(
-    #     model_name="riyazahuja/Improver-DeepSeek-R1-Distill-Qwen-7B_full_4096"
-    # )
-    # embeddings = OllamaEmbeddings(model="llama3.2")
+
     embeddings = HuggingFaceEmbeddings(
         model_name="hanwenzhu/all-distilroberta-v1-lr2e-4-bs256-nneg3-ml-mar13"
     )
 
-    # database = Chroma(
-    #     collection_name=f"Annotated_{package_name}_Theorems",
-    #     # persist_directory=database_path,
-    #     embedding_function=embeddings,
-    # )
     database = Chroma(
         collection_name="Mathlib_initial_proofstate_db",
         persist_directory=database_path,
@@ -286,12 +313,6 @@ def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter=
     )
 
     return db
-    # def get(initialStateString):
-    #     # return db.invoke(initialStateString, filter=filter).metadata["decl"]
-    #     docs = database.max_marginal_relevance_search(initialStateString, k=number_to_retrieve, fetch_k=2*number_to_retrieve, filter=filter)
-    #     # print(docs)
-    #     return [doc.metadata["decl"] for doc in docs]
-    # return get
 
 
 def test_average_speed():
@@ -324,7 +345,6 @@ if __name__ == "__main__":
 
     # Old version
     # create_database_of_annotated(replace=True)
-
 
     # Test retrieval
     # IMPORTANT: for new version of retrieval, make sure to run the "getInitialProofState" function in scripts.extract_states, and use that as your query
