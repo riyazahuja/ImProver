@@ -1,37 +1,38 @@
 from __future__ import annotations
+import argparse
+import json
+import re
+
 from langchain.globals import set_debug
+from langchain_chroma import Chroma
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+import os
 
 set_debug(False)
 
 
-from langchain_chroma import Chroma
-
-from langchain_ollama import OllamaEmbeddings
-
-import os, json, sys
-import argparse
-import re
-
-
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-METADATA_PATH = "/Users/ahuja/Desktop/ImProver_rewrite/RAG/annotated/Mathlib/"
 
-
-def get_database_retriever(package_name="Mathlib", number_to_retrieve=5):
+def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
     database_path = os.path.join(
-        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
+        ROOT_PATH, ".db", f"{package_name.lower()}_initial_proofstate_db"
     )
-    embeddings = OllamaEmbeddings(model="llama3.2")
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="hanwenzhu/all-distilroberta-v1-lr2e-4-bs256-nneg3-ml-mar13"
+    )
 
     database = Chroma(
-        collection_name="Annotated_Mathlib_Theorems",
+        collection_name="Mathlib_initial_proofstate_db",
         persist_directory=database_path,
         embedding_function=embeddings,
     )
-    return database.as_retriever(
+    db = database.as_retriever(
         search_type="mmr", search_kwargs={"k": number_to_retrieve}
     )
+
+    return db
 
 
 if __name__ == "__main__":
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     #     "Mathlib.RingTheory.MvPolynomial.Groebner.lean",
     #     # Add more source paths here as needed
     # ]
-    source_paths = [os.path.join(METADATA_PATH, path) for path in source_paths]
+    # source_paths = [os.path.join(METADATA_PATH, path) for path in source_paths]
 
     # Use $in operator to match any of the specified sources
     if imports:
@@ -91,15 +92,15 @@ if __name__ == "__main__":
 
     for doc in output:
         src = doc.metadata.get("source", "Unknown source")
-        src = src.replace(".lean", "")
+        # src = src.replace(".lean", "")
 
-        contents = doc.page_content
+        contents = doc.metadata.get("decl", "Unknown decl")
         # sp = contents.split(":=", 1)
         # head = sp[0]
         # proof = "".join(sp[1:])  # Join the rest in case there are multiple :=
 
         # optionally remove state comments
-        contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
+        # contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
         # Remove lines that are all whitespace
         contents = "\n".join(line for line in contents.split("\n") if line.strip())
 

@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 set_debug(False)
 
 from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 
 import os, json, sys
 import argparse
@@ -16,20 +16,25 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 METADATA_PATH = "/Users/ahuja/Desktop/ImProver_rewrite/RAG/annotated/Mathlib/"
 
 
-def get_database_retriever(package_name="Mathlib", number_to_retrieve=5):
+def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
     database_path = os.path.join(
-        ROOT_PATH, ".db", f"{package_name.lower()}_annotated_db"
+        ROOT_PATH, ".db", f"{package_name.lower()}_initial_proofstate_db"
     )
-    embeddings = OllamaEmbeddings(model="llama3.2")
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="hanwenzhu/all-distilroberta-v1-lr2e-4-bs256-nneg3-ml-mar13"
+    )
 
     database = Chroma(
-        collection_name="Annotated_Mathlib_Theorems",
+        collection_name="Mathlib_initial_proofstate_db",
         persist_directory=database_path,
         embedding_function=embeddings,
     )
-    return database.as_retriever(
+    db = database.as_retriever(
         search_type="mmr", search_kwargs={"k": number_to_retrieve}
     )
+
+    return db
 
 
 async def process_query(i, query: str, retriever, source_paths=None):
@@ -44,10 +49,10 @@ async def process_query(i, query: str, retriever, source_paths=None):
     results = []
     for doc in docs:
         src = doc.metadata.get("source", "Unknown source")
-        src = src.replace(".lean", "")
-
-        contents = doc.page_content
-        contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
+        # src = src.replace(".lean", "")
+        contents = doc.metadata.get("decl", "Unknown decl")
+        # contents = doc.page_content
+        # contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
         contents = "\n".join(line for line in contents.split("\n") if line.strip())
 
         results.append(f"--src: {src.strip()}\n{contents}")
@@ -89,7 +94,7 @@ async def main():
 
     source_paths = []
     if imports:
-        source_paths = [os.path.join(METADATA_PATH, path) for path in imports]
+        source_paths = imports
 
     tasks = [
         process_query(i, query, retriever, source_paths if imports else None)

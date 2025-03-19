@@ -46,6 +46,7 @@ hf : Multipliable f
     print(output)
     print(type(output))
     for doc in output:
-        print(f"[{doc.metadata['decl']}]")
-        print(doc.page_content)
+        print(f"{doc.metadata['source']}")
+        print(f"{doc.metadata['decl']}")
+        # print(doc.page_content)
         print("===============")
