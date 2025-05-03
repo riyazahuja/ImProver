@@ -1,0 +1,95 @@
+/-- Set / lattice complement -/
+@[notation_class]
+class HasCompl (α : Type*) where
+  /-- Set / lattice complement -/
+  compl : α → α
+
+
+@[inherit_doc]
+postfix:1024 "ᶜ" => compl
+
+
+/-- Typeclass for the `⊔` (`\lub`) notation -/
+@[deprecated Max (since := "2024-11-06"), notation_class, ext]
+class Sup (α : Type*) where
+  /-- Least upper bound (`\lub` notation) -/
+  sup : α → α → α
+
+
+/-- Typeclass for the `⊓` (`\glb`) notation -/
+@[deprecated Min (since := "2024-11-06"), notation_class, ext]
+class Inf (α : Type*) where
+  /-- Greatest lower bound (`\glb` notation) -/
+  inf : α → α → α
+
+
+attribute [ext] Min Max
+
+
+@[inherit_doc]
+infixl:68 " ⊔ " => Max.max
+
+
+@[inherit_doc]
+infixl:69 " ⊓ " => Min.min
+
+
+/-- Syntax typeclass for Heyting implication `⇨`. -/
+@[notation_class]
+class HImp (α : Type*) where
+  /-- Heyting implication `⇨` -/
+  himp : α → α → α
+
+
+/-- Syntax typeclass for Heyting negation `￢`.
+
+The difference between `HasCompl` and `HNot` is that the former belongs to Heyting algebras,
+while the latter belongs to co-Heyting algebras. They are both pseudo-complements, but `compl`
+underestimates while `HNot` overestimates. In boolean algebras, they are equal.
+See `hnot_eq_compl`.
+-/
+@[notation_class]
+class HNot (α : Type*) where
+  /-- Heyting negation `￢` -/
+  hnot : α → α
+
+
+/-- Heyting implication -/
+infixr:60 " ⇨ " => himp
+
+
+/-- Heyting negation -/
+prefix:72 "￢" => hnot
+
+
+
+/-- Typeclass for the `⊤` (`\top`) notation -/
+@[notation_class, ext]
+class Top (α : Type*) where
+  /-- The top (`⊤`, `\top`) element -/
+  top : α
+
+
+/-- Typeclass for the `⊥` (`\bot`) notation -/
+@[notation_class, ext]
+class Bot (α : Type*) where
+  /-- The bot (`⊥`, `\bot`) element -/
+  bot : α
+
+
+/-- The top (`⊤`, `\top`) element -/
+notation "⊤" => Top.top
+
+
+/-- The bot (`⊥`, `\bot`) element -/
+notation "⊥" => Bot.bot
+
+
+instance (priority := 100) top_nonempty (α : Type*) [Top α] : Nonempty α :=
+  ⟨⊤⟩
+
+
+instance (priority := 100) bot_nonempty (α : Type*) [Bot α] : Nonempty α :=
+  ⟨⊥⟩
+
+

@@ -1,0 +1,22 @@
+/-- Variant of `inferTypeQ` that yields a type in `Type u` rather than `Sort u`.
+Throws an error if the type is a `Prop` or if it's otherwise not possible to represent
+the universe as `Type u` (for example due to universe level metavariables). -/
+-- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Using.20.60QQ.60.20when.20you.20only.20have.20an.20.60Expr.60/near/303349037
+def inferTypeQ' (e : Expr) : MetaM ((u : Level) × (α : Q(Type $u)) × Q($α)) := do
+  let α ← inferType e
+  let .sort u ← whnf (← inferType α) | throwError "not a type{indentExpr α}"
+  let some v := (← instantiateLevelMVars u).dec | throwError "not a Type{indentExpr e}"
+  pure ⟨v, α, e⟩
+
+
+theorem QuotedDefEq.rfl {u : Level} {α : Q(Sort u)} {a : Q($α)} : @QuotedDefEq u α a a := ⟨⟩
+
+
+/-- Return a local declaration whose type is definitionally equal to `sort`.
+
+This is a Qq version of `Lean.Meta.findLocalDeclWithType?` -/
+def findLocalDeclWithTypeQ? {u : Level} (sort : Q(Sort u)) : MetaM (Option Q($sort)) := do
+  let some fvarId ← findLocalDeclWithType? q($sort) | return none
+  return some <| .fvar fvarId
+
+

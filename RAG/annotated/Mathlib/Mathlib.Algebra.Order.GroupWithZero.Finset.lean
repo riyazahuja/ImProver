@@ -1,0 +1,86 @@
+lemma sup_mul_le_mul_sup_of_nonneg [SemilatticeSup M₀] [OrderBot M₀] [PosMulMono M₀] [MulPosMono M₀]
+    (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i) : s.sup (a * b) ≤ s.sup a * s.sup b :=
+  Finset.sup_le fun _i hi ↦
+    mul_le_mul (le_sup hi) (le_sup hi) (hb _ hi) ((ha _ hi).trans <| le_sup hi)
+
+
+lemma mul_inf_le_inf_mul_of_nonneg [SemilatticeInf M₀] [OrderTop M₀] [PosMulMono M₀] [MulPosMono M₀]
+    (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i) : s.inf a * s.inf b ≤ s.inf (a * b) :=
+  Finset.le_inf fun i hi ↦ mul_le_mul (inf_le hi) (inf_le hi) (Finset.le_inf hb) (ha i hi)
+
+
+lemma sup'_mul_le_mul_sup'_of_nonneg [SemilatticeSup M₀] [PosMulMono M₀] [MulPosMono M₀]
+    (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i) (hs) :
+    s.sup' hs (a * b) ≤ s.sup' hs a * s.sup' hs b :=
+  sup'_le _ _ fun _i hi ↦
+    mul_le_mul (le_sup' _ hi) (le_sup' _ hi) (hb _ hi) ((ha _ hi).trans <| le_sup' _ hi)
+
+
+lemma inf'_mul_le_mul_inf'_of_nonneg [SemilatticeInf M₀] [PosMulMono M₀] [MulPosMono M₀]
+    (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i) (hs) :
+    s.inf' hs a * s.inf' hs b ≤ s.inf' hs (a * b) :=
+  le_inf' _ _ fun _i hi ↦ mul_le_mul (inf'_le _ hi) (inf'_le _ hi) (le_inf' _ _ hb) (ha _ hi)
+
+
+lemma sup'_mul₀ [MulPosMono G₀] [MulPosReflectLE G₀] (ha : 0 < a) (f : ι → G₀) (s : Finset ι) (hs) :
+    s.sup' hs f * a = s.sup' hs fun i ↦ f i * a := map_finset_sup' (OrderIso.mulRight₀ _ ha) hs f
+
+
+set_option linter.docPrime false in
+lemma mul₀_sup' [PosMulMono G₀] [PosMulReflectLE G₀] (ha : 0 < a) (f : ι → G₀) (s : Finset ι) (hs) :
+    a * s.sup' hs f = s.sup' hs fun i ↦ a * f i := map_finset_sup' (OrderIso.mulLeft₀ _ ha) hs f
+
+
+lemma sup'_div₀ [ZeroLEOneClass G₀] [MulPosStrictMono G₀] [MulPosReflectLE G₀] [PosMulReflectLT G₀]
+    (ha : 0 < a) (f : ι → G₀) (s : Finset ι) (hs) : s.sup' hs f / a = s.sup' hs fun i ↦ f i / a :=
+  map_finset_sup' (OrderIso.divRight₀ _ ha) hs f
+
+
+lemma sup_div₀ [LinearOrderedCommGroupWithZero G₀] [OrderBot G₀] {a : G₀} (ha : 0 < a)
+    (s : Finset ι) (f : ι → G₀) : s.sup f / a = s.sup fun i ↦ f i / a := by
+  /-
+    ι : Type u_1
+    G₀ : Type u_3
+    inst✝¹ : LinearOrderedCommGroupWithZero G₀
+    inst✝ : OrderBot G₀
+    a : G₀
+    ha : LT.lt 0 a
+    s : Finset ι
+    f : ι → G₀
+    ⊢ Eq (HDiv.hDiv (s.sup f) a) (s.sup fun i => HDiv.hDiv (f i) a)
+  -/
+  obtain rfl | hs := s.eq_empty_or_nonempty
+    /-
+      case inl
+      ι : Type u_1
+      G₀ : Type u_3
+      inst✝¹ : LinearOrderedCommGroupWithZero G₀
+      inst✝ : OrderBot G₀
+      a : G₀
+      ha : LT.lt 0 a
+      f : ι → G₀
+      ⊢ Eq (HDiv.hDiv (EmptyCollection.emptyCollection.sup f) a) (EmptyCollection.em …
+    -/
+  · simp [← show (0 : G₀) = ⊥ from bot_unique zero_le']
+    /-
+      🎉 no goals
+    -/
+  /-
+    case inr
+    ι : Type u_1
+    G₀ : Type u_3
+    inst✝¹ : LinearOrderedCommGroupWithZero G₀
+    inst✝ : OrderBot G₀
+    a : G₀
+    ha : LT.lt 0 a
+    s : Finset ι
+    f : ι → G₀
+    hs : s.Nonempty
+    ⊢ Eq (HDiv.hDiv (s.sup f) a) (s.sup fun i => HDiv.hDiv (f i) a)
+  -/
+  rw [← Finset.sup'_eq_sup hs, ← Finset.sup'_eq_sup hs, sup'_div₀ (ha := ha)]
+  /-
+    🎉 no goals
+  -/
+
+
