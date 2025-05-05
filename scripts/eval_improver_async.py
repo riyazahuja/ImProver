@@ -19,14 +19,15 @@ async def run_improver(file_info, args):
     st = time.time()
 
     repo, module = file_info
-    n = args[0]
-    model = args[1]
-    port = args[2]
-    dataset = args[3]
-    annotation = args[4]
-    context = args[5]
-    rag = args[6]
-    id = args[7]
+    metric = args[0]
+    n = args[1]
+    model = args[2]
+    port = args[3]
+    dataset = args[4]
+    annotation = args[5]
+    context = args[6]
+    rag = args[7]
+    id = args[8]
 
     est = pytz.timezone("US/Eastern")
     current_time = datetime.now(est)
@@ -59,6 +60,8 @@ async def run_improver(file_info, args):
         context,
         "--rag",
         f"{rag}",
+        "--metric",
+        f"{metric}",
         "--example_file",
         f"prompt_examples/{model}.txt",
         module,
@@ -84,14 +87,15 @@ async def run_improver(file_info, args):
 
 
 async def main_async(repos, *args):
-    n = args[0]
-    model = args[1]
-    port = args[2]
-    test_set = args[3]
-    annotation = args[4]
-    context = args[5]
-    rag = args[6]
-    id = args[7]
+    metric = args[0]
+    n = args[1]
+    model = args[2]
+    port = args[3]
+    test_set = args[4]
+    annotation = args[5]
+    context = args[6]
+    rag = args[7]
+    id = args[8]
 
     # Read the test set
     with open(test_set, "r") as f:
@@ -189,20 +193,20 @@ async def main_async2(repos, *args):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 8 and len(sys.argv) != 9:
+    if len(sys.argv) != 9 and len(sys.argv) != 10:
         print(
-            "Usage: python eval.py <n> <model> <port> <dataset> <annotation?> <context> <rag> <?id>"
+            "Usage: python eval.py <metric> <n> <model> <port> <dataset> <annotation?> <context> <rag> <?id>"
         )
         sys.exit(1)
 
-    test_set = sys.argv[4]
+    test_set = sys.argv[5]
     with open(test_set, "r") as f:
         all = json.load(f)
         test_set = all#["train"]
     repos = list(test_set.keys())
 
     id = ""
-    if len(sys.argv) == 9:
-        id = f"_{sys.argv[8]}"
+    if len(sys.argv) == 10:
+        id = f"_{sys.argv[9]}"
 
-    asyncio.run(main_async(repos, *sys.argv[1:8], id))
+    asyncio.run(main_async(repos, *sys.argv[1:9], id))

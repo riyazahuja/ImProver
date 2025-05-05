@@ -51,7 +51,12 @@ def declarativity_prompt : String := s!"Shorten the current Lean4 theorem (wrapp
 
 def metric_dependency (cmd:CompilationStep) : IO Float := do
   let context ← get_context cmd
-  return context.length |>.toFloat
+  let external_deps := context.filter (fun c =>
+    match c.kind with
+    | "theorem (internal)" => true
+    | "theorem" => true
+    | _ => false)
+  return external_deps.length |>.toFloat
 
 
 def dependency_prompt : String := s!"Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem."
@@ -124,7 +129,11 @@ def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : Compilat
 
 /- Returns the prompt function from a name -/
 def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_ci : Array (CompilationStep ×ConstantInfo) ) : IO (Array  String) := do
-  let main_prompt := match prompt_name with
+  let main_prompt := match config.metric with
+  | "length" => length_prompt
+  | "declarativity" => declarativity_prompt
+  | "dependency" => dependency_prompt
+  | "completion" => completion_prompt
   | _ => length_prompt
 
 

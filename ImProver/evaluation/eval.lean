@@ -74,8 +74,10 @@ def calculateInstances (ci : ConstantInfo) (cmd : CompilationStep)
 
   let old_correct := oldMsgs.isEmpty && cmd.trees.length > 0
   -- let old_score := if old_correct then some (tacs.length.toFloat) else none
-  let old_score := if old_correct then some (get_metric metric_name cmd) else none
-
+  -- let old_score := if old_correct then some (get_metric metric_name cmd) else none
+  let old_score ← if old_correct then do
+    pure <| some (← get_metric metric_name cmd) else
+    pure none
 
   let instances : List ImprovedTheoremInstance ← resultantSteps.mapM (fun (model_output,head) => do
 
@@ -89,11 +91,14 @@ def calculateInstances (ci : ConstantInfo) (cmd : CompilationStep)
 
     let correct := msgs.isEmpty && head.trees.length > 0
     -- let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
-    let metric_score := if correct then some (get_metric metric_name head) else none
+    let metric_score ← if correct then do
+      pure <| some (← get_metric metric_name head) else
+      pure none
 
     let delta := if correct && old_correct then (
         if old_score.get! == 0 then
-          some (-1 : Float)
+          -- some (-1 : Float)
+          none
         else
           some ((old_score.get! - metric_score.get!) / (old_score.get!))
         )
@@ -135,7 +140,7 @@ def calculateInstancesWithPrompt (ci : ConstantInfo) (cmd : CompilationStep)
 
   let old_correct := oldMsgs.isEmpty && cmd.trees.length > 0 && cmd.src.toString.trim != ""
   -- let old_score := if old_correct then some (tacs.length.toFloat) else none
-  let old_score := if old_correct then some (get_metric metric_name cmd) else none
+  let old_score ← if old_correct then do pure <| some (← get_metric metric_name cmd) else pure none
 
 
   let mut instances : List ImprovedTheoremInstance := []
@@ -170,11 +175,12 @@ def calculateInstancesWithPrompt (ci : ConstantInfo) (cmd : CompilationStep)
       let correct := msgs.isEmpty && head.trees.length > 0 && model_output.trim != ""
         && (head.diff.map (·.name) |>.contains ci.name)
       -- let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
-      let metric_score := if correct then some (get_metric metric_name head) else none
+      let metric_score ← if correct then do pure <| some (← get_metric metric_name head) else pure none
 
       let delta := if correct && old_correct then (
           if old_score.get! == 0 then
-            some (-1 : Float)
+            -- some (-1 : Float)
+            none
           else
             some ((old_score.get! - metric_score.get!) / (old_score.get!))
           )
@@ -202,6 +208,18 @@ def calculateInstancesWithPrompt (ci : ConstantInfo) (cmd : CompilationStep)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 -- for llm metric
 def calculateInstances_batched (ci : ConstantInfo) (cmd : CompilationStep)
 (resultantSteps : List (String × CompilationStep)) (config : ImProverConfig)
@@ -218,7 +236,7 @@ def calculateInstances_batched (ci : ConstantInfo) (cmd : CompilationStep)
 
   let old_correct := oldMsgs.isEmpty && cmd.trees.length > 0
 
-  let old_score := if old_correct then some (get_metric metric_name cmd) else none
+  let old_score ← if old_correct then do pure <| some (← get_metric metric_name cmd) else pure none
   -- this one's scoring to the steps_with_scores thing...
 
 

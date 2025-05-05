@@ -227,6 +227,7 @@ def ImProver (config : ImProverConfig): IO Unit := do
 /-- Configures a command-line interface for ImProver -/
 def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "module" |>.as! ModuleName
+  let metricName := args.positionalArg! "metric" |>.as! String
   let mod :Name := module
   let decls := args.flag! "decls" |>.as! String
   let json_path := args.flag! "json_path" |>.as! String
@@ -247,7 +248,7 @@ def ImProver_CLI (args : Cli.Parsed) : IO UInt32 := do
    | ef => some ef
 
   let config : ImProverConfig :=
-    {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, context? := context, rag? := rag, proofAsSorry?:=proofAsSorry, jsonPath:=json_path, example_file:=example_file}
+    {targetModule:=mod, decls:=decls, model:=model, endpoint:=endpoint, best_of_n:=best_of_n, annotation?:=annotation, context? := context, rag? := rag, proofAsSorry?:=proofAsSorry, jsonPath:=json_path, example_file:=example_file, metric:=metricName}
 
   ImProver config
   return 0
@@ -272,6 +273,7 @@ def improver : Cmd := `[Cli|
 
   ARGS:
     module : ModuleName; "Lean module to compile and annotate with state comments."
+    metric : String; "Metric to use for evaluation."
 
   EXTENSIONS:
     defaultValues! #[("decls", ""), ("json_path", ""),
@@ -286,12 +288,12 @@ def main (args : List String) : IO UInt32 :=
 
 
 
--- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`C04_S01_8])}
-def test_config : ImProverConfig := {targetModule:=`Compfiles.Imo2010P3, example_file:=some "improver_outputs_new/combined_examples/base_examples.txt"}
+def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`C04_S01_8]), context? := True, metric:= "completion"}
+def test_config_declarativity : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`C04_S01_8]), metric := "declarativity"}
 
--- def test_config : ImProverConfig := {targetModule:=`temp.temp, decls:=(some [`theorem2]), rag?:=5}
--- def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`t8]), best_of_n:= 1,model:="Llama-8B"}
+#eval ImProver test_config
 
+-- #eval ImProver test_config_declarativity
 
 
 
