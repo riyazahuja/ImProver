@@ -30,22 +30,72 @@ set_option autoImplicit true
 
 
 
-/- Metric of theorem improvement: number of tactics used in a theorem -/
-def metric_length (cmd:CompilationStep) :=
-  InfoTree.tactics_new cmd.trees |>.length |>.toFloat
+
+def metric_length (cmd:CompilationStep) : IO Float :=
+  return InfoTree.tactics_new cmd.trees |>.length |>.toFloat
+
+def length_prompt : String := s!"Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem."
+
+
+def metric_declarativity (cmd:CompilationStep) : IO Float :=
+  let tac_stx := InfoTree.tactics_new (cmd.trees) |>.map (fun x => x.info.stx)
+  let haves := tac_stx.filter (fun stx =>
+    match stx with
+    | Syntax.node _ `Lean.Parser.Tactic.tacticHave_ _ => true
+    | _ => false)
+  return haves.length |>.toFloat
+
+def declarativity_prompt : String := s!"Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as declarative in style as possible. We define and measure declarativity as the number of explicitly typed \"have\" statements, which you will aim to maximize in order to construct a more readable, structured, and forward-reasoning approach to the proof as possible - while also ensuring that the output is still a correct proof of the theorem."
+
+
+
+def metric_dependency (cmd:CompilationStep) : IO Float := do
+  let context ← get_context cmd
+  return context.length |>.toFloat
+
+
+def dependency_prompt : String := s!"Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem."
+
+
+def metric_completion (cmd:CompilationStep) : IO Float := do
+  let msgs : List String ← cmd.msgs.filterMapM (fun msg : Message =>
+      if msg.severity != .error then
+        return none
+      else do
+        let m ← msg.data.toString
+        return some (bombEmoji++m))
+  return if cmd.trees.length == 0
+    then 0
+    else msgs.length |>.toFloat
+
+def completion_prompt : String := s!"Prove the current theorem (wrapped in <CURRENT>...</CURRENT>) with a correct, formal, and complete (sorry-free) Lean4 proof."
+
+
+-- def metric_readability (cmd:CompilationStep) :=
+--   InfoTree.tactics_new cmd.trees |>.length |>.toFloat
+
+-- def readability_prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem."
+
+
+
 
 /- Returns metric function from name (for ease of use from command line) -/
-def get_metric (metric_name : String) : CompilationStep → Float :=
+def get_metric (metric_name : String) : CompilationStep → IO Float :=
   match metric_name with
   | "length" => metric_length
-  | _ => fun _ => 0.0
-
-/- Model system prompt asking it to shorten the length of the theorem -/
-def length_prompt : String := s!"Shorten the current theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem."
+  | "declarativity" => metric_declarativity
+  | "dependency" => metric_dependency
+  | "completion" => metric_completion
+  -- | "readability" => metric_length
+  | _ => fun _ => pure 0.0
 
 /- Returns the prompt function from a name -/
 def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : CompilationStep) : IO String := do
   let main_prompt := match prompt_name with
+  | "length" => length_prompt
+  | "declarativity" => declarativity_prompt
+  | "dependency" => dependency_prompt
+  | "completion" => completion_prompt
   | _ => length_prompt
 
   let srcCommand := cmd.src.toString
@@ -122,7 +172,12 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
 def get_prompt_batched_anno (prompt_name : String)  (config : ImProverConfig) (cmds_ci : Array (CompilationStep ×ConstantInfo) ) : IO (Array  String) := do
   let main_prompt := match prompt_name with
+  | "length" => length_prompt
+  | "declarativity" => declarativity_prompt
+  | "dependency" => dependency_prompt
+  | "completion" => completion_prompt
   | _ => length_prompt
+
 
   let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference. Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
   let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
@@ -164,7 +219,12 @@ def get_prompt_batched_anno (prompt_name : String)  (config : ImProverConfig) (c
 
 def get_prompt_batched_ctx (prompt_name : String)  (config : ImProverConfig) (cmds_ci : Array (CompilationStep ×ConstantInfo) ) : IO (Array  String) := do
   let main_prompt := match prompt_name with
+  | "length" => length_prompt
+  | "declarativity" => declarativity_prompt
+  | "dependency" => dependency_prompt
+  | "completion" => completion_prompt
   | _ => length_prompt
+
 
   let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
   -- let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."

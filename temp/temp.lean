@@ -15,8 +15,19 @@ theorem i_forgor : ∀ (n : Nat), n ≥ 3 → ¬(∃ (a b c : Nat), a > 0 → b 
 
 theorem theorem1 : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
   rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
+  have xst : x ∈ s ∩ (t ∪ u) := by
+    constructor
+    · exact xs
+    · left; exact xt
   · use xs; left; exact xt
   · use xs; right; exact xu
+
+theorem theorem1' : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
+  rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
+  have xst := by exact xs
+  · use xs; left; exact xt
+  · use xs; right; exact xu
+
 
 theorem theorem2 : s \ (t ∪ u) ⊆ (s \ t) \ u := by
   rintro x ⟨xs, xntu⟩

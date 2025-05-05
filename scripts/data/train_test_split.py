@@ -12,8 +12,8 @@ def split_data(
     packages=(
         "Compfiles",
         "MIL",
-        # "PFR",
-        # "PrimeNumberTheoremAnd",
+        "PFR",
+        "PrimeNumberTheoremAnd",
         # "Mathlib/Analysis",
     ),
     train_portion=0.9,
