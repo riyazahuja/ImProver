@@ -62,8 +62,8 @@ async def run_improver(file_info, args):
         f"{rag}",
         "--metric",
         f"{metric}",
-        "--example_file",
-        f"prompt_examples/{model}.txt",
+        # "--example_file",
+        # f"prompt_examples/{model}_{metric}.txt",
         module,
     ]
 
@@ -100,7 +100,7 @@ async def main_async(repos, *args):
     # Read the test set
     with open(test_set, "r") as f:
         all = json.load(f)
-        test_set = all#["train"]
+        test_set = all["train"]
 
     combined_results = {}
 
@@ -159,7 +159,7 @@ async def main_async2(repos, *args):
     # Read the test set
     with open(test_set, "r") as f:
         all = json.load(f)
-        test_set = all#["train"]
+        test_set = all["train"]
 
     combined_results = {}
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     test_set = sys.argv[5]
     with open(test_set, "r") as f:
         all = json.load(f)
-        test_set = all#["train"]
+        test_set = all["train"]
     repos = list(test_set.keys())
 
     id = ""
