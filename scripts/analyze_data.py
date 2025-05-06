@@ -348,8 +348,9 @@ def main(model, ns, repo):
 
 
 if __name__ == "__main__":
-    repos = ["MIL", "Mathlib", "Compfiles"]
-    ns = [1] + list(range(4, 65, 4))
+    # repos = ["MIL", "Mathlib", "Compfiles"]
+    repos = ["MIL"]#, "PrimeNumberTheoremAnd", "PFR"]
+    # ns = [1] + list(range(4, 65, 4))
     # ns = [1]  # + list(range(2, 33, 2))
     # ns = [64]
     if len(sys.argv) < 2:
@@ -357,6 +358,8 @@ if __name__ == "__main__":
         sys.exit(1)
     models = sys.argv[1:]
     for model in models:
-        for repo in repos:
-            main(model, ns, repo)
-        aggregate(model, ns, repos)
+        for repo in repos:   
+            to_csv(repo, model)
+
+        #     main(model, ns, repo)
+        # aggregate(model, ns, repos)

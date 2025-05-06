@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=b_Tr0
-#SBATCH --output=logs/base_train0.out
-#SBATCH --error=logs/base_train0.err
+#SBATCH --job-name=b_Tr0_cmp
+#SBATCH --output=logs/base_train0_cmp.out
+#SBATCH --error=logs/base_train0_cmp.err
 #SBATCH --cpus-per-task=12
 #SBATCH --time=1-00:00:00
 #SBATCH --gres=gpu:A6000:2
@@ -11,10 +11,10 @@
 
 source $HOME/miniconda3/bin/activate env
 
-export METRIC=declarativity
+export METRIC=completion
 
 # export MODEL_PATH=/data/user_data/riyaza/saved_models/ImProver_BASE_iter0/checkpoint-210
-export MODEL_PATH=/data/user_data/riyaza/HF/models--Qwen--Qwen-7B
+export MODEL_PATH="Qwen/Qwen2.5-Math-7B"
 export MODEL_NAME=BASE
 
 
@@ -32,6 +32,7 @@ echo "Starting vLLM server..."
 vllm serve $MODEL_PATH --served-model-name $MODEL_NAME \
     --port $PORT \
     --tensor-parallel-size 2 \
+    --download-dir $DOWNLOAD_PATH \
     &
 
 
@@ -56,7 +57,7 @@ echo "vLLM server is up and running."
 
 
 
-python3 scripts/eval_improver_async.py $METRIC $BEST_OF_N $MODEL_NAME $PORT $DATASET_PATH $ANNOTATION $CONTEXT $RAG "iter0_train"
+python3 scripts/eval_improver_async.py $METRIC $BEST_OF_N $MODEL_NAME $PORT $DATASET_PATH $ANNOTATION $CONTEXT $RAG "iter0_train_cmp"
 
 
 

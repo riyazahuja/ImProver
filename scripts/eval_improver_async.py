@@ -60,11 +60,10 @@ async def run_improver(file_info, args):
         context,
         "--rag",
         f"{rag}",
-        "--metric",
-        f"{metric}",
         # "--example_file",
         # f"prompt_examples/{model}_{metric}.txt",
         module,
+        metric
     ]
 
     print(" ".join(cmd))

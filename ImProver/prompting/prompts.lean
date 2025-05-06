@@ -45,7 +45,7 @@ def metric_declarativity (cmd:CompilationStep) : IO Float :=
     | _ => false)
   return haves.length |>.toFloat
 
-def declarativity_prompt : String := s!"Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as declarative in style as possible. We define and measure declarativity as the number of explicitly typed \"have\" statements, which you will aim to maximize in order to construct a more readable, structured, and forward-reasoning approach to the proof as possible - while also ensuring that the output is still a correct proof of the theorem."
+def declarativity_prompt : String := s!"Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as declarative in style as possible. We define and measure declarativity as the number of explicitly typed \"have\" statements, which you will aim to maximize insofar as to construct a more readable, structured, and forward-reasoning approach to the proof as possible - while also ensuring that the output is still a correct proof of the theorem."
 
 
 
@@ -59,7 +59,7 @@ def metric_dependency (cmd:CompilationStep) : IO Float := do
   return external_deps.length |>.toFloat
 
 
-def dependency_prompt : String := s!"Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem."
+def dependency_prompt : String := s!"Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem."
 
 
 def metric_completion (cmd:CompilationStep) : IO Float := do
@@ -93,6 +93,37 @@ def get_metric (metric_name : String) : CompilationStep → IO Float :=
   | "completion" => metric_completion
   -- | "readability" => metric_length
   | _ => fun _ => pure 0.0
+
+
+def ppDeclWithoutProof (module: ModuleName) (info: CommandInfo) : IO String := do
+    -- (magic value) if this command is a declaration like theorem/def T := proof/definition
+    -- then the := syntax occurs at `stx[1][3][0]`
+    IO.println s!"{info.stx[1][3]}"
+    if info.stx[1][3][0].getAtomVal == ":=" then
+      let declStart := info.stx.getPos?.getD 0
+      let proofStart := info.stx[1][3].getPos?.getD 0
+      let proofEnd := info.stx.getTailPos?.getD 0
+      let moduleSource ← moduleSource module
+      let decl := (Substring.mk moduleSource declStart proofStart).toString
+      let proof := (Substring.mk moduleSource proofStart proofEnd).toString
+      return decl ++ ":= by sorry"
+    else
+      return ""
+
+def to_completion_format (cmd : CompilationStep) (targetModule : ModuleName): IO String := do
+  let findCommandNodes (t : InfoTree) : List CommandInfo :=
+      let infos := t.findAllInfo none fun i => match i with
+        | .ofCommandInfo _ => true
+        | _ => false
+      infos.filterMap fun p => match p with
+      | (.ofCommandInfo i, _, _) => (i)
+      | _ => none
+  let ci := cmd.trees.flatMap (fun t => findCommandNodes t)
+  let decls ← ci.mapM (fun c => ppDeclWithoutProof targetModule c)
+  match decls with
+  | [] => pure ""
+  | x::_ =>
+    pure x
 
 /- Returns the prompt function from a name -/
 def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : CompilationStep) : IO String := do
@@ -149,7 +180,10 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
   let prompt_data ← cmds_ci.mapM (fun (cmd,_) => do
 
-    let srcCommand := cmd.src.toString
+    let srcCommand ← if config.metric == "completion" then
+        to_completion_format cmd config.targetModule
+      else
+        pure cmd.src.toString
 
 
     let annotation_string : String ← if config.annotation? then (insert_state_comments cmd) else pure ""
