@@ -1,0 +1,1034 @@
+<EXAMPLE>
+
+<CONTEXT>
+<ITEM>
+--name=Eq.symm
+--context_item_type=theorem
+/--
+Equality is symmetric: if `a = b` then `b = a`.
+
+Because this is in the `Eq` namespace, if you have a variable `h : a = b`,
+`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.
+
+For more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)
+-/
+@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=
+  h ▸ rfl
+</ITEM>
+<ITEM>
+--name=id
+--context_item_type=def
+/--
+The identity function. `id` takes an implicit argument `α : Sort u`
+(a type in any universe), and an argument `a : α`, and returns `a`.
+
+Although this may look like a useless function, one application of the identity
+function is to explicitly put a type on an expression. If `e` has type `T`,
+and `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean
+knows that this expression has type `T'` rather than `T`. This can make a
+difference for typeclass inference, since `T` and `T'` may have different
+typeclass instances on them. `show T' from e` is sugar for an `@id T' e`
+expression.
+-/
+@[inline] def id {α : Sort u} (a : α) : α := a
+</ITEM>
+<ITEM>
+--name=Dvd.intro_left
+--context_item_type=theorem
+theorem Dvd.intro_left (c : α) (h : c * a = b) : a ∣ b :=
+  Dvd.intro c (by rw [mul_comm] at h; apply h)
+</ITEM>
+<ITEM>
+--name=Nat.dvd_gcd
+--context_item_type=theorem
+theorem dvd_gcd : k ∣ m → k ∣ n → k ∣ gcd m n := by
+  induction m, n using gcd.induction with intro km kn
+  | H0 n => rw [gcd_zero_left]; exact kn
+  | H1 n m _ IH => rw [gcd_rec]; exact IH ((dvd_mod_iff km).2 kn) km
+</ITEM>
+<ITEM>
+--name=mul_right_inj'
+--context_item_type=theorem
+theorem mul_right_inj' (ha : a ≠ 0) : a * b = a * c ↔ b = c :=
+  (mul_right_injective₀ ha).eq_iff
+</ITEM>
+<ITEM>
+--name=dvd_mul_right
+--context_item_type=theorem
+@[simp]
+theorem dvd_mul_right (a b : α) : a ∣ a * b :=
+  Dvd.intro b rfl
+</ITEM>
+</CONTEXT>
+
+<ANNOTATION>
+theorem C05_S01_0'{m n : ℕ} (coprime_mn : m.Coprime n) : m ^ 2 ≠ 2 * n ^ 2 := by
+  /-
+    m n : Nat
+    coprime_mn : m.Coprime n
+    ⊢ Ne (HPow.hPow m 2) (HMul.hMul 2 (HPow.hPow n 2))
+  -/
+  intro sqr_eq
+
+  have h : ∃ c, m = c * 2 := by
+    simp[dvd_iff_exists_eq_mul_left.mp, even_of_even_sqr, sqr_eq, dvd_mul_right]
+  /-
+    m n : Nat
+    coprime_mn : m.Coprime n
+    sqr_eq : Eq (HPow.hPow m 2) (HMul.hMul 2 (HPow.hPow n 2))
+    h : Exists fun c => Eq m (HMul.hMul c 2)
+    ⊢ False
+  -/
+  obtain ⟨k, meq⟩ := h
+
+  have : 2 * k ^ 2 = n ^ 2 := by
+    apply (mul_right_inj' _).mp _
+    . use 2
+    . norm_num
+    . rw [← sqr_eq, meq]
+      ring
+
+  have : 2 ∣ m.gcd n := by
+    apply Nat.dvd_gcd
+    . simp [Dvd.intro_left k, (id (Eq.symm meq))]
+    . apply even_of_even_sqr
+      rw [← this]
+      apply dvd_mul_right
+
+  /-
+    case intro
+    m n : Nat
+    coprime_mn : m.Coprime n
+    sqr_eq : Eq (HPow.hPow m 2) (HMul.hMul 2 (HPow.hPow n 2))
+    k : Nat
+    meq : Eq m (HMul.hMul k 2)
+    this✝ : Eq (HMul.hMul 2 (HPow.hPow k 2)) (HPow.hPow n 2)
+    this : Dvd.dvd 2 (m.gcd n)
+    ⊢ False
+  -/
+  rw [coprime_mn] at this
+
+  /-
+    case intro
+    m n : Nat
+    coprime_mn : m.Coprime n
+    sqr_eq : Eq (HPow.hPow m 2) (HMul.hMul 2 (HPow.hPow n 2))
+    k : Nat
+    meq : Eq m (HMul.hMul k 2)
+    this✝ : Eq (HMul.hMul 2 (HPow.hPow k 2)) (HPow.hPow n 2)
+    this : Dvd.dvd 2 1
+    ⊢ False
+  -/
+  norm_num at this
+  /-
+    🎉 no goals
+  -/
+
+
+</ANNOTATION>
+
+<CURRENT>
+theorem C05_S01_0{m n : ℕ} (coprime_mn : m.Coprime n) : m ^ 2 ≠ 2 * n ^ 2 := by
+  intro sqr_eq
+
+  have h : ∃ c, m = c * 2 := by
+    simp[dvd_iff_exists_eq_mul_left.mp, even_of_even_sqr, sqr_eq, dvd_mul_right]
+  obtain ⟨k, meq⟩ := h
+
+  have : 2 * k ^ 2 = n ^ 2 := by
+    apply (mul_right_inj' _).mp _
+    . use 2
+    . norm_num
+    . rw [← sqr_eq, meq]
+      ring
+
+  have : 2 ∣ m.gcd n := by
+    apply Nat.dvd_gcd
+    . simp [Dvd.intro_left k, (id (Eq.symm meq))]
+    . apply even_of_even_sqr
+      rw [← this]
+      apply dvd_mul_right
+
+  rw [coprime_mn] at this
+
+  norm_num at this
+
+</CURRENT>
+
+<IMPROVED>
+
+
+theorem C05_S01_0{m n : ℕ} (coprime_mn : m.Coprime n) : m ^ 2 ≠ 2 * n ^ 2 := by
+  intro sqr_eq
+  have : 2 ∣ m := by
+    apply even_of_even_sqr
+    rw [sqr_eq]
+    apply dvd_mul_right
+  obtain ⟨k, meq⟩ := dvd_iff_exists_eq_mul_left.mp this
+  have : 2 * (2 * k ^ 2) = 2 * n ^ 2 := by
+    rw [← sqr_eq, meq]
+    ring
+  have : 2 * k ^ 2 = n ^ 2 :=
+    (mul_right_inj' (by norm_num)).mp this
+  have : 2 ∣ n := by
+    apply even_of_even_sqr
+    rw [← this]
+    apply dvd_mul_right
+  have : 2 ∣ m.gcd n := by
+    apply Nat.dvd_gcd <;>
+    assumption
+  have : 2 ∣ 1 := by
+    convert this
+    symm
+    exact coprime_mn
+  norm_num at this
+
+</IMPROVED>
+
+
+
+
+</EXAMPLE>
+
+
+
+<EXAMPLE>
+
+<CONTEXT>
+<ITEM>
+--name=Nat.dvd_mul_right
+--context_item_type=theorem
+protected theorem dvd_mul_right (a b : Nat) : a ∣ a * b := ⟨b, rfl⟩
+</ITEM>
+<ITEM>
+--name=Nat.dvd_sub'
+--context_item_type=theorem
+lemma dvd_sub' (h₁ : k ∣ m) (h₂ : k ∣ n) : k ∣ m - n := by
+  rcases le_total n m with H | H
+  · exact dvd_sub H h₁ h₂
+  · rw [Nat.sub_eq_zero_iff_le.mpr H]
+    exact Nat.dvd_zero k
+</ITEM>
+<ITEM>
+--name=Nat.add_sub_cancel
+--context_item_type=theorem
+@[simp] protected theorem add_sub_cancel (n m : Nat) : n + m - m = n :=
+  suffices n + m - (0 + m) = n by rw [Nat.zero_add] at this; assumption
+  by rw [Nat.add_sub_add_right, Nat.sub_zero]
+</ITEM>
+<ITEM>
+--name=add_comm
+--context_item_type=theorem
+@[to_additive]
+</ITEM>
+<ITEM>
+--name=pow_eq_zero
+--context_item_type=theorem
+lemma pow_eq_zero : ∀ {n}, a ^ n = 0 → a = 0
+  | 0, ha => by simpa using congr_arg (a * ·) ha
+  | n + 1, ha => by rw [pow_succ, mul_eq_zero] at ha; exact ha.elim pow_eq_zero id
+</ITEM>
+</CONTEXT>
+
+
+<ANNOTATION>
+theorem C05_S01_3'{m n k r : ℕ} (nnz : n ≠ 0) (pow_eq : m ^ k = r * n ^ k) {p : ℕ} :
+    k ∣ r.factorization p := by
+  /-
+    m n k r : Nat
+    nnz : Ne n 0
+    pow_eq : Eq (HPow.hPow m k) (HMul.hMul r (HPow.hPow n k))
+    p : Nat
+    ⊢ Dvd.dvd k (r.factorization p)
+  -/
+  rcases r with _ | r
+    /-
+      case zero
+      m n k : Nat
+      nnz : Ne n 0
+      p : Nat
+      pow_eq : Eq (HPow.hPow m k) (HMul.hMul 0 (HPow.hPow n k))
+      ⊢ Dvd.dvd k ((Nat.factorization 0) p)
+    -/
+  . simp
+    /-
+      🎉 no goals
+    -/
+  . have : r.succ.factorization p = k * m.factorization p - k * n.factorization p := by
+      rw [← factorization_pow', pow_eq, factorization_mul' r.succ_ne_zero (fun npowz ↦ nnz (pow_eq_zero npowz)), factorization_pow', add_comm, add_comm, Nat.add_sub_cancel]
+    /-
+      case succ
+      m n k : Nat
+      nnz : Ne n 0
+      p r : Nat
+      pow_eq : Eq (HPow.hPow m k) (HMul.hMul (HAdd.hAdd r 1) (HPow.hPow n k))
+      this : Eq (r.succ.factorization p) (HSub.hSub (HMul.hMul k (m.factorization p) …
+      ⊢ Dvd.dvd k ((HAdd.hAdd r 1).factorization p)
+    -/
+    rw [this]
+    /-
+      case succ
+      m n k : Nat
+      nnz : Ne n 0
+      p r : Nat
+      pow_eq : Eq (HPow.hPow m k) (HMul.hMul (HAdd.hAdd r 1) (HPow.hPow n k))
+      this : Eq (r.succ.factorization p) (HSub.hSub (HMul.hMul k (m.factorization p) …
+      ⊢ Dvd.dvd k (HSub.hSub (HMul.hMul k (m.factorization p)) (HMul.hMul k (n.facto …
+    -/
+    apply Nat.dvd_sub' <;>
+    /-
+      case succ.h₁
+      m n k : Nat
+      nnz : Ne n 0
+      p r : Nat
+      pow_eq : Eq (HPow.hPow m k) (HMul.hMul (HAdd.hAdd r 1) (HPow.hPow n k))
+      this : Eq (r.succ.factorization p) (HSub.hSub (HMul.hMul k (m.factorization p) …
+      ⊢ Dvd.dvd k (HMul.hMul k (m.factorization p))
+    -/
+    /-
+      🎉 no goals
+    -/
+    apply Nat.dvd_mul_right
+    /-
+      🎉 no goals
+    -/
+
+
+</ANNOTATION>
+
+<CURRENT>
+theorem C05_S01_3{m n k r : ℕ} (nnz : n ≠ 0) (pow_eq : m ^ k = r * n ^ k) {p : ℕ} :
+    k ∣ r.factorization p := by
+  rcases r with _ | r
+  . simp
+  . have : r.succ.factorization p = k * m.factorization p - k * n.factorization p := by
+      rw [← factorization_pow', pow_eq, factorization_mul' r.succ_ne_zero (fun npowz ↦ nnz (pow_eq_zero npowz)), factorization_pow', add_comm, add_comm, Nat.add_sub_cancel]
+    rw [this]
+    apply Nat.dvd_sub' <;>
+    apply Nat.dvd_mul_right
+
+
+</CURRENT>
+
+<IMPROVED>
+
+
+theorem C05_S01_3{m n k r : ℕ} (nnz : n ≠ 0) (pow_eq : m ^ k = r * n ^ k) {p : ℕ} :
+    k ∣ r.factorization p := by
+  rcases r with _ | r
+  · simp
+  have npow_nz : n ^ k ≠ 0 := fun npowz ↦ nnz (pow_eq_zero npowz)
+  have eq1 : (m ^ k).factorization p = k * m.factorization p := by
+    rw [factorization_pow']
+  have eq2 : ((r + 1) * n ^ k).factorization p =
+      k * n.factorization p + (r + 1).factorization p := by
+    rw [factorization_mul' r.succ_ne_zero npow_nz, factorization_pow', add_comm]
+  have : r.succ.factorization p = k * m.factorization p - k * n.factorization p := by
+    rw [← eq1, pow_eq, eq2, add_comm, Nat.add_sub_cancel]
+  rw [this]
+  apply Nat.dvd_sub' <;>
+  apply Nat.dvd_mul_right
+
+</IMPROVED>
+
+</EXAMPLE>
+
+
+
+<EXAMPLE>
+
+
+<CONTEXT>
+<ITEM>
+--name=dist_pos
+--context_item_type=theorem
+@[simp]
+theorem dist_pos {x y : γ} : 0 < dist x y ↔ x ≠ y := by
+  simpa only [not_le] using not_congr dist_le_zero
+</ITEM>
+<ITEM>
+--name=continuous_const
+--context_item_type=theorem
+@[continuity, fun_prop]
+theorem continuous_const : Continuous fun _ : X => y :=
+  continuous_iff_continuousAt.mpr fun _ => continuousAt_const
+</ITEM>
+<ITEM>
+--name=isClosed_le
+--context_item_type=theorem
+theorem isClosed_le [TopologicalSpace β] {f g : β → α} (hf : Continuous f) (hg : Continuous g) :
+    IsClosed { b | f b ≤ g b } :=
+  continuous_iff_isClosed.mp (hf.prod_mk hg) _ isClosed_le_prod
+</ITEM>
+<ITEM>
+--name=Metric.uniformContinuous_iff
+--context_item_type=theorem
+theorem uniformContinuous_iff [PseudoMetricSpace β] {f : α → β} :
+    UniformContinuous f ↔ ∀ ε > 0, ∃ δ > 0, ∀ ⦃a b : α⦄, dist a b < δ → dist (f a) (f b) < ε :=
+  uniformity_basis_dist.uniformContinuous_iff uniformity_basis_dist
+</ITEM>
+<ITEM>
+--name=UniformContinuous
+--context_item_type=def
+/-- A function `f : α → β` is *uniformly continuous* if `(f x, f y)` tends to the diagonal
+as `(x, y)` tends to the diagonal. In other words, if `x` is sufficiently close to `y`, then
+`f x` is close to `f y` no matter where `x` and `y` are located in `α`. -/
+def UniformContinuous [UniformSpace β] (f : α → β) :=
+  Tendsto (fun x : α × α => (f x.1, f x.2)) (𝓤 α) (𝓤 β)
+</ITEM>
+</CONTEXT>
+
+<ANNOTATION>
+theorem C10_S02_30'{X : Type*} [MetricSpace X] [CompactSpace X] {Y : Type*} [MetricSpace Y] {f : X → Y}
+    (hf : Continuous f) : UniformContinuous f := by
+  /-
+    X : Type u_1
+    inst✝² : MetricSpace X
+    inst✝¹ : CompactSpace X
+    Y : Type u_2
+    inst✝ : MetricSpace Y
+    f : X → Y
+    hf : Continuous f
+    ⊢ UniformContinuous f
+  -/
+  rw [Metric.uniformContinuous_iff]
+  /-
+    X : Type u_1
+    inst✝² : MetricSpace X
+    inst✝¹ : CompactSpace X
+    Y : Type u_2
+    inst✝ : MetricSpace Y
+    f : X → Y
+    hf : Continuous f
+    ⊢ ∀ (ε : Real), GT.gt ε 0 → Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.l …
+  -/
+  intro ε ε_pos
+  /-
+    X : Type u_1
+    inst✝² : MetricSpace X
+    inst✝¹ : CompactSpace X
+    Y : Type u_2
+    inst✝ : MetricSpace Y
+    f : X → Y
+    hf : Continuous f
+    ε : Real
+    ε_pos : GT.gt ε 0
+    ⊢ Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) δ → LT.l …
+  -/
+  let φ : X × X → ℝ := fun p ↦ dist (f p.1) (f p.2)
+  /-
+    X : Type u_1
+    inst✝² : MetricSpace X
+    inst✝¹ : CompactSpace X
+    Y : Type u_2
+    inst✝ : MetricSpace Y
+    f : X → Y
+    hf : Continuous f
+    ε : Real
+    ε_pos : GT.gt ε 0
+    φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+    ⊢ Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) δ → LT.l …
+  -/
+  let K := { p : X × X | ε ≤ φ p }
+  /-
+    X : Type u_1
+    inst✝² : MetricSpace X
+    inst✝¹ : CompactSpace X
+    Y : Type u_2
+    inst✝ : MetricSpace Y
+    f : X → Y
+    hf : Continuous f
+    ε : Real
+    ε_pos : GT.gt ε 0
+    φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+    K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+    ⊢ Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) δ → LT.l …
+  -/
+  rcases eq_empty_or_nonempty K with hK | hK
+    /-
+      case inl
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : Eq K EmptyCollection.emptyCollection
+      ⊢ Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) δ → LT.l …
+    -/
+  · use 1, by norm_num
+    /-
+      case right
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : Eq K EmptyCollection.emptyCollection
+      ⊢ ∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) 1 → LT.lt (Dist.dist (f a) (f b)) ε
+    -/
+    intro x y _
+    /-
+      case right
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : Eq K EmptyCollection.emptyCollection
+      x y : X
+      a✝ : LT.lt (Dist.dist x y) 1
+      ⊢ LT.lt (Dist.dist (f x) (f y)) ε
+    -/
+    have : (x, y) ∉ K := by simp [hK]
+    /-
+      case right
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : Eq K EmptyCollection.emptyCollection
+      x y : X
+      a✝ : LT.lt (Dist.dist x y) 1
+      this : Not (Membership.mem K { fst := x, snd := y })
+      ⊢ LT.lt (Dist.dist (f x) (f y)) ε
+    -/
+    simpa [K] using this
+    /-
+      🎉 no goals
+    -/
+    /-
+      case inr
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : K.Nonempty
+      ⊢ Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) δ → LT.l …
+    -/
+  · rcases ((isClosed_le continuous_const (hf.fst'.dist hf.snd')).isCompact).exists_isMinOn hK continuous_dist.continuousOn with ⟨⟨x₀, x₁⟩, xx_in, H⟩
+    /-
+      case inr.intro.mk.intro
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : K.Nonempty
+      x₀ x₁ : X
+      xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+      H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+      ⊢ Exists fun δ => And (GT.gt δ 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) δ → LT.l …
+    -/
+    use dist x₀ x₁
+    /-
+      case h
+      X : Type u_1
+      inst✝² : MetricSpace X
+      inst✝¹ : CompactSpace X
+      Y : Type u_2
+      inst✝ : MetricSpace Y
+      f : X → Y
+      hf : Continuous f
+      ε : Real
+      ε_pos : GT.gt ε 0
+      φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+      K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+      hK : K.Nonempty
+      x₀ x₁ : X
+      xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+      H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+      ⊢ And (GT.gt (Dist.dist x₀ x₁) 0) (∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) (Dist.di …
+    -/
+    constructor
+      /-
+        case h.left
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        ⊢ GT.gt (Dist.dist x₀ x₁) 0
+      -/
+    · change _ < _
+      /-
+        case h.left
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        ⊢ LT.lt 0 (Dist.dist x₀ x₁)
+      -/
+      rw [dist_pos]
+      /-
+        case h.left
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        ⊢ Ne x₀ x₁
+      -/
+      intro h
+      /-
+        case h.left
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        h : Eq x₀ x₁
+        ⊢ False
+      -/
+      have : ε ≤ 0 := by simpa [K, φ, *] using xx_in
+      /-
+        case h.left
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        h : Eq x₀ x₁
+        this : LE.le ε 0
+        ⊢ False
+      -/
+      linarith
+      /-
+        🎉 no goals
+      -/
+      /-
+        case h.right
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        ⊢ ∀ ⦃a b : X⦄, LT.lt (Dist.dist a b) (Dist.dist x₀ x₁) → LT.lt (Dist.dist (f a …
+      -/
+    · intro x x'
+      /-
+        case h.right
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        x x' : X
+        ⊢ LT.lt (Dist.dist x x') (Dist.dist x₀ x₁) → LT.lt (Dist.dist (f x) (f x')) ε
+      -/
+      contrapose!
+      /-
+        case h.right
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        x x' : X
+        ⊢ LE.le ε (Dist.dist (f x) (f x')) → LE.le (Dist.dist x₀ x₁) (Dist.dist x x')
+      -/
+      intro (hxx' : (x, x') ∈ K)
+      /-
+        case h.right
+        X : Type u_1
+        inst✝² : MetricSpace X
+        inst✝¹ : CompactSpace X
+        Y : Type u_2
+        inst✝ : MetricSpace Y
+        f : X → Y
+        hf : Continuous f
+        ε : Real
+        ε_pos : GT.gt ε 0
+        φ : Prod X X → Real := fun p => Dist.dist (f p.1) (f p.2)
+        K : Set (Prod X X) := setOf fun p => LE.le ε (φ p)
+        hK : K.Nonempty
+        x₀ x₁ : X
+        xx_in : Membership.mem (setOf fun b => LE.le ε (Dist.dist (f b.1) (f b.2))) {  …
+        H : IsMinOn (fun p => Dist.dist p.1 p.2) (setOf fun b => LE.le ε (Dist.dist (f …
+        x x' : X
+        hxx' : Membership.mem K { fst := x, snd := x' }
+        ⊢ LE.le (Dist.dist x₀ x₁) (Dist.dist x x')
+      -/
+      exact H hxx'
+      /-
+        🎉 no goals
+      -/
+
+
+</ANNOTATION>
+
+<CURRENT>
+theorem C10_S02_30{X : Type*} [MetricSpace X] [CompactSpace X] {Y : Type*} [MetricSpace Y] {f : X → Y}
+    (hf : Continuous f) : UniformContinuous f := by
+  rw [Metric.uniformContinuous_iff]
+  intro ε ε_pos
+  let φ : X × X → ℝ := fun p ↦ dist (f p.1) (f p.2)
+  let K := { p : X × X | ε ≤ φ p }
+  rcases eq_empty_or_nonempty K with hK | hK
+  · use 1, by norm_num
+    intro x y _
+    have : (x, y) ∉ K := by simp [hK]
+    simpa [K] using this
+  · rcases ((isClosed_le continuous_const (hf.fst'.dist hf.snd')).isCompact).exists_isMinOn hK continuous_dist.continuousOn with ⟨⟨x₀, x₁⟩, xx_in, H⟩
+    use dist x₀ x₁
+    constructor
+    · change _ < _
+      rw [dist_pos]
+      intro h
+      have : ε ≤ 0 := by simpa [K, φ, *] using xx_in
+      linarith
+    · intro x x'
+      contrapose!
+      intro (hxx' : (x, x') ∈ K)
+      exact H hxx'
+
+
+</CURRENT>
+
+<IMPROVED>
+
+theorem C10_S02_30{X : Type*} [MetricSpace X] [CompactSpace X] {Y : Type*} [MetricSpace Y] {f : X → Y}
+    (hf : Continuous f) : UniformContinuous f := by
+  rw [Metric.uniformContinuous_iff]
+  intro ε ε_pos
+  let φ : X × X → ℝ := fun p ↦ dist (f p.1) (f p.2)
+  have φ_cont : Continuous φ := hf.fst'.dist hf.snd'
+  let K := { p : X × X | ε ≤ φ p }
+  have K_closed : IsClosed K := isClosed_le continuous_const φ_cont
+  have K_cpct : IsCompact K := K_closed.isCompact
+  rcases eq_empty_or_nonempty K with hK | hK
+  · use 1, by norm_num
+    intro x y _
+    have : (x, y) ∉ K := by simp [hK]
+    simpa [K] using this
+  · rcases K_cpct.exists_isMinOn hK continuous_dist.continuousOn with ⟨⟨x₀, x₁⟩, xx_in, H⟩
+    use dist x₀ x₁
+    constructor
+    · change _ < _
+      rw [dist_pos]
+      intro h
+      have : ε ≤ 0 := by simpa [K, φ, *] using xx_in
+      linarith
+    · intro x x'
+      contrapose!
+      intro (hxx' : (x, x') ∈ K)
+      exact H hxx'
+
+</IMPROVED>
+
+</EXAMPLE>
+
+<EXAMPLE>
+
+
+<CONTEXT>
+<ITEM>
+--name=Nat.dvd_factorial
+--context_item_type=theorem
+theorem dvd_factorial : ∀ {m n}, 0 < m → m ≤ n → m ∣ n !
+  | succ _, _, _, h => Nat.dvd_trans (Nat.dvd_mul_right _ _) (factorial_dvd_factorial h)
+</ITEM>
+<ITEM>
+--name=Nat.factorial
+--context_item_type=def
+/-- `Nat.factorial n` is the factorial of `n`. -/
+def factorial : ℕ → ℕ
+  | 0 => 1
+  | succ n => succ n * factorial n
+</ITEM>
+<ITEM>
+--name=Nat.dvd_sub'
+--context_item_type=theorem
+lemma dvd_sub' (h₁ : k ∣ m) (h₂ : k ∣ n) : k ∣ m - n := by
+  rcases le_total n m with H | H
+  · exact dvd_sub H h₁ h₂
+  · rw [Nat.sub_eq_zero_iff_le.mpr H]
+    exact Nat.dvd_zero k
+</ITEM>
+<ITEM>
+--name=zero_lt_one
+--context_item_type=theorem
+/-- See `zero_lt_one'` for a version with the type explicit. -/
+@[simp] lemma zero_lt_one : (0 : α) < 1 := zero_le_one.lt_of_ne (NeZero.ne' 1)
+</ITEM>
+<ITEM>
+--name=Nat.le_of_dvd
+--context_item_type=theorem
+theorem le_of_dvd {m n : Nat} (h : 0 < n) : m ∣ n → m ≤ n
+  | ⟨k, e⟩ => by
+    revert h
+    rw [e]
+    match k with
+    | 0 => intro hn; simp at hn
+    | pk+1 =>
+      intro
+      have := Nat.mul_le_mul_left m (succ_pos pk)
+      rwa [Nat.mul_one] at this
+</ITEM>
+<ITEM>
+--name=Nat.factorial_pos
+--context_item_type=theorem
+theorem factorial_pos : ∀ n, 0 < n !
+  | 0 => Nat.zero_lt_one
+  | succ n => Nat.mul_pos (succ_pos _) (factorial_pos n)
+</ITEM>
+<ITEM>
+--name=Nat.succ_le_of_lt
+--context_item_type=theorem
+theorem succ_le_of_lt {n m : Nat} (h : n < m) : succ n ≤ m := h
+</ITEM>
+<ITEM>
+--name=Nat.succ_le_succ
+--context_item_type=theorem
+theorem Nat.succ_le_succ : LE.le n m → LE.le (succ n) (succ m)
+  | Nat.le.refl   => Nat.le.refl
+  | Nat.le.step h => Nat.le.step (succ_le_succ h)
+</ITEM>
+<ITEM>
+--name=Nat.Prime
+--context_item_type=def
+/-- `Nat.Prime p` means that `p` is a prime number, that is, a natural number
+  at least 2 whose only divisors are `p` and `1`.
+  The theorem `Nat.prime_def` witnesses this description of a prime number. -/
+@[pp_nodot]
+def Prime (p : ℕ) :=
+  Irreducible p
+</ITEM>
+</CONTEXT>
+
+<ANNOTATION>
+theorem primes_infinite' : ∀ n, ∃ p > n, Nat.Prime p := by
+  /-
+    ⊢ ∀ (n : Nat), Exists fun p => And (GT.gt p n) (Nat.Prime p)
+  -/
+  intro n
+  /-
+    n : Nat
+    ⊢ Exists fun p => And (GT.gt p n) (Nat.Prime p)
+  -/
+  rcases exists_prime_factor (Nat.succ_le_succ (Nat.succ_le_of_lt (Nat.factorial_pos (n+1)))) with ⟨p, pp, pdvd⟩
+  /-
+    case intro.intro
+    n p : Nat
+    pp : Nat.Prime p
+    pdvd : Dvd.dvd p (HAdd.hAdd n 1).factorial.succ
+    ⊢ Exists fun p => And (GT.gt p n) (Nat.Prime p)
+  -/
+  refine ⟨p, ?_, pp⟩
+  /-
+    case intro.intro
+    n p : Nat
+    pp : Nat.Prime p
+    pdvd : Dvd.dvd p (HAdd.hAdd n 1).factorial.succ
+    ⊢ GT.gt p n
+  -/
+  show p > n
+  /-
+    case intro.intro
+    n p : Nat
+    pp : Nat.Prime p
+    pdvd : Dvd.dvd p (HAdd.hAdd n 1).factorial.succ
+    ⊢ GT.gt p n
+  -/
+  by_contra ple
+  /-
+    case intro.intro
+    n p : Nat
+    pp : Nat.Prime p
+    pdvd : Dvd.dvd p (HAdd.hAdd n 1).factorial.succ
+    ple : Not (GT.gt p n)
+    ⊢ False
+  -/
+  push_neg at ple
+
+  have : p ≤ 1 := by
+    apply Nat.le_of_dvd zero_lt_one
+    convert Nat.dvd_sub' pdvd _
+    case convert_1 => use Nat.factorial (n + 1)
+    . simp
+    . apply Nat.dvd_factorial
+      apply pp.pos
+      linarith
+
+  /-
+    case intro.intro
+    n p : Nat
+    pp : Nat.Prime p
+    pdvd : Dvd.dvd p (HAdd.hAdd n 1).factorial.succ
+    ple : LE.le p n
+    this : LE.le p 1
+    ⊢ False
+  -/
+  linarith [pp.two_le]
+  /-
+    🎉 no goals
+  -/
+
+</ANNOTATION>
+
+<CURRENT>
+theorem primes_infinite : ∀ n, ∃ p > n, Nat.Prime p := by
+  intro n
+  rcases exists_prime_factor (Nat.succ_le_succ (Nat.succ_le_of_lt (Nat.factorial_pos (n+1)))) with ⟨p, pp, pdvd⟩
+  refine ⟨p, ?_, pp⟩
+  show p > n
+  by_contra ple
+  push_neg at ple
+
+  have : p ≤ 1 := by
+    apply Nat.le_of_dvd zero_lt_one
+    convert Nat.dvd_sub' pdvd _
+    case convert_1 => use Nat.factorial (n + 1)
+    . simp
+    . apply Nat.dvd_factorial
+      apply pp.pos
+      linarith
+
+  linarith [pp.two_le]
+
+</CURRENT>
+
+<IMPROVED>
+
+theorem primes_infinite : ∀ n, ∃ p > n, Nat.Prime p := by
+  intro n
+  have : 2 ≤ Nat.factorial (n + 1) + 1 := by
+    apply Nat.succ_le_succ
+    exact Nat.succ_le_of_lt (Nat.factorial_pos _)
+  rcases exists_prime_factor this with ⟨p, pp, pdvd⟩
+  refine ⟨p, ?_, pp⟩
+  show p > n
+  by_contra ple
+  push_neg at ple
+  have : p ∣ Nat.factorial (n + 1) := by
+    apply Nat.dvd_factorial
+    apply pp.pos
+    linarith
+  have : p ∣ 1 := by
+    convert Nat.dvd_sub' pdvd this
+    simp
+  show False
+  have := Nat.le_of_dvd zero_lt_one this
+  linarith [pp.two_le]
+
+</IMPROVED>
+
+</EXAMPLE>
