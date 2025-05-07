@@ -60,8 +60,8 @@ async def run_improver(file_info, args):
         context,
         "--rag",
         f"{rag}",
-        # "--example_file",
-        # f"prompt_examples/{model}_{metric}.txt",
+        "--example_file",
+        f"prompt_examples/{metric}/{id}.txt",
         module,
         metric
     ]
@@ -112,19 +112,21 @@ async def main_async(repos, *args):
 
         # Run tasks concurrently with bounded concurrency
         
-        max_workers = 75
+        max_workers = 64
         if context:
-            max_workers=40
+            max_workers=48
         if rag:
-            max_workers=10
+            max_workers=8
         
-        semaphore = asyncio.Semaphore(min(max_workers, multiprocessing.cpu_count()))
+        semaphore = asyncio.Semaphore(max_workers)#min(max_workers, multiprocessing.cpu_count()))
 
         async def run_with_semaphore(file_info):
             async with semaphore:
                 return await run_improver(file_info, args)
 
         tasks = [run_with_semaphore(file_info) for file_info in files_to_process]
+        # Run tasks concurrently without bounded concurrency
+        # tasks = [run_improver(file_info, args) for file_info in files_to_process]
         output_jsons = await asyncio.gather(*tasks)
         output_jsons = [r for r in output_jsons if r is not None]
 

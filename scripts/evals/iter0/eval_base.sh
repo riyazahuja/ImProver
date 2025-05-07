@@ -46,7 +46,7 @@ lake build ImProver.improver
 
 
 echo "Waiting for vLLM server to start..."
-until curl -s http://localhost:${PORT}/model_info > /dev/null; do
+until curl -s http://localhost:${PORT}/v1/models > /dev/null; do
     sleep 5
     echo "Still waiting for vLLM..."
 

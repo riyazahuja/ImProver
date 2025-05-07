@@ -292,7 +292,7 @@ def test_config : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.s
 -- def test_config_declarativity : ImProverConfig := {targetModule:=`MIL.C04_Sets_and_Functions.solutions.Solutions_S01_Sets, decls:=(some [`C04_S01_8]), metric := "declarativity"}
 def test_config_declarativity : ImProverConfig := {targetModule:=`temp.exs, context? := true, annotation? := true, rag? := 7, metric := "declarativity"}
 
-#eval ImProver test_config_declarativity
+-- #eval ImProver test_config_declarativity
 -- #eval ImProver test_config
 
 -- #eval ImProver test_config_declarativity
