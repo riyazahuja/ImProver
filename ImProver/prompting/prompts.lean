@@ -213,95 +213,49 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
   return prompt_data
 
-def get_prompt_batched_anno (prompt_name : String)  (config : ImProverConfig) (cmds_ci : Array (CompilationStep ×ConstantInfo) ) : IO (Array  String) := do
-  let main_prompt := match prompt_name with
-  | "length" => length_prompt
-  | "declarativity" => declarativity_prompt
-  | "dependency" => dependency_prompt
-  | "completion" => completion_prompt
-  | _ => length_prompt
 
 
-  let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference. Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
-  let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
-  let rag_prompt : String := s!" The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
+def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) ) : IO Json := do
 
 
-  let prompt_data ← cmds_ci.mapM (fun (cmd,_) => do
+  -- let example_string : String ← IO.FS.readFile config.example_file.get!
 
-    let srcCommand := cmd.src.toString
+  let prompt_data : Array (ConstantInfo × Json × Json × Json) ← cmds_ci.mapM (fun (cmd,(ci : ConstantInfo)) => do
 
+    let srcCommand ← if metric == "completion" then
+        to_completion_format cmd mod
+      else
+        pure cmd.src.toString
 
-    let annotation_string : String ← if config.annotation? then (insert_state_comments cmd) else pure ""
+    -- eventually want annotation on partial proofs, but for now, ignore
+    let annotation_string : String ← if metric == "completion" then pure "" else insert_state_comments cmd
 
-    let context_string : String ← if config.context? then do
+    let context_string : Json ← do
         let context ← get_context cmd
-        let data := context.map (fun c => s!"<ITEM>\n--name={c.name}\n--context_item_type={c.kind}\n{c.text}\n</ITEM>")
-        pure <| "\n".intercalate data
-      else pure ""
-
-    return (cmd, srcCommand, annotation_string, context_string)
+        pure <| Json.arr <| context.map (fun c : ExternalContext => Json.mkObj [
+            ("name", Json.str c.name.toString),
+            ("context_item_type", Json.str c.kind),
+            ("content", Json.str c.text)
+          ]) |>.toArray
+    return (ci, Json.str srcCommand, Json.str annotation_string, context_string)
   )
 
-  let rag_strings : Array String ← if config.rag? > 0 then do
-      let items ← retrieve_batch cmds_ci config
-      let data := items.map (fun (c,docs) => (c, "\n".intercalate <| docs.map (fun d => s!"<DOC>\n{d}\n</DOC>")))
-      -- pure <| "\n".intercalate data
-      pure <| data.map (fun (_,d) => d)
-    else
-      pure <| Array.range (cmds_ci.size) |>.map (fun _=> "")
+  let rag_strings : Array Json ← do
+      let items ← retrieve_batch_indep cmds_ci
+      let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
+      pure x
 
-  let prompt_data := prompt_data.zip rag_strings |>.map (fun ((_,srcCommand,annotation_string,context_string),rag_string) =>
-    let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.context? then context_prompt else ""}{if config.rag? != 0 then rag_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n{if config.context? then ("<CONTEXT>\n" ++ context_string ++ "\n</CONTEXT>\n\n") else ""}{if config.rag? != 0 then "<RETRIEVED>\n" ++ rag_string ++ "\n</RETRIEVED>\n\n" else ""}{if config.annotation? then "<CURRENT>\n" ++ annotation_string ++ "\n</CURRENT>\n\n" else s!"<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"}"
 
-    prompt
+  let prompt_data := prompt_data.zip rag_strings |>.map (fun ((ci,srcCommand,annotation_string,context_string),rag_string) =>
+    let data := Json.mkObj [
+      -- ("system", Json.str main_prompt),
+      ("examples", Json.str ""), -- fix so examples actually work
+      ("context", context_string),
+      ("retrieved", rag_string),
+      ("annotation", annotation_string),
+      ("current", srcCommand),
+      ]
+    ((ci : ConstantInfo).name.toString, data)
     )
 
-  return prompt_data
-
-
-def get_prompt_batched_ctx (prompt_name : String)  (config : ImProverConfig) (cmds_ci : Array (CompilationStep ×ConstantInfo) ) : IO (Array  String) := do
-  let main_prompt := match prompt_name with
-  | "length" => length_prompt
-  | "declarativity" => declarativity_prompt
-  | "dependency" => dependency_prompt
-  | "completion" => completion_prompt
-  | _ => length_prompt
-
-
-  let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
-  -- let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
-  let rag_prompt : String := s!" The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
-
-
-  let prompt_data ← cmds_ci.mapM (fun (cmd,_) => do
-
-    let srcCommand := cmd.src.toString
-
-
-    let annotation_string : String ← if config.annotation? then (insert_state_comments cmd) else pure ""
-
-    let context_string : String ← if config.context? then do
-        let context ← get_context cmd
-        let data := context.map (fun c => s!"<DOC>\n--name={c.name}\n{c.text}\n</DOC>")
-        pure <| "\n".intercalate data
-      else pure ""
-
-    return (cmd, srcCommand, annotation_string, context_string)
-  )
-
-  let rag_strings : Array String ← if config.rag? > 0 then do
-      let items ← retrieve_batch cmds_ci config
-      let data := items.map (fun (c,docs) => (c, "\n".intercalate <| docs.map (fun d => s!"<DOC>\n{d}\n</DOC>")))
-      -- pure <| "\n".intercalate data
-      pure <| data.map (fun (_,d) => d)
-    else
-      pure <| Array.range (cmds_ci.size) |>.map (fun _=> "")
-
-  let prompt_data := prompt_data.zip rag_strings |>.map (fun ((_,srcCommand,annotation_string,context_string),rag_string) =>
-    let prompt : String := s!"{main_prompt}{if config.annotation? then annotation_prompt else ""}{if config.rag? != 0 || config.context? then rag_prompt else ""} Include the output in the <IMPROVED>...</IMPROVED> tag.\n\n{if config.rag? != 0 || config.context? then "<RETRIEVED>\n" ++ (if config.context? then context_string ++"\n" else "")++(if config.rag? != 0 then rag_string else "") ++ "\n</RETRIEVED>\n\n" else ""}{if config.annotation? then "<ANNOTATION>\n" ++ annotation_string ++ "\n</ANNOTATION>\n\n" else ""}<CURRENT>\n{srcCommand}\n</CURRENT>\n\n<IMPROVED>"
-
-    prompt
-    )
-
-  return prompt_data
+  pure <| Json.mkObj prompt_data.toList

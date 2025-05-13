@@ -120,6 +120,53 @@ def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: Im
 
 
 
+def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) : IO (Array (CompilationStep × (List String))) := do
+  let queries : Array String ← steps.mapM (fun (cmd, ci) => do
+    let env := cmd.after
+
+    try
+      getInitialProofState env ci
+    catch e =>
+      IO.println s!"Error getting initial proof state on {ci.name}: {e}"
+      let tacs :=cmd.trees
+        |>.flatMap InfoTree.retainTacticInfo
+        |>.flatMap InfoTree.retainOriginal
+        |>.flatMap InfoTree.retainSubstantive
+        |>.flatMap InfoTree.tactics
+      match tacs with
+      | [] => pure ""
+      | i::_ => pure <| ((← i.mainGoalStateBefore)).pretty 1000000
+
+  )
+
+  -- IO.println queries
+  let data : Json := Json.mkObj
+    [("queries", Json.arr <| queries.map (fun q => Json.str q)),
+      ("k", Json.num 10)
+    --  ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
+    ]
+  IO.println data.compress
+  let out ← IO.Process.output {
+    cmd := "/home/riyaza/miniconda3/envs/env/bin/python",
+    -- cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
+    args := #["ImProver/prompting/rag_batched.py", data.compress]
+  }
+
+  let stdout := out.stdout.trim
+  IO.println out.stderr
+  IO.println "OUT"
+  IO.println out.stdout
+  let json? := Json.parse stdout |>.toOption
+  let json := match json? with
+  | some j => j
+  | none => Json.mkObj []
+
+  let data : Array (Array String) := fromJson? json |>.toOption |>.getD #[]
+  let data := data.map (fun d => d.toList)
+  let cmds := steps.map (fun (c, _) => c)
+  let out := cmds.zip data
+  return out
+
 
 
 
