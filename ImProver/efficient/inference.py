@@ -7,6 +7,9 @@ import torch
 import pandas as pd
 import json
 import datetime
+import multiprocessing
+import argparse
+import duckdb
 
 
 def run_inference(df, args):
@@ -76,13 +79,20 @@ def run_inference(df, args):
 
     config_path = os.path.join(run_output_dir, "config.json")
 
-    run_output_dir = os.path.join(args.output_dir, id)
-    ds.write_csv(f"local://{output_path}")
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
 
+    ds.repartition(16).write_parquet(f"local://{output_path}")
+
+    con = duckdb.connect(os.path.join(run_output_dir, "data.duckdb"))
+    con.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS run_data AS
+        SELECT * FROM read_parquet('{output_path}/*.parquet');
+    """
+    )
+
     return run_output_dir
-    # print(f"Output written to {output_path}")
 
 
 def construct_prompts(data, args):
@@ -90,33 +100,61 @@ def construct_prompts(data, args):
     items = []
     for name, decl_data in data.items():
         prompt = decl_data["system"] + "\n\n"
-        prompt += decl_data["example_prompt"] + "\n"
+
+        if args.examples != 0:
+            prompt += decl_data["example_prompt"] + "\n"
 
         if args.annotation:
             prompt += decl_data["annotation_prompt"] + "\n"
 
-        if args.context:
+        if args.context != 0:
             prompt += decl_data["context_prompt"] + "\n"
 
-        if args.rag:
+        if args.rag != 0:
             prompt += decl_data["rag_prompt"] + "\n"
 
         prompt += "\n"
 
-        if args.annotation:
-            prompt += f"<EXAMPLES>\n{decl_data["annotation"]}\n</EXAMPLES>\n\n"
+        if args.examples != 0:
+            prompt += f"<EXAMPLES>\n\n"
+            for example in decl_data["examples"][: args.examples]:
+                ex_prompt = "<EXAMPLE>\n\n"
+                if args.context:
+                    ex_prompt += f"<CONTEXT>\n"
+                    for context in example["context"]:
+                        ex_prompt += f"<ITEM>\n--name={context['name']}\n--type={context['context_item_type']}\n{context['content']}\n</ITEM>\n"
+                    ex_prompt += f"</CONTEXT>\n\n"
+                if args.rag != 0:
+                    ex_prompt += f"<RAG>\n"
+                    for rag in example["rag"][: args.rag]:
+                        prompt += (
+                            f"<DOC>\n--src={rag['src']}\n{rag['content']}\n</DOC>\n"
+                        )
+                    ex_prompt += f"</RAG>\n\n"
+                if args.annotation:
+                    ex_prompt += (
+                        f"<ANNOTATION>\n{example['annotation']}\n</ANNOTATION>\n\n"
+                    )
+                ex_prompt += f"<CURRENT>\n{example['current']}\n</CURRENT>\n\n"
+                ex_prompt += f"<IMPROVED>\n{example['improved']}\n</IMPROVED>\n\n"
+                ex_prompt += f"</EXAMPLE>\n\n"
+                prompt += ex_prompt
+            prompt += f"</EXAMPLES>\n\n"
 
-        if args.context:
+        if args.context != 0:
             prompt += f"<CONTEXT>\n"
-            for context in decl_data["context"]:
+            for context in decl_data["context"][: args.context]:
                 prompt += f"<ITEM>\n--name={context['name']}\n--type={context['context_item_type']}\n{context['content']}\n</ITEM>\n"
             prompt += f"</CONTEXT>\n\n"
 
-        if args.rag:
+        if args.rag != 0:
             prompt += f"<RAG>\n"
-            for rag in decl_data["rag"]:
+            for rag in decl_data["rag"][: args.rag]:
                 prompt += f"<DOC>\n--src={rag['src']}\n{rag['content']}\n</DOC>\n"
             prompt += f"</RAG>\n\n"
+
+        if args.annotation:
+            prompt += f"<ANNOTATION>\n{decl_data["annotation"]}\n</ANNOTATION>\n\n"
 
         prompt += f"\n<CURRENT>\n{decl_data['current']}\n</CURRENT>\n\n"
         prompt += "<IMPROVED>"
@@ -162,7 +200,10 @@ def main(args):
                     ignore_index=True,
                 )
 
+    # returns the path to the directory containing run metadata and the parquet lake
     output_path = run_inference(df, args)
+
+    # we should also initialize + index the duckDB stuff
 
 
 if __name__ == "__main__":
@@ -197,7 +238,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cpus",
         type=int,
-        default=cpu_count(),
+        default=multiprocessing.cpu_count(),
         help="Number of CPUs to use (default: all available)",
     )
 
@@ -217,10 +258,19 @@ if __name__ == "__main__":
         "--annotation", type=bool, default=False, help="Annotation? (default: False)"
     )
     parser.add_argument(
-        "--context", type=bool, default=False, help="Context? (default: False)"
+        "--context",
+        type=int,
+        default=0,
+        help="Number of context retrievals (default: 0)",
     )
     parser.add_argument(
-        "--rag", type=int, default=False, help="Number of RAG retrievals (default: 0)"
+        "--rag", type=int, default=0, help="Number of RAG retrievals (default: 0)"
+    )
+    parser.add_argument(
+        "--examples",
+        type=int,
+        default=0,
+        help="Number of few-shot example retrievals (default: 0)",
     )
 
     args = parser.parse_args()

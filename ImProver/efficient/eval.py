@@ -133,6 +133,12 @@ def construct_prompts(data, args):
 
 def main(args):
 
+    data_dir = os.path.join(args.run_dir, args.run_id, "data")
+    config_path = os.path.join(args.run_dir, args.run_id, "config.json")
+
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
     with open(args.dataset_path, "r") as f:
         all = json.load(f)
         dataset = all[args.split]

@@ -215,10 +215,23 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
 
 
-def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) ) : IO Json := do
+def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) ) (example_path : String) : IO Json := do
 
 
-  -- let example_string : String ← IO.FS.readFile config.example_file.get!
+  let main_prompt := match metric with
+  | "length" => length_prompt
+  | "declarativity" => declarativity_prompt
+  | "dependency" => dependency_prompt
+  | "completion" => completion_prompt
+  | _ => length_prompt
+
+
+
+  let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
+  let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
+  let rag_prompt : String := s!" The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
+
+  let example_prompt : String := s!"Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
 
   let prompt_data : Array (ConstantInfo × Json × Json × Json) ← cmds_ci.mapM (fun (cmd,(ci : ConstantInfo)) => do
 
@@ -245,13 +258,22 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
       let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
       pure x
 
+  let example_json : Json ← do
+    let content ← IO.FS.readFile example_path
+    match Json.parse content with
+    | .ok json => pure json
+    | .error err => throw (IO.userError s!"Failed to parse example JSON: {err}")
 
   let prompt_data := prompt_data.zip rag_strings |>.map (fun ((ci,srcCommand,annotation_string,context_string),rag_string) =>
     let data := Json.mkObj [
-      -- ("system", Json.str main_prompt),
-      ("examples", Json.str ""), -- fix so examples actually work
+      ("system", Json.str main_prompt),
+      ("example_prompt", Json.str example_prompt),
+      ("examples", example_json),
+      ("context_prompt", Json.str context_prompt),
       ("context", context_string),
-      ("retrieved", rag_string),
+      ("rag_prompt", Json.str rag_prompt),
+      ("rag", rag_string),
+      ("annotation_prompt", Json.str annotation_prompt),
       ("annotation", annotation_string),
       ("current", srcCommand),
       ]

@@ -22,15 +22,14 @@ async def calculate_prompt(file, args):
         "get_prompts",
         file.replace("/", ".").replace(".lean", ""),
         args.metric,
-        args.output_dir
+        args.output_dir,
     ]
-
 
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
-        
+
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
             print(f">>> Error extracting prompts on {file}: {stderr.decode()}\n")
@@ -56,38 +55,49 @@ async def main_async(args):
     async def run_with_semaphore(file_info):
         async with semaphore:
             return await calculate_prompt(file_info, args)
-        
+
     tasks = [run_with_semaphore(file_info) for file_info in files_to_process]
-    
+
     progress_bar = tqdm.tqdm(total=len(tasks), desc="Processing files")
-    
+
     async def run_with_progress(task):
         result = await task
         progress_bar.update(1)
         return result
-    
 
     progress_tasks = [run_with_progress(task) for task in tasks]
-    
 
     await asyncio.gather(*progress_tasks)
     progress_bar.close()
-    
+
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Generate prompts for ImProver')
-    parser.add_argument('metric', type=str, help='Metric to use for evaluation')
-    parser.add_argument('dataset_path', type=str, help='Path to dataset JSON file')
-    parser.add_argument('--split', type=str, default='train', help='Dataset split to use (default: train)')
-    parser.add_argument('--output_dir', type=str, default='prompts/', help='Directory to output prompts (default: prompts/)')
-    parser.add_argument('--cpus', type=int, default=cpu_count(), help='Number of CPUs to use (default: all available)')
+    parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
+    parser.add_argument("metric", type=str, help="Metric to use for evaluation")
+    parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="train",
+        help="Dataset split to use (default: train)",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="prompts/",
+        help="Directory to output prompts (default: prompts/)",
+    )
+    parser.add_argument(
+        "--cpus",
+        type=int,
+        default=cpu_count(),
+        help="Number of CPUs to use (default: all available)",
+    )
 
     args = parser.parse_args()
 
     asyncio.run(main_async(args))
-
-
 
 
 """
@@ -103,7 +113,26 @@ prompt_save format: for each file, keep a json file with:
         system : str
         
         example_prompt : str
-        examples : str
+        examples : [
+            {
+                context : [
+                    {
+                        name : str
+                        context_item_type : str
+                        content : str
+                    }
+                ]
+                retrieved : [
+                    {
+                        src : str
+                        content : str
+                    }
+                ]
+                annotation : str
+                current : str
+                improved : str
+            }
+        ]
         
         rag_prompt : str
         rag: [
