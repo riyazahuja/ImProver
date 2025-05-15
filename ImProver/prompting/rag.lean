@@ -121,6 +121,8 @@ def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: Im
 
 
 def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) : IO (Array (CompilationStep × (List String))) := do
+  IO.println "Retrieving batch independently"
+
   let queries : Array String ← steps.mapM (fun (cmd, ci) => do
     let env := cmd.after
 
@@ -156,6 +158,7 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) : IO 
   IO.println out.stderr
   IO.println "OUT"
   IO.println out.stdout
+
   let json? := Json.parse stdout |>.toOption
   let json := match json? with
   | some j => j

@@ -37,11 +37,14 @@ lean_lib Examples where
 lean_lib RAG where
 
 
-@[default_target]
+
 lean_exe improver where
   root := `ImProver.improver
-  supportInterpreter := true
 
+@[default_target]
+lean_exe get_prompts where
+  root := `ImProver.efficient.get_prompts
+  supportInterpreter := true
 lean_exe StateComments where
   root := `scripts.standalone_state_comments
 

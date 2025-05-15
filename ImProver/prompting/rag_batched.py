@@ -2,7 +2,7 @@ from __future__ import annotations
 from langchain.globals import set_debug
 import asyncio
 from typing import List, Dict, Any
-import sentence_transformers
+# import sentence_transformers
 set_debug(False)
 
 from langchain_chroma import Chroma
@@ -14,6 +14,11 @@ import re
 
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 METADATA_PATH = "/Users/ahuja/Desktop/ImProver_rewrite/RAG/annotated/Mathlib/"
+
+devnull = open(os.devnull, "w")
+
+old_stdout = sys.stdout
+sys.stdout = devnull
 
 
 def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
@@ -105,6 +110,8 @@ async def main():
     results.sort(key=lambda x: x[0])
     results = [result[1] for result in results]
     # print(results)
+    sys.stdout = old_stdout
+    devnull.close()
     print(json.dumps(results))
 
 

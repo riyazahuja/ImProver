@@ -55,7 +55,7 @@ def run_inference(df, args):
                 max_tokens=250,
             ),
         ),
-        postprocess=lambda row: dict(answer=row["model_output"], **row),
+        postprocess=lambda row: dict(answer=row["generated_text"], **row),
     )
 
     ds = vllm_processor(ds).materialize()
@@ -162,7 +162,7 @@ def construct_prompts(data, args):
         data = {
             "decl": name,
             "decl_idx": idx,
-            "prompt": prompt,
+            "raw_prompt": prompt,
         }
         items.append(data)
         idx += 1
@@ -180,7 +180,7 @@ def main(args):
 
     prompt_root = os.path.join(args.prompts_dir, args.metric)
 
-    df = pd.DataFrame(columns=["file_path", "decl", "decl_idx", "prompt"])
+    df = pd.DataFrame(columns=["file_path", "decl", "decl_idx", "raw_prompt"])
 
     for file in files_to_process:
         file_path = os.path.join(prompt_root, file.replace(".lean", ".json"))
@@ -188,17 +188,14 @@ def main(args):
             with open(file_path, "r") as f:
                 data_raw = json.load(f)
                 prompt_data = construct_prompts(data_raw, args)
-
+            
             for item in prompt_data:
-                df = df.append(
-                    {
-                        "file_path": file_path,
-                        "decl": item["decl"],
-                        "decl_idx": item["decl_idx"],
-                        "prompt": item["prompt"],
-                    },
-                    ignore_index=True,
-                )
+
+                df.loc[len(df)] = [file_path,
+                        item["decl"],
+                        item["decl_idx"],
+                        item["raw_prompt"]]
+               
 
     # returns the path to the directory containing run metadata and the parquet lake
     output_path = run_inference(df, args)

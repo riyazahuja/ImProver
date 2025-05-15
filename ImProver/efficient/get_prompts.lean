@@ -13,7 +13,6 @@ import ImportGraph.RequiredModules
 import ImportGraph.Imports
 
 
-
 import Lean.Util.SearchPath
 import Mathlib.Lean.CoreM
 import Mathlib.Control.Basic
@@ -28,7 +27,8 @@ set_option autoImplicit true
 
 
 
-def getPrompts (mod : Name) (metric : String) (outputDirectory : String) : IO Unit := do
+def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampleDirectory : String): IO Unit := do
+  searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
   -- let mut trajectories_json := []
@@ -60,7 +60,7 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) : IO Un
 
   -- IO.println s!"Found {targets_new.size} targets"
 
-  let targets_with_prompts ← get_prompt_eval_batched mod metric targets_new
+  let targets_with_prompts : Json ← get_prompt_eval_batched mod metric targets_new exampleDirectory
 
 
   let json_path := outputDirectory ++ "/" ++ metric ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
@@ -76,6 +76,7 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) : IO Un
       IO.FS.createDirAll path
     | none => pure ()
 
+  IO.println s!"Path exists, now writing:\n{targets_with_prompts.compress}"
 
   IO.FS.writeFile json_path (targets_with_prompts.compress)
   -- | none => pure ()
@@ -86,10 +87,11 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
   let metric := args.positionalArg! "metric" |>.as! String
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
+  let exampleDirectory := args.positionalArg! "exampleDirectory" |>.as! String
   let mod :Name := module
 
 
-  getPrompts mod metric outputDirectory
+  getPrompts mod metric outputDirectory exampleDirectory
   return 0
 
 
@@ -102,6 +104,7 @@ def get_prompts : Cmd := `[Cli|
     file : ModuleName; "Lean module to get prompts for."
     metric : String; "Metric to use for evaluation."
     outputDirectory : String; "Where to save the Json output."
+    exampleDirectory : String; "Path to the examples directory."
 ]
 
 
@@ -109,4 +112,5 @@ def main (args : List String) : IO UInt32 :=
   get_prompts.validate args
 
 
-#eval getPrompts `Mathlib.Logic.Hydra "length" "prompts"
+
+-- #eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "length" "prompts" "prompt_examples"

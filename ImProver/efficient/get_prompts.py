@@ -23,8 +23,9 @@ async def calculate_prompt(file, args):
         file.replace("/", ".").replace(".lean", ""),
         args.metric,
         args.output_dir,
+        args.example_dir,
     ]
-
+    # print(cmd)
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -85,8 +86,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="prompts/",
-        help="Directory to output prompts (default: prompts/)",
+        default="prompts",
+        help="Directory to output prompts (default: prompts)",
+    )
+    parser.add_argument(
+        "--example_dir",
+        type=str,
+        default="prompt_examples",
+        help="Directory to output prompts (default: prompt_examples)",
     )
     parser.add_argument(
         "--cpus",

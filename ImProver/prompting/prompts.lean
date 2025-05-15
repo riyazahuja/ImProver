@@ -215,8 +215,8 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
 
 
-def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) ) (example_path : String) : IO Json := do
-
+def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) ) (exampleDirectory : String) : IO Json := do
+  IO.println s!"==== GETTING {cmds_ci.size} prompts from {mod}!!! ===="
 
   let main_prompt := match metric with
   | "length" => length_prompt
@@ -253,12 +253,16 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
     return (ci, Json.str srcCommand, Json.str annotation_string, context_string)
   )
 
+  IO.println s!"==== GOT {prompt_data.size} prompts from {mod}!!! ===="
+
   let rag_strings : Array Json ← do
       let items ← retrieve_batch_indep cmds_ci
       let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
       pure x
+  IO.println s!"==== GOT {rag_strings.size} prompts from RAG!!! ===="
 
   let example_json : Json ← do
+    let example_path := exampleDirectory ++ "/" ++ metric ++ ".json"
     let content ← IO.FS.readFile example_path
     match Json.parse content with
     | .ok json => pure json
