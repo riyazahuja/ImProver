@@ -49,9 +49,10 @@ def run_inference(df, args):
     vllm_processor = build_llm_processor(
         config,
         preprocess=lambda row: dict(
-            messages=[{"role": "user", "content": row["prompt"]}],
+            messages=[{"role": "user", "content": row["raw_prompt"]}],
             sampling_params=dict(
-                temperature=0.3,
+                n=args.n,
+                # temperature=0.3,
                 max_tokens=250,
             ),
         ),
@@ -117,39 +118,42 @@ def construct_prompts(data, args):
 
         if args.examples != 0:
             prompt += f"<EXAMPLES>\n\n"
-            for example in decl_data["examples"][: args.examples]:
-                ex_prompt = "<EXAMPLE>\n\n"
-                if args.context:
-                    ex_prompt += f"<CONTEXT>\n"
-                    for context in example["context"]:
-                        ex_prompt += f"<ITEM>\n--name={context['name']}\n--type={context['context_item_type']}\n{context['content']}\n</ITEM>\n"
-                    ex_prompt += f"</CONTEXT>\n\n"
-                if args.rag != 0:
-                    ex_prompt += f"<RAG>\n"
-                    for rag in example["rag"][: args.rag]:
-                        prompt += (
-                            f"<DOC>\n--src={rag['src']}\n{rag['content']}\n</DOC>\n"
+            for example in decl_data["examples"][: min(args.examples,len(decl_data["examples"]))]:
+                try:
+                    ex_prompt = "<EXAMPLE>\n\n"
+                    if args.context:
+                        ex_prompt += f"<CONTEXT>\n"
+                        for context in example["context"]:
+                            ex_prompt += f"<ITEM>\n--name={context['name']}\n--type={context['context_item_type']}\n{context['content']}\n</ITEM>\n"
+                        ex_prompt += f"</CONTEXT>\n\n"
+                    if args.rag != 0:
+                        ex_prompt += f"<RAG>\n"
+                        for rag in example["rag"][: args.rag]:
+                            prompt += (
+                                f"<DOC>\n--src={rag['src']}\n{rag['content']}\n</DOC>\n"
+                            )
+                        ex_prompt += f"</RAG>\n\n"
+                    if args.annotation:
+                        ex_prompt += (
+                            f"<ANNOTATION>\n{example['annotation']}\n</ANNOTATION>\n\n"
                         )
-                    ex_prompt += f"</RAG>\n\n"
-                if args.annotation:
-                    ex_prompt += (
-                        f"<ANNOTATION>\n{example['annotation']}\n</ANNOTATION>\n\n"
-                    )
-                ex_prompt += f"<CURRENT>\n{example['current']}\n</CURRENT>\n\n"
-                ex_prompt += f"<IMPROVED>\n{example['improved']}\n</IMPROVED>\n\n"
-                ex_prompt += f"</EXAMPLE>\n\n"
-                prompt += ex_prompt
+                    ex_prompt += f"<CURRENT>\n{example['current']}\n</CURRENT>\n\n"
+                    ex_prompt += f"<IMPROVED>\n{example['improved']}\n</IMPROVED>\n\n"
+                    ex_prompt += f"</EXAMPLE>\n\n"
+                    prompt += ex_prompt
+                except:
+                    pass
             prompt += f"</EXAMPLES>\n\n"
 
         if args.context != 0:
             prompt += f"<CONTEXT>\n"
-            for context in decl_data["context"][: args.context]:
+            for context in decl_data["context"][: min(args.context,len(decl_data["context"]))]:
                 prompt += f"<ITEM>\n--name={context['name']}\n--type={context['context_item_type']}\n{context['content']}\n</ITEM>\n"
             prompt += f"</CONTEXT>\n\n"
 
         if args.rag != 0:
             prompt += f"<RAG>\n"
-            for rag in decl_data["rag"][: args.rag]:
+            for rag in decl_data["rag"][: min(args.rag,len(decl_data["rag"]))]:
                 prompt += f"<DOC>\n--src={rag['src']}\n{rag['content']}\n</DOC>\n"
             prompt += f"</RAG>\n\n"
 
@@ -190,7 +194,6 @@ def main(args):
                 prompt_data = construct_prompts(data_raw, args)
             
             for item in prompt_data:
-
                 df.loc[len(df)] = [file_path,
                         item["decl"],
                         item["decl_idx"],

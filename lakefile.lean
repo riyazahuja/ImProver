@@ -45,6 +45,14 @@ lean_exe improver where
 lean_exe get_prompts where
   root := `ImProver.efficient.get_prompts
   supportInterpreter := true
+
+lean_exe eval_improver where
+  root := `ImProver.efficient.eval_improver
+  supportInterpreter := true
+
+
+
+
 lean_exe StateComments where
   root := `scripts.standalone_state_comments
 
