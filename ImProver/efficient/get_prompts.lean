@@ -113,4 +113,4 @@ def main (args : List String) : IO UInt32 :=
 
 
 
-#eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "length" "temp" "prompt_examples"
+-- #eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "length" "temp" "prompt_examples"

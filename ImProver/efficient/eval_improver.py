@@ -22,12 +22,15 @@ async def eval_file(file, args, config):
     output_path = os.path.join(
         args.inference_dir, args.runID, "evals", file.replace(".lean", ".json")
     )
-    print(file)
+    prompt_path = os.path.join(args.prompts_dir, config["metric"], file.replace(".lean", ".json"))
+    # print(file)
+    #['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']
     cmd = [
         "lake",
         "exe",
         "eval_improver",
         file.replace("/", ".").replace(".lean", ""),
+        prompt_path,
         config["metric"],
         os.path.join(args.inference_dir, args.runID),
         output_path
@@ -40,7 +43,7 @@ async def eval_file(file, args, config):
 
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            print(f">>> Error extracting prompts on {file}: {stderr.decode()}\n")
+            print(f">>> Error evaluating {file}: \n\tSTDOUT: {stdout.decode()}\n\tSTDERR: {stderr.decode()}\n")
         else:
             print(f">>> success on {file}! (took {time.time()-st}s)\n")
         return
@@ -105,7 +108,13 @@ if __name__ == "__main__":
         type=str,
         default="runs/",
         help="Directory of runs (default: runs/)",
-    ) 
+    )
+    parser.add_argument(
+        "--prompts_dir",
+        type=str,
+        default="prompts/",
+        help="Directory to output runs (default: prompts/)",
+    )
     parser.add_argument(
         "--cpus",
         type=int,

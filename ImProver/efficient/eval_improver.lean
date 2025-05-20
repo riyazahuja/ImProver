@@ -121,7 +121,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
 
 
 
-def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath : String) : IO Unit := do
+def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath : String) (outputPath : String) : IO UInt32 := do
   searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
@@ -164,9 +164,13 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
   -- let mut preinstances := []
   -- for (cmd, ci) in targets_new do
   let preinstances_runner : Array (BaseIO (Task (Except Error (Array (CompilationStep × ConstantInfo × String × String))))) := (targets_new.map fun (cmd,ci) => (IO.asTask (prio := Task.Priority.dedicated) do
-    let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{ci.name}';"
-    -- IO.println ci.name
-    let output ← IO.Process.output {cmd := "/home/riyaza/.local/bin/duckdb", args := #[s!"{runPath}/data.duckdb", "--json", "-c", SQL_cmd]}
+    let SQL_escaped_name := ci.name.toString.replace "'" "''"
+    let SQL_escaped_file := promptFile.replace "'" "''"
+    let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{SQL_escaped_name}' AND file_path = '{SQL_escaped_file}';"
+    IO.println s!"== [[{ci.name}]] =="
+    let output ← IO.Process.output {
+      cmd := "/home/riyaza/.local/bin/duckdb",
+      args := #[s!"{runPath}/data.duckdb", "--readonly", "--json", "-c", SQL_cmd]}
 
     if output.exitCode != 0 then
       IO.println s!"Error running duckdb: {output.stderr}"
@@ -177,7 +181,10 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
     -- IO.println s!"DuckDB output: {json?}"
     -- IO.println s!"DuckDB err: {output.stderr}"
     -- IO.println s!"DuckDB exit code: {output.exitCode}"
-
+    -- IO.println s!"[==> variant_tuples?"--\n===={json?}\n===="
+    -- IO.println "\n\n"
+    -- IO.println s!"DuckDB output: {json?}"
+    -- IO.println "\n\n"
     let variant_tuples? :=
       let json := Json.parse json? |>.toOption.get!
       match json with
@@ -191,6 +198,7 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
         ))
       | _ =>
         none
+    -- IO.println s!"<== variant_tuples? completed]"
 
     return (variant_tuples?.getD #[])
     -- IO.sleep 1000
@@ -247,20 +255,27 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
 
 
   IO.FS.writeFile outputPath (outputJson.compress)
+
+  let valid := if (preinstances.size == targets_new.size) && (targets_new.size == instances.length) then
+    0
+  else
+    1
+
+  return valid
   -- | none => pure ()
 
 
 
 def evalImproverCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
+  let promptFile := args.positionalArg! "promptFile" |>.as! String
   let metric := args.positionalArg! "metric" |>.as! String
   let runPath := args.positionalArg! "runPath" |>.as! String
   let outputPath := args.positionalArg! "outputPath" |>.as! String
   let mod :Name := module
 
 
-  evalImprover mod metric runPath outputPath
-  return 0
+  evalImprover mod promptFile metric runPath outputPath
 
 
 def eval_improver : Cmd := `[Cli|
@@ -270,6 +285,7 @@ def eval_improver : Cmd := `[Cli|
 
   ARGS:
     file : ModuleName; "Lean module to get prompts for."
+    promptFile : String; "File path to prompt data."
     metric : String; "Metric to use for evaluation."
     runPath : String; "Path to the run DB."
     outputPath : String; "Where to save the Json output."
