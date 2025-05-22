@@ -16,14 +16,28 @@ def run_inference(df, args):
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
     os.environ["NCCL_P2P_DISABLE"] = "1"
-    ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
+    ray.init(num_cpus=args.cpus, num_gpus=args.gpus)#, _temp_dir='/home/riyaza/ray_tmp')
     DataContext.get_current().wait_for_min_actors_s = 1800
-
+    ctx = DataContext.get_current()
+    ctx.progress_bar = True
+    ctx.execution_options.verbose_progress = True
+    
     assert Version(ray.__version__) >= Version(
         "2.44.1"
     ), "Ray version must be at least 2.44.1"
 
-    ds = ray.data.from_pandas(df)
+    # ds = ray.data.from_pandas(df)
+    # Create a new dataframe with duplicated rows, each with a unique prompt_idx
+    df2_parts = []
+    for i in range(args.n):
+        df_copy = df.copy()
+        df_copy['prompt_idx'] = i
+        df2_parts.append(df_copy)
+
+    df2 = pd.concat(df2_parts, ignore_index=True)
+    # Use df2 instead of df for the Ray dataset
+    ds = ray.data.from_pandas(df2).repartition(args.gpus * 4)
+    # ds = ray.data.from_pandas(df).repartition(args.gpus * 4)
     # ds = ray.data.read_text("s3://anonymous@air-example-data/prompts.txt")
     print(ds.schema())
 
@@ -34,7 +48,7 @@ def run_inference(df, args):
 
     config = vLLMEngineProcessorConfig(
         model_source=args.model,
-        engine_resources={"CPU": args.cpus, "GPU": 1},
+        engine_resources={"CPU": args.cpus // args.gpus, "GPU": 1},
         concurrency=args.gpus,
         engine_kwargs={
             "tensor_parallel_size": 1,
@@ -46,19 +60,19 @@ def run_inference(df, args):
         batch_size=128,
     )
 
+    
     vllm_processor = build_llm_processor(
         config,
         preprocess=lambda row: dict(
             messages=[{"role": "user", "content": row["raw_prompt"]}],
             sampling_params=dict(
-                n=args.n,
+                # n=args.n,
                 # temperature=0.3,
-                max_tokens=250,
+                max_tokens=1024,
             ),
         ),
-        postprocess=lambda row: dict(answer=row["generated_text"], **row),
+        postprocess= lambda row : dict(answer=row["generated_text"], **row),
     )
-
     ds = vllm_processor(ds).materialize()
 
     id = f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -100,8 +114,8 @@ def construct_prompts(data, args):
     idx = 0
     items = []
     for name, decl_data in data.items():
-        prompt = decl_data["system"] + "\n\n"
-
+        prompt = decl_data["system"] + "Be sure to output your response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
+        
         if args.examples != 0:
             prompt += decl_data["example_prompt"] + "\n"
 

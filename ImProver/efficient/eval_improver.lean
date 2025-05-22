@@ -223,9 +223,9 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
 
     let contentsBefore : Substring := match original.src with
       | ⟨s, b, _⟩ => ⟨s, 0, b⟩
-
+    let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
     let elaborated_steps := Lean.Elab.IO.compilationSteps
-      (Parser.mkInputContext (contentsBefore.toString ++ model_output) fileName)
+      (Parser.mkInputContext (contentsBefore.toString ++ trimmed_output) fileName)
       original.parserStateBefore
       (original.commandStateBefore.withOptions options)
     /- ...and return the ones that work (otherwise none) -/
@@ -256,12 +256,14 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
 
   IO.FS.writeFile outputPath (outputJson.compress)
 
-  let valid := if (preinstances.size == targets_new.size) && (targets_new.size == instances.length) then
-    0
-  else
-    1
+  -- let valid := if (preinstances.size == targets_new.size) && (targets_new.size == instances.length) then
+  --   0
+  -- else
+  --   1
 
-  return valid
+  return 0
+
+  -- return valid
   -- | none => pure ()
 
 

@@ -91,7 +91,14 @@ async def main_async(args):
     db_path = os.path.join(args.inference_dir, args.runID, "eval.duckdb")
     con = duckdb.connect(db_path)
     
-    con.execute(f"CREATE TABLE IF NOT EXISTS evaluation_results AS SELECT * FROM '{evals_dir}/**/*.json';")
+    #   SAFE MODE
+    # con.execute(f"CREATE TABLE IF NOT EXISTS evaluation_results AS SELECT * FROM '{evals_dir}/**/*.json';")
+    
+    #   UN-SAFE MODE, (but probably better lol)
+    con.execute("DROP TABLE IF EXISTS evaluation_results;")
+    con.execute(f"CREATE TABLE evaluation_results AS SELECT * FROM '{evals_dir}/**/*.json';")
+
+    
     con.close()
     
 
