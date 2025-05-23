@@ -110,19 +110,12 @@ def isAuxLemma : Name → Bool
 | .num (.str _ "_auxLemma") _ => true
 | _ => false
 
-def get_context (step:CompilationStep) : IO (List ExternalContext) := do
-  IO.println "HELLO"
-  -- let tactics := step.trees
-  --   |>.flatMap InfoTree.retainTacticInfo
-  --   |>.flatMap InfoTree.retainOriginal
-  --   |>.flatMap InfoTree.retainSubstantive
+def get_context (step:CompilationStep) (allowed_kinds : List String := ["theorem", "def","theorem (internal)", "def (internal)"] ): IO (List ExternalContext) := do
 
   let pf_env := step.commandStateBefore.env
   let ctx : Core.Context := {fileName := "", fileMap := default}
   let state : Core.State := {env := pf_env}
-  -- let metaExplicitConstants := tactics.mapM (fun t => t.findTacticNodes.mapM (fun ⟨i,_⟩ => (getExplicitConstantsAsSet i)))
-  -- let explicit_constants_raw ← MetaM.toIO metaExplicitConstants ctx state
-  -- let constants := explicit_constants_raw.1.flatMap .flatten |>.eraseDups
+
   let constants ← MetaM.toIO (getConstants step) ctx state
   let constants := constants.1.eraseDups
 
@@ -132,7 +125,7 @@ def get_context (step:CompilationStep) : IO (List ExternalContext) := do
 
   let mods := (modules.map fun x => x.2) |>.eraseDups |>.filter fun m => m != Name.anonymous
 
-  let allowed_kinds := ["theorem", "def","theorem (internal)", "def (internal)"]
+  -- let allowed_kinds := ["theorem", "def","theorem (internal)", "def (internal)"]
   let constant_info ← CoreM.withImportModules mods.toArray do
     let mut out := []
     for (c, module, kind) in consts_mods_kind do
