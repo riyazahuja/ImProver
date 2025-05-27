@@ -143,17 +143,17 @@ def trainingData (args : Cli.Parsed) : IO UInt32 := do
     let json_path := outputDirectory ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
     IO.println s!"Writing to {json_path}"
 
-    -- if not (← System.FilePath.pathExists json_path) then
-    --   let parent := System.FilePath.parent json_path
-    --   match parent with
-    --   | some path =>
-    --     IO.println path
-    --     IO.FS.createDirAll path
-    --   | none => pure ()
+    if not (← System.FilePath.pathExists json_path) then
+      let parent := System.FilePath.parent json_path
+      match parent with
+      | some path =>
+        IO.println path
+        IO.FS.createDirAll path
+      | none => pure ()
 
 
 
-    -- IO.FS.writeFile json_path (Json.arr outputs.toArray |>.compress)
+    IO.FS.writeFile json_path (Json.arr outputs.toArray |>.compress)
 
 
 
@@ -181,6 +181,6 @@ def main (args : List String) : IO UInt32 :=
 
 -- #eval main ["Mathlib.Logic.Hydra"]
 
-#eval main ["ImProver.ProofTree.Basic", ""]
+-- #eval main ["ImProver.ProofTree.Basic", ""]
 
 -- #eval main ["PFR.Main", ""]
