@@ -2,7 +2,7 @@ import os
 import json
 from neo4j import GraphDatabase
 
-KG_PATH = "/Users/ahuja/Desktop/ImProver-fresh/C1Graph"  # your path
+KG_PATH = "/Users/ahuja/Desktop/ImProver-fresh/KG"  # your path
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASS = "12P@ssword21"
@@ -27,7 +27,7 @@ def create_nodes(tx, theorem, module):
             SET d.text = $dep_text
             WITH d
             MATCH (t:Theorem {name: $theorem_name, module: $theorem_module})
-            MERGE (d)-[:DEPENDS_ON]->(t)
+            MERGE (t)-[:DEPENDS_ON]->(d)
             """,
             dep_name=dep["name"],
             dep_text=dep["text"],
@@ -46,6 +46,7 @@ with driver.session() as session:
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
+                print(f"Added {os.path.relpath(os.path.join(root, file),KG_PATH)}")
                 for theorem in theorems:
                     session.write_transaction(create_nodes, theorem, module)
 
