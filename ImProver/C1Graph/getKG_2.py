@@ -83,8 +83,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="KG2",
-        help="Directory to output KG (default: KG2)",
+        default="KG2.5",
+        help="Directory to output KG (default: KG2.5)",
     )
     # parser.add_argument(
     #     "--example_dir",

@@ -21,7 +21,7 @@ import Batteries.Data.List.Basic
 import Cli
 
 
-open Lean Core Elab IO Meta Term Command Tactic Cli System
+open Lean Core Elab IO Meta Term Command Tactic Cli System String
 
 set_option autoImplicit true
 
@@ -32,6 +32,9 @@ structure ExternalContext where
   kind : String
   module : Name
   text : String
+  parent : CompilationStep
+  pos : Option Pos := none
+  endPos : Option Pos := none
 
 
 
@@ -60,14 +63,15 @@ def getExplicitConstantsAsSet (t : TacticInfo) : MetaM (List Name) := do
   let out2 : List Name := out.toList
   return out2
 
-partial def go (s : Syntax) (acc : Array Name) : Array Name :=
+
+partial def go (s : Syntax) (acc : Array (Name × Option Pos × Option Pos)) : Array (Name × Option Pos × Option Pos) :=
   match s with
-  | Syntax.ident _ _ name _ => acc.push name
+  | Syntax.ident _ _ name _ => acc.push (name, s.getPos?, s.getTailPos?)
   | Syntax.node _ _ args => args.foldl (fun acc s' => go s' acc) acc
   | _ => acc
 
-def getConstants (step : CompilationStep) : MetaM (List Name) := do
-  let idents : Array Name := go step.stx #[]
+def getConstants (step : CompilationStep) : MetaM (List (Name × Option Pos × Option Pos)) := do
+  let idents := go step.stx #[]
   return idents.toList
 
 def getUsedConstantsAsSet (t : TacticInfo) : NameSet :=
@@ -110,7 +114,9 @@ def isAuxLemma : Name → Bool
 | .num (.str _ "_auxLemma") _ => true
 | _ => false
 
-def get_context (step:CompilationStep) (allowed_kinds : List String := ["theorem", "def","theorem (internal)", "def (internal)"] ): IO (List ExternalContext) := do
+def get_context (step:CompilationStep)
+  (allowed_kinds : List String := ["theorem", "def","theorem (internal)", "def (internal)"] )
+  : IO (List ExternalContext) := do
 
   let pf_env := step.commandStateBefore.env
   let ctx : Core.Context := {fileName := "", fileMap := default}
@@ -119,22 +125,22 @@ def get_context (step:CompilationStep) (allowed_kinds : List String := ["theorem
   let constants ← MetaM.toIO (getConstants step) ctx state
   let constants := constants.1.eraseDups
 
-  let modules := constants.map (fun c => (c,pf_env.getModuleFor? c |>.getD (Name.anonymous)))
+  let modules := constants.map (fun (c, pos, endPos) => (c, pos, endPos, pf_env.getModuleFor? c |>.getD (Name.anonymous)))
 
-  let consts_mods_kind := modules.map (fun (c, m) => (c, m, getKind pf_env.constants c))
+  let consts_mods_kind := modules.map (fun (c, pos, endPos, m) => (c, pos, endPos, m, getKind pf_env.constants c))
 
-  let mods := (modules.map fun x => x.2) |>.eraseDups |>.filter fun m => m != Name.anonymous
+  let mods := (modules.map fun x => x.2.2.2) |>.eraseDups |>.filter fun m => m != Name.anonymous
 
   -- let allowed_kinds := ["theorem", "def","theorem (internal)", "def (internal)"]
   let constant_info ← CoreM.withImportModules mods.toArray do
     let mut out := []
-    for (c, module, kind) in consts_mods_kind do
+    for (c, pos, endPos, module, kind) in consts_mods_kind do
       if isAuxLemma c || kind ∉ allowed_kinds || module.isAnonymous then
         continue
-      IO.println s!"extracting {c}, {module}"
+      -- IO.println s!"extracting {c}, {module}"
       let rgs := ((← findDeclarationRanges? c).getD default).range
       -- let module := ((pf_env.getModuleFor? c).getD (Name.anonymous))
-      IO.println s!"rg: {rgs.pos} -> {rgs.endPos}"
+      -- IO.println s!"rg: {rgs.pos} -> {rgs.endPos}"
       let modulePath ← findLean module
       let fileContents ← IO.FS.readFile modulePath.toString
       -- get the source code within range
@@ -144,6 +150,6 @@ def get_context (step:CompilationStep) (allowed_kinds : List String := ["theorem
           |>.take (rgs.endPos.line - rgs.pos.line + 1)
       let declText := "\n".intercalate declTextList
 
-      out := (ExternalContext.mk c kind module declText)::out
+      out := (ExternalContext.mk c kind module declText step pos endPos)::out
     return out
   return constant_info

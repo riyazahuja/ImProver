@@ -3,6 +3,7 @@ import Lean.Meta.Basic
 import Lean.Meta.CollectMVars
 import Init.Data.String.Basic
 
+
 open Lean Elab Server Std String
 
 structure Hypothesis where
@@ -28,12 +29,22 @@ instance : BEq GoalInfo where
 instance : Hashable GoalInfo where
   hash g := hash g.id
 
+instance : ToJson Pos where
+  toJson pos := Json.num pos.byteIdx
+
+instance : FromJson Pos where
+  fromJson? json := match json.getNat?.toOption with
+    | some n => .ok { byteIdx := n}
+    | _ => .error s!"expected Nat for Pos, got '{json}'"
+
 structure ProofStep where
   tacticString : String
   goalBefore : GoalInfo
   goalsAfter : List GoalInfo
   tacticDependsOn : List String
   spawnedGoals : List GoalInfo
+  pos : Option Pos := none
+  tailPos : Option Pos := none
   deriving Inhabited, ToJson, FromJson
 
 def stepGoalsAfter (step : ProofStep) : List GoalInfo := step.goalsAfter ++ step.spawnedGoals
@@ -178,6 +189,9 @@ partial def postNode (ctx : ContextInfo) (i : Info) (_: PersistentArray InfoTree
              (·.toString |>.splitOn "\n" |>.head!.trim)
         | return {steps, allGoals := allSubGoals}
 
+      let pos := tInfo.stx.getPos?
+      let tailPos := tInfo.stx.getTailPos?
+
       let steps := prettifySteps tInfo.stx steps
 
       let proofTreeEdges ← getGoalsChange ctx tInfo
@@ -199,6 +213,8 @@ partial def postNode (ctx : ContextInfo) (i : Info) (_: PersistentArray InfoTree
             goalsAfter,
             tacticDependsOn,
             spawnedGoals := orphanedGoals
+            pos := pos
+            tailPos := tailPos
           }
 
       return { steps := newSteps ++ steps, allGoals }
@@ -238,6 +254,8 @@ def getProofTree' (steps : List ProofStep) : List (String × (List Nat) × (List
       step.goalsAfter.map filter_universe_hyp,
       step.tacticDependsOn,
       step.spawnedGoals.map filter_universe_hyp,
+      step.pos,
+      step.tailPos
       ⟩)
 
   if steps.isEmpty then []
@@ -269,9 +287,9 @@ partial def ptts_helper (t : ProofTree) (indent : String) (isFirst : Bool) (isSp
   let childIndent := if isFirst then indent else indent ++ "   "
 
   let nodeStr := if isSpawned then
-                   s!"{prefix'}[*{t.node.tacticString}]"
+                   s!"{prefix'}[*{t.node.tacticString} | {t.node.pos} -> {t.node.tailPos}]"
                  else
-                   s!"{prefix'}[{t.node.tacticString}]"
+                   s!"{prefix'}[{t.node.tacticString} | {t.node.pos} -> {t.node.tailPos}]"
 
   let allChildren := t.children.toList ++ t.spawned_children.toList
 
@@ -321,6 +339,49 @@ partial def ProofTree.getBreakpoints (tree : ProofTree)
   | _ => []
 
 
+
+partial def ProofTree.getBreakpointsWithDescendents (tree : ProofTree)
+  (breakpoint_type : String := "all_splits"): List ProofTree :=
+  match breakpoint_type with
+  | "all_tactics" =>
+    let recursive := tree.children.toList.map (fun child => child.getBreakpointsWithDescendents breakpoint_type) |>.flatten
+    tree :: recursive
+  | "all_splits" =>
+    let recursive := tree.children.toList.map (fun child => child.getBreakpointsWithDescendents breakpoint_type) |>.flatten
+    if tree.children.size < 2 then
+      recursive
+    else
+      tree.children.toList ++ recursive
+  | "spawned" =>
+    let recursive := tree.children.toList.map (fun child => child.getBreakpointsWithDescendents breakpoint_type) |>.flatten
+    if tree.spawned_children.size < 2 then
+      recursive
+    else
+      tree.children.toList ++ recursive
+  | "bifurcated" =>
+    let recursive := tree.children.toList.map (fun child => child.getBreakpointsWithDescendents breakpoint_type) |>.flatten
+    if tree.children.size - tree.spawned_children.size < 2 then
+      recursive
+    else
+      tree.children.toList ++ recursive
+  | _ => []
+
+partial def getLeaves (tree : ProofTree) : List ProofTree :=
+  if tree.children.isEmpty && tree.spawned_children.isEmpty then
+    [tree]
+  else
+    (tree.children.toList ++ tree.spawned_children.toList).flatMap getLeaves
+
+-- def AugmentBreakpointsWithDescendents (text : String) (breakpoints : List ProofStep) : List (ProofStep × Substring) :=
+--   breakpoints.filterMap (fun ps =>
+--     if ps.pos.isNone || ps.tailPos.isNone then
+--       none
+--     else
+--       let startPos := ps.pos.get!
+--       let tailPos := ps.tailPos.get!
+--       let substring := ⟨text, pos, tailPos⟩
+--       some (ps, substring))
+
 -- Now want a function that takes in a string representation of a theorem
 -- and all the breakpoints, and replaces each breakpoint B with extract_goals; B
 -- To do this, we proceed greedily. For B[0], split theorem at first instance into T0,R
@@ -347,11 +408,6 @@ def String.splitAtString (s : String) (pattern : String): Option (String × Stri
       termination_by s.endPos.1 - pos.1
     loop 0
 
-
-
-
-
-
 partial def insertBreakpoints (thm : String) (breakpoints : List ProofStep) : String :=
   match breakpoints with
   | [] => thm
@@ -370,12 +426,8 @@ def insertBreakpointsFromTree (thm : String) (tree : ProofTree) (breakpointType 
   let breakpoints := tree.getBreakpoints breakpointType
   insertBreakpoints thm breakpoints
 
-
-
-
-
-
-
+def insertBreakpointsFromTree' (thm : String) (breakpoints : List ProofStep) : String :=
+  insertBreakpoints thm breakpoints
 
 
 partial def buildProofTree (steps : List ProofStep) (output : List (ProofStep × List Nat × List Nat)) (rootIdx : Nat) : ProofTree :=
@@ -400,6 +452,8 @@ def getProofTree (steps : List ProofStep) : Option ProofTree :=
       step.goalsAfter.map filter_universe_hyp,
       step.tacticDependsOn,
       step.spawnedGoals.map filter_universe_hyp,
+      step.pos,
+      step.tailPos
       ⟩)
 
   if steps.isEmpty then none

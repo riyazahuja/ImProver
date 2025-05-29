@@ -3,7 +3,7 @@ import json
 from neo4j import GraphDatabase
 
 KG_PATH = "/Users/ahuja/Desktop/ImProver-fresh/KG"
-KG2_PATH = "/Users/ahuja/Desktop/ImProver-fresh/KG2"
+KG2_PATH = "/Users/ahuja/Desktop/ImProver-fresh/KG2.5"
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASS = "12P@ssword21"
@@ -65,8 +65,9 @@ with driver.session() as session:
             module_path = os.path.relpath(os.path.join(root, file), KG_PATH)
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
+                print(f)
                 theorems = json.load(f)
-            with open(os.path.join(root, file).replace("KG", "KG2"), "r") as f:
+            with open(os.path.join(root, file).replace("KG", "KG2.5"), "r") as f:
                 C2Data = json.load(f)
             for i in range(min(len(theorems), len(C2Data))):
                 theorem = theorems[i]
