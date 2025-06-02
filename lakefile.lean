@@ -54,7 +54,7 @@ lean_exe get_KG where
   supportInterpreter := true
 
 lean_exe getPfTree where
-  root := `ImProver.ProofTree.getPfTree
+  root := `ImProver.C1Graph.getKG_2
   supportInterpreter := true
 
 lean_exe eval_improver where

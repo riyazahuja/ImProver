@@ -65,7 +65,6 @@ with driver.session() as session:
             module_path = os.path.relpath(os.path.join(root, file), KG_PATH)
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
-                print(f)
                 theorems = json.load(f)
             with open(os.path.join(root, file).replace("KG", "KG2.5"), "r") as f:
                 C2Data = json.load(f)
@@ -73,5 +72,24 @@ with driver.session() as session:
                 theorem = theorems[i]
                 c2 = C2Data[i]
                 session.write_transaction(create_nodes, theorem, c2, module)
+            for i in range(min(len(theorems), len(C2Data)), len(C2Data)):
+                item = C2Data[i]
+                # For C2 items that don't have corresponding theorems in the original list
+                # Create dependencies/edges from the C2 item to its dependencies
+                for dep in item["dependencies"]:
+                    session.write_transaction(
+                        lambda tx, dep=dep, item=item: tx.run(
+                            """
+                            MATCH (t:Theorem {name: $item_name, module: $item_module})
+                            MATCH (d:Theorem {name: $dep_name, module: $dep_module})
+                            MERGE (t)-[:DEPENDS_ON]->(d)
+                            """,
+                            item_name=item["name"],
+                            item_module=item["module"],
+                            dep_name=dep["name"],
+                            dep_module=dep["module"],
+                        )
+                    )
+
 
 driver.close()

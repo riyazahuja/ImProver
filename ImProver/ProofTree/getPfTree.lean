@@ -383,9 +383,9 @@ def training_data : Cmd := `[Cli|
     outputDirectory : String; "Where to save the Json output."
 ]
 
-/-- `lake exe training_data` -/
-def main (args : List String) : IO UInt32 :=
-  training_data.validate args
+-- /-- `lake exe training_data` -/
+-- def main (args : List String) : IO UInt32 :=
+--   training_data.validate args
 
 
 
