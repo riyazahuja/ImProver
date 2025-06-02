@@ -313,14 +313,14 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
 
   let prompt_data := prompt_data.zip rag_strings |>.map (fun ((ci,srcCommand, pfAsSorry, annotation_string,context_string),rag_string) =>
     let data := Json.mkObj [
-      ("system", Json.str main_prompt),
-      ("example_prompt", Json.str example_prompt),
-      ("examples", example_json),
-      ("context_prompt", Json.str context_prompt),
+      -- ("system", Json.str main_prompt),
+      -- ("example_prompt", Json.str example_prompt),
+      -- ("examples", example_json),
+      -- ("context_prompt", Json.str context_prompt),
       ("context", context_string),
-      ("rag_prompt", Json.str rag_prompt),
+      -- ("rag_prompt", Json.str rag_prompt),
       ("rag", rag_string),
-      ("annotation_prompt", Json.str annotation_prompt),
+      -- ("annotation_prompt", Json.str annotation_prompt),
       ("annotation", annotation_string),
       ("current", srcCommand),
       ("current_sorry", pfAsSorry),

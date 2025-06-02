@@ -114,29 +114,33 @@ def run_inference(df, args):
     return run_output_dir
 
 
-def construct_prompts(data, args):
+def construct_prompts(config_data, data, args):
     idx = 0
     items = []
     for name, decl_data in data.items():
-        prompt = decl_data["system"] + "Be sure to output your response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
+        prompt = config_data["system_prompt"] + "Be sure to output your response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
         
         if args.examples != 0:
-            prompt += decl_data["example_prompt"] + "\n"
+            prompt += config_data["example_prompt"] + "\n"
 
         if args.annotation:
-            prompt += decl_data["annotation_prompt"] + "\n"
+            prompt += config_data["annotation_prompt"] + "\n"
 
         if args.context != 0:
-            prompt += decl_data["context_prompt"] + "\n"
+            prompt += config_data["context_prompt"] + "\n"
 
         if args.rag != 0:
-            prompt += decl_data["rag_prompt"] + "\n"
+            prompt += config_data["rag_prompt"] + "\n"
 
         prompt += "\n"
 
         if args.examples != 0:
+            
+            with open(os.path.join(config_data["example_dir"], f"{config_data["metric"]}.json"), "r") as f:
+                examples_data = json.load(f)
+            
             prompt += f"<EXAMPLES>\n\n"
-            for example in decl_data["examples"][: min(args.examples,len(decl_data["examples"]))]:
+            for example in examples_data[: min(args.examples,len(examples_data))]:
                 try:
                     ex_prompt = "<EXAMPLE>\n\n"
                     if args.context:
@@ -202,8 +206,7 @@ def get_custom_stem(file_path: str) -> str:
     else:
         return str(Path(*parts[:3]))
 
-def main(args):
-
+def main(args):    
     with open(args.dataset_path, "r") as f:
         all = json.load(f)
         dataset = all[args.split]
@@ -212,7 +215,12 @@ def main(args):
         files_to_process = files_to_process + dataset[repo]
 
     prompt_root = os.path.join(args.prompts_dir, args.metric)
-
+    config_path = os.path.join(prompt_root, "config.json")
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found at {config_path}")
+    with open(config_path, "r") as f:
+        config_data = json.load(f)
+    
     df = pd.DataFrame(columns=["file_path", "decl", "decl_idx", "raw_prompt"])
     data = {}
     for file in files_to_process:
@@ -220,7 +228,7 @@ def main(args):
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 data_raw = json.load(f)
-                prompt_data = construct_prompts(data_raw, args)
+                prompt_data = construct_prompts(config_data, data_raw, args)
             print(f"Processing {file_path} with {len(prompt_data)} prompts")
             stem = get_custom_stem(file_path)
             if stem not in data:
@@ -280,7 +288,7 @@ if __name__ == "__main__":
     )
 
     try:
-        available_gpus = 0# torch.cuda.device_count()
+        available_gpus = torch.cuda.device_count()
     except (ImportError, AttributeError):
         available_gpus = 0
 
