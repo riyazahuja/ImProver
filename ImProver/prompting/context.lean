@@ -138,10 +138,10 @@ def get_context (step:CompilationStep) : IO (List ExternalContext) := do
     for (c, module, kind) in consts_mods_kind do
       if isAuxLemma c || kind ∉ allowed_kinds || module.isAnonymous then
         continue
-      IO.println s!"extracting {c}, {module}"
+      -- IO.println s!"extracting {c}, {module}"
       let rgs := ((← findDeclarationRanges? c).getD default).range
       -- let module := ((pf_env.getModuleFor? c).getD (Name.anonymous))
-      IO.println s!"rg: {rgs.pos} -> {rgs.endPos}"
+      -- IO.println s!"rg: {rgs.pos} -> {rgs.endPos}"
       let modulePath ← findLean module
       let fileContents ← IO.FS.readFile modulePath.toString
       -- get the source code within range

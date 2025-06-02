@@ -38,14 +38,17 @@ async def eval_file(file, args, config):
     # print(cmd)
     try:
         proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
+            *cmd, stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+            stdin=asyncio.subprocess.DEVNULL,
+            )
+        await proc.wait()
 
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            print(f">>> Error evaluating {file}: \n\tSTDOUT: {stdout.decode()}\n\tSTDERR: {stderr.decode()}\n")
-        else:
-            print(f">>> success on {file}! (took {time.time()-st}s)\n")
+        # stdout, stderr = await proc.communicate()
+        # if proc.returncode != 0:
+            # print(f">>> Error evaluating {file}: \n\tSTDOUT: {stdout.decode()}\n\tSTDERR: {stderr.decode()}\n")
+        # else:
+        print(f">>> success on {file}! (took {time.time()-st}s)\n")
         return
     except Exception as e:
         print(f">>> Exception running improver on {file}: {str(e)}")

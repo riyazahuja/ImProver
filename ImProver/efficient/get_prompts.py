@@ -101,6 +101,12 @@ if __name__ == "__main__":
         default=cpu_count(),
         help="Number of CPUs to use (default: all available)",
     )
+    parser.add_argument(
+        "--python_cmd",
+        type=str,
+        default=sys.executable,
+        help="Python executable to use (default: current)",
+    )
 
     args = parser.parse_args()
 

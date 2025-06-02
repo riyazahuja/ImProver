@@ -119,6 +119,31 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
   return instances
 
 
+def String.splitAtString (s : String) (pattern : String): Option (String × String) :=
+  if h : pattern.endPos.1 = 0 then none
+  else
+    have hPatt := Nat.zero_lt_of_ne_zero h
+    let rec loop (pos : String.Pos) :=
+      if h : pos.byteIdx + pattern.endPos.byteIdx > s.endPos.byteIdx then
+        none
+      else
+        have := Nat.lt_of_lt_of_le (Nat.add_lt_add_left hPatt _) (Nat.ge_of_not_lt h)
+        if s.substrEq pos pattern 0 pattern.endPos.byteIdx then
+          -- Found a match, return split strings
+          let before := s.extract 0 pos
+          let after := s.extract (pos + pattern) s.endPos
+          some (before, after)
+        else
+          have := Nat.sub_lt_sub_left this (lt_next s pos)
+          loop (s.next pos)
+      termination_by s.endPos.1 - pos.1
+    loop 0
+
+def String.getTagged (s: String) (tag : String) : Option String :=
+  s.splitAtString s!"<{tag}>" |>.getD (("", "")) |>.2 |>.splitAtString (s!"</{tag}>") |>.getD (("", "")) |>.1
+
+
+-- #eval "hello <IMPROVED> world </IMPROVED>" |>.getTagged "IMPROVED"
 
 
 def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath : String) (outputPath : String) : IO UInt32 := do
@@ -163,7 +188,7 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
   -- convert to tasks!!!
   -- let mut preinstances := []
   -- for (cmd, ci) in targets_new do
-  let preinstances_runner : Array (BaseIO (Task (Except Error (Array (CompilationStep × ConstantInfo × String × String))))) := (targets_new.map fun (cmd,ci) => (IO.asTask (prio := Task.Priority.dedicated) do
+  let preinstances_runner : Array (BaseIO (Task (Except Error (Array (CompilationStep × ConstantInfo × String × String))))) := (targets_new.map fun (cmd,ci) => (IO.asTask do
     let SQL_escaped_name := ci.name.toString.replace "'" "''"
     let SQL_escaped_file := promptFile.replace "'" "''"
     let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{SQL_escaped_name}' AND file_path = '{SQL_escaped_file}';"
@@ -219,11 +244,18 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
 
 
   /- Multithreading stuff to verify each new proof on separate threads -/
-  let tasks := preinstances.map fun (original, ci, model_output, prompt) => IO.asTask (prio := Task.Priority.dedicated) do
+  let tasks := preinstances.map fun (original, ci, model_output, prompt) => IO.asTask do
 
     let contentsBefore : Substring := match original.src with
       | ⟨s, b, _⟩ => ⟨s, 0, b⟩
     let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
+    -- remove everything before the first <IMPROVED> tag and after the first </IMPROVED> tag
+    let trimmed_output := match model_output.trim.getTagged "IMPROVED" with
+      | some x => x
+      | none => trimmed_output
+
+
+
     let elaborated_steps := Lean.Elab.IO.compilationSteps
       (Parser.mkInputContext (contentsBefore.toString ++ trimmed_output) fileName)
       original.parserStateBefore
