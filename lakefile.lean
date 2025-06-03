@@ -38,12 +38,23 @@ lean_lib RAG where
 
 
 
+
+
 lean_exe improver where
   root := `ImProver.improver
 
 @[default_target]
 lean_exe get_prompts where
   root := `ImProver.efficient.get_prompts
+  supportInterpreter := true
+
+
+lean_exe get_KG where
+  root := `ImProver.C1Graph.getKG
+  supportInterpreter := true
+
+lean_exe getPfTree where
+  root := `ImProver.C1Graph.getKG_2
   supportInterpreter := true
 
 lean_exe eval_improver where

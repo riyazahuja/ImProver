@@ -10,13 +10,13 @@ def split_data(
         ROOT_PATH, "scripts", "data", "test", "test_set_no_inst.json"
     ),
     packages=(
-        "Compfiles",
-        "MIL",
+        # "Compfiles",
+        # "MIL",
         "PFR",
-        "PrimeNumberTheoremAnd",
+        # "PrimeNumberTheoremAnd",
         # "Mathlib/Analysis",
     ),
-    train_portion=0.9,
+    train_portion=1,
 ):
     train = []
     test = []
@@ -53,14 +53,13 @@ def split_data(
                         #     pkg.split("/")[0].lower() + "."
                         # )[-1]
                         # print(package_name)
-                        package_name = os.path.relpath(os.path.join(root,file),os.path.dirname(pkg_path))
+                        package_name = os.path.relpath(
+                            os.path.join(root, file), os.path.dirname(pkg_path)
+                        )
                         # print(package_name1)
                         # print(f"{pkg} : {package_name1}")
                         # print()
-                        if (
-                            pkg == "MIL"
-                            and "solutions" not in package_name
-                        ):
+                        if pkg == "MIL" and "solutions" not in package_name:
                             continue
                         if package_name in test:
                             continue
@@ -73,7 +72,7 @@ def split_data(
                             )
                             total_theorems += len(thms)
                         # print(package_name)
-                        pkg_src = pkg.split('/')[0]
+                        pkg_src = pkg.split("/")[0]
                         train.append((pkg_src, package_name))
     total_len = len(train) + len(test)
     random.shuffle(train)
@@ -87,17 +86,17 @@ def split_data(
     # print(test)
     new_train = {}
     new_test = {}
-    for k,v in train:
+    for k, v in train:
         if k in new_train.keys():
             new_train[k].append(v)
         else:
-            new_train[k]=[v]
-    for k,v in test:
+            new_train[k] = [v]
+    for k, v in test:
         if k in new_test.keys():
             new_test[k].append(v)
         else:
-            new_test[k]=[v]
-            
+            new_test[k] = [v]
+
     out = {"train": new_train, "test": new_test}
     with open(
         os.path.join(ROOT_PATH, "scripts", "data", "train_test_split.json"), "w"
