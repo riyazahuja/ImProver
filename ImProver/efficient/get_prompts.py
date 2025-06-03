@@ -28,6 +28,7 @@ CONTEXT_PROMPT = " The proof context, with relevant definitions and theorems, ha
 
 RAG_PROMPT = " The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
 
+EXAMPLE_PROMPT = "Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
 
 def make_config(args):
     config = {
@@ -39,6 +40,7 @@ def make_config(args):
         "annotation_prompt": ANNOTATION_PROMPT,
         "context_prompt": CONTEXT_PROMPT,
         "rag_prompt": RAG_PROMPT,
+        "example_prompt": EXAMPLE_PROMPT,
     }
 
     config_file = os.path.join(args.output_dir, args.metric, "config.json")

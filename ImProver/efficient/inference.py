@@ -272,7 +272,7 @@ if __name__ == "__main__":
         "--prompts_dir",
         type=str,
         default="prompts/",
-        help="Directory to output runs (default: prompts/)",
+        help="Directory of prompt data (default: prompts/)",
     )
     parser.add_argument(
         "--output_dir",
