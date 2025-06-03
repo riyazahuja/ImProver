@@ -27,7 +27,10 @@ set_option autoImplicit true
 
 
 
-def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampleDirectory : String): IO Unit := do
+
+
+
+def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampleDirectory : String) (python_cmd : String): IO Unit := do
   searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
@@ -39,7 +42,7 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampl
   let mut targets_new : Array (CompilationStep × ConstantInfo) := #[]
 
   for (cmd, ci) in targets do
-    let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
+    -- let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
     let isThm? := match ci with
       | .thmInfo _ => true
       | _ => false
@@ -58,9 +61,15 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampl
 
     targets_new := targets_new.push (cmd, ci)
 
+
+
   -- IO.println s!"Found {targets_new.size} targets"
 
-  let targets_with_prompts : Json ← get_prompt_eval_batched mod metric targets_new exampleDirectory
+  let targets_with_prompts : Json ← get_prompt_eval_batched mod metric targets_new exampleDirectory python_cmd
+
+
+
+
 
 
   let json_path := outputDirectory ++ "/" ++ metric ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
@@ -76,7 +85,7 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampl
       IO.FS.createDirAll path
     | none => pure ()
 
-  IO.println s!"Path exists, now writing:\n{targets_with_prompts.compress}"
+  IO.println s!"Path exists, now writing:\n{targets_with_prompts}"
 
   IO.FS.writeFile json_path (targets_with_prompts.compress)
   -- | none => pure ()
@@ -88,10 +97,11 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let metric := args.positionalArg! "metric" |>.as! String
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let exampleDirectory := args.positionalArg! "exampleDirectory" |>.as! String
+  let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
 
 
-  getPrompts mod metric outputDirectory exampleDirectory
+  getPrompts mod metric outputDirectory exampleDirectory python_cmd
   return 0
 
 
@@ -105,6 +115,7 @@ def get_prompts : Cmd := `[Cli|
     metric : String; "Metric to use for evaluation."
     outputDirectory : String; "Where to save the Json output."
     exampleDirectory : String; "Path to the examples directory."
+    pythonCommand : String; "Path to python executable."
 ]
 
 
@@ -113,4 +124,4 @@ def main (args : List String) : IO UInt32 :=
 
 
 
--- #eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "length" "temp" "prompt_examples"
+-- #eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "completion" "temp" "prompt_examples"
