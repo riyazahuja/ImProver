@@ -36,16 +36,24 @@ async def eval_file(file, args, config):
         output_path
     ]
     # print(cmd)
+    proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+            stdin=asyncio.subprocess.DEVNULL,
+            )
+    
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
+        await asyncio.wait_for(proc.wait(),20*60)
 
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            print(f">>> Error evaluating {file}: \n\tSTDOUT: {stdout.decode()}\n\tSTDERR: {stderr.decode()}\n")
-        else:
-            print(f">>> success on {file}! (took {time.time()-st}s)\n")
+        # stdout, stderr = await proc.communicate()
+        # if proc.returncode != 0:
+            # print(f">>> Error evaluating {file}: \n\tSTDOUT: {stdout.decode()}\n\tSTDERR: {stderr.decode()}\n")
+        # else:
+        print(f">>> success on {file}! (took {time.time()-st}s)\n")
+        return
+    except asyncio.TimeoutError:
+        proc.kill()
+        print(f">>> [TIME-OUT] {file} (> {20*60}s)")
         return
     except Exception as e:
         print(f">>> Exception running improver on {file}: {str(e)}")
@@ -66,24 +74,18 @@ async def main_async(args):
         files_to_process = files_to_process + dataset[repo]
     
     semaphore = asyncio.Semaphore(args.cpus)
+    progress_bar = tqdm.tqdm(total=len(files_to_process), desc="Processing files")
 
-    async def run_with_semaphore(file_info):
+    async def worker(f):
         async with semaphore:
-            return await eval_file(file_info, args, config)
-
-    tasks = [run_with_semaphore(file_info) for file_info in files_to_process]
-
-    progress_bar = tqdm.tqdm(total=len(tasks), desc="Processing files")
-
-    async def run_with_progress(task):
-        result = await task
-        progress_bar.update(1)
-        return result
-
-    progress_tasks = [run_with_progress(task) for task in tasks]
-
-    await asyncio.gather(*progress_tasks)
+            ok = await eval_file(f, args, config)
+            progress_bar.update(1)
+            return ok
+    tasks = [asyncio.create_task(worker(file_info)) for file_info in files_to_process]
+    await asyncio.gather(*tasks)
     progress_bar.close()
+    
+    
     
    
 
