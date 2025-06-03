@@ -14,6 +14,43 @@ import argparse
 from multiprocessing import cpu_count
 
 
+
+SYSTEM_PROMPTS = {
+    "length" : "Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.",
+    "declarativity" : "Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as declarative in style as possible. We define and measure declarativity as the number of explicitly typed \"have\" statements, which you will aim to maximize insofar as to construct a more readable, structured, and forward-reasoning approach to the proof as possible - while also ensuring that the output is still a correct proof of the theorem.",
+    "dependency" : "Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem.",
+    "completion" : "Prove the current theorem (wrapped in <CURRENT>...</CURRENT>) with a correct, formal, and complete (sorry-free) Lean4 proof."
+}
+
+ANNOTATION_PROMPT = " A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
+
+CONTEXT_PROMPT = " The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
+
+RAG_PROMPT = " The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
+
+EXAMPLE_PROMPT = "Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
+
+def make_config(args):
+    config = {
+        "metric": args.metric,
+        "example_dir": args.example_dir,
+        "dataset_path": args.dataset_path,
+        "split": args.split,
+        "system_prompt": SYSTEM_PROMPTS[args.metric],
+        "annotation_prompt": ANNOTATION_PROMPT,
+        "context_prompt": CONTEXT_PROMPT,
+        "rag_prompt": RAG_PROMPT,
+        "example_prompt": EXAMPLE_PROMPT,
+    }
+
+    config_file = os.path.join(args.output_dir, args.metric, "config.json")
+    os.makedirs(os.path.dirname(config_file), exist_ok=True)
+    with open(config_file, "w") as f:
+        json.dump(config, f, indent=4)
+
+    print(f"Configuration saved to {config_file}")
+
+
 async def calculate_prompt(file, args):
     st = time.time()
     cmd = [
@@ -24,6 +61,7 @@ async def calculate_prompt(file, args):
         args.metric,
         args.output_dir,
         args.example_dir,
+        args.python_cmd,
     ]
     # print(cmd)
     try:
@@ -101,8 +139,16 @@ if __name__ == "__main__":
         default=cpu_count(),
         help="Number of CPUs to use (default: all available)",
     )
-
+    parser.add_argument(
+        "--python_cmd",
+        type=str,
+        default=sys.executable,
+        help="Python executable to use (default: current)",
+    )
+    
     args = parser.parse_args()
 
+    make_config(args)
+    
     asyncio.run(main_async(args))
 

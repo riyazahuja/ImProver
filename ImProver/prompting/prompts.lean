@@ -215,7 +215,48 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
 
 
-def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) ) (exampleDirectory : String) : IO Json := do
+def String.splitAtString (s : String) (pattern : String): Option (String × String) :=
+  if h : pattern.endPos.1 = 0 then none
+  else
+    have hPatt := Nat.zero_lt_of_ne_zero h
+    let rec loop (pos : String.Pos) :=
+      if h : pos.byteIdx + pattern.endPos.byteIdx > s.endPos.byteIdx then
+        none
+      else
+        have := Nat.lt_of_lt_of_le (Nat.add_lt_add_left hPatt _) (Nat.ge_of_not_lt h)
+        if s.substrEq pos pattern 0 pattern.endPos.byteIdx then
+          -- Found a match, return split strings
+          let before := s.extract 0 pos
+          let after := s.extract (pos + pattern) s.endPos
+          some (before, after)
+        else
+          have := Nat.sub_lt_sub_left this (lt_next s pos)
+          loop (s.next pos)
+      termination_by s.endPos.1 - pos.1
+    loop 0
+
+def proofAsSorry (cmd : CompilationStep) : Option String := do
+  let tactics := InfoTree.tactics_new cmd.trees |>.map (fun t => (t.pp, FileMap.ofPosition t.ctx.fileMap t.range.1))
+    if tactics.isEmpty then
+      let splitAt? := cmd.src.toString.splitAtString ":="
+      match splitAt? with
+      | none => none
+      | some (before, _) =>
+        let new_thm := before ++ ":= by sorry"
+        some new_thm
+    else
+      let (_, range) := tactics[0]!
+
+      let cmd_rng := cmd.stx.getPos?
+
+      let sstr : Substring := ⟨cmd.src.str, cmd_rng.getD 0,  range⟩
+
+      let new_thm := sstr.toString ++ "sorry"
+      some new_thm
+
+
+def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) )
+  (exampleDirectory : String) (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python") : IO Json := do
   IO.println s!"==== GETTING {cmds_ci.size} prompts from {mod}!!! ===="
 
   let main_prompt := match metric with
@@ -233,7 +274,7 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
 
   let example_prompt : String := s!"Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
 
-  let prompt_data : Array (ConstantInfo × Json × Json × Json) ← cmds_ci.mapM (fun (cmd,(ci : ConstantInfo)) => do
+  let prompt_data : Array (ConstantInfo × Json × Json × Json × Json) ← cmds_ci.mapM (fun (cmd,(ci : ConstantInfo)) => do
 
     let srcCommand ← if metric == "completion" then
         to_completion_format cmd mod
@@ -250,13 +291,15 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
             ("context_item_type", Json.str c.kind),
             ("content", Json.str c.text)
           ]) |>.toArray
-    return (ci, Json.str srcCommand, Json.str annotation_string, context_string)
+
+    let pfAsSorry := proofAsSorry cmd |>.getD ""
+    return (ci, Json.str srcCommand, Json.str pfAsSorry, Json.str annotation_string, context_string)
   )
 
   IO.println s!"==== GOT {prompt_data.size} prompts from {mod}!!! ===="
 
   let rag_strings : Array Json ← do
-      let items ← retrieve_batch_indep cmds_ci
+      let items ← retrieve_batch_indep cmds_ci python_cmd
       let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
       pure x
   IO.println s!"==== GOT {rag_strings.size} prompts from RAG!!! ===="
@@ -268,18 +311,19 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
     | .ok json => pure json
     | .error err => throw (IO.userError s!"Failed to parse example JSON: {err}")
 
-  let prompt_data := prompt_data.zip rag_strings |>.map (fun ((ci,srcCommand,annotation_string,context_string),rag_string) =>
+  let prompt_data := prompt_data.zip rag_strings |>.map (fun ((ci,srcCommand, pfAsSorry, annotation_string,context_string),rag_string) =>
     let data := Json.mkObj [
-      ("system", Json.str main_prompt),
-      ("example_prompt", Json.str example_prompt),
-      ("examples", example_json),
-      ("context_prompt", Json.str context_prompt),
+      -- ("system", Json.str main_prompt),
+      -- ("example_prompt", Json.str example_prompt),
+      -- ("examples", example_json),
+      -- ("context_prompt", Json.str context_prompt),
       ("context", context_string),
-      ("rag_prompt", Json.str rag_prompt),
+      -- ("rag_prompt", Json.str rag_prompt),
       ("rag", rag_string),
-      ("annotation_prompt", Json.str annotation_prompt),
+      -- ("annotation_prompt", Json.str annotation_prompt),
       ("annotation", annotation_string),
       ("current", srcCommand),
+      ("current_sorry", pfAsSorry),
       ]
     ((ci : ConstantInfo).name.toString, data)
     )

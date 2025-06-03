@@ -35,7 +35,8 @@ def initialize_retrieval (config : ImProverConfig) (step: CompilationStep) : IO 
   return output
 
 
-def retrieve (step : CompilationStep) (config: ImProverConfig) : IO (List String) := do
+def retrieve (step : CompilationStep) (config: ImProverConfig)
+  (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python"): IO (List String) := do
   let query : String ← insert_state_comments step
 
   let data : Json := Json.mkObj
@@ -45,7 +46,7 @@ def retrieve (step : CompilationStep) (config: ImProverConfig) : IO (List String
     ]
   IO.println data.compress
   let out ← IO.Process.output {
-    cmd := "/home/riyaza/miniconda3/envs/env/bin/python3",
+    cmd := python_cmd,
     args := #["ImProver/prompting/rag.py", data.compress]
   }
 
@@ -71,7 +72,8 @@ def getInitialProofState (env : Environment) (ci : ConstantInfo) : IO String := 
   return state
 
 -- test both on first step RAG or all steps RAG
-def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: ImProverConfig) : IO (Array (CompilationStep × (List String))) := do
+def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: ImProverConfig)
+  (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python"): IO (Array (CompilationStep × (List String))) := do
   let queries : Array String ← steps.mapM (fun (cmd, ci) => do
     let env := cmd.after
 
@@ -98,7 +100,7 @@ def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: Im
     ]
   IO.println data.compress
   let out ← IO.Process.output {
-    cmd := "/home/riyaza/miniconda3/envs/env/bin/python",
+    cmd := python_cmd,
     -- cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
     args := #["ImProver/prompting/rag_batched.py", data.compress]
   }
@@ -120,7 +122,8 @@ def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: Im
 
 
 
-def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) : IO (Array (CompilationStep × (List String))) := do
+def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo))
+  (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python") : IO (Array (CompilationStep × (List String))) := do
   IO.println "Retrieving batch independently"
 
   let queries : Array String ← steps.mapM (fun (cmd, ci) => do
@@ -149,15 +152,15 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) : IO 
     ]
   IO.println data.compress
   let out ← IO.Process.output {
-    cmd := "/home/riyaza/miniconda3/envs/env/bin/python",
+    cmd := python_cmd,
     -- cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
     args := #["ImProver/prompting/rag_batched.py", data.compress]
   }
 
   let stdout := out.stdout.trim
-  IO.println out.stderr
-  IO.println "OUT"
-  IO.println out.stdout
+  -- IO.println out.stderr
+  -- IO.println "OUT"
+  -- IO.println out.stdout
 
   let json? := Json.parse stdout |>.toOption
   let json := match json? with
