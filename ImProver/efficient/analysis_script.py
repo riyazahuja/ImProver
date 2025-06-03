@@ -1,4 +1,4 @@
-\
+import re
 import argparse
 import duckdb
 import json
@@ -314,7 +314,9 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config):
         try:
             df_graph.to_csv(csv_path, index=False)
             print(f"Analysis data saved to {csv_path}")
-
+            
+            
+            
             plt.figure(figsize=(12, 7))
             plt.plot(df_graph['n_value'], df_graph['accuracy'], marker='o', label='Accuracy')
             plt.plot(df_graph['n_value'], df_graph['nonzero_accuracy'], marker='s', label='Nonzero Accuracy')
@@ -341,6 +343,27 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config):
 
     print("Best-of-N analysis finished.")
     return True # Indicate success
+
+
+def extract_improved_content(text):
+    start_tag = "<IMPROVED>"
+    end_tag = "</IMPROVED>"
+
+    start_index = text.find(start_tag)
+    end_index = text.find(end_tag)
+
+    if start_index != -1 and end_index != -1 and end_index > start_index:
+        # Both tags exist and properly ordered
+        return text[start_index + len(start_tag):end_index]
+    elif start_index != -1:
+        # Only start tag found
+        return text[start_index + len(start_tag):]
+    elif end_index != -1:
+        # Only end tag found
+        return text[:end_index]
+    else:
+        # Neither tag found
+        return text
 
 def run_training_analysis(run_id, run_dir_path, config):
     """Performs the training data extraction analysis."""
@@ -381,7 +404,7 @@ def run_training_analysis(run_id, run_dir_path, config):
 
     try:
         # Query the 'best_results' table (assuming this is the table name used in BoN)
-        query = "SELECT decl, module, new_raw, new_correct, delta FROM best_results"
+        query = "SELECT decl, module, new_raw, new_correct, delta, original_prompt FROM best_results"
         results = db_con_raw.execute(query).fetchall()
         
         # Convert to list of dicts for easier processing
@@ -390,6 +413,8 @@ def run_training_analysis(run_id, run_dir_path, config):
 
         print("\n--- Training Data Candidates ---")
         count = 0
+        pairs = []
+        errors =[]
         for row in result_dicts:
             if row.get('new_correct'):
                 delta = parse_json_field_as_float(row.get('delta'))
@@ -402,12 +427,32 @@ def run_training_analysis(run_id, run_dir_path, config):
                     
                     if condition_met:
                         print(f"DECL: {row['decl']}")
-                        print(f"MODULE: {row['module']}")
+                        # print(f"MODULE: {row['module']}")
                         print(f"NEW_RAW: {row['new_raw']}")
                         print("---")
+                        prompt = re.sub(r'\<\uFF5C.*?\uFF5C\>', '', row['original_prompt'])
+                        new = extract_improved_content(row['new_raw'])
+                        first = new.strip().split("\n")[0] if new else ""
+                        if row['decl'] not in first and row['decl'].split(".")[-1] not in first:
+                            new = row['new_raw']
+                            errors.append(row['decl'])
+                        # print(f"NEW: {new}")
+                        pair = {"instruction": prompt.strip(), "output": new.strip() + "\n</IMPROVED>"}
+                        pairs.append(pair)
+                        
+                        print(f"Pair: {new.strip()}")
+                        # print(f"PROMPT: {re.sub(r'\<\uFF5C.*?\uFF5C\>', '', row['original_prompt'])}")
+                        print("===")
                         count +=1
         print(f"Found {count} training data candidates.")
-
+        json_output_path = analysis_base_path / "train.jsonl"
+        if pairs:
+            # print(pairs[:5])  # Print first 5 pairs for verification
+            with open(json_output_path, 'w') as f:
+                for pair in pairs:
+                    f.write(json.dumps(pair) + "\n")
+        print(f"Training data candidates saved to {json_output_path}")
+        print(f"{len(errors)} errors in decls: {errors}")
     except Exception as e:
         print(f"Error during training data extraction: {e}")
     finally:
