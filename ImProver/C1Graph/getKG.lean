@@ -39,7 +39,6 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
   let mut targets_new : Array (CompilationStep × ConstantInfo) := #[]
 
   for (cmd, ci) in targets do
-    IO.println s!"HELLO"
     let isThm? := match ci with
       | .thmInfo _ => true
       | _ => false
