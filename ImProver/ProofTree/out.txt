@@ -1,0 +1,217 @@
+Theorem: 
+/-- The polynomial Freiman-Ruzsa (PFR) conjecture: if `A` is a subset of an elementary abelian
+2-group of doubling constant at most `K`, then `A` can be covered by at most `2 * K ^ 12` cosets of
+a subgroup of cardinality at most `|A|`. -/
+theorem PFR_conjecture (h₀A : A.Nonempty) (hA : Nat.card (A + A) ≤ K * Nat.card A) :
+     ∃ (H : Submodule (ZMod 2) G) (c : Set G),
+      Nat.card c < 2 * K ^ 12 ∧ Nat.card H ≤ Nat.card A ∧ A ⊆ c + H := by
+  obtain ⟨A_pos, -, K_pos⟩ : (0 : ℝ) < Nat.card A ∧ (0 : ℝ) < Nat.card (A + A) ∧ 0 < K :=
+    PFR_conjecture_pos_aux' h₀A hA
+  -- consider the subgroup `H` given by Lemma `PFR_conjecture_aux`.
+  obtain ⟨H, c, hc, IHA, IAH, A_subs_cH⟩ : ∃ (H : Submodule (ZMod 2) G) (c : Set G),
+    Nat.card c ≤ K ^ (13/2) * Nat.card A ^ (1/2) * Nat.card H ^ (-1/2)
+      ∧ Nat.card H ≤ K ^ 11 * Nat.card A ∧ Nat.card A ≤ K ^ 11 * Nat.card H
+      ∧ A ⊆ c + H :=
+    PFR_conjecture_aux h₀A hA
+  have H_pos : (0 : ℝ) < Nat.card H := by
+    have : 0 < Nat.card H := Nat.card_pos; positivity
+  rcases le_or_lt (Nat.card H) (Nat.card A) with h|h
+  -- If `#H ≤ #A`, then `H` satisfies the conclusion of the theorem
+  · refine ⟨H, c, ?_, h, A_subs_cH⟩
+    calc
+    Nat.card c ≤ K ^ (13/2 : ℝ) * Nat.card A ^ (1/2 : ℝ) * Nat.card H ^ (-1/2 : ℝ) := hc
+    _ ≤ K ^ (13/2 : ℝ) * (K ^ 11 * Nat.card H) ^ (1/2 : ℝ) * Nat.card H ^ (-1/2 : ℝ) := by gcongr
+    _ = K ^ 12 := by rpow_ring; norm_num
+    _ < 2 * K ^ 12 := by linarith [show 0 < K ^ 12 by positivity]
+  -- otherwise, we decompose `H` into cosets of one of its subgroups `H'`, chosen so that
+  -- `#A / 2 < #H' ≤ #A`. This `H'` satisfies the desired conclusion.
+  · obtain ⟨H', IH'A, IAH', H'H⟩ : ∃ H' : Submodule (ZMod 2) G, Nat.card H' ≤ Nat.card A
+          ∧ Nat.card A < 2 * Nat.card H' ∧ H' ≤ H := by
+      have A_pos' : 0 < Nat.card A := mod_cast A_pos
+      exact ZModModule.exists_submodule_subset_card_le Nat.prime_two H h.le A_pos'.ne'
+    have : (Nat.card A / 2 : ℝ) < Nat.card H' := by
+      rw [div_lt_iff₀ zero_lt_two, mul_comm]; norm_cast
+    have H'_pos : (0 : ℝ) < Nat.card H' := by
+      have : 0 < Nat.card H' := Nat.card_pos; positivity
+    obtain ⟨u, HH'u, hu⟩ :=
+      H'.toAddSubgroup.exists_left_transversal_of_le (H := H.toAddSubgroup) H'H
+    dsimp at HH'u
+    refine ⟨H', c + u, ?_, IH'A, by rwa [add_assoc, HH'u]⟩
+    calc
+    (Nat.card (c + u) : ℝ)
+      ≤ Nat.card c * Nat.card u := mod_cast natCard_add_le
+    _ ≤ (K ^ (13/2 : ℝ) * Nat.card A ^ (1 / 2 : ℝ) * (Nat.card H ^ (-1 / 2 : ℝ)))
+          * (Nat.card H / Nat.card H') := by
+        gcongr
+        apply le_of_eq
+        rw [eq_div_iff H'_pos.ne']
+        norm_cast
+    _ < (K ^ (13/2) * Nat.card A ^ (1 / 2) * (Nat.card H ^ (-1 / 2)))
+          * (Nat.card H / (Nat.card A / 2)) := by
+        gcongr
+    _ = 2 * K ^ (13/2) * Nat.card A ^ (-1/2) * Nat.card H ^ (1/2) := by
+        field_simp
+        rpow_ring
+        norm_num
+    _ ≤ 2 * K ^ (13/2) * Nat.card A ^ (-1/2) * (K ^ 11 * Nat.card A) ^ (1/2) := by
+        gcongr
+    _ = 2 * K ^ 12 := by
+        rpow_ring
+        norm_num
+
+
+ProofTree: 
+[obtain ⟨A_pos, -, K_pos⟩ : (0 : ℝ) < Nat.card A ∧ (0 : ℝ) < Nat.card (A + A) ∧ 0 < K :=]
+└─ [obtain ⟨H, c, hc, IHA, IAH, A_subs_cH⟩ : ∃ (H : Submodule (ZMod 2) G) (c : Set G),]
+   └─ [have H_pos : (0 : ℝ) < Nat.card H := by]
+      │  └─ [*have : 0 < Nat.card H := Nat.card_pos]
+      │     └─ [positivity]
+      │  └─ [rcases le_or_lt (Nat.card H) (Nat.card A) with h|h]
+      │     │  └─ [refine ⟨H, c, ?_, h, A_subs_cH⟩]
+      │     │     └─ [calc]
+      │     │        │  └─ [*gcongr]
+      │     │        │  └─ [*rpow_ring]
+      │     │        │     └─ [norm_num]
+      │     │        │  └─ [*linarith [show 0 < K ^ 12 by positivity]]
+      │     │        │     │  └─ [*positivity]
+      │     │        │     └─ [*positivity]
+      │     │        │  └─ [*gcongr]
+      │     │        │  └─ [*rpow_ring]
+      │     │        │     └─ [norm_num]
+      │     │        └─ [*linarith [show 0 < K ^ 12 by positivity]]
+      │     │           │  └─ [*positivity]
+      │     │           └─ [*positivity]
+      │     └─ [obtain ⟨H', IH'A, IAH', H'H⟩ : ∃ H' : Submodule (ZMod 2) G, Nat.card H' ≤ Nat.card A]
+      │        │  └─ [*have A_pos' : 0 < Nat.card A := mod_cast A_pos]
+      │        │     └─ [exact ZModModule.exists_submodule_subset_card_le Nat.prime_two H h.le A_pos'.ne']
+      │        │  └─ [have : (Nat.card A / 2 : ℝ) < Nat.card H' := by]
+      │        │     │  └─ [*rw [div_lt_iff₀ zero_lt_two]]
+      │        │     │     └─ [rw [mul_comm]]
+      │        │     │        └─ [norm_cast]
+      │        │     │  └─ [have H'_pos : (0 : ℝ) < Nat.card H' := by]
+      │        │     │     │  └─ [*have : 0 < Nat.card H' := Nat.card_pos]
+      │        │     │     │     └─ [positivity]
+      │        │     │     │  └─ [obtain ⟨u, HH'u, hu⟩ :=]
+      │        │     │     │     └─ [dsimp at HH'u]
+      │        │     │     │        └─ [refine ⟨H', c + u, ?_, IH'A, by rwa [add_assoc, HH'u]⟩]
+      │        │     │     │           │  └─ [*add_assoc,]
+      │        │     │     │           │     └─ [HH'u]
+      │        │     │     │           │  └─ [calc]
+      │        │     │     │           │     │  └─ [*gcongr]
+      │        │     │     │           │     │     └─ [apply le_of_eq]
+      │        │     │     │           │     │        └─ [rw [eq_div_iff H'_pos.ne']]
+      │        │     │     │           │     │           └─ [norm_cast]
+      │        │     │     │           │     │  └─ [*gcongr]
+      │        │     │     │           │     │  └─ [*field_simp]
+      │        │     │     │           │     │     └─ [rpow_ring]
+      │        │     │     │           │     │        └─ [norm_num]
+      │        │     │     │           │     │  └─ [*gcongr]
+      │        │     │     │           │     │  └─ [*rpow_ring]
+      │        │     │     │           │     │     └─ [norm_num]
+      │        │     │     │           │     │  └─ [*gcongr]
+      │        │     │     │           │     │     └─ [apply le_of_eq]
+      │        │     │     │           │     │        └─ [rw [eq_div_iff H'_pos.ne']]
+      │        │     │     │           │     │           └─ [norm_cast]
+      │        │     │     │           │     │  └─ [*gcongr]
+      │        │     │     │           │     │  └─ [*field_simp]
+      │        │     │     │           │     │     └─ [rpow_ring]
+      │        │     │     │           │     │        └─ [norm_num]
+      │        │     │     │           │     │  └─ [*gcongr]
+      │        │     │     │           │     └─ [*rpow_ring]
+      │        │     │     │           │        └─ [norm_num]
+      │        │     │     │           └─ [*add_assoc,]
+      │        │     │     │              └─ [HH'u]
+      │        │     │     └─ [*have : 0 < Nat.card H' := Nat.card_pos]
+      │        │     │        └─ [positivity]
+      │        │     └─ [*rw [div_lt_iff₀ zero_lt_two]]
+      │        │        └─ [rw [mul_comm]]
+      │        │           └─ [norm_cast]
+      │        └─ [*have A_pos' : 0 < Nat.card A := mod_cast A_pos]
+      │           └─ [exact ZModModule.exists_submodule_subset_card_le Nat.prime_two H h.le A_pos'.ne']
+      └─ [*have : 0 < Nat.card H := Nat.card_pos]
+         └─ [positivity]
+
+Breakpoints: 
+[have : 0 < Nat.card H := Nat.card_pos, rcases le_or_lt (Nat.card H) (Nat.card A) with h|h, refine ⟨H, c, ?_, h, A_subs_cH⟩, obtain ⟨H', IH'A, IAH', H'H⟩ : ∃ H' : Submodule (ZMod 2) G, Nat.card H' ≤ Nat.card A, gcongr, rpow_ring, linarith [show 0 < K ^ 12 by positivity], have A_pos' : 0 < Nat.card A := mod_cast A_pos, have : (Nat.card A / 2 : ℝ) < Nat.card H' := by, rw [div_lt_iff₀ zero_lt_two], have H'_pos : (0 : ℝ) < Nat.card H' := by, have : 0 < Nat.card H' := Nat.card_pos, obtain ⟨u, HH'u, hu⟩ :=, add_assoc,, calc, gcongr, gcongr, field_simp, gcongr, rpow_ring]
+
+
+Split Theorems: 
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) : 0 < ↑(Nat.card ↥H) := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) :
+  ∃ H c, ↑(Nat.card ↑c) < 2 * K ^ 12 ∧ Nat.card ↥H ≤ Nat.card ↑A ∧ A ⊆ c + ↑H := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) (h : Nat.card ↥H ≤ Nat.card ↑A) :
+  ∃ H c, ↑(Nat.card ↑c) < 2 * K ^ 12 ∧ Nat.card ↥H ≤ Nat.card ↑A ∧ A ⊆ c + ↑H := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) (h : Nat.card ↑A < Nat.card ↥H) :
+  ∃ H c, ↑(Nat.card ↑c) < 2 * K ^ 12 ∧ Nat.card ↥H ≤ Nat.card ↑A ∧ A ⊆ c + ↑H := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) (h : Nat.card ↑A < Nat.card ↥H) (H' : Submodule (ZMod 2) G)
+  (IH'A : Nat.card ↥H' ≤ Nat.card ↑A) (IAH' : Nat.card ↑A < 2 * Nat.card ↥H') (H'H : H' ≤ H)
+  (this : ↑(Nat.card ↑A) / 2 < ↑(Nat.card ↥H')) (H'_pos : 0 < ↑(Nat.card ↥H')) (u : Set G) (HH'u : u + ↑H' = ↑H)
+  (hu : Nat.card ↑u * Nat.card ↥H'.toAddSubgroup = Nat.card ↥H.toAddSubgroup) :
+  ↑(Nat.card ↑c) * ↑(Nat.card ↑u) ≤
+    K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2) * (↑(Nat.card ↥H) / ↑(Nat.card ↥H')) := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) (h : Nat.card ↑A < Nat.card ↥H) (H' : Submodule (ZMod 2) G)
+  (IH'A : Nat.card ↥H' ≤ Nat.card ↑A) (IAH' : Nat.card ↑A < 2 * Nat.card ↥H') (H'H : H' ≤ H)
+  (this : ↑(Nat.card ↑A) / 2 < ↑(Nat.card ↥H')) (H'_pos : 0 < ↑(Nat.card ↥H')) (u : Set G) (HH'u : u + ↑H' = ↑H)
+  (hu : Nat.card ↑u * Nat.card ↥H'.toAddSubgroup = Nat.card ↥H.toAddSubgroup) :
+  K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2) * (↑(Nat.card ↥H) * 2) =
+    2 * K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (-1 / 2) * ↑(Nat.card ↥H) ^ (1 / 2) * ↑(Nat.card ↑A) := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) (h : Nat.card ↑A < Nat.card ↥H) (H' : Submodule (ZMod 2) G)
+  (IH'A : Nat.card ↥H' ≤ Nat.card ↑A) (IAH' : Nat.card ↑A < 2 * Nat.card ↥H') (H'H : H' ≤ H)
+  (this : ↑(Nat.card ↑A) / 2 < ↑(Nat.card ↥H')) (H'_pos : 0 < ↑(Nat.card ↥H')) (u : Set G) (HH'u : u + ↑H' = ↑H)
+  (hu : Nat.card ↑u * Nat.card ↥H'.toAddSubgroup = Nat.card ↥H.toAddSubgroup) :
+  2 * K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (-1 / 2) * ↑(Nat.card ↥H) ^ (1 / 2) ≤
+    2 * K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (-1 / 2) * (K ^ 11 * ↑(Nat.card ↑A)) ^ (1 / 2) := sorry
+
+theorem extracted_1.{u_1} {G : Type u_1} [inst : AddCommGroup G] {A : Set G} {K : ℝ} [inst_1 : Countable G]
+  [inst_2 : Module (ZMod 2) G] (h₀A : A.Nonempty) (hA : ↑(Nat.card ↑(A + A)) ≤ K * ↑(Nat.card ↑A))
+  (A_pos : 0 < ↑(Nat.card ↑A)) (K_pos : 0 < K) (H : Submodule (ZMod 2) G) (c : Set G)
+  (hc : ↑(Nat.card ↑c) ≤ K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (1 / 2) * ↑(Nat.card ↥H) ^ (-1 / 2))
+  (IHA : ↑(Nat.card ↥H) ≤ K ^ 11 * ↑(Nat.card ↑A)) (IAH : ↑(Nat.card ↑A) ≤ K ^ 11 * ↑(Nat.card ↥H))
+  (A_subs_cH : A ⊆ c + ↑H) (H_pos : 0 < ↑(Nat.card ↥H)) (h : Nat.card ↑A < Nat.card ↥H) (H' : Submodule (ZMod 2) G)
+  (IH'A : Nat.card ↥H' ≤ Nat.card ↑A) (IAH' : Nat.card ↑A < 2 * Nat.card ↥H') (H'H : H' ≤ H)
+  (this : ↑(Nat.card ↑A) / 2 < ↑(Nat.card ↥H')) (H'_pos : 0 < ↑(Nat.card ↥H')) (u : Set G) (HH'u : u + ↑H' = ↑H)
+  (hu : Nat.card ↑u * Nat.card ↥H'.toAddSubgroup = Nat.card ↥H.toAddSubgroup) :
+  2 * K ^ (13 / 2) * ↑(Nat.card ↑A) ^ (-1 / 2) * (K ^ 11 * ↑(Nat.card ↑A)) ^ (1 / 2) = 2 * K ^ 12 := sorry
+
+
