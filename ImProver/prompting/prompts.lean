@@ -110,20 +110,6 @@ def ppDeclWithoutProof (module: ModuleName) (info: CommandInfo) : IO String := d
     else
       return ""
 
-def to_completion_format (cmd : CompilationStep) (targetModule : ModuleName): IO String := do
-  let findCommandNodes (t : InfoTree) : List CommandInfo :=
-      let infos := t.findAllInfo none fun i => match i with
-        | .ofCommandInfo _ => true
-        | _ => false
-      infos.filterMap fun p => match p with
-      | (.ofCommandInfo i, _, _) => (i)
-      | _ => none
-  let ci := cmd.trees.flatMap (fun t => findCommandNodes t)
-  let decls ← ci.mapM (fun c => ppDeclWithoutProof targetModule c)
-  match decls with
-  | [] => pure ""
-  | x::_ =>
-    pure x
 
 /- Returns the prompt function from a name -/
 def get_prompt (prompt_name : String)  (config : ImProverConfig) (cmd : CompilationStep) : IO String := do
@@ -180,10 +166,7 @@ def get_prompt_batched (prompt_name : String)  (config : ImProverConfig) (cmds_c
 
   let prompt_data ← cmds_ci.mapM (fun (cmd,_) => do
 
-    let srcCommand ← if config.metric == "completion" then
-        to_completion_format cmd config.targetModule
-      else
-        pure cmd.src.toString
+    let srcCommand := cmd.src.toString
 
 
     let annotation_string : String ← if config.annotation? then (insert_state_comments cmd) else pure ""
@@ -255,34 +238,17 @@ def proofAsSorry (cmd : CompilationStep) : Option String := do
       some new_thm
 
 
-def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (CompilationStep × ConstantInfo) )
-  (exampleDirectory : String) (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python") : IO Json := do
+def get_prompt_eval_batched (mod : Name) (cmds_ci : Array (CompilationStep × ConstantInfo) )
+  (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python") : IO Json := do
   IO.println s!"==== GETTING {cmds_ci.size} prompts from {mod}!!! ===="
 
-  let main_prompt := match metric with
-  | "length" => length_prompt
-  | "declarativity" => declarativity_prompt
-  | "dependency" => dependency_prompt
-  | "completion" => completion_prompt
-  | _ => length_prompt
-
-
-
-  let annotation_prompt : String := s!" A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
-  let context_prompt : String := s!" The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>."
-  let rag_prompt : String := s!" The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
-
-  let example_prompt : String := s!"Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
 
   let prompt_data : Array (ConstantInfo × Json × Json × Json × Json) ← cmds_ci.mapM (fun (cmd,(ci : ConstantInfo)) => do
 
-    let srcCommand ← if metric == "completion" then
-        to_completion_format cmd mod
-      else
-        pure cmd.src.toString
+    let srcCommand := cmd.src.toString
 
     -- eventually want annotation on partial proofs, but for now, ignore
-    let annotation_string : String ← if metric == "completion" then pure "" else insert_state_comments cmd
+    let annotation_string : String ← insert_state_comments cmd
 
     let context_string : Json ← do
         let context ← get_context cmd
@@ -304,12 +270,6 @@ def get_prompt_eval_batched (mod : Name) (metric : String) (cmds_ci : Array (Com
       pure x
   IO.println s!"==== GOT {rag_strings.size} prompts from RAG!!! ===="
 
-  let example_json : Json ← do
-    let example_path := exampleDirectory ++ "/" ++ metric ++ ".json"
-    let content ← IO.FS.readFile example_path
-    match Json.parse content with
-    | .ok json => pure json
-    | .error err => throw (IO.userError s!"Failed to parse example JSON: {err}")
 
   let prompt_data := prompt_data.zip rag_strings |>.map (fun ((ci,srcCommand, pfAsSorry, annotation_string,context_string),rag_string) =>
     let data := Json.mkObj [

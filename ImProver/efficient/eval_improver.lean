@@ -187,12 +187,12 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
 
   let fileName := (← findLean mod).toString
   -- let mut trajectories_json := []
-  let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
-    |>.insert `linter.unusedVariables (.ofBool false)
-    |>.insert `linter.unusedTactic (.ofBool false)
-    |>.insert `linter.unreachableTactic (.ofBool false)
+  -- let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
+  --   |>.insert `linter.unusedVariables (.ofBool false)
+  --   |>.insert `linter.unusedTactic (.ofBool false)
+  --   |>.insert `linter.unreachableTactic (.ofBool false)
 
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none proofAsSorry fileName
+  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
 

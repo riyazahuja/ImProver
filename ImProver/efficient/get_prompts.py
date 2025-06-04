@@ -32,18 +32,17 @@ EXAMPLE_PROMPT = "Here are some examples of such optimization, as wrapped in <EX
 
 def make_config(args):
     config = {
-        "metric": args.metric,
         "example_dir": args.example_dir,
         "dataset_path": args.dataset_path,
         "split": args.split,
-        "system_prompt": SYSTEM_PROMPTS[args.metric],
+        "system_prompt": SYSTEM_PROMPTS,
         "annotation_prompt": ANNOTATION_PROMPT,
         "context_prompt": CONTEXT_PROMPT,
         "rag_prompt": RAG_PROMPT,
         "example_prompt": EXAMPLE_PROMPT,
     }
 
-    config_file = os.path.join(args.output_dir, args.metric, "config.json")
+    config_file = os.path.join(args.output_dir, "config.json")
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     with open(config_file, "w") as f:
         json.dump(config, f, indent=4)
@@ -58,9 +57,7 @@ async def calculate_prompt(file, args):
         "exe",
         "get_prompts",
         file.replace("/", ".").replace(".lean", ""),
-        args.metric,
         args.output_dir,
-        args.example_dir,
         args.python_cmd,
     ]
     # print(cmd)
@@ -113,7 +110,6 @@ async def main_async(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
-    parser.add_argument("metric", type=str, help="Metric to use for evaluation")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
     parser.add_argument(
         "--split",

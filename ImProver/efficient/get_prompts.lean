@@ -30,7 +30,7 @@ set_option autoImplicit true
 
 
 
-def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampleDirectory : String) (python_cmd : String): IO Unit := do
+def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO Unit := do
   searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
@@ -65,14 +65,14 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampl
 
   -- IO.println s!"Found {targets_new.size} targets"
 
-  let targets_with_prompts : Json ← get_prompt_eval_batched mod metric targets_new exampleDirectory python_cmd
+  let targets_with_prompts : Json ← get_prompt_eval_batched mod targets_new python_cmd
 
 
 
 
 
 
-  let json_path := outputDirectory ++ "/" ++ metric ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
+  let json_path := outputDirectory ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
   IO.println s!"Writing to {json_path}"
   -- let trajectories := Json.arr (trajectories_json.toArray)
   -- match json_path with
@@ -94,14 +94,12 @@ def getPrompts (mod : Name) (metric : String) (outputDirectory : String) (exampl
 
 def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
-  let metric := args.positionalArg! "metric" |>.as! String
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
-  let exampleDirectory := args.positionalArg! "exampleDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
 
 
-  getPrompts mod metric outputDirectory exampleDirectory python_cmd
+  getPrompts mod outputDirectory python_cmd
   return 0
 
 
@@ -112,9 +110,7 @@ def get_prompts : Cmd := `[Cli|
 
   ARGS:
     file : ModuleName; "Lean module to get prompts for."
-    metric : String; "Metric to use for evaluation."
     outputDirectory : String; "Where to save the Json output."
-    exampleDirectory : String; "Path to the examples directory."
     pythonCommand : String; "Path to python executable."
 ]
 

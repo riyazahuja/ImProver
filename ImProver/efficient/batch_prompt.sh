@@ -20,4 +20,4 @@ lake build ImProver.efficient.get_prompts
 
 sleep 5
 
-python /home/riyaza/eval_improver/improver/ImProver/efficient/get_prompts.py declarativity /home/riyaza/eval_improver/improver/scripts/data/tt_split_data.json --cpus 24
+python /home/riyaza/eval_improver/improver/ImProver/efficient/get_prompts.py /home/riyaza/eval_improver/improver/scripts/data/tt_split_data.json --cpus 36

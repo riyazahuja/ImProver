@@ -10,6 +10,7 @@ import datetime
 import multiprocessing
 import argparse
 import duckdb
+from transformers import AutoTokenizer
 
 
 def run_inference(df, args):
@@ -27,8 +28,10 @@ def run_inference(df, args):
     assert Version(ray.__version__) >= Version(
         "2.44.1"
     ), "Ray version must be at least 2.44.1"
+    print(df)
+    # ds = ray.data.from_pandas(df)
+    
 
-    ds = ray.data.from_pandas(df)
     # Create a new dataframe with duplicated rows, each with a unique prompt_idx
     df2_parts = []
     for i in range(args.n):
@@ -38,7 +41,10 @@ def run_inference(df, args):
 
     df2 = pd.concat(df2_parts, ignore_index=True)
     # Use df2 instead of df for the Ray dataset
-    ds = ray.data.from_pandas(df2).repartition(args.gpus * 4)
+    ds = ray.data.from_pandas(df2).drop_columns(
+        ["C1_dependencies", "C2_dependencies", "text",
+         "isExtracted"]
+    ).repartition(args.gpus * 4)
     # ds = ray.data.from_pandas(df).repartition(args.gpus * 4)
     # ds = ray.data.read_text("s3://anonymous@air-example-data/prompts.txt")
     print(ds.schema())
@@ -70,9 +76,9 @@ def run_inference(df, args):
             messages=[{"role": "user", "content": row["raw_prompt"]}],
             sampling_params=dict(
                 # n=args.n,
-                truncate_prompt_tokens=7168,
+                truncate_prompt_tokens=8192-256,
                 # temperature=0.3,
-                max_tokens=1024,
+                max_tokens=256,
             ),
         ),
         postprocess=lambda row: dict(answer=row["generated_text"], **row),
@@ -110,13 +116,14 @@ def run_inference(df, args):
     return run_output_dir
 
 
-def get_thm_prompt(thm):
+def get_thm_prompt(thm,files=set()):
     THRESHOLD = 2
+    isOriginal = thm['module'] in files
     # if we want to filter down the number of inference prompts, uncomment
     if (
         thm["isExtracted"] == True
-        or thm["isOriginal"] == False
-        or len(thm["C1_dependencies"]) + len(thm["C2_dependencies"]) <= THRESHOLD
+        or isOriginal == False
+        # or len(thm["C1_dependencies"]) + len(thm["C2_dependencies"]) <= THRESHOLD
     ):
         return None
 
@@ -134,9 +141,7 @@ def get_thm_prompt(thm):
 
 Given the following Lean4 theorem (wrapped with <CURRENT>...</CURRENT>), and all its dependencies/lemmas (each wrapped in <DEPENDENCY>, with an index) return the indices of the "core" lemmas. Namely, a core lemma is a dependency that intuitively embodies fundamental ideas relevant to the proof of the current theorem. This is in contrast to purely technical or helper lemmas.
 
-Return your answer as a comma-seperated list of indices, wrapped in <CORE_DEPENDENCIES>...</CORE_DEPENDENCIES> tags. For example,
-
-
+Return your answer as a comma-seperated list of indices, wrapped in <CORE_DEPENDENCIES>...</CORE_DEPENDENCIES> tags.
 
 
 <CURRENT>
@@ -154,22 +159,44 @@ Return your answer as a comma-seperated list of indices, wrapped in <CORE_DEPEND
 
 def main(args):
 
+    with open(args.dataset_path, "r") as f:
+        all = json.load(f)
+        dataset = all[args.split]
+    files_to_process = []
+    for repo in dataset.keys():
+        files_to_process = files_to_process + dataset[repo]
+    all_files = set([f.replace(".lean", "").replace("/", ".") for f in files_to_process])
+    
+    
     prompts = []
 
-    for root, _, files in os.walk(args.KG_path):
+    for root, _, files in os.walk(args.KG_dir):
         for file in files:
             if not file.endswith(".json"):
                 continue
-            module_path = os.path.relpath(os.path.join(root, file), args.KG_path)
+            module_path = os.path.relpath(os.path.join(root, file), args.KG_dir)
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
             # with open(os.path.join(root, file).replace("KG", "KG2.5"), "r") as f:
             #     C2Data = json.load(f)
             for thm in theorems:
-                thm_prompt = get_thm_prompt(thm)
-                if thm_prompt:
-                    prompts.append(thm_prompt)
+                thm_prompt = get_thm_prompt(thm,all_files)
+                if thm_prompt is None:
+                    continue
+
+                # Token‑level truncation / filtering
+                tokens = tokenizer.encode(thm_prompt["raw_prompt"],
+                                          add_special_tokens=False)
+                if len(tokens) > MAX_PROMPT_TOKENS:
+                    # ----- OPTION A: truncate to last MAX_PROMPT_TOKENS tokens
+                    tokens = tokens[-MAX_PROMPT_TOKENS:]
+                    thm_prompt["raw_prompt"] = tokenizer.decode(tokens)
+
+                    # ----- OPTION B: drop the prompt entirely instead
+                    # continue    # ← uncomment this line & delete the two lines above to drop
+
+                prompts.append(thm_prompt)
 
     # Convert the list of prompts to a pandas DataFrame
     df = pd.DataFrame(prompts)
@@ -239,5 +266,11 @@ if __name__ == "__main__":
     # )
 
     args = parser.parse_args()
+
+    # ------------------------------------------------------------------
+    # Initialise tokenizer once so we can measure prompt lengths
+    MAX_PROMPT_TOKENS = 8192 - 256   # model context minus generation tokens
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+    # ------------------------------------------------------------------
 
     main(args)
