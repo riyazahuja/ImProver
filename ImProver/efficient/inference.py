@@ -36,7 +36,7 @@ def run_inference(df, args):
 
     df2 = pd.concat(df2_parts, ignore_index=True)
     # Use df2 instead of df for the Ray dataset
-    ds = ray.data.from_pandas(df2).repartition(args.gpus * 4)
+    ds = ray.data.from_pandas(df2).repartition(args.gpus * 12)
     # ds = ray.data.from_pandas(df).repartition(args.gpus * 4)
     # ds = ray.data.read_text("s3://anonymous@air-example-data/prompts.txt")
     print(ds.schema())
@@ -118,7 +118,7 @@ def construct_prompts(config_data, data, args):
     idx = 0
     items = []
     for name, decl_data in data.items():
-        prompt = config_data["system_prompt"] + "Be sure to output your response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
+        prompt = config_data["system_prompt"][args.metric] + "Be sure to output your response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
         
         if args.examples != 0:
             prompt += config_data["example_prompt"] + "\n"
@@ -136,7 +136,7 @@ def construct_prompts(config_data, data, args):
 
         if args.examples != 0:
             
-            with open(os.path.join(config_data["example_dir"], f"{config_data["metric"]}.json"), "r") as f:
+            with open(os.path.join(config_data["example_dir"], f"{args.metric}.json"), "r") as f:
                 examples_data = json.load(f)
             
             prompt += f"<EXAMPLES>\n\n"
@@ -176,7 +176,7 @@ def construct_prompts(config_data, data, args):
         if args.rag != 0:
             prompt += f"<RAG>\n"
             for rag in decl_data["rag"][: min(args.rag,len(decl_data["rag"]))]:
-                prompt += f"<DOC>\n--src={rag['src']}\n{rag['content']}\n</DOC>\n"
+                prompt += f"<DOC>\n{rag}\n</DOC>\n"
             prompt += f"</RAG>\n\n"
 
         if args.annotation:
@@ -214,7 +214,7 @@ def main(args):
     for repo in dataset.keys():
         files_to_process = files_to_process + dataset[repo]
 
-    prompt_root = os.path.join(args.prompts_dir, args.metric)
+    prompt_root = args.prompts_dir
     config_path = os.path.join(prompt_root, "config.json")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")

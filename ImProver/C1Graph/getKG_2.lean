@@ -75,7 +75,7 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
 
 
 
-    let C2_raw ← splitC2 fileName cmd
+    let C2_raw ← splitC2 fileName cmd "spawned"
 
     let mut split_data : List TheoremData := []
     let mut C2_dependencies : List TheoremData := []

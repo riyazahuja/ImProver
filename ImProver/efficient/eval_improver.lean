@@ -236,9 +236,9 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
     let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{SQL_escaped_name}' AND file_path = '{SQL_escaped_file}';"
     IO.println s!"== [[{ci.name}]] =="
     let output ← IO.Process.output {
-      cmd := "duckdb",--/home/riyaza/.local/bin/duckdb",
+      cmd := "duckdb"--"/home/riyaza/.local/bin/duckdb",
       args := #[s!"{runPath}/data.duckdb", "--readonly", "--json", "-c", SQL_cmd]}
-
+    -- IO.println s!"DuckDB output: {SQL_cmd}"
     if output.exitCode != 0 then
       IO.println s!"Error running duckdb: {output.stderr}"
       -- break

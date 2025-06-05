@@ -186,12 +186,11 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config):
         
         # Fetch all data once to avoid multiple queries per (decl,module) inside loop
         # Assuming rowid or an implicit order gives us the "L[0]...L[n]" behavior
-        all_data_query = "SELECT *, rowid FROM evaluation_results ORDER BY module, decl, rowid" # Added rowid for stable slicing
+        all_data_query = "SELECT original_prompt,og_score,og_raw,list_transform(og_errors, x -> CAST(x as VARCHAR))::VARCHAR[] AS og_errors,new_trimmed, new_score,new_raw,list_transform(new_errors, x -> CAST(x as VARCHAR))::VARCHAR[] AS new_errors,new_correct, module, delta, decl,rowid FROM evaluation_results ORDER BY module, decl, rowid" # Added rowid for stable slicing
         all_data_df = db_con.execute(all_data_query).fetchdf()
+        # print(all_data_df)
         # Convert to list of dicts for easier processing as in original plan
         all_data_rows = all_data_df.to_dict('records')
-
-
     except Exception as e:
         print(f"Database error during BoN setup: {e}")
         return False

@@ -37,6 +37,17 @@ structure ExternalContext where
   endPos : Option Pos := none
 
 
+instance : BEq ExternalContext where
+  beq a b := a.name == b.name
+  && a.kind.trim == b.kind.trim
+  && a.module == b.module
+  && a.text.trim == b.text.trim
+  && a.parent.src.trim == b.parent.src.trim
+  && a.parent.stx == b.parent.stx
+  && a.pos == b.pos
+  && a.endPos == b.endPos
+
+
 
 partial def Lean.Expr.explicitConstants : Expr → MetaM NameSet
 | .app f x => do
@@ -152,4 +163,5 @@ def get_context (step:CompilationStep)
 
       out := (ExternalContext.mk c kind module declText step pos endPos)::out
     return out
-  return constant_info
+  let contexts := constant_info.eraseDups
+  return contexts

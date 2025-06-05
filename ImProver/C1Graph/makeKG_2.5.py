@@ -20,11 +20,11 @@ def init_node(tx, theorem):
         text=theorem["text"],
         module=theorem["module"],
         isExtracted=theorem["isExtracted"],
-        isOriginal=theorem["module"] in files,
+        isOriginal=theorem["module"] in modules,
     )
 
 
-def create_nodes(tx, theorem, args):
+def create_nodes(tx, theorem, args, conn):
     c1_dependencies = theorem.get("C1_dependencies", [])
     c2_dependencies = theorem.get("C2_dependencies", [])
     dependencies = c1_dependencies + c2_dependencies
@@ -46,36 +46,82 @@ def create_nodes(tx, theorem, args):
             dep_name=dep["name"],
             dep_module=dep["module"],
         )
-
+    # print(f"Processing half {theorem['name']} from {theorem['module']} with {len(dependencies)} dependencies.")
+    # print(f">>> Thm isExtracted: {theorem['isExtracted']}, module in files?: {theorem['module'] in modules}")
     # if heuristic filtering:
     # Add code to check in DuckDB database
-    try:
 
-        # Connect to the DuckDB database
-        db_path = os.path.join(args.KG_path, "filtered/data.duckdb")
-        if os.path.exists(db_path):
-            conn = duckdb.connect(db_path)
+    if (theorem["isExtracted"] == False) and (theorem["module"] in modules):
+        
+        result = conn.execute(
+            f"""
+            SELECT core_dependencies
+            FROM run_data 
+            WHERE name = '{theorem["name"].replace("'","''")}' AND module = '{theorem["module"].replace("'","''")}'
+            """,
+        ).fetchone()
 
-            # Query the database for the theorem
-            result = conn.execute(
-                """
-                SELECT * 
-                FROM theorems 
-                WHERE name = ? AND module = ?
-                """,
-                [theorem["name"], theorem["module"]],
-            ).fetchone()
-
-            if result:
-                print(f"Found in filtered database: {result}")
+        try:
+            core_dependency_indices = json.loads(result[-1])
+            if len(core_dependency_indices) == 0:
+                core_dependencies = dependencies
             else:
-                print(
-                    f"Sorry! Theorem {theorem['name']} from {theorem['module']} not found in filtered database"
+                core_dependencies = [
+                    dependencies[i] for i in core_dependency_indices if i < len(dependencies)
+                ]
+            for dep in core_dependencies:
+                tx.run(
+                    """
+                    MATCH (t:Theorem {name: $theorem_name, module: $theorem_module})
+                    MATCH (d:Theorem {name: $dep_name, module: $dep_module})
+                    MERGE (t)-[:STRONGLY_DEPENDS_ON]->(d)
+                    """,
+                    theorem_name=theorem["name"],
+                    theorem_module=theorem["module"],
+                    dep_name=dep["name"],
+                    dep_module=dep["module"],
                 )
+            
+            
+            #optionally, induce strong out-neighbors in c2 children
+            for dep in c2_dependencies:
+                # Find out-neighbors of the dep
+                neighbor_result = tx.run(
+                    """
+                    MATCH (d:Theorem {name: $dep_name, module: $dep_module})-[:DEPENDS_ON]->(n:Theorem)
+                    RETURN n.name as name, n.module as module
+                    """,
+                    dep_name=dep["name"],
+                    dep_module=dep["module"]
+                ).data()
+                
+                # Convert to list of (name, module) pairs
+                sub_dependencies = [(entry["name"], entry["module"]) for entry in neighbor_result]
+                
+                # Filter to those also in core_dependencies
+                core_dep_pairs = [(dep["name"], dep["module"]) for dep in core_dependencies]
+                sub_core_dependencies = [sub_dep for sub_dep in sub_dependencies if sub_dep in core_dep_pairs]
+                
+                # Add STRONGLY_DEPENDS_ON edge for each filtered dependency
+                for sub_name, sub_module in sub_core_dependencies:
+                    tx.run(
+                        """
+                        MATCH (t:Theorem {name: $theorem_name, module: $theorem_module})
+                        MATCH (d:Theorem {name: $sub_name, module: $sub_module})
+                        MERGE (t)-[:STRONGLY_DEPENDS_ON]->(d)
+                        """,
+                        theorem_name=theorem["name"],
+                        theorem_module=theorem["module"],
+                        sub_name=sub_name,
+                        sub_module=sub_module
+                    )
+                
+        except Exception as e:
+            print(
+                f"Sorry! Theorem {theorem['name']} from {theorem['module']} not found in filtered database, or error!\n\n{e}"
+            )
+            # pass
 
-            conn.close()
-    except Exception as e:
-        print(f"Error accessing DuckDB database: {e}")
 
 
 if __name__ == "__main__":
@@ -109,8 +155,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--neo4j_pass",
         type=str,
-        default="1234",
-        help="Neo4j password (default: 1234)",
+        default="12345678",
+        help="Neo4j password (default: 12345678)",
     )
 
     # parser.add_argument(
@@ -124,6 +170,11 @@ if __name__ == "__main__":
     driver = GraphDatabase.driver(
         args.neo4j_uri, auth=(args.neo4j_user, args.neo4j_pass)
     )
+    
+    
+    db_path = os.path.join(args.KG_path, "filtered","data.duckdb")
+    
+    conn = duckdb.connect(db_path)    
 
     with open(args.dataset_path, "r") as f:
         all = json.load(f)
@@ -131,15 +182,20 @@ if __name__ == "__main__":
     files_to_process = []
     for repo in dataset.keys():
         files_to_process = files_to_process + dataset[repo]
-    files = set([f.replace(".lean", "").replace("/", ".") for f in files_to_process])
+    modules = set([f.replace(".lean", "").replace("/", ".") for f in files_to_process])
 
+    
+    
     with driver.session() as session:
         # Get the list of all JSON files first
         all_files = []
         for root, _, files in os.walk(args.KG_path):
             for file in files:
+                if "filtered" in root and "config" in file:
+                    continue
                 if file.endswith(".json"):
                     all_files.append((root, file))
+                
 
         # Create the outer progress bar for files
         for root, file in tqdm(all_files, desc="Processing files"):
@@ -148,9 +204,10 @@ if __name__ == "__main__":
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
 
+            theorems.sort(key=lambda thm: thm.get("isExtracted", True), reverse=True)
             # Inner progress bar for theorems in the current file
             for thm in tqdm(theorems, desc=f"Processing {module}", leave=False):
-                session.write_transaction(create_nodes, thm, args)
+                session.write_transaction(create_nodes, thm, args,conn)
 
     driver.close()
 
