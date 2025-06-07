@@ -47,14 +47,17 @@ deriving Inhabited, ToJson
 def String.getTagged (s: String) (tag : String) : Option String :=
   s.splitAtString s!"<{tag}>" |>.getD (("", "")) |>.2 |>.splitAtString (s!"</{tag}>") |>.getD (("", "")) |>.1
 
+def String.getBetween (s: String) (left : String) (right : String) : Option String :=
+  s.splitAtString left |>.getD (("", "")) |>.2 |>.splitAtString (right) |>.getD (("", "")) |>.1
 
-def getInstances (preinstances : Array (CompilationStep × ConstantInfo × String × Option CompilationStep × String))
+
+def getInstances (preinstances : Array (CompilationStep × ConstantInfo × String × String × Option CompilationStep × String))
 (metric : String) (mod : String)
 : IO (List Instance) := do
 
   let mut instances : List Instance := []
 
-  for (original, ci, model_output,new?, prompt) in preinstances do
+  for (original, ci, model_output,trimmed_output, new?, prompt) in preinstances do
 
     let oldMsgs ← original.msgs.filterMapM (fun msg => do
           if msg.severity != .error then
@@ -69,13 +72,13 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
     let old_score ← if old_correct then do pure <| some (← get_metric metric original) else pure none
 
 
-    let contentsBefore : Substring := match original.src with
-      | ⟨s, b, _⟩ => ⟨s, 0, b⟩
-    let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
-    -- remove everything before the first <IMPROVED> tag and after the first </IMPROVED> tag
-    let trimmed_output := match model_output.trim.getTagged "IMPROVED" with
-      | some x => x
-      | none => trimmed_output
+    -- let contentsBefore : Substring := match original.src with
+    --   | ⟨s, b, _⟩ => ⟨s, 0, b⟩
+    -- let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
+    -- -- remove everything before the first <IMPROVED> tag and after the first </IMPROVED> tag
+    -- let trimmed_output := match model_output.trim.getTagged "IMPROVED" with
+    --   | some x => x
+    --   | none => trimmed_output
 
     match new? with
     | none =>
@@ -182,17 +185,25 @@ def withTimeout (timeout : UInt32) (x : IO α) : IO α := do
     IO.cancel timeoutTask
     throw e
 
+
+
 def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath : String) (outputPath : String) : IO UInt32 := do
   searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
+  let options := ({} : KVMap)
+      |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
+      |>.insert `debug.byAsSorry (.ofBool false)
+      |>.insert `linter.unusedVariables (.ofBool true)
+      |>.insert `linter.unusedTactic (.ofBool true)
+      |>.insert `linter.unreachableTactic (.ofBool true)
   -- let mut trajectories_json := []
   -- let proofAsSorry := ({} : KVMap).insert `debug.byAsSorry (.ofBool true)
   --   |>.insert `linter.unusedVariables (.ofBool false)
   --   |>.insert `linter.unusedTactic (.ofBool false)
   --   |>.insert `linter.unreachableTactic (.ofBool false)
 
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
+  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none options fileName
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
 
@@ -238,7 +249,9 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
     let output ← IO.Process.output {
       cmd := "duckdb"--"/home/riyaza/.local/bin/duckdb",
       args := #[s!"{runPath}/data.duckdb", "--readonly", "--json", "-c", SQL_cmd]}
-    -- IO.println s!"DuckDB output: {SQL_cmd}"
+    IO.println s!"DuckDB output: {output.stdout}"
+    IO.println s!"DuckDB err: {output.stderr}"
+    IO.println s!"SQL command: {SQL_cmd}"
     if output.exitCode != 0 then
       IO.println s!"Error running duckdb: {output.stderr}"
       -- break
@@ -277,13 +290,6 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
 
   IO.println s!"Found {preinstances.size} variants"
 
-  let options := ({} : KVMap)
-      |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
-      |>.insert `debug.byAsSorry (.ofBool false)
-      |>.insert `linter.unusedVariables (.ofBool true)
-      |>.insert `linter.unusedTactic (.ofBool true)
-      |>.insert `linter.unreachableTactic (.ofBool true)
-
 
 
   /- Multithreading stuff to verify each new proof on separate threads -/
@@ -291,11 +297,45 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
     IO.println s!"Evaluating {ci.name}"
     let contentsBefore : Substring := match original.src with
       | ⟨s, b, _⟩ => ⟨s, 0, b⟩
-    let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
+    IO.println "--------"
+    IO.println s!"Original:"
+    IO.println original.src.toString
+    IO.println "--------"
+    IO.println s!"New:"
+    IO.println model_output
+    IO.println "--------"
+    IO.println s!"{model_output.trim.splitAtString "<IMPROVED>"}"
+    IO.println "--------"
+    IO.println s!"{model_output.trim.splitAtString "</IMPROVED>"}"
+
+    let trimmed_output? := match (model_output.trim.splitAtString "<IMPROVED>", model_output.trim.splitAtString "</IMPROVED>") with
+    | (some (_, after), none) => some after
+    | (none, some (before, _)) => some before
+    | (some (_, after), some _) =>
+      let rest := after.trim.splitAtString "</IMPROVED>"
+      match rest with
+      | some (l,_) => some l
+      | none => none
+    | _ => none
+    let trimmed_output := trimmed_output?.getD (model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim)
+    -- let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
     -- remove everything before the first <IMPROVED> tag and after the first </IMPROVED> tag
-    let trimmed_output := match model_output.trim.getTagged "IMPROVED" with
-      | some x => x
-      | none => trimmed_output
+    -- let trimmed_output := match model_output.trim.getTagged "IMPROVED" with -- first match things in <IMPROVED>...</IMPROVED>
+    --   | some x => x
+    --   | none =>
+    --     let endTagged := model_output.trim.splitAtString "</IMPROVED>"
+    --     match endTagged with
+    --     | some (before, _) => before
+    --     | none =>
+    --       let endTagged := model_output.trim.splitAtString "<IMPROVED>"
+    --       match endTagged with
+    --       | some (_, after) => after
+    --       | none =>
+    --         let half_tagged := model_output.trim.getBetween "</IMPROVED>" "</IMPROVED>"
+    --         match half_tagged with
+    --         | some x => x
+    --         | none => model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
+
     IO.println s!"trimmed output (length: {trimmed_output.length})"
 
 
@@ -318,13 +358,13 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
       IO.println "DONE"
       IO.println "============="
       return match head? with
-        | none => (original, ci, model_output, none, prompt)
-        | some (head, _) => (original, ci, model_output,some head, prompt)
+        | none => (original, ci, model_output, trimmed_output, none, prompt)
+        | some (head, _) => (original, ci, model_output,trimmed_output, some head, prompt)
 
     catch e =>
       IO.println s!"Error elaborating {ci.name}: {e}"
       IO.println "============="
-      return (original, ci, model_output, none, prompt)
+      return (original, ci, model_output, trimmed_output, none, prompt)
 
     -- let head? ← elaborated_steps.uncons
 

@@ -182,7 +182,7 @@ def construct_prompts(config_data, data, args):
         if args.annotation:
             prompt += f"<ANNOTATION>\n{decl_data['annotation']}\n</ANNOTATION>\n\n"
 
-        prompt += f"\n<CURRENT>\n{decl_data['current']}\n</CURRENT>\n\n"
+        prompt += f"\n<CURRENT>\n{decl_data['current'] if args.metric!="completion" else decl_data['current_sorry']}\n</CURRENT>\n\n"
         prompt += "<IMPROVED>"
 
         data = {
