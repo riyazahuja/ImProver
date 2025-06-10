@@ -11,7 +11,9 @@ import TrainingData.InfoTree.TacticInvocation.Basic
 import TrainingData.Utils.HumanTheorem
 import ImportGraph.RequiredModules
 import ImportGraph.Imports
-import ImProver.ProofTree.getPfTree
+import TrainingData.TreeParser
+
+-- import ImProver.ProofTree.getPfTree
 
 import Lean.Util.SearchPath
 import Mathlib.Lean.CoreM
@@ -25,6 +27,135 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 set_option autoImplicit true
 
 
+
+
+def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
+  { state with
+    scopes := state.scopes.map fun s : Scope =>
+      { s with opts := Id.run do
+          let mut opts := s.opts
+          for (k, v) in options do
+            opts := opts.insert k v
+          opts } }
+
+
+partial def maxEndPos (bp : ProofTree) (pos : Nat := 0) : Nat :=
+  let curr := bp.node.tailPos.map (fun x => x.byteIdx) |>.getD pos
+  let children := bp.children.map (fun child => maxEndPos child curr)
+  children.foldl (init := curr) (fun acc x => max acc x)
+
+
+def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String := "all_splits") : IO (List (String × List ExternalContext × Option (List String))) := do
+
+  IO.println s!"Processing: {cmd.src.toString}"
+
+
+  let dependencies ← get_context cmd ["theorem", "theorem (internal)"]
+  IO.println s!"Dependencies: {dependencies.map (fun x => x.name.toString)}"
+
+
+  let tree? := getProofTree <| (← (cmd.trees.filterMapM (BetterParser)) ).flatMap (fun result => result.steps)
+  if tree?.isNone then
+    IO.println s!"Failed to parse the proof tree."
+    return []
+
+  let tree := tree?.get!
+  IO.println s!"Proof Tree: \n{tree}\n"
+  let breakpoints : List ProofTree := tree.getBreakpointsWithDescendents breakpointType
+    |>.filter (fun pt => pt.node.pos.isSome)
+
+
+  let new_thm := insertBreakpointsFromTree' cmd.src.toString (breakpoints.map (fun pt => pt.node))
+
+  IO.println s!"New theorem: \n{new_thm}\n"
+
+  let contentsBefore : Substring := match cmd.src with
+  | ⟨s, b, _⟩ => ⟨s, 0, b⟩
+
+  let options := ({} : KVMap)
+    |>.insert `maxHeartbeats (.ofNat 200000) -- TODO determine a heartbeat count
+    |>.insert `debug.byAsSorry (.ofBool false)
+    |>.insert `linter.unusedVariables (.ofBool true)
+    |>.insert `linter.unusedTactic (.ofBool true)
+    |>.insert `linter.unreachableTactic (.ofBool true)
+
+  let elaborated_steps := Lean.Elab.IO.compilationSteps
+    (Parser.mkInputContext (contentsBefore.toString ++ new_thm) fileName)
+    cmd.parserStateBefore
+    (cmd.commandStateBefore.withOptions options)
+
+  let head? ← elaborated_steps.uncons
+  let outputted : Option CompilationStep := match head? with
+  | none => none
+  | some (cstep, _) => some cstep
+
+  let msgs : IO (List String) := match outputted with
+    | none => pure []
+    | some cstep => do
+      let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.information)
+      let output ← filtered_msg.mapM (fun msg => msg.toString)
+      return output
+
+
+
+  let getProof (bp : ProofTree) : String :=
+    let pos := bp.node.pos.get!
+    let endPos := ⟨maxEndPos bp pos.byteIdx⟩
+    let sstr : Substring := ⟨cmd.src.str,pos,endPos⟩
+    sstr.toString
+
+  let indent (s : String) : String :=
+    "\n".intercalate <| s.splitOn "\n"
+    |>.map (fun line => "  " ++ line)
+
+
+  let breakpoint_splits : List (String × String) := (← msgs).zip (breakpoints.map getProof)
+  let splits := breakpoint_splits.map (fun (thm, pf) => thm.replace "sorry" s!"by\n{indent pf}")
+  -- IO.println s!"Split Theorems: \n{"\n".intercalate <| splits}\n"
+
+  let mut output := []
+
+  for (thm,bp) in splits.zip breakpoints do
+    let pos := bp.node.pos.get!
+    let endPos : String.Pos := ⟨maxEndPos bp pos.byteIdx⟩
+
+    let dependencies_filtered := dependencies.filter (fun dep =>
+      dep.pos.isSome && dep.endPos.isSome &&
+      dep.pos.get!.byteIdx >= pos.byteIdx &&
+      dep.endPos.get!.byteIdx <= endPos.byteIdx)
+
+
+
+    let elaborated_steps := Lean.Elab.IO.compilationSteps
+      (Parser.mkInputContext (contentsBefore.toString ++ thm) fileName)
+      cmd.parserStateBefore
+      (cmd.commandStateBefore.withOptions options)
+
+    let head? ← elaborated_steps.uncons
+    let cstep? : Option CompilationStep := match head? with
+    | none => none
+    | some (cstep, _) => some cstep
+
+    let msgs : IO (Option (List String)) := match cstep? with
+      | none => return none
+      | some cstep => do
+        let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.error)
+        let output ← filtered_msg.mapM (fun msg => msg.toString)
+        return some output
+
+
+
+    IO.println s!"Split Theorem: \n{thm}\n"
+    IO.println s!"Dependencies: \n{dependencies_filtered.map (fun x => x.name.toString)}\n"
+    output := (thm, dependencies_filtered, ← msgs) :: output
+
+
+  IO.println "===================="
+
+
+  return output
+
+
 structure TheoremData where
   name : Name
   module : Name
@@ -32,6 +163,7 @@ structure TheoremData where
   C1_dependencies : Array TheoremData := #[]
   C2_dependencies : Array TheoremData := #[]
   isExtracted : Bool := false
+  errorMsgs : Array String := #[]
   -- fromSrc : Bool := false
   deriving Inhabited, ToJson, FromJson, Repr
 
@@ -79,13 +211,17 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
 
     let mut split_data : List TheoremData := []
     let mut C2_dependencies : List TheoremData := []
-
-    for ((thm, deps),idx) in C2_raw.zipIdx do
+    -- errors = none means didn't compile, some [] means no errors, some [errors] means there were errors
+    for ((thm, deps, errors), idx) in C2_raw.zipIdx do
+      let errors' : Array String := match errors with
+        | none => #["Unexpected error: failed to compile"]
+        | some errs => errs.toArray
       let inner : TheoremData :=
         {name := s!"extracted_split_{ci.name}_{idx}".toName,
           module := mod,
           text := thm,
-          isExtracted := true}
+          isExtracted := true,
+          errorMsgs := errors'}
       C2_dependencies := inner :: C2_dependencies
 
       let deps' : List TheoremData := deps.map (fun ctx => {name := ctx.name, module := ctx.module, text := some ctx.text})
@@ -94,7 +230,8 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
           module := mod,
           text := some cmd.src.toString,
           C1_dependencies := deps'.toArray,
-          isExtracted := true}
+          isExtracted := true,
+          errorMsgs := errors'}
       split_data := outer :: split_data
 
 

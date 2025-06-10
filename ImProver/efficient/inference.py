@@ -26,7 +26,7 @@ def run_inference(df, args):
         "2.44.1"
     ), "Ray version must be at least 2.44.1"
 
-    ds = ray.data.from_pandas(df)
+    # ds = ray.data.from_pandas(df)
     # Create a new dataframe with duplicated rows, each with a unique prompt_idx
     df2_parts = []
     for i in range(args.n):
@@ -118,7 +118,7 @@ def construct_prompts(config_data, data, args):
     idx = 0
     items = []
     for name, decl_data in data.items():
-        prompt = config_data["system_prompt"][args.metric] + "Be sure to output your response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
+        prompt = config_data["system_prompt"][args.metric] + "Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
         
         if args.examples != 0:
             prompt += config_data["example_prompt"] + "\n"

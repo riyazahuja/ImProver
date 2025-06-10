@@ -9,18 +9,23 @@ from tqdm import tqdm
 
 
 def init_node(tx, theorem):
+    errorMessages = theorem.get("errorMessages", ["unknown"])
     tx.run(
         """
         MERGE (t:Theorem {name: $name, module: $module})
         SET t.text = $text
         SET t.isExtracted = $isExtracted
         SET t.isOriginal = $isOriginal
+        SET t.isCorrect = $isCorrect
+        SET t.errorMessages = $errorMessages
         """,
         name=theorem["name"],
         text=theorem["text"],
         module=theorem["module"],
         isExtracted=theorem["isExtracted"],
         isOriginal=theorem["module"] in modules,
+        isCorrect= errorMessages == [],
+        errorMessages=errorMessages,
     )
 
 
