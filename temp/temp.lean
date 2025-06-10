@@ -28,7 +28,7 @@ theorem theorem1 : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
 
 theorem theorem1' : s ∩ t ∪ s ∩ u ⊆ s ∩ (t ∪ u) := by
   rintro x (⟨xs, xt⟩ | ⟨xs, xu⟩)
-  have xst := by exact xs
+  have xst : x ∈ s := by exact xs
   · use xs; left; exact xt
   · use xs; right; exact xu
 

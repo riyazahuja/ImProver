@@ -354,10 +354,10 @@ partial def ProofTree.getBreakpointsWithDescendents (tree : ProofTree)
       tree.children.toList ++ recursive
   | "spawned" =>
     let recursive := tree.children.toList.map (fun child => child.getBreakpointsWithDescendents breakpoint_type) |>.flatten
-    if tree.spawned_children.size < 2 then
-      recursive
-    else
-      tree.children.toList ++ recursive
+    -- if tree.spawned_children.size < 2 then
+    --   recursive
+    -- else
+    tree.spawned_children.toList ++ recursive
   | "bifurcated" =>
     let recursive := tree.children.toList.map (fun child => child.getBreakpointsWithDescendents breakpoint_type) |>.flatten
     if tree.children.size - tree.spawned_children.size < 2 then
@@ -417,7 +417,7 @@ partial def insertBreakpoints (thm : String) (breakpoints : List ProofStep) : St
     match opt with
     | some (T,R) =>
       let recursive := insertBreakpoints R rest
-      s!"{T}extract_goal; {tacticToFind}{recursive}"
+      s!"{T}better_extract_goal; {tacticToFind}{recursive}"
     | none => -- silent errors, i.e. Hydra <;>'s etc.
       let recursive := insertBreakpoints thm rest
       recursive

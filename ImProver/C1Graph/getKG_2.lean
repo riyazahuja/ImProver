@@ -12,6 +12,7 @@ import TrainingData.Utils.HumanTheorem
 import ImportGraph.RequiredModules
 import ImportGraph.Imports
 import TrainingData.TreeParser
+import TrainingData.ExtractGoal
 
 -- import ImProver.ProofTree.getPfTree
 
@@ -45,7 +46,79 @@ partial def maxEndPos (bp : ProofTree) (pos : Nat := 0) : Nat :=
   children.foldl (init := curr) (fun acc x => max acc x)
 
 
-def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String := "all_splits") : IO (List (String × List ExternalContext × Option (List String))) := do
+def test_extracted_theorems (thms : List String)
+  (contentsBefore : Substring) (cmd : CompilationStep)
+  (options : Options) (fileName : String)
+  (best : (String × IO (List String)) := (thms.getLast!, pure ["Unexpected error: Failed to compile"]))
+  : IO ((String × IO (List String))) := do
+
+  match thms with
+  | [] =>
+    IO.println s!"No more theorems to test, returning best: {best.1}"
+    return best
+  | thm :: rest =>
+    IO.println s!"Testing theorem: {thm}"
+
+    let elaborated_steps := Lean.Elab.IO.compilationSteps
+      (Parser.mkInputContext (contentsBefore.toString ++ thm) fileName)
+      cmd.parserStateBefore
+      (cmd.commandStateBefore.withOptions options)
+
+    let head? ← elaborated_steps.uncons
+    let cstep? : Option CompilationStep := match head? with
+    | none => none
+    | some (cstep, _) => some cstep
+
+    let msgs : IO (List String) := match cstep? with
+      | none => return ["Unexpected error: failed to compile"]
+      | some cstep => do
+        let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.error)
+        let strMsg ← filtered_msg.mapM (fun (msg : Message) => msg.toString)
+        return strMsg
+    IO.println s!"Messages: {← msgs}"
+    IO.println "===================="
+    if (← msgs).isEmpty then
+      return (thm, pure [])
+    else
+      let new_best2 := (← best.2) ++ (← msgs)
+      let new_best := (best.1, pure new_best2)
+      test_extracted_theorems rest contentsBefore cmd options fileName new_best
+
+partial def getIndentSize (line : String) : Nat :=
+  let rec countLeadingSpaces (idx : Nat) : Nat :=
+    if idx < line.length then
+      match line.get ⟨idx⟩ with
+      | ' ' => countLeadingSpaces (idx + 1)
+      | '\t' => countLeadingSpaces (idx + 2) -- assuming 2 spaces per tab
+      | _ => idx
+    else
+      idx
+
+  countLeadingSpaces 0
+
+def removeCommonIndent (s : String) : String :=
+    let lines := s.splitOn "\n"
+    -- Handle empty string or single line without indentation
+    if lines.isEmpty || lines.all (fun line => line.trim.isEmpty) then
+      s
+    else
+      -- Find common indent by finding minimum number of leading spaces in non-empty lines
+      let nonEmptyLines := lines.filter (fun line => !line.trim.isEmpty)
+      let commonIndent := nonEmptyLines.map getIndentSize |>.min?.getD 0
+
+      -- Remove common indent from each line
+      let trimmedLines := lines.map (fun line =>
+        if line.length ≤ commonIndent || line.trim.isEmpty then
+          line.trim
+        else
+          line.drop commonIndent)
+
+      "\n".intercalate trimmedLines
+
+
+
+def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String := "all_splits")
+  : IO (List (String × List ExternalContext × (List String))) := do
 
   IO.println s!"Processing: {cmd.src.toString}"
 
@@ -64,7 +137,7 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
   let breakpoints : List ProofTree := tree.getBreakpointsWithDescendents breakpointType
     |>.filter (fun pt => pt.node.pos.isSome)
 
-
+  IO.println s!"Breakpoints: {breakpoints.map (fun pt => pt.node.tacticString)}"
   let new_thm := insertBreakpointsFromTree' cmd.src.toString (breakpoints.map (fun pt => pt.node))
 
   IO.println s!"New theorem: \n{new_thm}\n"
@@ -89,13 +162,21 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
   | none => none
   | some (cstep, _) => some cstep
 
-  let msgs : IO (List String) := match outputted with
-    | none => pure []
-    | some cstep => do
-      let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.information)
-      let output ← filtered_msg.mapM (fun msg => msg.toString)
-      return output
+  let grouped_msgs : List (List String) ← match outputted with
+  | none => return []
+  | some cstep =>
+    let filtered_msgs := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.information)
+    let grouped := filtered_msgs.splitBy (fun (m m': Message) => m.pos == m'.pos && m.endPos == m'.endPos)
+    grouped.mapM (fun msgs => msgs.mapM (fun msg => msg.toString) )
 
+  -- let msgs : IO (List String) := match outputted with
+  --   | none => pure []
+  --   | some cstep => do
+  --     let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.information)
+  --     let output ← filtered_msg.mapM (fun msg => msg.toString)
+  --     return output
+
+  let grouped_msgs := grouped_msgs.map (fun msgs => msgs.reverse)
 
 
   let getProof (bp : ProofTree) : String :=
@@ -109,13 +190,22 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
     |>.map (fun line => "  " ++ line)
 
 
-  let breakpoint_splits : List (String × String) := (← msgs).zip (breakpoints.map getProof)
-  let splits := breakpoint_splits.map (fun (thm, pf) => thm.replace "sorry" s!"by\n{indent pf}")
+  let breakpoint_splits : List (List String × String) := (grouped_msgs).zip (breakpoints.map getProof)
+  let splits : List (List String):=
+    breakpoint_splits.map (fun (thms, pf) =>
+      let (firstLine, rest) :=
+        match pf.splitOn "\n" with
+        | [] => ("", "")
+        | [line] => (line, "")
+        | first :: rest => (first, "\n".intercalate rest)
+      let cleanedRest := removeCommonIndent rest
+      let cleanProof := firstLine ++ (if rest == "" then "" else "\n" ++ cleanedRest)
+      thms.map (fun thm => s!"lemma {thm} := by\n{cleanProof}"))
   -- IO.println s!"Split Theorems: \n{"\n".intercalate <| splits}\n"
 
   let mut output := []
 
-  for (thm,bp) in splits.zip breakpoints do
+  for (thms,bp) in splits.zip breakpoints do
     let pos := bp.node.pos.get!
     let endPos : String.Pos := ⟨maxEndPos bp pos.byteIdx⟩
 
@@ -124,30 +214,16 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
       dep.pos.get!.byteIdx >= pos.byteIdx &&
       dep.endPos.get!.byteIdx <= endPos.byteIdx)
 
-
-
-    let elaborated_steps := Lean.Elab.IO.compilationSteps
-      (Parser.mkInputContext (contentsBefore.toString ++ thm) fileName)
-      cmd.parserStateBefore
-      (cmd.commandStateBefore.withOptions options)
-
-    let head? ← elaborated_steps.uncons
-    let cstep? : Option CompilationStep := match head? with
-    | none => none
-    | some (cstep, _) => some cstep
-
-    let msgs : IO (Option (List String)) := match cstep? with
-      | none => return none
-      | some cstep => do
-        let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.error)
-        let output ← filtered_msg.mapM (fun msg => msg.toString)
-        return some output
+    let compiled := test_extracted_theorems thms contentsBefore cmd options fileName
+    let (thm, io_msgs) ← compiled
+    let msgs : (List String) ← io_msgs
 
 
 
     IO.println s!"Split Theorem: \n{thm}\n"
     IO.println s!"Dependencies: \n{dependencies_filtered.map (fun x => x.name.toString)}\n"
-    output := (thm, dependencies_filtered, ← msgs) :: output
+    IO.println s!"Messages: \n{msgs}\n"
+    output := (thm, dependencies_filtered, msgs) :: output
 
 
   IO.println "===================="
@@ -173,7 +249,7 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
   IO.println mod.toString
   let fileName := (← findLean mod).toString
   -- let mut trajectories_json := []
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
+  let steps := Lean.Elab.IO.processInput' s!"import TrainingData.ExtractGoal\n{(← moduleSource mod)}" none {} fileName
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
 
@@ -213,9 +289,7 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
     let mut C2_dependencies : List TheoremData := []
     -- errors = none means didn't compile, some [] means no errors, some [errors] means there were errors
     for ((thm, deps, errors), idx) in C2_raw.zipIdx do
-      let errors' : Array String := match errors with
-        | none => #["Unexpected error: failed to compile"]
-        | some errs => errs.toArray
+      let errors' : Array String := errors.toArray
       let inner : TheoremData :=
         {name := s!"extracted_split_{ci.name}_{idx}".toName,
           module := mod,
@@ -228,7 +302,7 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
       let outer : TheoremData :=
         {name := s!"extracted_split_{ci.name}_{idx}".toName,
           module := mod,
-          text := some cmd.src.toString,
+          text := some thm,
           C1_dependencies := deps'.toArray,
           isExtracted := true,
           errorMsgs := errors'}
@@ -293,6 +367,7 @@ def main (args : List String) : IO UInt32 :=
 
 
 
--- #eval getKG `PFR.BoundingMutual "C1Graph"
+
+-- #evPFal getKG `PFR.HomPFR "KG2.76"
 
 -- #eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "length" "temp" "prompt_examples"
