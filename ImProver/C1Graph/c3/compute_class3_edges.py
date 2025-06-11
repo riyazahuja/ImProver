@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import duckdb
+import re
 from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
 import torch
@@ -26,7 +27,7 @@ def main(args):
 
     edges = {}
     for module, name, stmt, proof in rows:
-        query = f"{stmt}\n\n{proof}".strip()
+        query = f"What theorems/lemmas/facts does the following theorem depend on?\n\n{stmt}\n\n{proof}".strip()
         if not query:
             continue
         res = collection.query(query_texts=[query], n_results=args.k)
@@ -34,7 +35,18 @@ def main(args):
         for dep_id, score in zip(res["ids"][0], res["distances"][0]):
             if score <= args.threshold:
                 dep_meta = collection.get(ids=[dep_id])["metadatas"][0]
-                deps.append({"module": dep_meta["module"], "name": dep_meta["name"]})
+                dep_name = dep_meta["name"]
+                
+                # Skip if the retrieved item has the same name
+                if dep_name == name:
+                    continue
+                
+                # Check for "extracted_split_{realName}_{some numbers}" pattern
+                match = re.match(r"extracted_split_(.+?)_\d+$", dep_name)
+                if match and match.group(1) == name:
+                    continue
+                
+                deps.append({"module": dep_meta["module"], "name": dep_name})
         edges[f"{module}:{name}"] = deps
         print(f"Processed {module}:{name} with {len(deps)} dependencies")
 
@@ -49,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--chroma_dir", type=str, default = "chroma_db", help="Path to chroma db")
     parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
 
-    parser.add_argument("--k", type=int, default=25)
-    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--k", type=int, default=40)
+    parser.add_argument("--threshold", type=float, default=0.35)
     args = parser.parse_args()
     main(args)
