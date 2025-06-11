@@ -1,0 +1,55 @@
+import os
+import json
+import argparse
+import duckdb
+from chromadb import PersistentClient
+from chromadb.utils import embedding_functions
+import torch
+
+def main(args):
+    db_path = os.path.join(args.KG_dir, "class3", "informal_data.duckdb")
+
+    con = duckdb.connect(db_path, read_only=True)
+    rows = con.execute("SELECT module, name, informal_statement, informal_proof FROM informal_data").fetchall()
+    con.close()
+
+    client = PersistentClient(path=args.chroma_dir)
+    embed = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name=args.model,
+        device="cuda",                      # push model to available GPU(s)
+        model_kwargs={
+            "device_map": "cuda:0",           # shard across multiple GPUs if present
+            "torch_dtype": torch.float16    # cut VRAM/RAM usage in half
+        }
+    )
+    collection = client.get_or_create_collection("informal_theorems", embedding_function=embed)
+
+    edges = {}
+    for module, name, stmt, proof in rows:
+        query = f"{stmt}\n\n{proof}".strip()
+        if not query:
+            continue
+        res = collection.query(query_texts=[query], n_results=args.k)
+        deps = []
+        for dep_id, score in zip(res["ids"][0], res["distances"][0]):
+            if score <= args.threshold:
+                dep_meta = collection.get(ids=[dep_id])["metadatas"][0]
+                deps.append({"module": dep_meta["module"], "name": dep_meta["name"]})
+        edges[f"{module}:{name}"] = deps
+        print(f"Processed {module}:{name} with {len(deps)} dependencies")
+
+    out_path = os.path.join(args.KG_dir, "class3", "edges.json")
+    with open(out_path, "w") as f:
+        json.dump(edges, f, indent=2)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Compute class3 edges")
+    parser.add_argument("--KG_dir", type=str, default="KG2.75")
+    parser.add_argument("--chroma_dir", type=str, default = "chroma_db", help="Path to chroma db")
+    parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
+
+    parser.add_argument("--k", type=int, default=25)
+    parser.add_argument("--threshold", type=float, default=0.5)
+    args = parser.parse_args()
+    main(args)

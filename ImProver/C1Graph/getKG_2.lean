@@ -185,9 +185,9 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
     let sstr : Substring := ⟨cmd.src.str,pos,endPos⟩
     sstr.toString
 
-  let indent (s : String) : String :=
-    "\n".intercalate <| s.splitOn "\n"
-    |>.map (fun line => "  " ++ line)
+  -- let indent (s : String) : String :=
+  --   "\n".intercalate <| s.splitOn "\n"
+  --   |>.map (fun line => "  " ++ line)
 
 
   let breakpoint_splits : List (List String × String) := (grouped_msgs).zip (breakpoints.map getProof)

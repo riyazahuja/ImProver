@@ -3,9 +3,9 @@ import argparse
 import duckdb
 from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
+import torch
 
-
-def build_db(db_path, out_dir, model="intfloat/e5-base-v2"):
+def build_db(db_path, out_dir, model):
     con = duckdb.connect(db_path, read_only=True)
     rows = con.execute(
         "SELECT module, name, text, informal_statement, informal_proof, isExtracted, isOriginal FROM informal_data"
@@ -14,7 +14,14 @@ def build_db(db_path, out_dir, model="intfloat/e5-base-v2"):
 
     os.makedirs(out_dir, exist_ok=True)
     client = PersistentClient(path=out_dir)
-    embed = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model)
+    embed = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name=model,
+        device="cuda",                      # push model to available GPU(s)
+        model_kwargs={
+            "device_map": "cuda:0",           # shard across multiple GPUs if present
+            "torch_dtype": torch.float16    # cut VRAM/RAM usage in half
+        }
+    )
     collection = client.get_or_create_collection("informal_theorems", embedding_function=embed)
 
     documents, metadatas, ids = [], [], []
@@ -33,15 +40,28 @@ def build_db(db_path, out_dir, model="intfloat/e5-base-v2"):
         documents.append(doc)
         metadatas.append(metadata)
         ids.append(f"{module}:{name}")
+
     if documents:
-        collection.add(documents=documents, metadatas=metadatas, ids=ids)
+        print(f"Adding {len(documents)} documents to the collection.")
+        
+        # Add documents in batches
+        BATCH_SIZE = 128
+        for i in range(0, len(documents), BATCH_SIZE):
+            end_idx = min(i + BATCH_SIZE, len(documents))
+            print(f"Adding batch {i//BATCH_SIZE + 1}/{(len(documents) + BATCH_SIZE - 1)//BATCH_SIZE}: documents {i} to {end_idx-1}")
+            collection.add(
+            documents=documents[i:end_idx],
+            metadatas=metadatas[i:end_idx],
+            ids=ids[i:end_idx]
+            )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build vector DB for informal theorems")
-    parser.add_argument("db_path", type=str, help="Path to informal duckdb")
+    parser.add_argument("--KG_dir", type=str, default="KG2.75")
     parser.add_argument("--out_dir", type=str, default="chroma_db")
-    parser.add_argument("--model", type=str, default="intfloat/e5-base-v2")
+    parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
     args = parser.parse_args()
+    db_path = os.path.join(args.KG_dir, "class3", "informal_data.duckdb")
 
-    build_db(args.db_path, args.out_dir, args.model)
+    build_db(db_path, args.out_dir, args.model)
