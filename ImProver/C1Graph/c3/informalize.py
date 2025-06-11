@@ -8,22 +8,87 @@ import duckdb
 import ray
 from ray.data.llm import build_llm_processor, vLLMEngineProcessorConfig
 from ray.data import DataContext
+import multiprocessing
+import torch
+
 
 
 def build_prompt(thm, include_context=False):
     context = ""
+    context_prompt = "You will additionally be given the (formal) context/dependencies of the theorem (such as referenced lemmas), which you should use to inform your informalization of the theorem and proof. This context will be wrapped in <CONTEXT>...</CONTEXT> tags."
     if include_context:
         deps = thm.get("C1_dependencies", [])
         dep_texts = "\n\n".join(d.get("text", "").strip() for d in deps)
         if dep_texts:
             context = f"<CONTEXT>\n{dep_texts}\n</CONTEXT>\n"
+            
+            # TODO: Add context example?
+            
+            
     theorem_text = thm.get("text", "").strip()
-    prompt = (
-        f"<THEOREM>\n{theorem_text}\n</THEOREM>\n"
-        f"{context}"
-        "Provide an informal statement and proof following the formal proof step by step."
-        " Wrap the statement in <INFORMAL_STATEMENT> tags and the proof in <INFORMAL_PROOF> tags."
-    )
+    prompt = f"""You are an expert in mathematics and formal theorem proving. Your task is to provide an informal statement and informal step-by-step proof for the following Lean4 formal theorem and proof.
+
+Namely, you will be given a formal theorem and proof in Lean4 (wrapped in <FORMAL>...</FORMAL> tags), and you need to (1) provide an informal statement of the theorem in natural language (wrap this part of your output in <STATEMENT>...</STATEMENT> tags), 
+and (2) provide an informal proof of the theorem in natural language by translating the formal proof tactic by tactic to produce a step-by-step aligned human-readable proof (wrapped in <PROOF>...</PROOF> tags). Do not skip any steps or omit and details in the proof.
+{context_prompt if include_context else ""}
+
+Consider the following simple example (wrapped in <EXAMPLE>...</EXAMPLE> tags):
+<EXAMPLE>
+
+Input:
+<FORMAL>
+
+theorem primes_infinite : ∀ n, ∃ p > n, Nat.Prime p := by
+  intro n
+  have : 2 ≤ Nat.factorial (n + 1) + 1 := by
+    apply Nat.succ_le_succ
+    exact Nat.succ_le_of_lt (Nat.factorial_pos _)
+  rcases exists_prime_factor this with ⟨p, pp, pdvd⟩
+  refine ⟨p, ?_, pp⟩
+  show p > n
+  by_contra ple
+  push_neg at ple
+  have : p ∣ Nat.factorial (n + 1) := by
+    apply Nat.dvd_factorial
+    apply pp.pos
+    linarith
+  have : p ∣ 1 := by
+    convert Nat.dvd_sub' pdvd this
+    simp
+  show False
+  have := Nat.le_of_dvd zero_lt_one this
+  linarith [pp.two_le]
+
+</FORMAL>
+
+Output:
+<STATEMENT>
+
+For every natural number $n$, there is a prime number $p$ that is larger than $n$.
+Equivalently, there are infinitely many primes.
+
+</STATEMENT>
+<PROOF>
+
+First, we fix an arbitrary natural number $n$. 
+Then, we note that $(n + 1)!+1$ is at least $2$, by definition of factorial and addition properties.
+We then note that there exists a prime factor $p$ of $(n + 1)!+1$.
+We aim to show that $p$ is greater than $n$, by first assuming for the sake of contradiction that $p$ is not greater than $n$.
+Then as $p \\le n$, and $p$ is positive, $p$ divides $(n + 1)!$.
+As $p$ divides both $(n + 1)!+1$ and $(n + 1)!$, it must also divide their difference, which is $1$.
+Thus, $p$ must be at most $1$, which contradicts the fact that $p$ is a prime number, as primes are at least $2$.
+Thus, we have a contradiction, and therefore $p$ must be greater than $n$.
+
+</PROOF>
+</EXAMPLE>
+
+Now, informalize the following theorem and proof, which is wrapped in <FORMAL>...</FORMAL> tags, and be sure to wrap your informal statement in <STATEMENT>...</STATEMENT> tags and your informal proof in <PROOF>...</PROOF> tags.
+
+{context + "\n\n" if include_context else ""}<FORMAL>\n{theorem_text}\n</FORMAL>
+"""
+    
+    
+
     return prompt
 
 
@@ -86,12 +151,12 @@ def run_inference(df, args):
         config,
         preprocess=lambda row: dict(
             messages=[{"role": "user", "content": row["prompt"]}],
-            sampling_params=dict(truncate_prompt_tokens=16384 - 512, max_tokens=512),
+            sampling_params=dict(truncate_prompt_tokens=16384 - 2048, max_tokens=2048),
         ),
         postprocess=lambda row: dict(answer=row["generated_text"], **row),
     )
 
-    ds = ray.data.from_pandas(df).repartition(max(1, args.gpus) * 4)
+    ds = ray.data.from_pandas(df).repartition(max(1, args.gpus) * 8)
     ds = processor(ds).materialize()
 
     output_dir = os.path.join(args.KG_dir, "class3", "data")
@@ -109,8 +174,8 @@ def populate_database(output_dir, kg_dir):
     con.execute("ALTER TABLE informal_data ADD COLUMN IF NOT EXISTS informal_proof TEXT")
     rows = con.execute("SELECT rowid, answer FROM informal_data").fetchall()
     for rowid, answer in tqdm(rows, desc="Parsing outputs"):
-        stmt_match = re.search(r"<INFORMAL_STATEMENT>([\s\S]*?)</INFORMAL_STATEMENT>", answer)
-        proof_match = re.search(r"<INFORMAL_PROOF>([\s\S]*?)</INFORMAL_PROOF>", answer)
+        stmt_match = re.search(r"<STATEMENT>([\s|\S]*?)</STATEMENT>", answer)
+        proof_match = re.search(r"<PROOF>([\s|\S]*?)</PROOF>", answer)
         stmt = stmt_match.group(1).strip() if stmt_match else ""
         proof = proof_match.group(1).strip() if proof_match else ""
         con.execute(
@@ -127,8 +192,24 @@ if __name__ == "__main__":
     parser.add_argument("--KG_dir", type=str, default="KG2.75")
     parser.add_argument("--include_context", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
-    parser.add_argument("--cpus", type=int, default=4)
-    parser.add_argument("--gpus", type=int, default=1)
+    parser.add_argument(
+        "--cpus",
+        type=int,
+        default=multiprocessing.cpu_count(),
+        help="Number of CPUs to use (default: all available)",
+    )
+
+    try:
+        available_gpus = torch.cuda.device_count()
+    except (ImportError, AttributeError):
+        available_gpus = 0
+
+    parser.add_argument(
+        "--gpus",
+        type=int,
+        default=available_gpus,
+        help="Number of GPUs to use (default: all available)",
+    )
     args = parser.parse_args()
 
     df = collect_prompts(args.KG_dir, args.dataset_path, args.split, args.include_context)

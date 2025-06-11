@@ -32,7 +32,7 @@ def main(args):
         """
     )
 
-    class3_edges = load_edges(os.path.join(args.KG_dir, "class3", "class3_edges.json"))
+    class3_edges = load_edges(os.path.join(args.KG_dir, "class3", "edges.json"))
 
     with open(args.dataset_path, "r") as f:
         all_ds = json.load(f)
@@ -47,6 +47,8 @@ def main(args):
             if not file.endswith(".json"):
                 continue
             if "filtered" in root and "config" in file:
+                continue
+            if "class3" in root and "edges" in file:
                 continue
             module_path = os.path.relpath(os.path.join(root, file), args.KG_dir)
             module = module_path.replace("/", ".").replace(".json", "")
