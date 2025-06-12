@@ -93,8 +93,31 @@ Metric(name="Metric Name",
 - **Build and Cache Proof Data**: Run the build scripts to generate and cache proof data in JSON format.
    - `python scripts/build.py --config CONFIG_PATH`
 - **Setup Run Configuration**: Use the provided tools and models to generate the parameter tuning for your desired tests.
-- **Evaluate and Benchmark**: Assess the correctness and quality of the generated proofs using the evaluation and benchmarking tools.
+ - **Evaluate and Benchmark**: Assess the correctness and quality of the generated proofs using the evaluation and benchmarking tools.
    - `python benchmark/tools.py`
+
+## Offline RL Co-Training
+ImProver includes an experimental offline reinforcement learning loop to jointly
+train a conjecturer and prover. The process iteratively proposes conjectures for
+unproved theorems, attempts to prove them and then adds the successful ones back
+to the knowledge graph and vector database. The script
+`scripts/offline_cotraining.py` implements this loop end-to-end. Each iteration
+collects new training data and immediately fine tunes both models on the
+generated examples. Because hundreds of conjectures and many proof attempts can
+be produced per step, the script relies on the hardware-optimized batch
+inference utilities in `ImProver/efficient/inference.py` and an asynchronous
+Lean checker adapted from `ImProver/efficient/eval_improver.py`. A
+typical invocation is:
+
+```bash
+python scripts/offline_cotraining.py <conjecturer-model> <prover-model> \
+    --neo4j_uri bolt://localhost:7687 --chroma_dir chroma_db --iterations 1
+```
+
+This will update the Neo4j knowledge graph and the Chroma vector store with any
+newly discovered results, produce JSONL files containing training data for both
+models in `cotraining_data/`, and save updated model checkpoints in
+`cotraining_models/`.
 
 ## Acknowledgements
 We would like to thank Kim Morrison for the [Training Data repository](https://github.com/semorrison/lean-training-data) and Sean Welleck for the [Neural Theorem Proving (NTP) toolkit repository](https://github.com/cmu-l3/ntp-toolkit), which served as foundational resources for this project. Additionally, we would like to thank the Paperproof team for the [Paperproof repository](https://github.com/Paper-Proof/paperproof), which paved the way for our own prooftree generation and analysis system.
