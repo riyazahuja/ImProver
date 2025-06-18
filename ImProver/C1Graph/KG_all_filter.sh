@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --job-name=KG_all
-#SBATCH --output=logs/KG_all.out
-#SBATCH --error=logs/KG_all.err
+#SBATCH --job-name=filter
+#SBATCH --output=logs/filter.out
+#SBATCH --error=logs/filter.err
 #SBATCH --cpus-per-task=12
-#SBATCH --gres=gpu:A6000:8
+#SBATCH --gres=gpu:A6000:6
 #SBATCH --time=1-00:00:00
 #SBATCH --mem=100G
 
@@ -19,4 +19,4 @@ cd ~/eval_improver/improver
 
 sleep 5
 
-python /home/riyaza/eval_improver/improver/ImProver/C1Graph/heuristic_filter.py /home/riyaza/eval_improver/improver/data/tt_split_data.json --KG_dir KG_ALL --cpus 12 --gpus 8 --model deepseek-ai/DeepSeek-R1-Distill-Qwen-14B
+python /home/riyaza/eval_improver/improver/ImProver/C1Graph/heuristic_filter2.py --KG_dir KG3 --cpus 12 --gpus 6 --n 3

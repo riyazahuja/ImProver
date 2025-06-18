@@ -4,11 +4,12 @@ import duckdb
 from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
 import torch
+import gc
 
 def build_db(db_path, out_dir, model):
     con = duckdb.connect(db_path, read_only=True)
     rows = con.execute(
-        "SELECT module, name, text, informal_statement, informal_proof, isExtracted, isOriginal FROM informal_data"
+        "SELECT module, name, text, informal_statement, informal_proof FROM informal_data"
     ).fetchall()
     con.close()
 
@@ -26,7 +27,7 @@ def build_db(db_path, out_dir, model):
 
     documents, metadatas, ids = [], [], []
     for idx, row in enumerate(rows):
-        module, name, text, stmt, proof, is_ex, is_orig = row
+        module, name, text, stmt, proof = row
         doc = f"{text}\n\n{stmt}\n\n{proof}"
         metadata = {
             "module": module,
@@ -34,8 +35,6 @@ def build_db(db_path, out_dir, model):
             "text": text,
             "informal_statement": stmt,
             "informal_proof": proof,
-            "isExtracted": is_ex,
-            "isOriginal": is_orig,
         }
         documents.append(doc)
         metadatas.append(metadata)
@@ -43,20 +42,31 @@ def build_db(db_path, out_dir, model):
 
     if documents:
         print(f"Adding {len(documents)} documents to the collection.")
-        
+
         # Add documents in batches
-        BATCH_SIZE = 128
-        for i in range(0, len(documents), BATCH_SIZE):
+        BATCH_SIZE = 16  # smaller batches to avoid GPU OOM
+        for i in range(7360, len(documents), BATCH_SIZE):
             end_idx = min(i + BATCH_SIZE, len(documents))
+            # if i//BATCH_SIZE + 1 < 58*2:
+            #     continue
             print(f"Adding batch {i//BATCH_SIZE + 1}/{(len(documents) + BATCH_SIZE - 1)//BATCH_SIZE}: documents {i} to {end_idx-1}")
             collection.add(
             documents=documents[i:end_idx],
             metadatas=metadatas[i:end_idx],
             ids=ids[i:end_idx]
             )
+            # --- free GPU & CPU memory ---
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+            gc.collect()
 
 
 if __name__ == "__main__":
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    gc.collect()
     parser = argparse.ArgumentParser(description="Build vector DB for informal theorems")
     parser.add_argument("--KG_dir", type=str, default="KG2.75")
     parser.add_argument("--out_dir", type=str, default="chroma_db")

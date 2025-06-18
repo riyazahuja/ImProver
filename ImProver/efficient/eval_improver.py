@@ -22,7 +22,6 @@ async def eval_file(file, args, config):
     output_path = os.path.join(
         args.inference_dir, args.runID, "evals", file.replace(".lean", ".json")
     )
-    prompt_path = os.path.join(args.prompts_dir, file.replace(".lean", ".json"))
     # print(file)
     #['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']
     cmd = [
@@ -30,7 +29,6 @@ async def eval_file(file, args, config):
         "exe",
         "eval_improver",
         file.replace("/", ".").replace(".lean", ""),
-        prompt_path,
         config["metric"],
         os.path.join(args.inference_dir, args.runID),
         output_path
@@ -117,12 +115,6 @@ if __name__ == "__main__":
         type=str,
         default="runs/",
         help="Directory of runs (default: runs/)",
-    )
-    parser.add_argument(
-        "--prompts_dir",
-        type=str,
-        default="prompts/",
-        help="Directory to output runs (default: prompts/)",
     )
     parser.add_argument(
         "--cpus",

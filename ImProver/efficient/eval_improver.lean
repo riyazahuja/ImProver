@@ -41,6 +41,7 @@ structure Instance where
   new_raw : String
   new_trimmed : String
   original_prompt : String
+  decl_idx : String
 deriving Inhabited, ToJson
 
 
@@ -50,20 +51,52 @@ def String.getTagged (s: String) (tag : String) : Option String :=
 def String.getBetween (s: String) (left : String) (right : String) : Option String :=
   s.splitAtString left |>.getD (("", "")) |>.2 |>.splitAtString (right) |>.getD (("", "")) |>.1
 
+def getInitialProofState2 (cmd : CompilationStep) : IO String := do
+  let env := cmd.after
+  let ci? := cmd.diff.get? 0
 
-def getInstances (preinstances : Array (CompilationStep × ConstantInfo × String × String × Option CompilationStep × String))
+  if ci?.isSome then
+    try
+      let ci := ci?.get!
+      let (state, _, _) ← MetaM.toIO (ctxCore := { fileName := "", fileMap := default }) (sCore := { env }) do
+        -- forallTelescope transforms ∀ n : Nat, 0 + n = n to _args = #[n : Nat] and typ = 0 + n = n
+        forallTelescope ci.type fun _args typ => do
+          let g ← mkFreshExprMVar typ
+          g.mvarId!.withContext do
+            -- We disable some pretty-printing options,
+            -- e.g. Nat is not pretty-printed as ℕ
+            -- HAdd.hAdd is not pretty-printed as +
+            let state ← withOptions (fun o => o.set `pp.notation false |>.set `pp.fullNames true) <| Meta.ppGoal g.mvarId!
+            return state.pretty (width := 100000000)
+      return state
+    catch _ =>
+      let backup:=  match InfoTree.tactics_new cmd.trees |>.get? 0 with
+      | some t => t.mainGoalStateBefore
+      | _ => pure default
+      return (← backup).pretty (width := 100000000)
+
+  else
+    let backup:=  match InfoTree.tactics_new cmd.trees |>.get? 0 with
+    | some t => t.mainGoalStateBefore
+    | _ => pure default
+    return (← backup).pretty (width := 100000000)
+
+
+
+def getInstances (preinstances : Array (CompilationStep × ConstantInfo × String × String × Option CompilationStep × String × String))
 (metric : String) (mod : String)
 : IO (List Instance) := do
 
   let mut instances : List Instance := []
 
-  for (original, ci, model_output,trimmed_output, new?, prompt) in preinstances do
+  for (original, ci, model_output,trimmed_output, new?, prompt, decl_idx) in preinstances do
 
     let oldMsgs ← original.msgs.filterMapM (fun msg => do
-          if msg.severity != .error then
-            return none
-          let m ← msg.data.toString
-          return some (bombEmoji++m))
+        let m ← msg.data.toString
+        let isSorry := metric != "conjecturer" && msg.severity == .warning && m.trim == "declaration uses 'sorry'"
+        if msg.severity != .error && not isSorry then
+          return none
+        return some (bombEmoji++m))
 
 
 
@@ -95,19 +128,43 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         model_output
         trimmed_output
         prompt
+        decl_idx
         )
 
       instances := out :: instances
     | some head =>
 
       let msgs ← head.msgs.filterMapM (fun msg => do
-        if msg.severity != .error then
-          return none
         let m ← msg.data.toString
+        let isSorry := metric != "conjecturer" && msg.severity == .warning && m.trim == "declaration uses 'sorry'"
+        if msg.severity != .error && not isSorry then
+          return none
         return some (bombEmoji++m))
-
-      let correct := msgs.isEmpty && head.trees.length > 0 && model_output.trim != ""
+      -- IO.println "Checking correctness..."
+      let io_correct : IO Bool := match metric with
+      | "conjecturer" => do
+        IO.println "hello!"
+        let new_goal ← getInitialProofState2 head
+        let old_goal ←  getInitialProofState2 original
+        let output := msgs.isEmpty && head.trees.length > 0 && model_output.trim != "" && new_goal != old_goal
+        if output then
+          IO.println s!">>> New goal: {new_goal}"
+          IO.println s!">>> Old goal: {old_goal}"
+        pure output
+      | _ => do
+        IO.println "world!"
+        pure <| msgs.isEmpty && head.trees.length > 0 && model_output.trim != ""
         && (head.diff.map (·.name) |>.contains ci.name)
+      let correct ← io_correct
+
+      if correct then
+        IO.println s!">>>> Correct: {correct}"
+        let msg_raw ← head.msgs.mapM (fun msg => msg.data.toString)
+        -- let msg_raw := msg_raw.map (fun s=> s.trim == "declaration uses 'sorry'")
+        IO.println s!"Messages: {"||".intercalate msg_raw}"
+        IO.println head.src.toString
+
+
       -- let metric_score := if correct then some (InfoTree.tactics_new head.trees |>.length |>.toFloat) else none
       let metric_score ← if correct then do pure <| some (← get_metric metric head) else pure none
 
@@ -132,6 +189,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         model_output
         trimmed_output
         prompt
+        decl_idx
 
       instances := out :: instances
 
@@ -187,7 +245,7 @@ def withTimeout (timeout : UInt32) (x : IO α) : IO α := do
 
 
 
-def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath : String) (outputPath : String) : IO UInt32 := do
+def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath : String) : IO UInt32 := do
   searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
@@ -241,21 +299,22 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
   -- let mut preinstances := []
   -- for (cmd, ci) in targets_new do
   --type: : Array (BaseIO (Task (Except Error (Array (CompilationStep × ConstantInfo × String × String)))))
-  let preinstances_runner  := (targets_new.map fun (cmd,ci) => (do--IO.asTask do
+  let preinstances_runner := (targets_new.map fun (cmd,ci) => (do--IO.asTask do
     let SQL_escaped_name := ci.name.toString.replace "'" "''"
-    let SQL_escaped_file := promptFile.replace "'" "''"
-    let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{SQL_escaped_name}' AND file_path = '{SQL_escaped_file}';"
+    -- let SQL_escaped_file := "prompts_test." ++ mod.toString.replace "'" "''"
+    let SQL_escaped_file := mod.toString.replace "'" "''"
+    let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{SQL_escaped_name}' AND module = '{SQL_escaped_file}';"
     IO.println s!"== [[{ci.name}]] =="
     let output ← IO.Process.output {
       cmd := "duckdb"--"/home/riyaza/.local/bin/duckdb",
       args := #[s!"{runPath}/data.duckdb", "--readonly", "--json", "-c", SQL_cmd]}
-    IO.println s!"DuckDB output: {output.stdout}"
-    IO.println s!"DuckDB err: {output.stderr}"
-    IO.println s!"SQL command: {SQL_cmd}"
+    -- IO.println s!"DuckDB output: {output.stdout}"
+    -- IO.println s!"DuckDB err: {output.stderr}"
+    -- IO.println s!"SQL command: {SQL_cmd}"
     if output.exitCode != 0 then
-      IO.println s!"Error running duckdb: {output.stderr}"
+      -- IO.println s!"Error running duckdb: {output.stderr}"
       -- break
-      return #[]
+      return some #[]
 
     let json? := output.stdout
     -- IO.println s!"DuckDB output: {json?}"
@@ -265,48 +324,58 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
     -- IO.println "\n\n"
     -- IO.println s!"DuckDB output: {json?}"
     -- IO.println "\n\n"
+    let json?? := Json.parse json? |>.toOption
+    if json??.isNone then
+      IO.println s!">>> Error parsing JSON: {json?}"
+      return none
+
     let variant_tuples? :=
-      let json := Json.parse json? |>.toOption.get!
+      let json := json??.get!
       match json with
       | .arr variants =>
         some (variants.filterMap (fun v =>
           let model_answer := (v : Json).getObjVal? "answer"
           let prompt := (v : Json).getObjVal? "prompt"
-          match (model_answer.toOption, prompt.toOption) with
-          | (some (Json.str answer), some (Json.str prompt)) => some (cmd, ci, answer, prompt)
+          let decl_idx := (v : Json).getObjVal? "decl_idx"
+          -- match (model_answer.toOption, prompt.toOption) with
+          -- | (some (Json.str answer), some (Json.str prompt)) => some (cmd, ci, answer, prompt)
+          -- | _ => none
+          match (model_answer.toOption, prompt.toOption, decl_idx.toOption) with
+          | (some (Json.str answer), some (Json.str prompt), some (Json.str decl_idx)) => some (cmd, ci, answer, prompt, decl_idx)
+          | (some (Json.str answer), some (Json.str prompt), some (Json.num decl_idx)) => some (cmd, ci, answer, prompt, decl_idx.toString)
           | _ => none
         ))
       | _ =>
         none
     -- IO.println s!"<== variant_tuples? completed]"
-
-    return (variant_tuples?.getD #[])
+    return some (variant_tuples?.getD #[])
     -- IO.sleep 1000
   ))
 
-  let preinstances := (← preinstances_runner.mapM id--(fun (t : BaseIO _) => do
-   -- IO.ofExcept (← t).get
-  ) |>.flatten
+  let preinstances' ← preinstances_runner.mapM id
+  let preinstances :=  preinstances'.filterMap id |>.flatten
+
 
   IO.println s!"Found {preinstances.size} variants"
 
 
 
   /- Multithreading stuff to verify each new proof on separate threads -/
-  let tasks := preinstances.map fun (original, ci, model_output, prompt) => do --IO.asTask do
+  let tasks := preinstances.map fun (original, ci, model_output, prompt,decl_idx) => do --IO.asTask do
+
     IO.println s!"Evaluating {ci.name}"
     let contentsBefore : Substring := match original.src with
       | ⟨s, b, _⟩ => ⟨s, 0, b⟩
-    IO.println "--------"
-    IO.println s!"Original:"
-    IO.println original.src.toString
-    IO.println "--------"
-    IO.println s!"New:"
-    IO.println model_output
-    IO.println "--------"
-    IO.println s!"{model_output.trim.splitAtString "<IMPROVED>"}"
-    IO.println "--------"
-    IO.println s!"{model_output.trim.splitAtString "</IMPROVED>"}"
+    -- IO.println "--------"
+    -- IO.println s!"Original:"
+    -- IO.println original.src.toString
+    -- IO.println "--------"
+    -- IO.println s!"New:"
+    -- IO.println model_output
+    -- IO.println "--------"
+    -- IO.println s!"{model_output.trim.splitAtString "<IMPROVED>"}"
+    -- IO.println "--------"
+    -- IO.println s!"{model_output.trim.splitAtString "</IMPROVED>"}"
 
     let trimmed_output? := match (model_output.trim.splitAtString "<IMPROVED>", model_output.trim.splitAtString "</IMPROVED>") with
     | (some (_, after), none) => some after
@@ -336,7 +405,7 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
     --         | some x => x
     --         | none => model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
 
-    IO.println s!"trimmed output (length: {trimmed_output.length})"
+    -- IO.println s!"trimmed output (length: {trimmed_output.length})"
 
 
 
@@ -358,13 +427,13 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
       IO.println "DONE"
       IO.println "============="
       return match head? with
-        | none => (original, ci, model_output, trimmed_output, none, prompt)
-        | some (head, _) => (original, ci, model_output,trimmed_output, some head, prompt)
+        | none => (original, ci, model_output, trimmed_output, none, prompt, decl_idx)
+        | some (head, _) => (original, ci, model_output,trimmed_output, some head, prompt, decl_idx)
 
     catch e =>
       IO.println s!"Error elaborating {ci.name}: {e}"
       IO.println "============="
-      return (original, ci, model_output, trimmed_output, none, prompt)
+      return (original, ci, model_output, trimmed_output, none, prompt, decl_idx)
 
     -- let head? ← elaborated_steps.uncons
 
@@ -406,14 +475,13 @@ def evalImprover (mod : Name) (promptFile : String) (metric : String) (runPath :
 
 def evalImproverCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
-  let promptFile := args.positionalArg! "promptFile" |>.as! String
   let metric := args.positionalArg! "metric" |>.as! String
   let runPath := args.positionalArg! "runPath" |>.as! String
   let outputPath := args.positionalArg! "outputPath" |>.as! String
   let mod :Name := module
 
 
-  evalImprover mod promptFile metric runPath outputPath
+  evalImprover mod metric runPath outputPath
 
 
 def eval_improver : Cmd := `[Cli|
@@ -423,7 +491,6 @@ def eval_improver : Cmd := `[Cli|
 
   ARGS:
     file : ModuleName; "Lean module to get prompts for."
-    promptFile : String; "File path to prompt data."
     metric : String; "Metric to use for evaluation."
     runPath : String; "Path to the run DB."
     outputPath : String; "Where to save the Json output."
