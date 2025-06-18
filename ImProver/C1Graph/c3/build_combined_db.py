@@ -23,8 +23,12 @@ def main(args):
             module TEXT,
             name TEXT,
             text TEXT,
+            informalStatement TEXT,
+            informalProof TEXT,
             isExtracted BOOLEAN,
             isOriginal BOOLEAN,
+            isCorrect BOOLEAN,
+            errorMsgs JSON,
             C1Dependencies JSON,
             C2Dependencies JSON,
             C3Dependencies JSON
@@ -42,6 +46,10 @@ def main(args):
         files.extend(repo)
     modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
 
+
+    informal_path = os.path.join(args.KG_dir, "class3", "informal_data.duckdb")
+    informal_con = duckdb.connect(informal_path)
+
     for root, _, files in os.walk(args.KG_dir):
         for file in files:
             if not file.endswith(".json"):
@@ -55,19 +63,45 @@ def main(args):
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
             for thm in theorems:
-                name = thm.get("name")
-                is_orig = thm.get("module", module) in modules
+                name = thm.get("id",{}).get("name")
+                is_orig = thm.get("id",{}).get("module", module) in modules
                 c1 = json.dumps(thm.get("C1_dependencies", []))
                 c2 = json.dumps(thm.get("C2_dependencies", []))
                 c3 = json.dumps(class3_edges.get(f"{module}:{name}", []))
+                error_msgs_raw = thm.get("id",{}).get("errorMsgs", [])
+                error_msgs = json.dumps(error_msgs_raw)
+                is_correct = True if error_msgs_raw == [] else False
+                
+                
+                informal_statement = ""
+                informal_proof = ""
+                try:
+                    # Query for matching row in informal database
+                    result = informal_con.execute(
+                        "SELECT informal_statement, informal_proof FROM informal_data WHERE module = ? AND name = ?",
+                        [module, name]
+                    ).fetchone()
+                    
+                    # If result exists, update the variables
+                    if result:
+                        informal_statement = result[0] if result[0] else ""
+                        informal_proof = result[1] if result[1] else ""
+                except Exception as e:
+                    print(f"Error querying informal data for {module}:{name}: {e}")
+                
+                
                 con.execute(
-                    "INSERT INTO theorems VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO theorems VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         module,
                         name,
-                        thm.get("text"),
-                        thm.get("isExtracted", False),
+                        thm.get("id",{}).get("content"),
+                        informal_statement,
+                        informal_proof,
+                        thm.get("id",{}).get("isExtracted", False),
                         is_orig,
+                        is_correct,
+                        error_msgs,
                         c1,
                         c2,
                         c3,

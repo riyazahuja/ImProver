@@ -14,7 +14,8 @@ METRIC_SPECIFICATIONS = {
     "declarativity": "max",
     "completion": "min",
     "dependency": "min",
-    "readability": "max"
+    "readability": "max",
+    "conjecturer" : "min"
 }
 
 def get_db_connection(db_path):

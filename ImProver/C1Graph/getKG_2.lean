@@ -231,15 +231,19 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
 
   return output
 
-
-structure TheoremData where
+structure TheoremID where
   name : Name
   module : Name
-  text : Option String := none
-  C1_dependencies : Array TheoremData := #[]
-  C2_dependencies : Array TheoremData := #[]
+  content : Option String := none
   isExtracted : Bool := false
   errorMsgs : Array String := #[]
+  deriving Inhabited, ToJson, FromJson, Repr
+
+structure TheoremData where
+  id : TheoremID
+  C1_dependencies : Array TheoremID := #[]
+  C2_dependencies : Array TheoremID := #[]
+
   -- fromSrc : Bool := false
   deriving Inhabited, ToJson, FromJson, Repr
 
@@ -279,45 +283,49 @@ def getKG (mod : Name) (outputDirectory : String): IO Unit := do
     IO.println s!"Processing {ci.name.toString} in {mod.toString}"
 
     let C1_raw ← get_context cmd ["theorem", "theorem (internal)"]
-    let C1_dependencies : List TheoremData:= C1_raw.map (fun ctx => {name := ctx.name, module := ctx.module, text := some ctx.text})
-
-
+    let C1_dependencies : List TheoremID:= C1_raw.map (fun ctx => {name := ctx.name, module := ctx.module, content := some ctx.text})
 
     let C2_raw ← splitC2 fileName cmd "spawned"
 
-    let mut split_data : List TheoremData := []
-    let mut C2_dependencies : List TheoremData := []
+    let mut extracted_thms : List TheoremData := []
+    let mut C2_dependencies : List TheoremID := []
     -- errors = none means didn't compile, some [] means no errors, some [errors] means there were errors
     for ((thm, deps, errors), idx) in C2_raw.zipIdx do
-      let errors' : Array String := errors.toArray
-      let inner : TheoremData :=
+
+      let split_thm : TheoremID :=
         {name := s!"extracted_split_{ci.name}_{idx}".toName,
           module := mod,
-          text := thm,
+          content := thm,
           isExtracted := true,
-          errorMsgs := errors'}
-      C2_dependencies := inner :: C2_dependencies
+          errorMsgs := errors.toArray}
 
-      let deps' : List TheoremData := deps.map (fun ctx => {name := ctx.name, module := ctx.module, text := some ctx.text})
-      let outer : TheoremData :=
-        {name := s!"extracted_split_{ci.name}_{idx}".toName,
-          module := mod,
-          text := some thm,
-          C1_dependencies := deps'.toArray,
-          isExtracted := true,
-          errorMsgs := errors'}
-      split_data := outer :: split_data
+      C2_dependencies := split_thm :: C2_dependencies
 
+      let split_data : TheoremData :=
+        { id := split_thm,
+          C1_dependencies := deps.map (fun ctx => {name := ctx.name, module := ctx.module, content := some ctx.text}) |>.toArray,
+          C2_dependencies := #[]
+        }
+      extracted_thms := split_data :: extracted_thms
+      -- let deps' : List TheoremData := deps.map (fun ctx => {name := ctx.name, module := ctx.module, text := some ctx.text})
+      -- let outer : TheoremData :=
+      --   {name := s!"extracted_split_{ci.name}_{idx}".toName,
+      --     module := mod,
+      --     text := some thm,
+      --     C1_dependencies := deps'.toArray,
+      --     isExtracted := true,
+      --     errorMsgs := errors'}
+      -- split_data := outer :: split_data
+
+    let id : TheoremID := {name := ci.name, module := mod, content := some cmd.src.toString}
 
     let mainData : TheoremData :=
-      {name := ci.name,
-        module := mod,
-        text := some cmd.src.toString,
+      { id := id,
         C1_dependencies := C1_dependencies.toArray,
         C2_dependencies := C2_dependencies.toArray,
-        isExtracted := false}
+        }
 
-    outputs := mainData :: split_data ++ outputs
+    outputs := mainData :: extracted_thms ++ outputs
 
 
   let json_data := Json.arr <| outputs.toArray.map (ToJson.toJson)

@@ -91,7 +91,8 @@ def get_metric (metric_name : String) : CompilationStep → IO Float :=
   | "declarativity" => metric_declarativity
   | "dependency" => metric_dependency
   | "completion" => metric_completion
-  -- | "readability" => metric_length
+  | "readability" => metric_completion
+  | "conjecturer" => metric_completion
   | _ => fun _ => pure 0.0
 
 

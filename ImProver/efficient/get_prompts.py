@@ -13,30 +13,11 @@ from datetime import datetime
 import argparse
 from multiprocessing import cpu_count
 
-**Clarity and organization: 2 points**
-The proof should receive 2 points in this category if is easy to understand the mathematical argument it is making, and if intermediate "have" statements are clear and placed appropriately. The proof should receive 0 points in this category if it makes use of an overly convoluted proof term, or if it is difficult to interpret the proof informally.
-
-**Using outside theorems effectively: 2 points**
-The proof should receive 2 points in this category if it uses results from Mathlib, etc. to logically progress the proof, and if it is clear why such results are relevant to the proof. The proof should receive 0 points in this category if it attempts to re-prove trivial statements that have already been proven in Mathlib, or previously in the same proof.
-
-**Clean layout: 2 points**
-The proof should receive 2 points in this category if each line is generally 100 characters or less, if "·", indentations, and newlines are used to break up proofs with multiple goals, and if longer tactic proofs are placed on the line following the "by" keyword. The proof should receive 0 points in this category if any of the above style conventions are violated.
-
-**Comments: 1 points**
-The proof should receive 1 points in this category if complex or important points in the proof are commented ("/- ... -/" or "-- ...") with a description of the step in question, including what it symbolizes in informal mathematics. The proof should receive 0 points in this category if its comments are too long or too frequent, or if they are irrelevant to the steps of the proof nearby.
-
-**Variable conventions: 1 point**
-The proof should receive 1 point in this category if "α", "β", "γ" are used as names for general types, "h", "h₁", etc. are used for hypotheses, "m", "n", "k" are used for natural numbers, "i", "j", "k" are used for integers, and uppercase letters are used for types with some mathematical definition ("G" for a group, "R" for a ring, etc.). The proof should receive 0 points in this category if any of the above conventions are violated.
-
-**Automation tactics: 1 point**
-The proof should receive 1 point in this category if powerful automation tactics (such as "simp", "linarith", "ring", "aesop", etc.) are used where appropriate in effective places, and if they replace steps that would be considered straightforward, purely computational/technical, or trivial in an ordinary mathematical argument. The proof should receive 0 points in this category if the proof contains long sequences of tactics that could be replaced by one of the automation tactics mentioned above, or if it overuses these tactics in ineffective places.
-
-
 SYSTEM_PROMPTS = {
-    "length" : "You are an expert Lean4 theorem rewriting assistant. Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem.",
-    "declarativity" : "You are an expert Lean4 theorem rewriting assistant. Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as declarative in style as possible. We define and measure declarativity as the number of explicitly typed \"have\" statements, which you will aim to maximize insofar as to construct a more readable, structured, and forward-reasoning approach to the proof as possible - while also ensuring that the output is still a correct proof of the theorem.",
-    "dependency" : "You are an expert Lean4 theorem rewriting assistant. Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem.",
-    "completion" : "You are an expert Lean4 theorem proving assistant and formal mathematician. Prove the current theorem (wrapped in <CURRENT>...</CURRENT>) with a correct, formal, and complete (sorry-free) Lean4 proof.",
+    "length" : "You are an expert Lean4 theorem rewriting assistant. Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n",
+    "declarativity" : "You are an expert Lean4 theorem rewriting assistant. Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as declarative in style as possible. We define and measure declarativity as the number of explicitly typed \"have\" statements, which you will aim to maximize insofar as to construct a more readable, structured, and forward-reasoning approach to the proof as possible - while also ensuring that the output is still a correct proof of the theorem. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n",
+    "dependency" : "You are an expert Lean4 theorem rewriting assistant. Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as independent of external theorems and lemmas as possible. Namely, you aim to rewrite the proof to minimize the number of external dependencies - while also ensuring that the output is still a correct proof of the theorem. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n",
+    "completion" : "You are an expert Lean4 theorem proving assistant and formal mathematician. Prove the current theorem (wrapped in <CURRENT>...</CURRENT>) with a correct, formal, and complete (sorry-free) Lean4 proof. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n",
     "readability" : """You are an expert Lean4 theorem rewriting assistant. Rewrite the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as readable as possible. Namely, you aim to maximize readability as measured by the following rubric: 
 1. Clarity and organization - 2 points: The proof should be easy to understand in the mathematical argument it is making, and intermediate "have" statements are clear and placed appropriately.
 2. Using outside theorems effectively - 2 points: The proof should use results from Mathlib, etc. to logically progress the proof, and it is clear why such results are relevant to the proof.
@@ -45,7 +26,8 @@ SYSTEM_PROMPTS = {
 5. Variable conventions - 1 point: Standard, concise, and descriptive variable names are utilized throughout.
 6. Automation tactics - 1 point: Powerful automation tactics are used where appropriate in effective places, and replace steps that would be considered straightforward, purely computational/technical, or trivial in an ordinary mathematical argument.
     
-    Accordinging to this definition of readability, you will aim to rewrite the proof to maximize the number of points it receives in this rubric - while also ensuring that the output is still a correct proof of the theorem.""",
+    Accordinging to this definition of readability, you will aim to rewrite the proof to maximize the number of points it receives in this rubric - while also ensuring that the output is still a correct proof of the theorem. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n""",
+    "conjecturer" : "You are a Lean4 library builder and (formal) mathematician. Given a Lean4 theorem and proof (referred to as the seed theorem) conjecture a formal theorem statement. More explicitly, given a seed theorem, come up with a conjecture that builds off of and expands upon that theorem that may be correct, and is novel, interesting, and useful. This conjecture should be a formal lean4 theorem statement (you can leave the proof as \":= by sorry\"). Feel free to first explore related ideas and concepts at a high level in informal mathematics, but for the final output, be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags.\n\n"
 }
 
 ANNOTATION_PROMPT = " A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response."
@@ -55,6 +37,8 @@ CONTEXT_PROMPT = " The proof context, with relevant definitions and theorems, ha
 RAG_PROMPT = " The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>."
 
 EXAMPLE_PROMPT = "Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
+
+
 
 def make_config(args):
     config = {

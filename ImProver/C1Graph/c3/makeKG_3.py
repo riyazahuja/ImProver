@@ -10,6 +10,11 @@ def init_node(tx, theorem):
     text = theorem.get("text", None)
     isExtracted = theorem.get("isExtracted", None)
     isOriginal = theorem.get("isOriginal", None)
+    isCorrect = theorem.get("isCorrect", None)
+    informalStatement = theorem.get("informalStatement", None)
+    informalProof = theorem.get("informalProof", None)
+    errorMessages = theorem.get("errorMessages", None)
+    
     
     tx.run(
         """
@@ -51,6 +56,50 @@ def init_node(tx, theorem):
         isOriginal=isOriginal,
         module=theorem["module"],
         )
+    
+    if isCorrect is not None:
+        tx.run(
+        """
+        MERGE (t:Theorem {name: $name, module: $module})
+        SET t.isCorrect = $isCorrect
+        """,
+        name=theorem["name"],
+        isCorrect=isCorrect,
+        module=theorem["module"],
+        )
+    
+    if informalStatement is not None:
+        tx.run(
+        """
+        MERGE (t:Theorem {name: $name, module: $module})
+        SET t.informalStatement = $informalStatement
+        """,
+        name=theorem["name"],
+        informalStatement=informalStatement,
+        module=theorem["module"],
+        )
+    
+    if informalProof is not None:
+        tx.run(
+        """
+        MERGE (t:Theorem {name: $name, module: $module})
+        SET t.informalProof = $informalProof
+        """,
+        name=theorem["name"],
+        informalProof=informalProof,
+        module=theorem["module"],
+        )
+    
+    if errorMessages is not None:
+        tx.run(
+        """
+        MERGE (t:Theorem {name: $name, module: $module})
+        SET t.errorMessages = $errorMessages
+        """,
+        name=theorem["name"],
+        errorMessages=errorMessages,
+        module=theorem["module"],
+        )
 
 
 def create_edges(tx, thm, deps, rel):
@@ -68,13 +117,17 @@ def create_edges(tx, thm, deps, rel):
         )
 
 
-def process_row(tx, row):
+def process_row(tx, row, con):
     thm = {
         "name": row["name"],
         "module": row["module"],
         "text": row["text"],
         "isExtracted": row["isExtracted"],
         "isOriginal": row["isOriginal"],
+        "isCorrect": row["isCorrect"],
+        "informalStatement": row["informalStatement"],
+        "informalProof": row["informalProof"],
+        "errorMessages": row["errorMsgs"]
     }
     c1 = json.loads(row["C1Dependencies"]) if row["C1Dependencies"] else []
     c2 = json.loads(row["C2Dependencies"]) if row["C2Dependencies"] else []
@@ -87,6 +140,57 @@ def process_row(tx, row):
     create_edges(tx, thm, c1, "DEPENDS_ON")
     create_edges(tx, thm, c2, "DEPENDS_ON")
     create_edges(tx, thm, c3, "INFORMALLY_DEPENDS_ON")
+    
+    dependencies = c1 + c2
+    result = con.execute(
+            f"""
+            SELECT core_dependencies
+            FROM run_data 
+            WHERE name = '{thm["name"].replace("'","''")}' AND module = '{thm["module"].replace("'","''")}'
+            """,
+        ).fetchone()
+
+    try:
+        core_dependency_indices = json.loads(result[-1])
+        if len(core_dependency_indices) == 0:
+            core_dependencies = dependencies
+        else:
+            core_dependencies = [
+                dependencies[i] for i in core_dependency_indices if i < len(dependencies)
+            ]
+        
+        create_edges(tx, thm, core_dependencies, "STRONGLY_DEPENDS_ON")
+        
+        
+        #optionally, induce strong out-neighbors in c2 children
+        for dep in c2:
+            # Find out-neighbors of the dep
+            neighbor_result = tx.run(
+                """
+                MATCH (d:Theorem {name: $dep_name, module: $dep_module})-[:DEPENDS_ON]->(n:Theorem)
+                RETURN n.name as name, n.module as module
+                """,
+                dep_name=dep["name"],
+                dep_module=dep["module"]
+            ).data()
+            
+            # Convert to list of (name, module) pairs
+            sub_dependencies = [(entry["name"], entry["module"]) for entry in neighbor_result]
+            
+            # Filter to those also in core_dependencies
+            core_dep_pairs = [(dep["name"], dep["module"]) for dep in core_dependencies]
+            sub_core_dependencies = [sub_dep for sub_dep in sub_dependencies if sub_dep in core_dep_pairs]
+            
+            create_edges(tx, dep, sub_core_dependencies, "STRONGLY_DEPENDS_ON")
+            
+            
+    except Exception as e:
+        # print(
+        #     f"Sorry! Theorem {thm['name']} from {thm['module']} not found in filtered database, or error!\n\n{e}"
+        # )
+        pass
+
+    
 
 def remove_informal_cycles(session):
     """Remove bidirectional INFORMALLY_DEPENDS_ON relationships"""
@@ -116,22 +220,30 @@ def remove_informal_cycles(session):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export KG with class3 edges")
-    parser.add_argument("db_path", type=str, help="Path to combined duckdb")
+    parser.add_argument("KG_dir", type=str, help="Path to KG directory")
     parser.add_argument("--neo4j_uri", type=str, default="bolt://localhost:7687")
     parser.add_argument("--neo4j_user", type=str, default="neo4j")
     parser.add_argument("--neo4j_pass", type=str, default="12345678")
     args = parser.parse_args()
 
     driver = GraphDatabase.driver(args.neo4j_uri, auth=(args.neo4j_user, args.neo4j_pass))
-    # con = duckdb.connect(args.db_path, read_only=True)
-    # rows = con.execute("SELECT * FROM theorems").fetchall()
-    # cols = [c[1] for c in con.execute("PRAGMA table_info('theorems')").fetchall()]
-    # con.close()
+    
+    db_path = os.path.join(args.KG_dir, "class3","combined.duckdb")
+    
+    con = duckdb.connect(db_path, read_only=True)
+    rows = con.execute("SELECT * FROM theorems").fetchall()
+    cols = [c[1] for c in con.execute("PRAGMA table_info('theorems')").fetchall()]
+    con.close()
 
+    filtered_path = os.path.join(args.KG_dir, "filtered","data.duckdb")
+    con = duckdb.connect(filtered_path, read_only=True)
+    
+    
+    
     with driver.session() as session:
-        # for row in tqdm(rows, desc="Uploading"):
-        #     row_dict = dict(zip(cols, row))
-        #     session.write_transaction(process_row, row_dict)
+        for row in tqdm(rows, desc="Uploading"):
+            row_dict = dict(zip(cols, row))
+            session.write_transaction(process_row, row_dict, con)
         
         # After creating all nodes and edges, remove cycles
         print("Checking for cycles in INFORMALLY_DEPENDS_ON relationships...")

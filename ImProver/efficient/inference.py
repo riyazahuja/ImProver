@@ -12,11 +12,12 @@ import argparse
 import duckdb
 
 
-def run_inference(df, args):
+def run_inference(df, args, ray_init=True):
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
     os.environ["NCCL_P2P_DISABLE"] = "1"
-    ray.init(num_cpus=args.cpus, num_gpus=args.gpus)#, _temp_dir='/home/riyaza/ray_tmp')
+    if ray_init:
+        ray.init(num_cpus=args.cpus, num_gpus=args.gpus)#, _temp_dir='/home/riyaza/ray_tmp')
     DataContext.get_current().wait_for_min_actors_s = 1800
     ctx = DataContext.get_current()
     # ctx.progress_bar = True
@@ -53,7 +54,7 @@ def run_inference(df, args):
         engine_kwargs={
             "tensor_parallel_size": 1,
             "enable_chunked_prefill": True,
-            "max_model_len": 8192,
+            "max_model_len": 16384,
             "max_num_batched_tokens": 65536,
             # "max_num_batched_tokens": 4096,
             # "max_model_len": 16384,
@@ -70,9 +71,9 @@ def run_inference(df, args):
             messages=[{"role": "user", "content": row["raw_prompt"]}],
             sampling_params=dict(
                 # n=args.n,
-                truncate_prompt_tokens=7168,
+                truncate_prompt_tokens=16384-2048,
                 # temperature=0.3,
-                max_tokens=1024,
+                max_tokens=2048,
             ),
         ),
         postprocess= lambda row : dict(answer=row["generated_text"], **row),
@@ -118,7 +119,7 @@ def construct_prompts(config_data, data, args):
     idx = 0
     items = []
     for name, decl_data in data.items():
-        prompt = config_data["system_prompt"][args.metric] + "Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n"
+        prompt = config_data["system_prompt"][args.metric] + "\n"
         
         if args.examples != 0:
             prompt += config_data["example_prompt"] + "\n"
@@ -221,10 +222,11 @@ def main(args):
     with open(config_path, "r") as f:
         config_data = json.load(f)
     
-    df = pd.DataFrame(columns=["file_path", "decl", "decl_idx", "raw_prompt"])
+    df = pd.DataFrame(columns=["module", "decl", "decl_idx", "raw_prompt"])
     data = {}
     for file in files_to_process:
         file_path = os.path.join(prompt_root, file.replace(".lean", ".json"))
+        module = file.replace(".lean", "").replace("/", ".")
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 data_raw = json.load(f)
@@ -238,7 +240,7 @@ def main(args):
             
             
             for item in prompt_data:
-                df.loc[len(df)] = [file_path,
+                df.loc[len(df)] = [module,
                         item["decl"],
                         item["decl_idx"],
                         item["raw_prompt"]]

@@ -14,18 +14,20 @@ import torch
 
 
 def build_prompt(thm, include_context=False):
+    
     context = ""
     context_prompt = "You will additionally be given the (formal) context/dependencies of the theorem (such as referenced lemmas), which you should use to inform your informalization of the theorem and proof. This context will be wrapped in <CONTEXT>...</CONTEXT> tags."
     if include_context:
         deps = thm.get("C1_dependencies", [])
-        dep_texts = "\n\n".join(d.get("text", "").strip() for d in deps)
+        dep_texts = "\n\n".join(d.get("content", "").strip() for d in deps)
         if dep_texts:
             context = f"<CONTEXT>\n{dep_texts}\n</CONTEXT>\n"
             
             # TODO: Add context example?
             
             
-    theorem_text = thm.get("text", "").strip()
+    theorem_text = thm.get("id", {}).get("content", "").strip()
+    
     prompt = f"""You are an expert in mathematics and formal theorem proving. Your task is to provide an informal statement and informal step-by-step proof for the following Lean4 formal theorem and proof.
 
 Namely, you will be given a formal theorem and proof in Lean4 (wrapped in <FORMAL>...</FORMAL> tags), and you need to (1) provide an informal statement of the theorem in natural language (wrap this part of your output in <STATEMENT>...</STATEMENT> tags), 
@@ -113,17 +115,15 @@ def collect_prompts(kg_dir, dataset_path, split="train", include_context=False):
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
             for thm in theorems:
-                thm_module = thm.get("module", module)
+                thm_module = thm.get("id", {}).get("module", module)
                 if thm_module not in modules:
                     continue
                 prompt = build_prompt(thm, include_context)
                 prompts.append({
                     "prompt": prompt,
                     "module": thm_module,
-                    "name": thm.get("name"),
-                    "text": thm.get("text"),
-                    "isExtracted": thm.get("isExtracted", False),
-                    "isOriginal": True,
+                    "name": thm.get("id", {}).get("name"),
+                    "text": thm.get("id", {}).get("content"),
                 })
     return pd.DataFrame(prompts)
 
