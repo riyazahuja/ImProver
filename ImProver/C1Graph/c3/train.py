@@ -3,7 +3,6 @@ import json
 from neo4j import GraphDatabase
 
 # Define constants
-SYSTEM_PROMPT = "Please continue the following proof:"
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Extract theorem pairs from Neo4j and create training data')
@@ -14,22 +13,37 @@ def parse_args():
 def create_alpaca_entry(a_props, b_props, include_informal=False):
     """Create an entry in Alpaca format"""
     statement = b_props.get('informalStatement', '')
+    pf = b_props.get('informalProof', '')
+    new_statement = a_props.get('informalStatement', '')
     conj = a_props.get('text', '')
     if ":=" in conj:
         theorem_part, _ = conj.split(":=", 1)  # Split at first occurrence
         conj = f"{theorem_part}:= by sorry"
         
     instruction = f"""You are a Lean4 library builder and (formal) mathematician. Given a Lean4 theorem and proof (referred to as the seed theorem) conjecture a formal theorem statement. 
-More explicitly, given a seed theorem, come up with a conjecture that builds off of and expands upon that theorem that may be correct, and is novel, interesting, and useful. {'You will also be given a high-level informal statement (Wrapped in <STATEMENT>...</STATEMENT>) of the seed theorem to help you understand it and formulate your conjecture.' if include_informal and statement.strip() != '' else ''}
+More explicitly, given a seed theorem, come up with a conjecture that builds off of and expands upon that theorem that may be correct, and is novel, interesting, and useful.
 This conjecture should be a formal lean4 theorem statement (you can leave the proof as \":= by sorry\"). 
-Feel free to first explore related ideas and concepts at a high level in informal mathematics, but for the final output, be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags. 
+Feel free to first explore related ideas and concepts at a high level in informal mathematics, but for the final output, be sure to output your final response as a novel, interesting, and distinct Lean4 theorem conjecture wrapped in <IMPROVED>...</IMPROVED> tags. 
 {f'<STATEMENT>\n{statement}\n</STATEMENT>' if include_informal and statement.strip() != '' else ''}
 
 <CURRENT>
 {b_props.get('text', '')}
 </CURRENT>"""    
     
+    
     output = "<IMPROVED>\n"+ conj + "\n</IMPROVED>"
+    if include_informal:
+        think = f"""It seems that we need to come up with a new conjecture that is interesting and builds off of the seed theorem.
+The seed theorem says that: {statement}
+This is then proven as follows:
+{pf}
+
+So with this in mind, I need to come up with something new, interesting, and useful that builds off of the intuition and concepts behind this theorem that seems like it may also be correct:
+{new_statement}
+
+With this in mind, I will now output my final response as a novel, interesting, and distinct Lean4 theorem conjecture wrapped in <IMPROVED>...</IMPROVED> tags.
+"""
+        output = "<think>\n" + think + "\n</think>\n" + output
     
     return {
         "instruction": instruction,
@@ -48,9 +62,11 @@ def main():
     
     # Query to find relationships where a --STRONGLY_DEPENDS_ON--> b and both are correct
     query = """
-    MATCH (a)-[:STRONGLY_DEPENDS_ON]->(b)
-    WHERE a.isCorrect = true AND b.isCorrect = true
-    RETURN a, b
+    MATCH (a)-[r]->(b)
+    WHERE a.isCorrect = true AND b.isCorrect = true 
+      AND a.text IS NOT NULL AND b.text IS NOT NULL
+      AND a.text <> '' AND b.text <> ''
+    RETURN DISTINCT a, b
     """
     
     entries = []

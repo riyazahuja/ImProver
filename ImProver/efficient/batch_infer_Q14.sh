@@ -5,7 +5,7 @@
 #SBATCH --error=logs/Q14_infer.err
 #SBATCH --cpus-per-task=12
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:A100_80GB:8
+#SBATCH --gres=gpu:A6000:6
 #SBATCH --mem=100G
 
 
@@ -16,4 +16,4 @@ export HF_HOME="/data/user_data/riyaza/HF"
 
 cd ~/eval_improver/improver
 
-python /home/riyaza/eval_improver/improver/ImProver/efficient/inference.py length /home/riyaza/eval_improver/improver/scripts/data/tt_split_data_iter0.json --cpus 12 --gpus 8 --examples 2 --n 32 --context 5 --rag 5 --model deepseek-ai/DeepSeek-R1-Distill-Qwen-14B
+python /home/riyaza/eval_improver/improver/ImProver/efficient/inference.py conjecturer /home/riyaza/eval_improver/improver/scripts/data/tt_split_data.json --split test --prompts_dir prompts_test/ --cpus 12 --gpus 6 --n 32 --model /data/user_data/riyaza/saved_models/Q14_conjecturer

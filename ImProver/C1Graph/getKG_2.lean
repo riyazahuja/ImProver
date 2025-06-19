@@ -200,7 +200,12 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
         | first :: rest => (first, "\n".intercalate rest)
       let cleanedRest := removeCommonIndent rest
       let cleanProof := firstLine ++ (if rest == "" then "" else "\n" ++ cleanedRest)
-      thms.map (fun thm => s!"lemma {thm} := by\n{cleanProof}"))
+      let thms_raw := thms.map (fun thm => s!"lemma {thm} := by\n{cleanProof}")
+      let implicit_thms := thms_raw.map (fun thm => s!"set_option autoImplicit true in\n{thm.trim}")
+      thms_raw ++ implicit_thms
+
+      )
+
   -- IO.println s!"Split Theorems: \n{"\n".intercalate <| splits}\n"
 
   let mut output := []
