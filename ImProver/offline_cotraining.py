@@ -25,8 +25,11 @@ import tqdm
 from efficient.inference import run_inference
 import time
 
-def make_conjecturer_prompt(conjecture: str) -> str:
+def make_conjecturer_prompt_old(conjecture: str) -> str:
     return f"You are a Lean4 library builder and (formal) mathematician. Given a Lean4 theorem and proof (referred to as the seed theorem) conjecture a formal theorem statement. More explicitly, given a seed theorem, come up with a conjecture that builds off of and expands upon that theorem that may be correct, and is novel, interesting, and useful. This conjecture should be a formal lean4 theorem statement (you can leave the proof as \":= by sorry\"). Feel free to first explore related ideas and concepts at a high level in informal mathematics, but for the final output, be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n<CURRENT>{conjecture}</CURRENT>\n\n<IMPROVED>"
+
+def make_conjecturer_prompt(conjecture: str) -> str:
+    return f"You are a Lean4 library builder and (formal) mathematician. Given a Lean4 theorem and proof (referred to as the seed theorem) conjecture a formal theorem statement. More explicitly, given a seed theorem, come up with a conjecture that builds off of and expands upon that theorem that may be correct, and is novel, interesting, and useful. This conjecture should be a formal lean4 theorem statement (you can leave the proof as \":= by sorry\"). Feel free to first explore related ideas and concepts at a high level in informal mathematics, but for the final output, be sure to output your final response as a novel, interesting, and distinct Lean4 theorem conjecture wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n<CURRENT>{conjecture}</CURRENT>\n\n<IMPROVED>"
 
 def make_prover_prompt(theorem: str) -> str:
     return f"You are an expert Lean4 theorem proving assistant and formal mathematician. Prove the current theorem (wrapped in <CURRENT>...</CURRENT>) with a correct, formal, and complete (sorry-free) Lean4 proof. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n<CURRENT>{theorem}</CURRENT>\n\n<IMPROVED>"
@@ -73,7 +76,7 @@ class CoTrainer:
         #         query = "MATCH (t:Theorem) RETURN t.module AS module, t.name AS name, t.text AS text"
         #     res = session.run(query)
         #     return [r.data() for r in res]
-        with open("/home/riyaza/eval_improver/improver/ImProver/records.json", "r", encoding="utf-8-sig") as f:
+        with open("/home/riyaza/eval_improver/improver/ImProver/records_small.json", "r", encoding="utf-8-sig") as f:
             records = json.load(f)
 
         return [{r['keys'][i] : r['_fields'][i] for i in range(len(r['keys']))} for r in records]
@@ -275,7 +278,7 @@ class CoTrainer:
             self.prov_model = model
             self.prov_model_path = os.path.join("cotraining_models", "prover")
 
-    def run_iteration(self, k: int = 150, c: int = 150, best_of_n: int = 32,
+    def run_iteration(self, k: int = 100, c: int = 100, best_of_n: int = 32,
                       t: float = 0.25, t_prime: float = 0.25,
                       related_thresh: float = 0.3, novel_thresh: float = 0.8,
                       frontier: bool = True):

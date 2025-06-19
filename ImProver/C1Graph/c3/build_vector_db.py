@@ -44,8 +44,8 @@ def build_db(db_path, out_dir, model):
         print(f"Adding {len(documents)} documents to the collection.")
 
         # Add documents in batches
-        BATCH_SIZE = 16  # smaller batches to avoid GPU OOM
-        for i in range(7360, len(documents), BATCH_SIZE):
+        BATCH_SIZE = 8  # smaller batches to avoid GPU OOM
+        for i in range(2752, len(documents), BATCH_SIZE):
             end_idx = min(i + BATCH_SIZE, len(documents))
             # if i//BATCH_SIZE + 1 < 58*2:
             #     continue

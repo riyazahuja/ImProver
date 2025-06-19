@@ -51,6 +51,7 @@ def String.getTagged (s: String) (tag : String) : Option String :=
 def String.getBetween (s: String) (left : String) (right : String) : Option String :=
   s.splitAtString left |>.getD (("", "")) |>.2 |>.splitAtString (right) |>.getD (("", "")) |>.1
 
+
 def getInitialProofState2 (cmd : CompilationStep) : IO String := do
   let env := cmd.after
   let ci? := cmd.diff.get? 0
@@ -81,7 +82,22 @@ def getInitialProofState2 (cmd : CompilationStep) : IO String := do
     | _ => pure default
     return (← backup).pretty (width := 100000000)
 
+def isDefEq (a : CompilationStep) (b : CompilationStep) : IO Bool := -- eventually upgrade to check all items in diff
+  let env := a.after
+  -- if a.diff.isEmpty || b.diff.isEmpty then
+    -- return false
+  let a_ci? := a.diff.get? 0
+  let b_ci? := b.diff.get? 0
 
+  if a_ci?.isNone || b_ci?.isNone then
+    return false
+  else do
+    let a_ci := a_ci?.get!
+    let b_ci := b_ci?.get!
+
+    let (eq, _,_) ← MetaM.toIO (ctxCore := { fileName := "", fileMap := default }) (sCore := { env }) do
+      Meta.isDefEq a_ci.type b_ci.type
+    return eq
 
 def getInstances (preinstances : Array (CompilationStep × ConstantInfo × String × String × Option CompilationStep × String × String))
 (metric : String) (mod : String)
@@ -137,23 +153,25 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
       let msgs ← head.msgs.filterMapM (fun msg => do
         let m ← msg.data.toString
         let isSorry := metric != "conjecturer" && msg.severity == .warning && m.trim == "declaration uses 'sorry'"
-        if msg.severity != .error && not isSorry then
+        if not (msg.severity == .error || isSorry) then
           return none
         return some (bombEmoji++m))
       -- IO.println "Checking correctness..."
       let io_correct : IO Bool := match metric with
       | "conjecturer" => do
         IO.println "hello!"
-        let new_goal ← getInitialProofState2 head
-        let old_goal ←  getInitialProofState2 original
-        let output := msgs.isEmpty && head.trees.length > 0 && model_output.trim != "" && new_goal != old_goal
-        if output then
-          IO.println s!">>> New goal: {new_goal}"
-          IO.println s!">>> Old goal: {old_goal}"
+        let defn_eq? ←  isDefEq head original
+        -- let new_goal ← getInitialProofState2 head
+        -- let old_goal ←  getInitialProofState2 original
+        -- let eq? := new_goal == old_goal
+        let output := msgs.isEmpty && head.trees.length > 0 && trimmed_output.trim != "" && not defn_eq?--new_goal != old_goal
+        -- if output then
+          -- IO.println s!">>> New goal: {new_goal}"
+          -- IO.println s!">>> Old goal: {old_goal}"
         pure output
       | _ => do
         IO.println "world!"
-        pure <| msgs.isEmpty && head.trees.length > 0 && model_output.trim != ""
+        pure <| msgs.isEmpty && head.trees.length > 0 && trimmed_output.trim != ""
         && (head.diff.map (·.name) |>.contains ci.name)
       let correct ← io_correct
 

@@ -3,8 +3,8 @@
 #SBATCH --job-name=cotrain
 #SBATCH --output=logs/cotrain.out
 #SBATCH --error=logs/cotrain.err
-#SBATCH --cpus-per-task=16
-#SBATCH --gres=gpu:A6000:8
+#SBATCH --cpus-per-task=12
+#SBATCH --gres=gpu:A6000:6
 #SBATCH --time=1-00:00:00
 #SBATCH --mem=100G
 
@@ -22,4 +22,4 @@ lake build ImProver.efficient.eval_improver
 sleep 5
 
 
-python /home/riyaza/eval_improver/improver/ImProver/offline_cotraining.py /data/user_data/riyaza/saved_models/Q7_conjecturer/checkpoint-504 taterowney/prover_completion_v2 
+python /home/riyaza/eval_improver/improver/ImProver/offline_cotraining.py /data/user_data/riyaza/saved_models/Q14_conjecturer taterowney/prover_completion_v2 

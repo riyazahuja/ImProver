@@ -10,6 +10,8 @@ from ray.data.llm import build_llm_processor, vLLMEngineProcessorConfig
 from ray.data import DataContext
 import multiprocessing
 import torch
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+from transformers import AutoTokenizer
 
 
 
@@ -104,6 +106,7 @@ def collect_prompts(kg_dir, dataset_path, split="train", include_context=False):
     modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
 
     prompts = []
+    truncation_count = 0
     for root, _, files in os.walk(kg_dir):
         for file in files:
             if not file.endswith(".json"):
@@ -119,12 +122,22 @@ def collect_prompts(kg_dir, dataset_path, split="train", include_context=False):
                 if thm_module not in modules:
                     continue
                 prompt = build_prompt(thm, include_context)
+                tokens = tokenizer.encode(prompt, add_special_tokens=False)
+                if len(tokens) > MAX_PROMPT_TOKENS:
+                    # ----- OPTION A: truncate to last MAX_PROMPT_TOKENS tokens
+                    tokens = tokens[-MAX_PROMPT_TOKENS:]
+                    prompt = tokenizer.decode(tokens)
+                    truncation_count += 1
+
+
                 prompts.append({
                     "prompt": prompt,
                     "module": thm_module,
                     "name": thm.get("id", {}).get("name"),
                     "text": thm.get("id", {}).get("content"),
                 })
+    print(f"Total prompts: {len(prompts)}")
+    print(f"Truncated prompts: {truncation_count}")
     return pd.DataFrame(prompts)
 
 
@@ -211,6 +224,9 @@ if __name__ == "__main__":
         help="Number of GPUs to use (default: all available)",
     )
     args = parser.parse_args()
+    
+    MAX_PROMPT_TOKENS = 16384 - 2048   # model context minus generation tokens
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
 
     df = collect_prompts(args.KG_dir, args.dataset_path, args.split, args.include_context)
     if len(df) == 0:

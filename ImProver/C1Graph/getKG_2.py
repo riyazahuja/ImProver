@@ -23,7 +23,8 @@ async def calculate_prompt(file, args):
         file.replace("/", ".").replace(".lean", ""),
         args.output_dir,
     ]
-    # print(cmd)
+    print(" ".join(cmd))
+    
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
