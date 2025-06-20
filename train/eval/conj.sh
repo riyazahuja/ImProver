@@ -19,5 +19,5 @@ export HF_HOME="/data/user_data/riyaza/HF"
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 accelerate launch --main-process-port=29501 -m \
-    axolotl.cli.train /home/riyaza/eval_improver/improver/scripts/train/conj_inf.yml \
+    axolotl.cli.train /home/riyaza/eval_improver/improver/train/configs/conj_inf.yml \
     --deepspeed /home/riyaza/deepspeed_configs/zero3_bf16_cpuoffload_params.json
