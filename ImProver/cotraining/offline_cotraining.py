@@ -76,7 +76,7 @@ class CoTrainer:
         #         query = "MATCH (t:Theorem) RETURN t.module AS module, t.name AS name, t.text AS text"
         #     res = session.run(query)
         #     return [r.data() for r in res]
-        with open("/home/riyaza/eval_improver/improver/ImProver/records_small.json", "r", encoding="utf-8-sig") as f:
+        with open("/home/riyaza/eval_improver/improver/ImProver/cotraining/records_small.json", "r", encoding="utf-8-sig") as f:
             records = json.load(f)
 
         return [{r['keys'][i] : r['_fields'][i] for i in range(len(r['keys']))} for r in records]
