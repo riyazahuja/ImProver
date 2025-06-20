@@ -27,45 +27,32 @@ lean_lib TrainingData where
 @[default_target]
 lean_lib ImProver where
 
-
-lean_lib temp where
-
-
 lean_lib Examples where
 
 
 lean_lib RAG where
 
 
-
-
-
-lean_exe improver where
-  root := `ImProver.improver
-
 @[default_target]
 lean_exe get_prompts where
-  root := `ImProver.efficient.get_prompts
+  root := `ImProver.get_prompts
   supportInterpreter := true
 
-
-lean_exe get_KG where
-  root := `ImProver.C1Graph.getKG
+@[default_target]
+lean_exe get_class2 where
+  root := `ImProver.KG.get_class2
   supportInterpreter := true
 
-lean_exe getPfTree where
-  root := `ImProver.C1Graph.getKG_2
-  supportInterpreter := true
-
+@[default_target]
 lean_exe eval_improver where
-  root := `ImProver.efficient.eval_improver
+  root := `ImProver.eval_improver
   supportInterpreter := true
 
 
 
 
-lean_exe StateComments where
-  root := `scripts.standalone_state_comments
+-- lean_exe StateComments where
+--   root := `scripts.standalone_state_comments
 
-lean_exe extract_states where
-  root := `scripts.extract_states
+-- lean_exe extract_states where
+--   root := `scripts.extract_states
