@@ -80,8 +80,8 @@ def run_inference(df, args, ray_init=True):
     )
     ds = vllm_processor(ds).materialize()
 
-    id = f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    run_output_dir = os.path.join(args.output_dir, id)
+    run_id = args.runID or f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_output_dir = os.path.join(args.output_dir, run_id)
     os.makedirs(run_output_dir, exist_ok=True)
 
     output_path = os.path.join(run_output_dir, "data")
@@ -183,7 +183,11 @@ def construct_prompts(config_data, data, args):
         if args.annotation:
             prompt += f"<ANNOTATION>\n{decl_data['annotation']}\n</ANNOTATION>\n\n"
 
-        prompt += f"\n<CURRENT>\n{decl_data['current'] if args.metric!="completion" else decl_data['current_sorry']}\n</CURRENT>\n\n"
+        prompt += (
+            f"\n<CURRENT>\n"
+            f"{decl_data['current'] if args.metric != 'completion' else decl_data['current_sorry']}\n"
+            "</CURRENT>\n\n"
+        )
         prompt += "<IMPROVED>"
 
         data = {
@@ -281,6 +285,12 @@ if __name__ == "__main__":
         type=str,
         default=".evals/",
         help="Directory to output runs (must be absolute) (default: .evals/)",
+    )
+    parser.add_argument(
+        "--runID",
+        type=str,
+        default=None,
+        help="Run ID to save results to (default: timestamp)",
     )
     parser.add_argument(
         "--cpus",

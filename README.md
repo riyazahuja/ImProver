@@ -93,8 +93,16 @@ Metric(name="Metric Name",
 - **Build and Cache Proof Data**: Run the build scripts to generate and cache proof data in JSON format.
    - `python scripts/build.py --config CONFIG_PATH`
 - **Setup Run Configuration**: Use the provided tools and models to generate the parameter tuning for your desired tests.
- - **Evaluate and Benchmark**: Assess the correctness and quality of the generated proofs using the evaluation and benchmarking tools.
+- **Evaluate and Benchmark**: Assess the correctness and quality of the generated proofs using the evaluation and benchmarking tools.
    - `python benchmark/tools.py`
+
+## Command Line Interface
+
+High level scripts can be invoked via the `improver` wrapper script (make it executable and add this directory to your PATH). See [`docs/CLI.md`](docs/CLI.md) for a full description.
+
+```bash
+improver run all --config config.yaml
+```
 
 ## Offline RL Co-Training
 ImProver includes an experimental offline reinforcement learning loop to jointly
