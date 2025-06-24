@@ -540,8 +540,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="runs/",
-        help="Directory of runs (default: runs/)",
+        default=".evals/",
+        help="Directory of runs (default: .evals/)",
     )    
     parser.add_argument(
         "--model",

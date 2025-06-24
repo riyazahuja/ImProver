@@ -47,12 +47,3 @@ lean_exe get_class2 where
 lean_exe eval_improver where
   root := `ImProver.eval_improver
   supportInterpreter := true
-
-
-
-
--- lean_exe StateComments where
---   root := `scripts.standalone_state_comments
-
--- lean_exe extract_states where
---   root := `scripts.extract_states

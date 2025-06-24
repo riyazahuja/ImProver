@@ -215,7 +215,7 @@ def main(args):
     for repo in dataset.keys():
         files_to_process = files_to_process + dataset[repo]
 
-    prompt_root = args.prompts_dir
+    prompt_root = os.path.join(args.prompts_dir,args.prompt_id)
     config_path = os.path.join(prompt_root, "config.json")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")
@@ -258,6 +258,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("metric", type=str, help="Metric to use for evaluation")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
+    parser.add_argument("prompt_id", type=str, help="Prompt ID to use")
     parser.add_argument(
         "--model",
         type=str,
