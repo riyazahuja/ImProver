@@ -22,7 +22,10 @@ from datasets import load_dataset
 import torch
 import random
 import tqdm
-from efficient.inference import run_inference
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+# from ImProver.inference import run_inference
 import time
 
 def make_conjecturer_prompt_old(conjecture: str) -> str:
@@ -280,7 +283,7 @@ class CoTrainer:
 
     def run_iteration(self, k: int = 100, c: int = 100, best_of_n: int = 32,
                       t: float = 0.25, t_prime: float = 0.25,
-                      related_thresh: float = 0.3, novel_thresh: float = 0.8,
+                      related_thresh: float = 0.3, novel_thresh: float = 0.4,
                       frontier: bool = True):
         seeds = self.get_seeds(frontier)
         random.shuffle(seeds)
@@ -295,12 +298,13 @@ class CoTrainer:
                 "decl": seed["name"]}
             for seed in seeds
         ]
-        conj_data_path, conj_lists = self.batch_generate(prompts, c, self.conj_model_path, metric="conjecturer")
+        # conj_data_path, conj_lists = self.batch_generate(prompts, c, self.conj_model_path, metric="conjecturer")
+        conj_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_001803"
         print("=======================================")
-        print(f"Ran inference on conjectures to get {len(conj_lists)} conjecture lists.")
+        # print(f"Ran inference on conjectures to get {len(conj_lists)} conjecture lists.")
         print("=======================================")
-        
-        asyncio.run(self.lean_check_batch(conj_data_path, "conjecturer"))
+        # conj_data_path = '/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_001803'
+        # asyncio.run(self.lean_check_batch(conj_data_path, "conjecturer"))
 
         eval_conn = duckdb.connect(os.path.join(conj_data_path, "eval.duckdb"))
         conj_df = eval_conn.execute(
@@ -332,21 +336,24 @@ class CoTrainer:
             })
         
         # Generate proofs using batch inference
-        prover_data_path, proof_lists = self.batch_generate(proof_prompts, best_of_n, self.prov_model_path, ray_init=False)
+        # prover_data_path, proof_lists = self.batch_generate(proof_prompts, best_of_n, self.prov_model_path, ray_init=False)
         print("=======================================")
-        print(f"Generated {sum(len(lst) for lst in proof_lists)} proofs across all conjectures.")
+        # print(f"Generated {sum(len(lst) for lst in proof_lists)} proofs across all conjectures.")
         print("=======================================")
         print(f"Checking validity of proofs.")
-        # prover_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250613_111733"
-        asyncio.run(self.lean_check_batch(prover_data_path))
+        # prover_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250623_220903"
+        # asyncio.run(self.lean_check_batch(prover_data_path))
         # Read proof validity results from the evaluation database
         proof_valid = []
-
+        prover_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_022501"
         eval_conn = duckdb.connect(os.path.join(prover_data_path, "eval.duckdb"))
         eval_df = eval_conn.execute(
         "SELECT decl_idx, original_prompt, new_correct, new_raw, new_trimmed, new_errors FROM evaluation_results ORDER BY decl_idx"
         ).fetchdf()
         eval_conn.close()
+        
+        total_proofs = len(eval_df)
+        print(f"Total proofs evaluated: {total_proofs}")
         
         # Create a mapping from seed theorems to conjecture results
         theorem_to_conjectures = {}
@@ -359,34 +366,47 @@ class CoTrainer:
             
             if seed_key not in theorem_to_conjectures:
                 theorem_to_conjectures[seed_key] = {}
+            if decl_idx not in theorem_to_conjectures[seed_key]:
+                theorem_to_conjectures[seed_key][decl_idx] = []
             
-            theorem_to_conjectures[seed_key][decl_idx] = {
+            
+            theorem_to_conjectures[seed_key][decl_idx].append({
                 'original_prompt': row['original_prompt'],
                 'new_correct': row['new_correct'],
                 'new_raw': row['new_raw'],
                 'new_trimmed': row['new_trimmed'],
                 'new_errors': row['new_errors']
-            }
-            
+            })
+        # sk = list(theorem_to_conjectures.keys())[0]
+        # print(f"Parsed {len(theorem_to_conjectures)} seed theorems with {len(theorem_to_conjectures[sk])} conjectures each.")
+        
         # Parse the theorem_to_conjectures dictionary
         raw_dataset = {}
+        raw_dataset2 = {}
 
 
         for seed_key, conjectures in theorem_to_conjectures.items():
             raw_dataset[seed_key] = {}
+            raw_dataset2[f"{seed_key[0]}:{seed_key[1]}"] = {}
             
             # Dictionary to track conjecture statistics
             conjecture_stats = {}
             
             # Process each proof attempt
             for decl_idx, data in conjectures.items():
-                original_prompt = data['original_prompt']
+                if len(data) == 0:
+                    continue
+                
+                original_prompt = data[0]['original_prompt']
                 
                 # First try to extract from <CURRENT> tags
-                match = re.search(r'<CURRENT>(.*?)</CURRENT>', original_prompt, re.DOTALL)
+                matches = re.finditer(r'<CURRENT>(.*?)</CURRENT>', original_prompt, re.DOTALL)
                 conjecture_str = None
-                if match:
-                    conjecture_str = match.group(1).strip()
+                last_match = None
+                for m in matches:
+                    last_match = m
+                if last_match:
+                    conjecture_str = last_match.group(1).strip()
                 else:
                     # # Extract from prompt format "Provide a Lean4 proof for the following theorem:\n{conjecture}\nproof"
                     # parts = original_prompt.split("following theorem:\n", 1)
@@ -400,28 +420,33 @@ class CoTrainer:
                     continue  # Skip if we can't parse
             
                 # Initialize stats for this conjecture if needed
-                if conjecture_str not in conjecture_stats:
-                    conjecture_stats[conjecture_str] = {
+                if decl_idx not in conjecture_stats:
+                    conjecture_stats[decl_idx] = {
                     'attempts': 0,
                     'correct': 0,
-                    'proof': None
+                    'proof': None,
+                    'conjecture_str': conjecture_str
                     }
             
-            # Track the attempt
-            conjecture_stats[conjecture_str]['attempts'] += 1
-            
-            # If this attempt was correct, update the stats
-            if data['new_correct']:
-                conjecture_stats[conjecture_str]['correct'] += 1
-                if conjecture_stats[conjecture_str]['proof'] is None:
-                    conjecture_stats[conjecture_str]['proof'] = data['new_trimmed']
-            
+                # Track the attempt
+                for instance in data:
+                    conjecture_stats[decl_idx]['attempts'] += 1
+                    
+                    # If this attempt was correct, update the stats
+                    if instance['new_correct']:
+                        conjecture_stats[decl_idx]['correct'] += 1
+                        if conjecture_stats[decl_idx]['proof'] is None:
+                            conjecture_stats[decl_idx]['proof'] = instance['new_trimmed']
+            # print(conjecture_stats)
             # Finalize the raw_dataset with the required format
-            for conjecture_str, stats in conjecture_stats.items():
+            for decl_idx, stats in conjecture_stats.items():
                 pass_rate = stats['correct'] / stats['attempts'] if stats['attempts'] > 0 else 0
                 proof = stats['proof'] if pass_rate > 0 else None
-                raw_dataset[seed_key][conjecture_str] = (proof, pass_rate)
+                raw_dataset[seed_key][decl_idx] = (proof, pass_rate,stats['conjecture_str'])
+                raw_dataset2[f"{seed_key[0]}:{seed_key[1]}"][decl_idx] = {"proof": proof, "pass_rate": pass_rate, "conjecture": stats['conjecture_str'], "attempts": stats['attempts'], "correct": stats['correct']}
         
+        with open("raw_dataset.json", "w") as f:
+            json.dump(raw_dataset2, f, indent=2)
         
         conj_data, prov_data = [], []
         
@@ -436,7 +461,7 @@ class CoTrainer:
             if not seed_text:
                 continue
             
-            for conjecture_str, (proof, pass_rate) in conjectures.items():
+            for decl_idx, (proof, pass_rate, conjecture_str) in conjectures.items():
                 # Apply filters
                 if pass_rate == 0 or pass_rate > t_prime:
                     continue
@@ -461,6 +486,9 @@ class CoTrainer:
                     "module": seed_module,
                     "seed_name": seed_name,
                     "name": name,
+                    "relatedness": rel,
+                    "novelty": nov,
+                    "pass_rate": pass_rate,
                 })
                 
                 prov_data.append({
@@ -474,6 +502,82 @@ class CoTrainer:
                 # self.update_kg(seed_module, name, conjecture_str, [{"module": seed_module, "name": seed_name}])
                 # self.add_vector(seed_module, name, conjecture_str, proof)
             
+        # Calculate statistics on the conj_data
+        print(f"\n\nStatistics on {len(conj_data)} items in conj_data:")
+        if conj_data:
+            pass_rates = [item["pass_rate"] for item in conj_data]
+            novelty_scores = [item["novelty"] for item in conj_data]
+            relatedness_scores = [item["relatedness"] for item in conj_data]
+            
+            # Calculate basic statistics
+            stats = {
+                "Pass Rate": {
+                    "min": min(pass_rates),
+                    "max": max(pass_rates),
+                    "mean": sum(pass_rates) / len(pass_rates),
+                    "median": sorted(pass_rates)[len(pass_rates) // 2],
+                },
+                "Novelty Score": {
+                    "min": min(novelty_scores),
+                    "max": max(novelty_scores),
+                    "mean": sum(novelty_scores) / len(novelty_scores),
+                    "median": sorted(novelty_scores)[len(novelty_scores) // 2],
+                },
+                "Relatedness Score": {
+                    "min": min(relatedness_scores),
+                    "max": max(relatedness_scores),
+                    "mean": sum(relatedness_scores) / len(relatedness_scores),
+                    "median": sorted(relatedness_scores)[len(relatedness_scores) // 2],
+                }
+            }
+            
+            # Print statistics
+            for metric, values in stats.items():
+                print(f"{metric}:")
+                for stat_name, stat_value in values.items():
+                    print(f"  {stat_name}: {stat_value:.4f}")
+            
+            # Create a histogram-like distribution
+            def distribution_summary(values, bins=10):
+                min_val, max_val = min(values), max(values)
+                bin_width = (max_val - min_val) / bins if max_val > min_val else 0.1
+                counts = [0] * bins
+                
+                for val in values:
+                    if bin_width > 0:
+                        bin_idx = min(int((val - min_val) / bin_width), bins - 1)
+                        counts[bin_idx] += 1
+                
+                result = []
+                for i in range(bins):
+                    lower = min_val + i * bin_width
+                    upper = min_val + (i + 1) * bin_width
+                    result.append(f"{lower:.2f}-{upper:.2f}: {counts[i]} items ({counts[i]/len(values)*100:.1f}%)")
+                return result
+            
+            print("\nDistributions:")
+            print("Pass Rate Distribution:")
+            for line in distribution_summary(pass_rates):
+                print(f"  {line}")
+            
+            print("Novelty Score Distribution:")
+            for line in distribution_summary(novelty_scores):
+                print(f"  {line}")
+            
+            print("Relatedness Score Distribution:")
+            for line in distribution_summary(relatedness_scores):
+                print(f"  {line}")
+        else:
+            print("No items in conj_data to analyze.")
+
+        # Save statistics to file
+        with open("cotraining_data/statistics.json", "w") as f:
+            json.dump({
+                "total_items": len(conj_data),
+                "pass_rates": pass_rates if conj_data else [],
+                "novelty_scores": novelty_scores if conj_data else [],
+                "relatedness_scores": relatedness_scores if conj_data else []
+            }, f, indent=2)
 
         # Write data to files
         with open("cotraining_data/conjecturer.jsonl", "w") as f:

@@ -174,8 +174,14 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         pure output
       | _ => do
         IO.println "world!"
+        -- let contains? := (head.diff.map (·.name) |>.contains ci.name)
+        -- let equal_types? := if contains? then
+        --   let eqs := head.diff.filter (fun c => c.name == ci.name)
+        --   eqs.map (fun c => c.type == ci.type) |>.any id
+        -- else
+        --   false
         pure <| msgs.isEmpty && head.trees.length > 0 && trimmed_output.trim != ""
-        && (head.diff.map (·.name) |>.contains ci.name)
+        -- && equal_types? && contains?
       let correct ← io_correct
 
       if correct then
@@ -398,7 +404,10 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
     -- IO.println "--------"
     -- IO.println s!"{model_output.trim.splitAtString "</IMPROVED>"}"
 
-    let trimmed_output? := match (model_output.trim.splitAtString "<IMPROVED>", model_output.trim.splitAtString "</IMPROVED>") with
+    let nonthinking_tokens := match model_output.trim.splitAtString "</think>" with
+      | some (_, after) => after
+      | none => model_output.trim
+    let trimmed_output? := match (nonthinking_tokens.trim.splitAtString "<IMPROVED>", nonthinking_tokens.trim.splitAtString "</IMPROVED>") with
     | (some (_, after), none) => some after
     | (none, some (before, _)) => some before
     | (some (_, after), some _) =>
