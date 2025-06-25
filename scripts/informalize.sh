@@ -18,4 +18,4 @@ export HF_HOME="/data/user_data/riyaza/HF"
 
 cd ~/eval_improver/improver
 
-python /home/riyaza/eval_improver/improver/ImProver/C1Graph/c3/informalize.py /home/riyaza/eval_improver/improver/data/tt_split_data_iter0.json --KG_dir KG3_i0 --cpus 12 --model deepseek-ai/DeepSeek-R1-Distill-Qwen-14B
+python ImProver/KG/informalize_direct.py /home/riyaza/eval_improver/improver/train/data/tt_split_data.json prompts --model deepseek-ai/DeepSeek-R1-Distill-Qwen-14B --cpus 12 --gpus 6
