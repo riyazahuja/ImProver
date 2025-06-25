@@ -2,7 +2,7 @@ import Lean
 import Lean.Meta.Basic
 import Lean.Meta.CollectMVars
 import Init.Data.String.Basic
-
+import ImProver.online.utils
 
 open Lean Elab Server Std String
 
@@ -388,25 +388,6 @@ partial def getLeaves (tree : ProofTree) : List ProofTree :=
 -- with T0 before B[0], R after B[0]. Replace B[0] with extract_goals; B[0] and then recurse on R
 -- with B[1]. We get back a list of strings T0, T1, ... and output append(T0, ...)
 
-def String.splitAtString (s : String) (pattern : String): Option (String × String) :=
-  if h : pattern.endPos.1 = 0 then none
-  else
-    have hPatt := Nat.zero_lt_of_ne_zero h
-    let rec loop (pos : String.Pos) :=
-      if h : pos.byteIdx + pattern.endPos.byteIdx > s.endPos.byteIdx then
-        none
-      else
-        have := Nat.lt_of_lt_of_le (Nat.add_lt_add_left hPatt _) (Nat.ge_of_not_lt h)
-        if s.substrEq pos pattern 0 pattern.endPos.byteIdx then
-          -- Found a match, return split strings
-          let before := s.extract 0 pos
-          let after := s.extract (pos + pattern) s.endPos
-          some (before, after)
-        else
-          have := Nat.sub_lt_sub_left this (lt_next s pos)
-          loop (s.next pos)
-      termination_by s.endPos.1 - pos.1
-    loop 0
 
 partial def insertBreakpoints (thm : String) (breakpoints : List ProofStep) : String :=
   match breakpoints with
