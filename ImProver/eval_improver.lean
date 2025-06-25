@@ -52,7 +52,7 @@ def String.getBetween (s: String) (left : String) (right : String) : Option Stri
   s.splitAtString left |>.getD (("", "")) |>.2 |>.splitAtString (right) |>.getD (("", "")) |>.1
 
 
-def getInitialProofState2 (cmd : CompilationStep) : IO String := do
+def getInitialProofState3 (cmd : CompilationStep) : IO String := do
   let env := cmd.after
   let ci? := cmd.diff.get? 0
 

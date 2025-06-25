@@ -169,7 +169,7 @@ def run_inference(df, args):
     ds = ray.data.from_pandas(df).repartition(max(1, args.gpus) * 8)
     ds = processor(ds).materialize()
 
-    output_dir = os.path.join(args.KG_dir, args.KG_id, "informal_data")
+    output_dir = os.path.join(args.prompts_dir, args.prompts_id, "informal_data")
     os.makedirs(output_dir, exist_ok=True)
     ds.write_parquet(f"local://{output_dir}")
     return output_dir

@@ -3,14 +3,18 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import os
 
 
+# Get the Hugging Face token from environment variable
+HF_TOKEN = os.environ.get("HF_TOKEN")
+if not HF_TOKEN:
+    raise ValueError("HF_TOKEN environment variable is not set")
 
 login(token=HF_TOKEN)
 
-repo_name = "riyazahuja/Q14-Conjecturer_informal"
+repo_name = "riyazahuja/Q14-completion_inf"
 
 # create_repo(repo_name, private=False)
 
-model_folder = "/data/user_data/riyaza/saved_models/Q14_conjecturer_inf/checkpoint-434"
+model_folder = "/data/user_data/riyaza/saved_models/Q14-completion_inf/checkpoint-1364"
 
 
 tokenizer = AutoTokenizer.from_pretrained(model_folder)

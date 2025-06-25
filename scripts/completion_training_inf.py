@@ -26,7 +26,8 @@ With this in mind, we can see that the informal proof of the theorem is as follo
 
 With this in mind, I will now output my final response as a correct and formal Lean4 Lean4 theorem conjecture wrapped in <IMPROVED>...</IMPROVED> tags.
 """
-    output = "<think>\n" + think + "\n</think>\n" + output
+    if inf_stmt is not None or inf_pf is not None:
+        output = "<think>\n" + think + "\n</think>\n" + output
     
     return {
         "instruction": instruction,
@@ -81,7 +82,7 @@ def main(args):
     for repo in dataset.keys():
         files_to_process = files_to_process + dataset[repo]
 
-    prompt_root = os.path.join(args.prompts_dir, args.metric)
+    prompt_root = os.path.join(args.prompts_dir, args.prompts_id)
     config_path = os.path.join(prompt_root, "config.json")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")
@@ -92,7 +93,7 @@ def main(args):
     df = []
 
 
-    conn = duckdb.connect(args.prompts_dir / args.prompts_id / "class3" / "informal_data.duckdb")
+    conn = duckdb.connect(os.path.join(args.prompts_dir, args.prompts_id, "informal_data.duckdb"))
         
     for file in files_to_process:
         file_path = os.path.join(prompt_root, file.replace(".lean", ".json"))
@@ -133,8 +134,9 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
-    parser.add_argument("metric", type=str, help="Metric to use for evaluation")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
+    parser.add_argument("prompts_id", type=str, help="Path to dataset JSON file")
+
     parser.add_argument(
         "--split",
         type=str,
@@ -144,8 +146,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prompts_dir",
         type=str,
-        default="prompts/",
-        help="Directory of prompt data (default: prompts/)",
+        default=".prompts/",
+        help="Directory of prompt data (default: .prompts/)",
     )
     parser.add_argument(
         "--output_dir",
