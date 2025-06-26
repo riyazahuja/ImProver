@@ -1,0 +1,19 @@
+#!/bin/bash
+
+#SBATCH --job-name=Q14_infer_conj2
+#SBATCH --output=logs/Q14_infer_conj2.out
+#SBATCH --error=logs/Q14_infer_conj2.err
+#SBATCH --cpus-per-task=12
+#SBATCH --time=1-00:00:00
+#SBATCH --gres=gpu:A100_80GB:2
+#SBATCH --mem=150G
+
+
+source $HOME/miniconda3/bin/activate env
+
+
+export HF_HOME="/data/user_data/riyaza/HF"
+
+cd ~/eval_improver/improver
+
+python /home/riyaza/eval_improver/improver/ImProver/inference.py conjecturer /home/riyaza/eval_improver/improver/train/data/tt_split_data_iter0.json prompts_reformat_test --split test --cpus 12 --gpus 2 --n 32 --model deepseek-ai/DeepSeek-R1-Distill-Qwen-14B

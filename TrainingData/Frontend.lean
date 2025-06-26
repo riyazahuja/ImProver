@@ -90,6 +90,7 @@ structure CompilationStep where
   parserStateBefore : Parser.ModuleParserState
   commandStateBefore : Command.State
 
+
 namespace CompilationStep
 
 /--

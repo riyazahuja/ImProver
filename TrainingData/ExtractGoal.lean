@@ -12,10 +12,14 @@ def delabTypeSignature (name : Name) : Delab := do
     delabConstWithSignature.delabParams {} (mkIdent name) #[]
 
 open Tactic PrettyPrinter in
-def stateAsSignature (noRevertFVarIds : Array FVarId) (zeta_reduce : Bool := true): TacticM MessageData := do
+def stateAsSignature (noRevertFVarIds : Array FVarId) (zeta_reduce : Bool := true) (all? : Bool := false): TacticM MessageData := do
   -- This is copied from extract_goal in mathlib
   let name : Name := `extracted
-  withOptions (pp.funBinderTypes.set · true
+
+  let options := if all? then
+    (pp.all.set · true)
+  else
+    (pp.funBinderTypes.set · true
     |> (pp.universes.set · false)
     |> (pp.coercions.set · true)
     |> (pp.coercions.types.set · true)
@@ -27,7 +31,9 @@ def stateAsSignature (noRevertFVarIds : Array FVarId) (zeta_reduce : Bool := tru
     -- |> (pp.explicit.set · true)
     |> (pp.instanceTypes.set · true)
     |> (pp.structureInstanceTypes.set · true)
-    ) do
+    )
+
+  withOptions options do
   -- withOptions (pp.all.set · true) do
   withoutModifyingEnv <| withoutModifyingState do
     let g ← getMainGoal
@@ -69,7 +75,7 @@ elab "better_extract_goal" : tactic => do
   -- let fvars := (← getLCtx).getFVarIds
 
   logInfo (← stateAsSignature #[])
-  logInfo (← stateAsSignature #[] false)
+  logInfo (← stateAsSignature #[] false true)
   -- let cstr := (← content.toString).trim
   -- logInfo m!"set_option autoImplicit true in\n{cstr}"
   -- let limit := 6

@@ -96,24 +96,26 @@ Now, informalize the following theorem and proof, which is wrapped in <FORMAL>..
     return prompt
 
 
-def collect_prompts(kg_dir, dataset_path, split="train", include_context=False):
+def collect_prompts(prompts_dir, dataset_path, split="train", include_context=False):
     with open(dataset_path, "r") as f:
         all_ds = json.load(f)
         dataset = all_ds[split]
     files = []
     for repo in dataset.values():
         files.extend(repo)
-    modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
+        
+    files_real = [file_info if type(file_info) is str else file_info["file"] for file_info in files]
+    modules = set(f.replace(".lean", "").replace("/", ".") for f in files_real)
 
     prompts = []
     truncation_count = 0
-    for root, _, files in os.walk(kg_dir):
+    for root, _, files in os.walk(prompts_dir):
         for file in files:
             if not file.endswith(".json"):
                 continue
             if file == "config.json":
                 continue
-            module_path = os.path.relpath(os.path.join(root, file), kg_dir)
+            module_path = os.path.relpath(os.path.join(root, file), prompts_dir)
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
@@ -172,14 +174,14 @@ def run_inference(df, args):
     ds = ray.data.from_pandas(df).repartition(max(1, args.gpus) * 8)
     ds = processor(ds).materialize()
 
-    output_dir = os.path.join(args.KG_dir, args.KG_id, "informal_data")
+    output_dir = os.path.join(args.prompts_dir, args.prompts_id, "informal_data")
     os.makedirs(output_dir, exist_ok=True)
     ds.write_parquet(f"local://{output_dir}")
     return output_dir
 
 
-def populate_database(output_dir, kg_dir):
-    db_path = os.path.join(kg_dir, "informal_data.duckdb")
+def populate_database(output_dir, prompts_dir):
+    db_path = os.path.join(prompts_dir, "informal_data.duckdb")
     con = duckdb.connect(db_path)
     con.execute("DROP TABLE IF EXISTS informal_data")
     con.execute(f"CREATE TABLE informal_data AS SELECT * FROM read_parquet('{output_dir}/*.parquet')")
@@ -201,9 +203,9 @@ def populate_database(output_dir, kg_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Informalize theorems")
     parser.add_argument("dataset_path", type=str)
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("prompts_id", type=str)
     parser.add_argument("--split", type=str, default="train")
-    parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
+    parser.add_argument("--prompts_dir", type=str, default=".knowledge_graphs")
     parser.add_argument("--include_context", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
     parser.add_argument(
@@ -229,9 +231,9 @@ if __name__ == "__main__":
     MAX_PROMPT_TOKENS = 16384 - 2048   # model context minus generation tokens
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
 
-    df = collect_prompts(os.path.join(args.KG_dir,args.KG_id), args.dataset_path, args.split, args.include_context)
+    df = collect_prompts(os.path.join(args.prompts_dir,args.prompts_id,"src"), args.dataset_path, args.split, args.include_context)
     if len(df) == 0:
         print("No theorems to process")
         exit()
     output_dir = run_inference(df, args)
-    populate_database(output_dir, os.path.join(args.KG_dir,args.KG_id))
+    populate_database(output_dir, os.path.join(args.prompts_dir,args.prompts_id))

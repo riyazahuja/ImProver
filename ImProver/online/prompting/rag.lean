@@ -154,7 +154,7 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo))
   let out ← IO.Process.output {
     cmd := python_cmd,
     -- cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
-    args := #["ImProver/prompting/rag_batched.py", data.compress]
+    args := #["ImProver/online/prompting/rag_batched.py", data.compress]
   }
 
   let stdout := out.stdout.trim

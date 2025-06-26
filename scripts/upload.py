@@ -10,11 +10,11 @@ if not HF_TOKEN:
 
 login(token=HF_TOKEN)
 
-repo_name = "riyazahuja/Q14-completion_inf"
+repo_name = "riyazahuja/coder_completion_informal"
 
 # create_repo(repo_name, private=False)
 
-model_folder = "/data/user_data/riyaza/saved_models/Q14-completion_inf/checkpoint-1364"
+model_folder = "/data/user_data/riyaza/saved_models/coder-completion_informal"
 
 
 tokenizer = AutoTokenizer.from_pretrained(model_folder)

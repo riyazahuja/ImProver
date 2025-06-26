@@ -44,7 +44,12 @@ def main(args):
     files = []
     for repo in dataset.values():
         files.extend(repo)
-    modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
+        
+    
+    files_real = [file_info if type(file_info) is str else file_info["file"] for file_info in files]
+    modules = set(f.replace(".lean", "").replace("/", ".") for f in files_real)
+
+    # modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
 
 
     informal_path = os.path.join(args.KG_dir, args.KG_id, "informal_data.duckdb")

@@ -174,12 +174,12 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         pure output
       | _ => do
         IO.println "world!"
-        -- let contains? := (head.diff.map (·.name) |>.contains ci.name)
-        -- let equal_types? := if contains? then
-        --   let eqs := head.diff.filter (fun c => c.name == ci.name)
-        --   eqs.map (fun c => c.type == ci.type) |>.any id
-        -- else
-        --   false
+        let contains? := (head.diff.map (·.name) |>.contains ci.name)
+        let equal_types? := if contains? then
+          let eqs := head.diff.filter (fun c => c.name == ci.name)
+          eqs.map (fun c => c.type == ci.type) |>.any id
+        else
+          false
         pure <| msgs.isEmpty && head.trees.length > 0 && trimmed_output.trim != ""
         -- && equal_types? && contains?
       let correct ← io_correct
