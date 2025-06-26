@@ -60,17 +60,31 @@ def make_config(args):
     print(f"Configuration saved to {config_file}")
 
 
-async def calculate_prompt(file, args):
+async def calculate_prompt(file_info, args):
+    if type(file_info) is str:
+        file = file_info
+        theorems = []
+    elif type(file_info) is dict:
+        file = file_info["file"]
+        theorems = file_info.get("theorems", [])
+    else:
+        print(f">>> Invalid file info type: {type(file_info)}")
+        return
+
+    
+    
+    
     st = time.time()
     cmd = [
         "lake",
         "exe",
         "get_prompts",
         file.replace("/", ".").replace(".lean", ""),
-        os.path.join(args.prompts_dir, args.prompt_id),
+        os.path.join(args.prompts_dir, args.prompt_id, "src"),
         args.python_cmd,
+        ",".join(theorems) if theorems else ""
     ]
-    # print(cmd)
+    print(" ".join(cmd))
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -121,7 +135,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
-    parser.add_argument("prompt_id", type=str)
+    parser.add_argument("--prompt_id", type=str, default="prompts_" + datetime.now().strftime("%Y%m%d_%H%M%S")),
 
     parser.add_argument(
         "--split",

@@ -1,0 +1,976 @@
+[{"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- This is a relative version of\n`ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem`, which we recover by setting\n`f` to be the identity map. This is also a geometric interpretation of the Farkas' lemma\nstated using proper cones. -/\ntheorem hyperplane_separation (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F} :\n    b ∈ K.map f ↔ ∀ y : F, adjoint f y ∈ K.dual → 0 ≤ ⟪y, b⟫_ℝ :=\n  Iff.intro\n    (by\n      -- suppose `b ∈ K.map f`\n      simp_rw [mem_map, PointedCone.mem_closure, PointedCone.coe_map, coe_coe,\n        mem_closure_iff_seq_limit, mem_image, SetLike.mem_coe, mem_coe, mem_dual,\n        adjoint_inner_right, forall_exists_index, and_imp]\n      -- there is a sequence `seq : ℕ → F` in the image of `f` that converges to `b`\n      rintro seq hmem htends y hinner\n      suffices h : ∀ n, 0 ≤ ⟪y, seq n⟫_ℝ from\n        ge_of_tendsto'\n          (Continuous.seqContinuous (Continuous.inner (@continuous_const _ _ _ _ y) continuous_id)\n            htends)\n          h\n      intro n\n      obtain ⟨_, h, hseq⟩ := hmem n\n      simpa only [← hseq, real_inner_comm] using hinner h)\n    (by\n      -- proof by contradiction\n      -- suppose `b ∉ K.map f`\n      intro h\n      contrapose! h\n      -- as `b ∉ K.map f`, there is a hyperplane `y` separating `b` from `K.map f`\n      let C := @PointedCone.toConvexCone ℝ F _ _ _ (K.map f)\n      obtain ⟨y, hxy, hyb⟩ :=\n        @ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem\n        _ _ _ _ C (K.map f).nonempty (K.map f).isClosed b h\n      -- the rest of the proof is a straightforward algebraic manipulation\n      refine ⟨y, ?_, hyb⟩\n      simp_rw [ProperCone.mem_dual, adjoint_inner_right]\n      intro x hxK\n      apply hxy (f x)\n      simp_rw [C, coe_map]\n      apply subset_closure\n      simp_rw [PointedCone.toConvexCone_map, ConvexCone.coe_map, coe_coe, mem_image,\n        SetLike.mem_coe]\n      exact ⟨x, hxK, rfl⟩)",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]",
+   "--src: Mathlib.Analysis.InnerProductSpace.Adjoint\ntheorem adjointAux_inner_right (A : E →L[\u0000\u0000] F) (x : E) (y : F) :\n    ⟪x, adjointAux A y⟫ = ⟪A x, y⟫ := by\n  rw [← inner_conj_symm, adjointAux_inner_left, inner_conj_symm]",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem toConvexCone_map (S : PointedCone \u0000\u0000 E) (f : E →ₗ[\u0000\u0000] F) :\n    (S.map f : ConvexCone \u0000\u0000 F) = (S : ConvexCone \u0000\u0000 E).map f :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\nprotected theorem mem_closure {K : ConvexCone \u0000\u0000 E} {a : E} :\n    a ∈ K.closure ↔ a ∈ closure (K : Set E) :=\n  Iff.rfl"],
+  "id":
+  {"name": "ProperCone.hyperplane_separation_of_nmem",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝⁵ : NormedAddCommGroup E\ninst✝⁴ : InnerProductSpace Real E\ninst✝³ : CompleteSpace E\nF : Type u_2\ninst✝² : NormedAddCommGroup F\ninst✝¹ : InnerProductSpace Real F\ninst✝ : CompleteSpace F\nK : ProperCone Real E\nf : ContinuousLinearMap (RingHom.id Real) E F\nb : F\ndisj : Not (Membership.mem (ProperCone.map f K) b)\n⊢ Exists fun y => And (Membership.mem K.dual ((ContinuousLinearMap.adjoint f) y)) (LT.lt (Inner.inner y b) 0)",
+  "content_sorry":
+  "theorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  sorry",
+  "annotation":
+  "theorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  /-\n    E : Type u_1\n    inst✝⁵ : NormedAddCommGroup E\n    inst✝⁴ : InnerProductSpace Real E\n    inst✝³ : CompleteSpace E\n    F : Type u_2\n    inst✝² : NormedAddCommGroup F\n    inst✝¹ : InnerProductSpace Real F\n    inst✝ : CompleteSpace F\n    K : ProperCone Real E\n    f : ContinuousLinearMap (RingHom.id Real) E F\n    b : F\n    disj : Not (Membership.mem (ProperCone.map f K) b)\n    ⊢ Exists fun y => And (Membership.mem K.dual ((ContinuousLinearMap.adjoint f)  …\n  -/\n  contrapose! disj; rwa [K.hyperplane_separation]\n                    /-\n                      🎉 no goals\n                    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- This is a relative version of\n`ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem`, which we recover by setting\n`f` to be the identity map. This is also a geometric interpretation of the Farkas' lemma\nstated using proper cones. -/\ntheorem hyperplane_separation (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F} :\n    b ∈ K.map f ↔ ∀ y : F, adjoint f y ∈ K.dual → 0 ≤ ⟪y, b⟫_ℝ :=\n  Iff.intro\n    (by\n      -- suppose `b ∈ K.map f`\n      simp_rw [mem_map, PointedCone.mem_closure, PointedCone.coe_map, coe_coe,\n        mem_closure_iff_seq_limit, mem_image, SetLike.mem_coe, mem_coe, mem_dual,\n        adjoint_inner_right, forall_exists_index, and_imp]\n      -- there is a sequence `seq : ℕ → F` in the image of `f` that converges to `b`\n      rintro seq hmem htends y hinner\n      suffices h : ∀ n, 0 ≤ ⟪y, seq n⟫_ℝ from\n        ge_of_tendsto'\n          (Continuous.seqContinuous (Continuous.inner (@continuous_const _ _ _ _ y) continuous_id)\n            htends)\n          h\n      intro n\n      obtain ⟨_, h, hseq⟩ := hmem n\n      simpa only [← hseq, real_inner_comm] using hinner h)\n    (by\n      -- proof by contradiction\n      -- suppose `b ∉ K.map f`\n      intro h\n      contrapose! h\n      -- as `b ∉ K.map f`, there is a hyperplane `y` separating `b` from `K.map f`\n      let C := @PointedCone.toConvexCone ℝ F _ _ _ (K.map f)\n      obtain ⟨y, hxy, hyb⟩ :=\n        @ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem\n        _ _ _ _ C (K.map f).nonempty (K.map f).isClosed b h\n      -- the rest of the proof is a straightforward algebraic manipulation\n      refine ⟨y, ?_, hyb⟩\n      simp_rw [ProperCone.mem_dual, adjoint_inner_right]\n      intro x hxK\n      apply hxy (f x)\n      simp_rw [C, coe_map]\n      apply subset_closure\n      simp_rw [PointedCone.toConvexCone_map, ConvexCone.coe_map, coe_coe, mem_image,\n        SetLike.mem_coe]\n      exact ⟨x, hxK, rfl⟩)",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K :=\n  ProperCone.toPointedCone_injective <| PointedCone.toConvexCone_injective <|\n    (K : ConvexCone ℝ E).innerDualCone_of_innerDualCone_eq_self K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.InnerProductSpace.Adjoint\n/-- The fundamental property of the adjoint. -/\ntheorem adjoint_inner_left (A : E →L[\u0000\u0000] F) (x : E) (y : F) : ⟪(A†) y, x⟫ = ⟪y, A x⟫ :=\n  adjointAux_inner_left A x y",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {S : PointedCone ℝ E} {y : E} : y ∈ dual S ↔ ∀ ⦃x⦄, x ∈ S → 0 ≤ ⟪x, y⟫_ℝ := by\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\ntheorem closure_eq {K L : PointedCone \u0000\u0000 E} : K.closure = L ↔ closure (K : Set E) = L :=\n  SetLike.ext'_iff"],
+  "id":
+  {"name": "ProperCone.hyperplane_separation",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- This is a relative version of\n`ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem`, which we recover by setting\n`f` to be the identity map. This is also a geometric interpretation of the Farkas' lemma\nstated using proper cones. -/\ntheorem hyperplane_separation (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F} :\n    b ∈ K.map f ↔ ∀ y : F, adjoint f y ∈ K.dual → 0 ≤ ⟪y, b⟫_ℝ :=\n  Iff.intro\n    (by\n      -- suppose `b ∈ K.map f`\n      simp_rw [mem_map, PointedCone.mem_closure, PointedCone.coe_map, coe_coe,\n        mem_closure_iff_seq_limit, mem_image, SetLike.mem_coe, mem_coe, mem_dual,\n        adjoint_inner_right, forall_exists_index, and_imp]\n\n      -- there is a sequence `seq : ℕ → F` in the image of `f` that converges to `b`\n      rintro seq hmem htends y hinner\n      suffices h : ∀ n, 0 ≤ ⟪y, seq n⟫_ℝ from\n        ge_of_tendsto'\n          (Continuous.seqContinuous (Continuous.inner (@continuous_const _ _ _ _ y) continuous_id)\n            htends)\n          h\n      intro n\n      obtain ⟨_, h, hseq⟩ := hmem n\n      simpa only [← hseq, real_inner_comm] using hinner h)\n    (by\n      -- proof by contradiction\n      -- suppose `b ∉ K.map f`\n      intro h\n      contrapose! h\n\n      -- as `b ∉ K.map f`, there is a hyperplane `y` separating `b` from `K.map f`\n      let C := @PointedCone.toConvexCone ℝ F _ _ _ (K.map f)\n      obtain ⟨y, hxy, hyb⟩ :=\n        @ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem\n        _ _ _ _ C (K.map f).nonempty (K.map f).isClosed b h\n\n      -- the rest of the proof is a straightforward algebraic manipulation\n      refine ⟨y, ?_, hyb⟩\n      simp_rw [ProperCone.mem_dual, adjoint_inner_right]\n      intro x hxK\n      apply hxy (f x)\n      simp_rw [C, coe_map]\n      apply subset_closure\n      simp_rw [PointedCone.toConvexCone_map, ConvexCone.coe_map, coe_coe, mem_image,\n        SetLike.mem_coe]\n      exact ⟨x, hxK, rfl⟩)\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝⁵ : NormedAddCommGroup E\ninst✝⁴ : InnerProductSpace Real E\ninst✝³ : CompleteSpace E\nF : Type u_2\ninst✝² : NormedAddCommGroup F\ninst✝¹ : InnerProductSpace Real F\ninst✝ : CompleteSpace F\nK : ProperCone Real E\nf : ContinuousLinearMap (RingHom.id Real) E F\nb : F\n⊢ Iff (Membership.mem (ProperCone.map f K) b) (∀ (y : F), Membership.mem K.dual ((ContinuousLinearMap.adjoint f) y) → LE.le 0 (Inner.inner y b))",
+  "content_sorry":
+  "/-- This is a relative version of\n`ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem`, which we recover by setting\n`f` to be the identity map. This is also a geometric interpretation of the Farkas' lemma\nstated using proper cones. -/\ntheorem hyperplane_separation (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F} :\n    b ∈ K.map f ↔ ∀ y : F, adjoint f y ∈ K.dual → 0 ≤ ⟪y, b⟫_ℝ :=\n  Iff.intro\n    (by\n      -- suppose `b ∈ K.map f`\n      sorry",
+  "annotation":
+  "/-- This is a relative version of\n`ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem`, which we recover by setting\n`f` to be the identity map. This is also a geometric interpretation of the Farkas' lemma\nstated using proper cones. -/\ntheorem hyperplane_separation (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F} :\n    b ∈ K.map f ↔ ∀ y : F, adjoint f y ∈ K.dual → 0 ≤ ⟪y, b⟫_ℝ :=\n  Iff.intro\n    (by\n      -- suppose `b ∈ K.map f`\n      simp_rw [mem_map, PointedCone.mem_closure, PointedCone.coe_map, coe_coe,\n        mem_closure_iff_seq_limit, mem_image, SetLike.mem_coe, mem_coe, mem_dual,\n        adjoint_inner_right, forall_exists_index, and_imp]\n\n      -- there is a sequence `seq : ℕ → F` in the image of `f` that converges to `b`\n      /-\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        ⊢ ∀ (x : Nat → F), (∀ (n : Nat), Exists fun x_1 => And (Membership.mem K x_1)  …\n      -/\n      rintro seq hmem htends y hinner\n      suffices h : ∀ n, 0 ≤ ⟪y, seq n⟫_ℝ from\n        ge_of_tendsto'\n          (Continuous.seqContinuous (Continuous.inner (@continuous_const _ _ _ _ y) continuous_id)\n            htends)\n          h\n      /-\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        seq : Nat → F\n        hmem : ∀ (n : Nat), Exists fun x => And (Membership.mem K x) (Eq (f x) (seq n))\n        htends : Filter.Tendsto seq Filter.atTop (nhds b)\n        y : F\n        hinner : ∀ ⦃x : E⦄, Membership.mem K x → LE.le 0 (Inner.inner (f x) y)\n        ⊢ ∀ (n : Nat), LE.le 0 (Inner.inner y (seq n))\n      -/\n      intro n\n      /-\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        seq : Nat → F\n        hmem : ∀ (n : Nat), Exists fun x => And (Membership.mem K x) (Eq (f x) (seq n))\n        htends : Filter.Tendsto seq Filter.atTop (nhds b)\n        y : F\n        hinner : ∀ ⦃x : E⦄, Membership.mem K x → LE.le 0 (Inner.inner (f x) y)\n        n : Nat\n        ⊢ LE.le 0 (Inner.inner y (seq n))\n      -/\n      obtain ⟨_, h, hseq⟩ := hmem n\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        seq : Nat → F\n        hmem : ∀ (n : Nat), Exists fun x => And (Membership.mem K x) (Eq (f x) (seq n))\n        htends : Filter.Tendsto seq Filter.atTop (nhds b)\n        y : F\n        hinner : ∀ ⦃x : E⦄, Membership.mem K x → LE.le 0 (Inner.inner (f x) y)\n        n : Nat\n        w✝ : E\n        h : Membership.mem K w✝\n        hseq : Eq (f w✝) (seq n)\n        ⊢ LE.le 0 (Inner.inner y (seq n))\n      -/\n      simpa only [← hseq, real_inner_comm] using hinner h)\n      /-\n        🎉 no goals\n      -/\n    (by\n      -- proof by contradiction\n      -- suppose `b ∉ K.map f`\n      /-\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        ⊢ (∀ (y : F), Membership.mem K.dual ((ContinuousLinearMap.adjoint f) y) → LE.l …\n      -/\n      intro h\n      /-\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : ∀ (y : F), Membership.mem K.dual ((ContinuousLinearMap.adjoint f) y) → LE. …\n        ⊢ Membership.mem (ProperCone.map f K) b\n      -/\n      contrapose! h\n\n      -- as `b ∉ K.map f`, there is a hyperplane `y` separating `b` from `K.map f`\n      /-\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        ⊢ Exists fun y => And (Membership.mem K.dual ((ContinuousLinearMap.adjoint f)  …\n      -/\n      let C := @PointedCone.toConvexCone ℝ F _ _ _ (K.map f)\n      obtain ⟨y, hxy, hyb⟩ :=\n        @ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem\n        _ _ _ _ C (K.map f).nonempty (K.map f).isClosed b h\n\n      -- the rest of the proof is a straightforward algebraic manipulation\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        ⊢ Exists fun y => And (Membership.mem K.dual ((ContinuousLinearMap.adjoint f)  …\n      -/\n      refine ⟨y, ?_, hyb⟩\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        ⊢ Membership.mem K.dual ((ContinuousLinearMap.adjoint f) y)\n      -/\n      simp_rw [ProperCone.mem_dual, adjoint_inner_right]\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        ⊢ ∀ ⦃x : E⦄, Membership.mem K x → LE.le 0 (Inner.inner (f x) y)\n      -/\n      intro x hxK\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        x : E\n        hxK : Membership.mem K x\n        ⊢ LE.le 0 (Inner.inner (f x) y)\n      -/\n      apply hxy (f x)\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        x : E\n        hxK : Membership.mem K x\n        ⊢ Membership.mem C (f x)\n      -/\n      simp_rw [C, coe_map]\n      /-\n        case intro.intro\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        x : E\n        hxK : Membership.mem K x\n        ⊢ Membership.mem (↑(PointedCone.map ↑f ↑K).closure) (f x)\n      -/\n      apply subset_closure\n      simp_rw [PointedCone.toConvexCone_map, ConvexCone.coe_map, coe_coe, mem_image,\n        SetLike.mem_coe]\n      /-\n        case intro.intro.a\n        E : Type u_1\n        inst✝⁵ : NormedAddCommGroup E\n        inst✝⁴ : InnerProductSpace Real E\n        inst✝³ : CompleteSpace E\n        F : Type u_2\n        inst✝² : NormedAddCommGroup F\n        inst✝¹ : InnerProductSpace Real F\n        inst✝ : CompleteSpace F\n        K : ProperCone Real E\n        f : ContinuousLinearMap (RingHom.id Real) E F\n        b : F\n        h : Not (Membership.mem (ProperCone.map f K) b)\n        C : ConvexCone Real F := ↑↑(ProperCone.map f K)\n        y : F\n        hxy : ∀ (x : F), Membership.mem C x → LE.le 0 (Inner.inner x y)\n        hyb : LT.lt (Inner.inner y b) 0\n        x : E\n        hxK : Membership.mem K x\n        ⊢ Exists fun x_1 => And (Membership.mem (↑↑K) x_1) (Eq (f x_1) (f x))\n      -/\n      exact ⟨x, hxK, rfl⟩)\n      /-\n        🎉 no goals\n      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "SetLike.mem_coe",
+    "module": "Mathlib.Data.SetLike.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_coe {x : B} : x ∈ (p : Set B) ↔ x ∈ p :=\n  Iff.rfl"},
+   {"name": "ConvexCone.coe_map",
+    "module": "Mathlib.Analysis.Convex.Cone.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_map (S : ConvexCone 𝕜 E) (f : E →ₗ[𝕜] F) : (S.map f : Set F) = f '' S :=\n  rfl"},
+   {"name": "PointedCone.toConvexCone_map",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem toConvexCone_map (S : PointedCone 𝕜 E) (f : E →ₗ[𝕜] F) :\n    (S.map f : ConvexCone 𝕜 F) = (S : ConvexCone 𝕜 E).map f :=\n  rfl"},
+   {"name": "subset_closure",
+    "module": "Mathlib.Topology.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem subset_closure : s ⊆ closure s :=\n  subset_sInter fun _ => And.right"},
+   {"name": "ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem",
+    "module": "Mathlib.Analysis.Convex.Cone.InnerDual",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- This is a stronger version of the Hahn-Banach separation theorem for closed convex cones. This\nis also the geometric interpretation of Farkas' lemma. -/\ntheorem ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) {b : H} (disj : b ∉ K) :\n    ∃ y : H, (∀ x : H, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ) ∧ ⟪y, b⟫_ℝ < 0 := by\n  -- let `z` be the point in `K` closest to `b`\n  obtain ⟨z, hzK, infi⟩ := exists_norm_eq_iInf_of_complete_convex ne hc.isComplete K.convex b\n  -- for any `w` in `K`, we have `⟪b - z, w - z⟫_ℝ ≤ 0`\n  have hinner := (norm_eq_iInf_iff_real_inner_le_zero K.convex hzK).1 infi\n  -- set `y := z - b`\n  use z - b\n  constructor\n  · -- the rest of the proof is a straightforward calculation\n    rintro x hxK\n    specialize hinner _ (K.add_mem hxK hzK)\n    rwa [add_sub_cancel_right, real_inner_comm, ← neg_nonneg, neg_eq_neg_one_mul,\n      ← real_inner_smul_right, neg_smul, one_smul, neg_sub] at hinner\n  · -- as `K` is closed and non-empty, it is pointed\n    have hinner₀ := hinner 0 (K.pointed_of_nonempty_of_isClosed ne hc)\n    -- the rest of the proof is a straightforward calculation\n    rw [zero_sub, inner_neg_right, Right.neg_nonpos_iff] at hinner₀\n    have hbz : b - z ≠ 0 := by\n      rw [sub_ne_zero]\n      contrapose! hzK\n      rwa [← hzK]\n    rw [← neg_zero, lt_neg, ← neg_one_mul, ← real_inner_smul_left, smul_sub, neg_smul, one_smul,\n      neg_smul, neg_sub_neg, one_smul]\n    calc\n      0 < ⟪b - z, b - z⟫_ℝ := lt_of_not_le ((Iff.not real_inner_self_nonpos).2 hbz)\n      _ = ⟪b - z, b - z⟫_ℝ + 0 := (add_zero _).symm\n      _ ≤ ⟪b - z, b - z⟫_ℝ + ⟪b - z, z⟫_ℝ := add_le_add rfl.ge hinner₀\n      _ = ⟪b - z, b - z + z⟫_ℝ := (inner_add_right _ _ _).symm\n      _ = ⟪b - z, b⟫_ℝ := by rw [sub_add_cancel]"},
+   {"name": "PointedCone.toConvexCone",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Every pointed cone is a convex cone. -/\n@[coe]\ndef toConvexCone (S : PointedCone 𝕜 E) : ConvexCone 𝕜 E where\n  carrier := S\n  smul_mem' c hc _ hx := S.smul_mem ⟨c, le_of_lt hc⟩ hx\n  add_mem' _ hx _ hy := S.add_mem hx hy"},
+   {"name": "real_inner_comm",
+    "module": "Mathlib.Analysis.InnerProductSpace.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem real_inner_comm (x y : F) : ⟪y, x⟫_ℝ = ⟪x, y⟫_ℝ :=\n  @inner_conj_symm ℝ _ _ _ _ x y"},
+   {"name": "continuous_id",
+    "module": "Mathlib.Topology.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[continuity]\ntheorem continuous_id : Continuous (id : X → X) :=\n  continuous_def.2 fun _ => id"},
+   {"name": "continuous_const",
+    "module": "Mathlib.Topology.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[continuity, fun_prop]\ntheorem continuous_const : Continuous fun _ : X => y :=\n  continuous_iff_continuousAt.mpr fun _ => continuousAt_const"},
+   {"name": "Continuous.inner",
+    "module": "Mathlib.Analysis.InnerProductSpace.Continuous",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[continuity, fun_prop]\ntheorem Continuous.inner (hf : Continuous f) (hg : Continuous g) : Continuous fun t => ⟪f t, g t⟫ :=\n  continuous_iff_continuousAt.2 fun _x => by fun_prop"},
+   {"name": "Continuous.seqContinuous",
+    "module": "Mathlib.Topology.Sequences",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem Continuous.seqContinuous {f : X → Y} (hf : Continuous f) : SeqContinuous f :=\n  fun _x p hx => (hf.tendsto p).comp hx"},
+   {"name": "ge_of_tendsto'",
+    "module": "Mathlib.Topology.Order.OrderClosed",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem ge_of_tendsto' {x : Filter β} [NeBot x] (lim : Tendsto f x (𝓝 a))\n    (h : ∀ c, b ≤ f c) : b ≤ a :=\n  ge_of_tendsto lim (Eventually.of_forall h)"},
+   {"name": "and_imp",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_imp : (a ∧ b → c) ↔ (a → b → c) := ⟨fun h ha hb => h ⟨ha, hb⟩, fun h ⟨ha, hb⟩ => h ha hb⟩"},
+   {"name": "forall_exists_index",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nAs `simp` does not index foralls, this `@[simp]` lemma is tried on every `forall` expression.\nThis is not ideal, and likely a performance issue, but it is difficult to remove this attribute at this time.\n-/\n@[simp] theorem forall_exists_index {q : (∃ x, p x) → Prop} :\n    (∀ h, q h) ↔ ∀ x (h : p x), q ⟨x, h⟩ :=\n  ⟨fun h x hpx => h ⟨x, hpx⟩, fun h ⟨x, hpx⟩ => h x hpx⟩"},
+   {"name": "SetLike.mem_coe",
+    "module": "Mathlib.Data.SetLike.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_coe {x : B} : x ∈ (p : Set B) ↔ x ∈ p :=\n  Iff.rfl"},
+   {"name": "mem_closure_iff_seq_limit",
+    "module": "Mathlib.Topology.Sequences",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- In a Fréchet-Urysohn space, a point belongs to the closure of a set iff it is a limit\nof a sequence taking values in this set. -/\ntheorem mem_closure_iff_seq_limit [FrechetUrysohnSpace X] {s : Set X} {a : X} :\n    a ∈ closure s ↔ ∃ x : ℕ → X, (∀ n : ℕ, x n ∈ s) ∧ Tendsto x atTop (𝓝 a) := by\n  rw [← seqClosure_eq_closure]\n  rfl"},
+   {"name": "PointedCone.coe_map",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_map (S : PointedCone 𝕜 E) (f : E →ₗ[𝕜] F) : (S.map f : Set F) = f '' S :=\n  rfl"},
+   {"name": "PointedCone.mem_closure",
+    "module": "Mathlib.Analysis.Convex.Cone.Closure",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nprotected theorem mem_closure {K : PointedCone 𝕜 E} {a : E} :\n    a ∈ K.closure ↔ a ∈ closure (K : Set E) :=\n  Iff.rfl"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K :=\n  ProperCone.toPointedCone_injective <| PointedCone.toConvexCone_injective <|\n    (K : ConvexCone ℝ E).innerDualCone_of_innerDualCone_eq_self K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem toConvexCone_dual (S : PointedCone ℝ E) : ↑(dual S) = (S : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- This is a relative version of\n`ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem`, which we recover by setting\n`f` to be the identity map. This is also a geometric interpretation of the Farkas' lemma\nstated using proper cones. -/\ntheorem hyperplane_separation (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F} :\n    b ∈ K.map f ↔ ∀ y : F, adjoint f y ∈ K.dual → 0 ≤ ⟪y, b⟫_ℝ :=\n  Iff.intro\n    (by\n      -- suppose `b ∈ K.map f`\n      simp_rw [mem_map, PointedCone.mem_closure, PointedCone.coe_map, coe_coe,\n        mem_closure_iff_seq_limit, mem_image, SetLike.mem_coe, mem_coe, mem_dual,\n        adjoint_inner_right, forall_exists_index, and_imp]\n      -- there is a sequence `seq : ℕ → F` in the image of `f` that converges to `b`\n      rintro seq hmem htends y hinner\n      suffices h : ∀ n, 0 ≤ ⟪y, seq n⟫_ℝ from\n        ge_of_tendsto'\n          (Continuous.seqContinuous (Continuous.inner (@continuous_const _ _ _ _ y) continuous_id)\n            htends)\n          h\n      intro n\n      obtain ⟨_, h, hseq⟩ := hmem n\n      simpa only [← hseq, real_inner_comm] using hinner h)\n    (by\n      -- proof by contradiction\n      -- suppose `b ∉ K.map f`\n      intro h\n      contrapose! h\n      -- as `b ∉ K.map f`, there is a hyperplane `y` separating `b` from `K.map f`\n      let C := @PointedCone.toConvexCone ℝ F _ _ _ (K.map f)\n      obtain ⟨y, hxy, hyb⟩ :=\n        @ConvexCone.hyperplane_separation_of_nonempty_of_isClosed_of_nmem\n        _ _ _ _ C (K.map f).nonempty (K.map f).isClosed b h\n      -- the rest of the proof is a straightforward algebraic manipulation\n      refine ⟨y, ?_, hyb⟩\n      simp_rw [ProperCone.mem_dual, adjoint_inner_right]\n      intro x hxK\n      apply hxy (f x)\n      simp_rw [C, coe_map]\n      apply subset_closure\n      simp_rw [PointedCone.toConvexCone_map, ConvexCone.coe_map, coe_coe, mem_image,\n        SetLike.mem_coe]\n      exact ⟨x, hxK, rfl⟩)",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual cone of a singleton is given by the preimage of the positive cone under the\nlinear map `fun y ↦ ⟪x, y⟫`. -/\ntheorem innerDualCone_singleton (x : H) :\n    ({x} : Set H).innerDualCone = (ConvexCone.positive ℝ ℝ).comap (innerₛₗ ℝ x) :=\n  ConvexCone.ext fun _ => forall_eq",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem isClosed_innerDualCone : IsClosed (s.innerDualCone : Set H) := by\n  -- reduce the problem to showing that dual cone of a singleton `{x}` is closed\n  rw [innerDualCone_eq_iInter_innerDualCone_singleton]\n  apply isClosed_iInter\n  intro x\n  -- the dual cone of a singleton `{x}` is the preimage of `[0, ∞)` under `inner x`\n  have h : ({↑x} : Set H).innerDualCone = (inner x : H → ℝ) ⁻¹' Set.Ici 0 := by\n    rw [innerDualCone_singleton, ConvexCone.coe_comap, ConvexCone.coe_positive, innerₛₗ_apply_coe]\n  -- the preimage is closed as `inner x` is continuous and `[0, ∞)` is closed\n  rw [h]\n  exact isClosed_Ici.preimage (continuous_const.inner continuous_id')",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem innerDualCone_insert (x : H) (s : Set H) :\n    (insert x s).innerDualCone = Set.innerDualCone {x} ⊓ s.innerDualCone := by\n  rw [insert_eq, innerDualCone_union]",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- Dual cone of the total space is the convex cone {0}. -/\n@[simp]\ntheorem innerDualCone_univ : (univ : Set H).innerDualCone = 0 := by\n  suffices ∀ x : H, x ∈ (univ : Set H).innerDualCone → x = 0 by\n    apply SetLike.coe_injective\n    exact eq_singleton_iff_unique_mem.mpr ⟨fun x _ => (inner_zero_right _).ge, this⟩\n  exact fun x hx => by simpa [← real_inner_self_nonpos] using hx (-x) (mem_univ _)"],
+  "id":
+  {"name": "ProperCone.dual_dual",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K :=\n  ProperCone.toPointedCone_injective <| PointedCone.toConvexCone_injective <|\n    (K : ConvexCone ℝ E).innerDualCone_of_innerDualCone_eq_self K.nonempty K.isClosed\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝² : NormedAddCommGroup E\ninst✝¹ : InnerProductSpace Real E\ninst✝ : CompleteSpace E\nK : ProperCone Real E\n⊢ Eq K.dual.dual K",
+  "content_sorry":
+  "/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K := by sorry",
+  "annotation":
+  "/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K :=\n  ProperCone.toPointedCone_injective <| PointedCone.toConvexCone_injective <|\n    (K : ConvexCone ℝ E).innerDualCone_of_innerDualCone_eq_self K.nonempty K.isClosed\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "PointedCone.toConvexCone_injective",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem toConvexCone_injective : Injective ((↑) : PointedCone 𝕜 E → ConvexCone 𝕜 E) :=\n  fun _ _ => by simp [toConvexCone]"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem coe_map (S : PointedCone \u0000\u0000 E) (f : E →ₗ[\u0000\u0000] F) : (S.map f : Set F) = f '' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\nprotected theorem mem_closure {K : PointedCone \u0000\u0000 E} {a : E} :\n    a ∈ K.closure ↔ a ∈ closure (K : Set E) :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n@[simp]\ntheorem mem_innerDualCone (y : H) (s : Set H) : y ∈ s.innerDualCone ↔ ∀ x ∈ s, 0 ≤ ⟪x, y⟫ :=\n  Iff.rfl"],
+  "id":
+  {"name": "ProperCone.mem_comap",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝³ : NormedAddCommGroup E\ninst✝² : InnerProductSpace Real E\nF : Type u_2\ninst✝¹ : NormedAddCommGroup F\ninst✝ : InnerProductSpace Real F\nf : ContinuousLinearMap (RingHom.id Real) E F\nS : ProperCone Real F\nx : E\n⊢ Eq (Membership.mem (ProperCone.comap f S) x) (Membership.mem S (f x))",
+  "content_sorry":
+  "@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S := by sorry",
+  "annotation":
+  "@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Iff.rfl",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem Iff.rfl {a : Prop} : a ↔ a :=\n  Iff.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem comap_id (S : ConvexCone ℝ E) : S.comap LinearMap.id = S :=\n  SetLike.coe_injective preimage_id",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem coe_comap (f : E →ₗ[\u0000\u0000] F) (S : PointedCone \u0000\u0000 F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem pointed_innerDualCone : s.innerDualCone.Pointed := fun x _ => by rw [inner_zero_right]",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\ntheorem comap_comap (g : F →ₗ[\u0000\u0000] G) (f : E →ₗ[\u0000\u0000] F) (S : ConvexCone \u0000\u0000 G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  rfl"],
+  "id":
+  {"name": "ProperCone.comap_comap",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝⁵ : NormedAddCommGroup E\ninst✝⁴ : InnerProductSpace Real E\nF : Type u_2\ninst✝³ : NormedAddCommGroup F\ninst✝² : InnerProductSpace Real F\nG : Type u_3\ninst✝¹ : NormedAddCommGroup G\ninst✝ : InnerProductSpace Real G\ng : ContinuousLinearMap (RingHom.id Real) F G\nf : ContinuousLinearMap (RingHom.id Real) E F\nS : ProperCone Real G\n⊢ Eq (ProperCone.comap f (ProperCone.comap g S)) (ProperCone.comap (g.comp f) S)",
+  "content_sorry":
+  "theorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by sorry",
+  "annotation":
+  "theorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n                              /-\n                                E : Type u_1\n                                inst✝⁵ : NormedAddCommGroup E\n                                inst✝⁴ : InnerProductSpace Real E\n                                F : Type u_2\n                                inst✝³ : NormedAddCommGroup F\n                                inst✝² : InnerProductSpace Real F\n                                G : Type u_3\n                                inst✝¹ : NormedAddCommGroup G\n                                inst✝ : InnerProductSpace Real G\n                                g : ContinuousLinearMap (RingHom.id Real) F G\n                                f : ContinuousLinearMap (RingHom.id Real) E F\n                                S : ProperCone Real G\n                                ⊢ Eq ↑(ProperCone.comap f (ProperCone.comap g S)) ↑(ProperCone.comap (g.comp f …\n                              -/\n  SetLike.coe_injective <| by congr\n                              /-\n                                🎉 no goals\n                              -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "SetLike.coe_injective",
+    "module": "Mathlib.Data.SetLike.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem coe_injective : Function.Injective (SetLike.coe : A → Set B) := fun _ _ h =>\n  SetLike.coe_injective' h"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem comap_id (S : ConvexCone ℝ E) : S.comap LinearMap.id = S :=\n  SetLike.coe_injective preimage_id",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem map_id (S : ConvexCone \u0000\u0000 E) : S.map LinearMap.id = S :=\n  SetLike.coe_injective <| image_id _",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\ntheorem comap_comap (g : F →ₗ[\u0000\u0000] G) (f : E →ₗ[\u0000\u0000] F) (S : ConvexCone \u0000\u0000 G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual cone of a singleton is given by the preimage of the positive cone under the\nlinear map `fun y ↦ ⟪x, y⟫`. -/\ntheorem innerDualCone_singleton (x : H) :\n    ({x} : Set H).innerDualCone = (ConvexCone.positive ℝ ℝ).comap (innerₛₗ ℝ x) :=\n  ConvexCone.ext fun _ => forall_eq",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem mem_comap {f : E →ₗ[\u0000\u0000] F} {S : ConvexCone \u0000\u0000 F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem toConvexCone_map (S : PointedCone \u0000\u0000 E) (f : E →ₗ[\u0000\u0000] F) :\n    (S.map f : ConvexCone \u0000\u0000 F) = (S : ConvexCone \u0000\u0000 E).map f :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\nprotected theorem convex : Convex \u0000\u0000 (S : Set E) :=\n  convex_iff_forall_pos.2 fun _ hx _ hy _ _ ha hb _ =>\n    S.add_mem (S.smul_mem ha hx) (S.smul_mem hb hy)"],
+  "id":
+  {"name": "ProperCone.comap_id",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem comap_id (S : ConvexCone ℝ E) : S.comap LinearMap.id = S :=\n  SetLike.coe_injective preimage_id\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝¹ : NormedAddCommGroup E\ninst✝ : InnerProductSpace Real E\nS : ConvexCone Real E\n⊢ Eq (ConvexCone.comap LinearMap.id S) S",
+  "content_sorry":
+  "@[simp]\ntheorem comap_id (S : ConvexCone ℝ E) : S.comap LinearMap.id = S := by sorry",
+  "annotation":
+  "@[simp]\ntheorem comap_id (S : ConvexCone ℝ E) : S.comap LinearMap.id = S :=\n  SetLike.coe_injective preimage_id\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "SetLike.coe_injective",
+    "module": "Mathlib.Data.SetLike.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem coe_injective : Function.Injective (SetLike.coe : A → Set B) := fun _ _ h =>\n  SetLike.coe_injective' h"},
+   {"name": "LinearMap.id",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Identity map as a `LinearMap` -/\ndef id : M →ₗ[R] M :=\n  { DistribMulActionHom.id R with toFun := _root_.id }"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem coe_comap (f : E →ₗ[\u0000\u0000] F) (S : ConvexCone \u0000\u0000 F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem coe_map (S : PointedCone \u0000\u0000 E) (f : E →ₗ[\u0000\u0000] F) : (S.map f : Set F) = f '' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem isClosed (K : ProperCone \u0000\u0000 E) : IsClosed (K : Set E) :=\n  K.isClosed'",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem pointed_innerDualCone : s.innerDualCone.Pointed := fun x _ => by rw [inner_zero_right]"],
+  "id":
+  {"name": "ProperCone.coe_comap",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝³ : NormedAddCommGroup E\ninst✝² : InnerProductSpace Real E\nF : Type u_2\ninst✝¹ : NormedAddCommGroup F\ninst✝ : InnerProductSpace Real F\nf : ContinuousLinearMap (RingHom.id Real) E F\nS : ProperCone Real F\n⊢ Eq (↑(ProperCone.comap f S)) (Set.preimage ⇑f ↑S)",
+  "content_sorry":
+  "@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S := by sorry",
+  "annotation":
+  "@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {S : PointedCone ℝ E} {y : E} : y ∈ dual S ↔ ∀ ⦃x⦄, x ∈ S → 0 ≤ ⟪x, y⟫_ℝ := by\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n@[simp]\ntheorem mem_innerDualCone (y : H) (s : Set H) : y ∈ s.innerDualCone ↔ ∀ x ∈ s, 0 ≤ ⟪x, y⟫ :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K :=\n  ProperCone.toPointedCone_injective <| PointedCone.toConvexCone_injective <|\n    (K : ConvexCone ℝ E).innerDualCone_of_innerDualCone_eq_self K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem pointed_innerDualCone : s.innerDualCone.Pointed := fun x _ => by rw [inner_zero_right]",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual cone of a singleton is given by the preimage of the positive cone under the\nlinear map `fun y ↦ ⟪x, y⟫`. -/\ntheorem innerDualCone_singleton (x : H) :\n    ({x} : Set H).innerDualCone = (ConvexCone.positive ℝ ℝ).comap (innerₛₗ ℝ x) :=\n  ConvexCone.ext fun _ => forall_eq",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]"],
+  "id":
+  {"name": "ProperCone.mem_dual",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "open scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝¹ : NormedAddCommGroup E\ninst✝ : InnerProductSpace Real E\nK : ProperCone Real E\ny : E\n⊢ Eq (Membership.mem K.dual y) (∀ ⦃x : E⦄, Membership.mem K x → LE.le 0 (Inner.inner x y))",
+  "content_sorry":
+  "open scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  sorry",
+  "annotation":
+  "open scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  /-\n    E : Type u_1\n    inst✝¹ : NormedAddCommGroup E\n    inst✝ : InnerProductSpace Real E\n    K : ProperCone Real E\n    y : E\n    ⊢ Iff (Membership.mem K.dual y) (∀ ⦃x : E⦄, Membership.mem K x → LE.le 0 (Inne …\n  -/\n  aesop\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem toConvexCone_dual (S : PointedCone ℝ E) : ↑(dual S) = (S : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- The dual of the dual of a proper cone is itself. -/\n@[simp]\ntheorem dual_dual (K : ProperCone ℝ E) : K.dual.dual = K :=\n  ProperCone.toPointedCone_injective <| PointedCone.toConvexCone_injective <|\n    (K : ConvexCone ℝ E).innerDualCone_of_innerDualCone_eq_self K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem isClosed_innerDualCone : IsClosed (s.innerDualCone : Set H) := by\n  -- reduce the problem to showing that dual cone of a singleton `{x}` is closed\n  rw [innerDualCone_eq_iInter_innerDualCone_singleton]\n  apply isClosed_iInter\n  intro x\n  -- the dual cone of a singleton `{x}` is the preimage of `[0, ∞)` under `inner x`\n  have h : ({↑x} : Set H).innerDualCone = (inner x : H → ℝ) ⁻¹' Set.Ici 0 := by\n    rw [innerDualCone_singleton, ConvexCone.coe_comap, ConvexCone.coe_positive, innerₛₗ_apply_coe]\n  -- the preimage is closed as `inner x` is continuous and `[0, ∞)` is closed\n  rw [h]\n  exact isClosed_Ici.preimage (continuous_const.inner continuous_id')",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The dual cone of `s` equals the intersection of dual cones of the points in `s`. -/\ntheorem innerDualCone_eq_iInter_innerDualCone_singleton :\n    (s.innerDualCone : Set H) = ⋂ i : s, (({↑i} : Set H).innerDualCone : Set H) := by\n  rw [← ConvexCone.coe_iInf, ← innerDualCone_iUnion, iUnion_of_singleton_coe]",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual cone of a singleton is given by the preimage of the positive cone under the\nlinear map `fun y ↦ ⟪x, y⟫`. -/\ntheorem innerDualCone_singleton (x : H) :\n    ({x} : Set H).innerDualCone = (ConvexCone.positive ℝ ℝ).comap (innerₛₗ ℝ x) :=\n  ConvexCone.ext fun _ => forall_eq",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n@[simp]\ntheorem mem_innerDualCone (y : H) (s : Set H) : y ∈ s.innerDualCone ↔ ∀ x ∈ s, 0 ≤ ⟪x, y⟫ :=\n  Iff.rfl"],
+  "id":
+  {"name": "ProperCone.coe_dual",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝¹ : NormedAddCommGroup E\ninst✝ : InnerProductSpace Real E\nK : ProperCone Real E\n⊢ Eq (↑↑K.dual) (↑K).innerDualCone",
+  "content_sorry":
+  "@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone := by sorry",
+  "annotation":
+  "@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem comap_id (S : ConvexCone ℝ E) : S.comap LinearMap.id = S :=\n  SetLike.coe_injective preimage_id",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem toConvexCone_dual (S : PointedCone ℝ E) : ↑(dual S) = (S : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\ntheorem closure_eq {K L : PointedCone \u0000\u0000 E} : K.closure = L ↔ closure (K : Set E) = L :=\n  SetLike.ext'_iff",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem ConvexCone.pointed_of_nonempty_of_isClosed (K : ConvexCone ℝ H) (ne : (K : Set H).Nonempty)\n    (hc : IsClosed (K : Set H)) : K.Pointed := by\n  obtain ⟨x, hx⟩ := ne\n  let f : ℝ → H := (· • x)\n  -- f (0, ∞) is a subset of K\n  have fI : f '' Set.Ioi 0 ⊆ (K : Set H) := by\n    rintro _ ⟨_, h, rfl⟩\n    exact K.smul_mem (Set.mem_Ioi.1 h) hx\n  -- closure of f (0, ∞) is a subset of K\n  have clf : closure (f '' Set.Ioi 0) ⊆ (K : Set H) := hc.closure_subset_iff.2 fI\n  -- f is continuous at 0 from the right\n  have fc : ContinuousWithinAt f (Set.Ioi (0 : ℝ)) 0 :=\n    (continuous_id.smul continuous_const).continuousWithinAt\n  -- 0 belongs to the closure of the f (0, ∞)\n  have mem₀ := fc.mem_closure_image (by rw [closure_Ioi (0 : ℝ), mem_Ici])\n  -- as 0 ∈ closure f (0, ∞) and closure f (0, ∞) ⊆ K, 0 ∈ K.\n  have f₀ : f 0 = 0 := zero_smul ℝ x\n  simpa only [f₀, ConvexCone.Pointed, ← SetLike.mem_coe] using mem_of_subset_of_mem clf mem₀"],
+  "id":
+  {"name": "ProperCone.map_id",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝¹ : NormedAddCommGroup E\ninst✝ : InnerProductSpace Real E\nK : ProperCone Real E\n⊢ Eq (ProperCone.map (ContinuousLinearMap.id Real E) K) K",
+  "content_sorry":
+  "@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by sorry",
+  "annotation":
+  "@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n                                           /-\n                                             E : Type u_1\n                                             inst✝¹ : NormedAddCommGroup E\n                                             inst✝ : InnerProductSpace Real E\n                                             K : ProperCone Real E\n                                             ⊢ Eq ↑(ProperCone.map (ContinuousLinearMap.id Real E) K) ↑K\n                                           -/\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed\n                                           /-\n                                             🎉 no goals\n                                           -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsClosed.closure_eq",
+    "module": "Mathlib.Topology.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem IsClosed.closure_eq (h : IsClosed s) : closure s = s :=\n  Subset.antisymm (closure_minimal (Subset.refl s) h) subset_closure"},
+   {"name": "ContinuousLinearMap.id",
+    "module": "Mathlib.Topology.Algebra.Module.LinearMap",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- the identity map as a continuous linear map. -/\ndef id : M₁ →L[R₁] M₁ :=\n  ⟨LinearMap.id, continuous_id⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp, norm_cast]\ntheorem coe_closure (K : PointedCone \u0000\u0000 E) : (K.closure : Set E) = closure K :=\n  rfl"],
+  "id":
+  {"name": "ProperCone.mem_map",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝³ : NormedAddCommGroup E\ninst✝² : InnerProductSpace Real E\nF : Type u_2\ninst✝¹ : NormedAddCommGroup F\ninst✝ : InnerProductSpace Real F\nf : ContinuousLinearMap (RingHom.id Real) E F\nK : ProperCone Real E\ny : F\n⊢ Eq (Membership.mem (ProperCone.map f K) y) (Membership.mem (PointedCone.map ↑f ↑K).closure y)",
+  "content_sorry":
+  "@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure := by sorry",
+  "annotation":
+  "@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Iff.rfl",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "protected theorem Iff.rfl {a : Prop} : a ↔ a :=\n  Iff.refl a"},
+   {"name": "closure",
+    "module": "Mathlib.Topology.Defs.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The closure of `s` is the smallest closed set containing `s`. -/\ndef closure (s : Set X) : Set X :=\n  ⋂₀ { t | IsClosed t ∧ s ⊆ t }"},
+   {"name": "PointedCone.map",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The image of a pointed cone under a `𝕜`-linear map is a pointed cone. -/\ndef map (f : E →ₗ[𝕜] F) (S : PointedCone 𝕜 E) : PointedCone 𝕜 F :=\n  Submodule.map (f : E →ₗ[𝕜≥0] F) S"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem hyperplane_separation_of_nmem (K : ProperCone ℝ E) {f : E →L[ℝ] F} {b : F}\n    (disj : b ∉ K.map f) : ∃ y : F, adjoint f y ∈ K.dual ∧ ⟪y, b⟫_ℝ < 0 := by\n  contrapose! disj; rwa [K.hyperplane_separation]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem comap_comap (g : F →L[ℝ] G) (f : E →L[ℝ] F) (S : ProperCone ℝ G) :\n    (S.comap g).comap f = S.comap (g.comp f) :=\n  SetLike.coe_injective <| by congr",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\nprotected theorem mem_closure {K : ConvexCone \u0000\u0000 E} {a : E} :\n    a ∈ K.closure ↔ a ∈ closure (K : Set E) :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem coe_map (S : PointedCone \u0000\u0000 E) (f : E →ₗ[\u0000\u0000] F) : (S.map f : Set F) = f '' S :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]"],
+  "id":
+  {"name": "ProperCone.coe_map",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝³ : NormedAddCommGroup E\ninst✝² : InnerProductSpace Real E\nF : Type u_2\ninst✝¹ : NormedAddCommGroup F\ninst✝ : InnerProductSpace Real F\nf : ContinuousLinearMap (RingHom.id Real) E F\nK : ProperCone Real E\n⊢ Eq (↑(ProperCone.map f K)) (PointedCone.map ↑f ↑K).closure",
+  "content_sorry":
+  "@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure := by sorry",
+  "annotation":
+  "@[simp, norm_cast]\ntheorem coe_map (f : E →L[ℝ] F) (K : ProperCone ℝ E) :\n    ↑(K.map f) = (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "closure",
+    "module": "Mathlib.Topology.Defs.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The closure of `s` is the smallest closed set containing `s`. -/\ndef closure (s : Set X) : Set X :=\n  ⋂₀ { t | IsClosed t ∧ s ⊆ t }"},
+   {"name": "PointedCone.map",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The image of a pointed cone under a `𝕜`-linear map is a pointed cone. -/\ndef map (f : E →ₗ[𝕜] F) (S : PointedCone 𝕜 E) : PointedCone 𝕜 F :=\n  Submodule.map (f : E →ₗ[𝕜≥0] F) S"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem map_id (K : ProperCone ℝ E) : K.map (ContinuousLinearMap.id ℝ E) = K :=\n  ProperCone.toPointedCone_injective <| by simpa using IsClosed.closure_eq K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_dual (K : ProperCone ℝ E) : K.dual = (K : Set E).innerDualCone :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nopen scoped InnerProductSpace in\n@[simp]\ntheorem mem_dual {K : ProperCone ℝ E} {y : E} : y ∈ dual K ↔ ∀ ⦃x⦄, x ∈ K → 0 ≤ ⟪x, y⟫_ℝ := by\n  aesop",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem ConvexCone.pointed_of_nonempty_of_isClosed (K : ConvexCone ℝ H) (ne : (K : Set H).Nonempty)\n    (hc : IsClosed (K : Set H)) : K.Pointed := by\n  obtain ⟨x, hx⟩ := ne\n  let f : ℝ → H := (· • x)\n  -- f (0, ∞) is a subset of K\n  have fI : f '' Set.Ioi 0 ⊆ (K : Set H) := by\n    rintro _ ⟨_, h, rfl⟩\n    exact K.smul_mem (Set.mem_Ioi.1 h) hx\n  -- closure of f (0, ∞) is a subset of K\n  have clf : closure (f '' Set.Ioi 0) ⊆ (K : Set H) := hc.closure_subset_iff.2 fI\n  -- f is continuous at 0 from the right\n  have fc : ContinuousWithinAt f (Set.Ioi (0 : ℝ)) 0 :=\n    (continuous_id.smul continuous_const).continuousWithinAt\n  -- 0 belongs to the closure of the f (0, ∞)\n  have mem₀ := fc.mem_closure_image (by rw [closure_Ioi (0 : ℝ), mem_Ici])\n  -- as 0 ∈ closure f (0, ∞) and closure f (0, ∞) ⊆ K, 0 ∈ K.\n  have f₀ : f 0 = 0 := zero_smul ℝ x\n  simpa only [f₀, ConvexCone.Pointed, ← SetLike.mem_coe] using mem_of_subset_of_mem clf mem₀",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_map {f : E →L[ℝ] F} {K : ProperCone ℝ E} {y : F} :\n    y ∈ K.map f ↔ y ∈ (PointedCone.map (f : E →ₗ[ℝ] F) ↑K).closure :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem pointed_innerDualCone : s.innerDualCone.Pointed := fun x _ => by rw [inner_zero_right]",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\ntheorem isClosed_innerDualCone : IsClosed (s.innerDualCone : Set H) := by\n  -- reduce the problem to showing that dual cone of a singleton `{x}` is closed\n  rw [innerDualCone_eq_iInter_innerDualCone_singleton]\n  apply isClosed_iInter\n  intro x\n  -- the dual cone of a singleton `{x}` is the preimage of `[0, ∞)` under `inner x`\n  have h : ({↑x} : Set H).innerDualCone = (inner x : H → ℝ) ⁻¹' Set.Ici 0 := by\n    rw [innerDualCone_singleton, ConvexCone.coe_comap, ConvexCone.coe_positive, innerₛₗ_apply_coe]\n  -- the preimage is closed as `inner x` is continuous and `[0, ∞)` is closed\n  rw [h]\n  exact isClosed_Ici.preimage (continuous_const.inner continuous_id')",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem isClosed (K : ProperCone \u0000\u0000 E) : IsClosed (K : Set E) :=\n  K.isClosed'",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\ntheorem closure_eq {K L : PointedCone \u0000\u0000 E} : K.closure = L ↔ closure (K : Set E) = L :=\n  SetLike.ext'_iff"],
+  "id":
+  {"name": "ProperCone.pointed",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "protected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed\n\n"},
+  "goal":
+  "E : Type u_1\ninst✝¹ : NormedAddCommGroup E\ninst✝ : InnerProductSpace Real E\nK : ProperCone Real E\n⊢ (↑↑K).Pointed",
+  "content_sorry":
+  "protected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed := by sorry",
+  "annotation":
+  "protected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem pointed_zero : ((0 : ProperCone \u0000\u0000 E) : ConvexCone \u0000\u0000 E).Pointed := by\n  simp [ConvexCone.pointed_zero]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_zero : ↑(0 : ProperCone \u0000\u0000 E) = (0 : ConvexCone \u0000\u0000 E) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ProperCone \u0000\u0000 E) ↔ x = 0 :=\n  Iff.rfl",
+   "--src: Mathlib.Topology.Algebra.ContinuousAffineMap\ntheorem zero_apply (x : P) : (0 : P →ᴬ[R] W) x = 0 := rfl",
+   "--src: Mathlib.Analysis.Convex.Body\n@[simp] -- Porting note: add norm_cast; we leave it out for now to reproduce mathlib3 behavior.\ntheorem coe_zero : (↑(0 : ConvexBody V) : Set V) = 0 :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem coe_zero : ((0 : ConvexCone \u0000\u0000 E) : Set E) = 0 :=\n  rfl",
+   "--src: Mathlib.Topology.Homeomorph\nprotected theorem t1Space [T1Space X] (h : X ≃ₜ Y) : T1Space Y := h.symm.isEmbedding.t1Space",
+   "--src: Mathlib.Topology.Separation.Basic\ntheorem isClosed_singleton [T1Space X] {x : X} : IsClosed ({x} : Set X) :=\n  T1Space.t1 x",
+   "--src: Mathlib.Analysis.NormedSpace.HahnBanach.SeparatingDual\ninstance {E : Type*} [TopologicalSpace E] [AddCommGroup E] [TopologicalAddGroup E]\n    [Module ℝ E] [ContinuousSMul ℝ E] [LocallyConvexSpace ℝ E] [T1Space E] : SeparatingDual ℝ E :=\n  ⟨fun x hx ↦ by\n    rcases geometric_hahn_banach_point_point hx.symm with ⟨f, hf⟩\n    simp only [map_zero] at hf\n    exact ⟨f, hf.ne'⟩⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\ntheorem pointed_zero : (0 : ConvexCone \u0000\u0000 E).Pointed := by rw [Pointed, mem_zero]"],
+  "id":
+  {"name": "ProperCone.pointed_zero",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem pointed_zero : ((0 : ProperCone 𝕜 E) : ConvexCone 𝕜 E).Pointed := by\n  simp [ConvexCone.pointed_zero]\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝⁴ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝³ : AddCommMonoid E\ninst✝² : TopologicalSpace E\ninst✝¹ : T1Space E\ninst✝ : Module 𝕜 E\n⊢ (↑↑0).Pointed",
+  "content_sorry":
+  "theorem pointed_zero : ((0 : ProperCone 𝕜 E) : ConvexCone 𝕜 E).Pointed := by\n  sorry",
+  "annotation":
+  "theorem pointed_zero : ((0 : ProperCone 𝕜 E) : ConvexCone 𝕜 E).Pointed := by\n  /-\n    𝕜 : Type u_1\n    inst✝⁴ : OrderedSemiring 𝕜\n    E : Type u_2\n    inst✝³ : AddCommMonoid E\n    inst✝² : TopologicalSpace E\n    inst✝¹ : T1Space E\n    inst✝ : Module 𝕜 E\n    ⊢ (↑↑0).Pointed\n  -/\n  simp [ConvexCone.pointed_zero]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ConvexCone.pointed_zero",
+    "module": "Mathlib.Analysis.Convex.Cone.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem pointed_zero : (0 : ConvexCone 𝕜 E).Pointed := by rw [Pointed, mem_zero]"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_zero : ↑(0 : ProperCone \u0000\u0000 E) = (0 : ConvexCone \u0000\u0000 E) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem pointed_zero : ((0 : ProperCone \u0000\u0000 E) : ConvexCone \u0000\u0000 E).Pointed := by\n  simp [ConvexCone.pointed_zero]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ProperCone \u0000\u0000 E) ↔ x = 0 :=\n  Iff.rfl",
+   "--src: Mathlib.Topology.Algebra.ContinuousAffineMap\n@[norm_cast, simp]\ntheorem coe_zero : ((0 : P →ᴬ[R] W) : P → W) = 0 := rfl",
+   "--src: Mathlib.Topology.Algebra.Module.LinearMap\n@[simp]\ntheorem zero_apply (x : M₁) : (0 : M₁ →SL[σ₁₂] M₂) x = 0 :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Body\n@[simp] -- Porting note: add norm_cast; we leave it out for now to reproduce mathlib3 behavior.\ntheorem coe_zero : (↑(0 : ConvexBody V) : Set V) = 0 :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Alternating.Basic\n@[norm_cast]\ntheorem coe_zero : ((0 : M [⋀^ι]→ₗ[R] N) : MultilinearMap R (fun _ : ι => M) N) = 0 :=\n  rfl",
+   "--src: Mathlib.MeasureTheory.VectorMeasure.Basic\n@[simp]\ntheorem coe_zero : ⇑(0 : VectorMeasure α M) = 0 := rfl",
+   "--src: Mathlib.Topology.LocallyConstant.Algebra\n@[to_additive (attr := simp)]\ntheorem coe_one [One Y] : ⇑(1 : LocallyConstant X Y) = (1 : X → Y) :=\n  rfl",
+   "--src: Mathlib.Analysis.NormedSpace.ENormedSpace\n@[simp]\ntheorem map_zero : e 0 = 0 := by\n  rw [← zero_smul \u0000\u0000 (0 : V), e.map_smul]\n  norm_num"],
+  "id":
+  {"name": "ProperCone.coe_zero",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp, norm_cast]\ntheorem coe_zero : ↑(0 : ProperCone 𝕜 E) = (0 : ConvexCone 𝕜 E) :=\n  rfl\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝⁴ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝³ : AddCommMonoid E\ninst✝² : TopologicalSpace E\ninst✝¹ : T1Space E\ninst✝ : Module 𝕜 E\n⊢ Eq (↑↑0) 0",
+  "content_sorry":
+  "@[simp, norm_cast]\ntheorem coe_zero : ↑(0 : ProperCone 𝕜 E) = (0 : ConvexCone 𝕜 E) := by sorry",
+  "annotation":
+  "@[simp, norm_cast]\ntheorem coe_zero : ↑(0 : ProperCone 𝕜 E) = (0 : ConvexCone 𝕜 E) :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ProperCone \u0000\u0000 E) ↔ x = 0 :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp, norm_cast]\ntheorem coe_zero : ↑(0 : ProperCone \u0000\u0000 E) = (0 : ConvexCone \u0000\u0000 E) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem pointed_zero : ((0 : ProperCone \u0000\u0000 E) : ConvexCone \u0000\u0000 E).Pointed := by\n  simp [ConvexCone.pointed_zero]",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ConvexCone \u0000\u0000 E) ↔ x = 0 :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.LocallyConvex.WeakOperatorTopology\n@[simp] lemma zero_apply (x : E) : (0 : E →WOT[\u0000\u0000] F) x = 0 := by simp only [DFunLike.coe]; rfl",
+   "--src: Mathlib.Topology.Algebra.ContinuousAffineMap\n@[norm_cast, simp]\ntheorem coe_zero : ((0 : P →ᴬ[R] W) : P → W) = 0 := rfl",
+   "--src: Mathlib.Topology.Separation.Basic\ntheorem t1Space_iff_specializes_imp_eq : T1Space X ↔ ∀ ⦃x y : X⦄, x ⤳ y → x = y :=\n  (t1Space_TFAE X).out 0 9",
+   "--src: Mathlib.Topology.Algebra.Module.LinearMap\n@[simp]\ntheorem one_apply (x : M₁) : (1 : M₁ →L[R₁] M₁) x = x :=\n  rfl",
+   "--src: Mathlib.Topology.LocallyConstant.Algebra\n@[to_additive]\ntheorem one_apply [One Y] (x : X) : (1 : LocallyConstant X Y) x = 1 :=\n  rfl",
+   "--src: Mathlib.Algebra.Module.Submodule.Lattice\nvariable (R) in\n@[simp]\ntheorem mem_bot {x : M} : x ∈ (⊥ : Submodule R M) ↔ x = 0 :=\n  Set.mem_singleton_iff"],
+  "id":
+  {"name": "ProperCone.mem_zero",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ProperCone 𝕜 E) ↔ x = 0 :=\n  Iff.rfl\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝⁴ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝³ : AddCommMonoid E\ninst✝² : TopologicalSpace E\ninst✝¹ : T1Space E\ninst✝ : Module 𝕜 E\nx : E\n⊢ Iff (Membership.mem 0 x) (Eq x 0)",
+  "content_sorry":
+  "@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ProperCone 𝕜 E) ↔ x = 0 := by sorry",
+  "annotation":
+  "@[simp]\ntheorem mem_zero (x : E) : x ∈ (0 : ProperCone 𝕜 E) ↔ x = 0 :=\n  Iff.rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Iff.rfl",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem Iff.rfl {a : Prop} : a ↔ a :=\n  Iff.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_positive : ↑(positive \u0000\u0000 E) = ConvexCone.positive \u0000\u0000 E :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_positive {x : E} : x ∈ positive \u0000\u0000 E ↔ 0 ≤ x :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem toConvexCone_positive : ↑(positive \u0000\u0000 E) = ConvexCone.positive \u0000\u0000 E :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\ntheorem positive_le_strictlyPositive : strictlyPositive \u0000\u0000 E ≤ positive \u0000\u0000 E := fun _ => le_of_lt",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n/-- The positive cone of an ordered module is always salient. -/\ntheorem salient_positive : Salient (positive \u0000\u0000 E) := fun x xs hx hx' =>\n  lt_irrefl (0 : E)\n    (calc\n      0 < x := lt_of_le_of_ne xs hx.symm\n      _ ≤ x + -x := le_add_of_nonneg_right hx'\n      _ = 0 := add_neg_cancel x\n      )",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem coe_strictlyPositive : ↑(strictlyPositive \u0000\u0000 E) = Set.Ioi (0 : E) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp, norm_cast]\ntheorem coe_closure (K : ConvexCone \u0000\u0000 E) : (K.closure : Set E) = closure K :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\nprotected theorem convex : Convex \u0000\u0000 (S : Set E) :=\n  convex_iff_forall_pos.2 fun _ hx _ hy _ _ ha hb _ =>\n    S.add_mem (S.smul_mem ha hx) (S.smul_mem hb hy)",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem nonempty (K : ProperCone \u0000\u0000 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.InnerDual\n/-- The inner dual of inner dual of a non-empty, closed convex cone is itself. -/\ntheorem ConvexCone.innerDualCone_of_innerDualCone_eq_self (K : ConvexCone ℝ H)\n    (ne : (K : Set H).Nonempty) (hc : IsClosed (K : Set H)) :\n    ((K : Set H).innerDualCone : Set H).innerDualCone = K := by\n  ext x\n  constructor\n  · rw [mem_innerDualCone, ← SetLike.mem_coe]\n    contrapose!\n    exact K.hyperplane_separation_of_nonempty_of_isClosed_of_nmem ne hc\n  · rintro hxK y h\n    specialize h x hxK\n    rwa [real_inner_comm]"],
+  "id":
+  {"name": "ProperCone.coe_positive",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem coe_positive : ↑(positive 𝕜 E) = ConvexCone.positive 𝕜 E :=\n  rfl\n\n"},
+  "goal":
+  "𝕜 : Type u_2\nE : Type u_1\ninst✝⁵ : OrderedSemiring 𝕜\ninst✝⁴ : OrderedAddCommGroup E\ninst✝³ : Module 𝕜 E\ninst✝² : OrderedSMul 𝕜 E\ninst✝¹ : TopologicalSpace E\ninst✝ : OrderClosedTopology E\n⊢ Eq (↑↑(ProperCone.positive 𝕜 E)) (ConvexCone.positive 𝕜 E)",
+  "content_sorry":
+  "@[simp]\ntheorem coe_positive : ↑(positive 𝕜 E) = ConvexCone.positive 𝕜 E := by sorry",
+  "annotation":
+  "@[simp]\ntheorem coe_positive : ↑(positive 𝕜 E) = ConvexCone.positive 𝕜 E :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "ConvexCone.positive",
+    "module": "Mathlib.Analysis.Convex.Cone.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The positive cone is the convex cone formed by the set of nonnegative elements in an ordered\nmodule.\n-/\ndef positive : ConvexCone 𝕜 E where\n  carrier := Set.Ici 0\n  smul_mem' _ hc _ (hx : _ ≤ _) := smul_nonneg hc.le hx\n  add_mem' _ (hx : _ ≤ _) _ (hy : _ ≤ _) := add_nonneg hx hy"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_positive {x : E} : x ∈ positive \u0000\u0000 E ↔ 0 ≤ x :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_positive : ↑(positive \u0000\u0000 E) = ConvexCone.positive \u0000\u0000 E :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem mem_positive {x : E} : x ∈ positive \u0000\u0000 E ↔ 0 ≤ x :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\ntheorem positive_le_strictlyPositive : strictlyPositive \u0000\u0000 E ≤ positive \u0000\u0000 E := fun _ => le_of_lt",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem mem_strictlyPositive {x : E} : x ∈ strictlyPositive \u0000\u0000 E ↔ 0 < x :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n/-- The positive cone of an ordered module is always pointed. -/\ntheorem pointed_positive : Pointed (positive \u0000\u0000 E) :=\n  le_refl 0",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem coe_positive : ↑(positive \u0000\u0000 E) = Set.Ici (0 : E) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n/-- The strictly positive cone of an ordered module is always salient. -/\ntheorem salient_strictlyPositive : Salient (strictlyPositive \u0000\u0000 E) :=\n  (salient_positive \u0000\u0000 E).anti <| positive_le_strictlyPositive \u0000\u0000 E",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n@[simp]\ntheorem coe_strictlyPositive : ↑(strictlyPositive \u0000\u0000 E) = Set.Ioi (0 : E) :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h"],
+  "id":
+  {"name": "ProperCone.mem_positive",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem mem_positive {x : E} : x ∈ positive 𝕜 E ↔ 0 ≤ x :=\n  Iff.rfl\n\n"},
+  "goal":
+  "𝕜 : Type u_2\nE : Type u_1\ninst✝⁵ : OrderedSemiring 𝕜\ninst✝⁴ : OrderedAddCommGroup E\ninst✝³ : Module 𝕜 E\ninst✝² : OrderedSMul 𝕜 E\ninst✝¹ : TopologicalSpace E\ninst✝ : OrderClosedTopology E\nx : E\n⊢ Eq (Membership.mem (ProperCone.positive 𝕜 E) x) (LE.le 0 x)",
+  "content_sorry":
+  "@[simp]\ntheorem mem_positive {x : E} : x ∈ positive 𝕜 E ↔ 0 ≤ x := by sorry",
+  "annotation":
+  "@[simp]\ntheorem mem_positive {x : E} : x ∈ positive 𝕜 E ↔ 0 ≤ x :=\n  Iff.rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Iff.rfl",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem Iff.rfl {a : Prop} : a ↔ a :=\n  Iff.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem isClosed (K : ProperCone \u0000\u0000 E) : IsClosed (K : Set E) :=\n  K.isClosed'",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem nonempty (K : ProperCone \u0000\u0000 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- A proper cone is a pointed cone `K` that is closed. Proper cones have the nice property that\nthey are equal to their double dual, see `ProperCone.dual_dual`.\nThis makes them useful for defining cone programs and proving duality theorems. -/\nstructure ProperCone (\u0000\u0000 : Type*) (E : Type*) [OrderedSemiring \u0000\u0000] [AddCommMonoid E]\n    [TopologicalSpace E] [Module \u0000\u0000 E] extends Submodule {c : \u0000\u0000 // 0 ≤ c} E where\n  isClosed' : IsClosed (carrier : Set E)",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_coe {x : E} {K : ProperCone \u0000\u0000 E} : x ∈ (K : PointedCone \u0000\u0000 E) ↔ x ∈ K :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\nlemma toConvexCone_closure_pointed (K : PointedCone \u0000\u0000 E) : (K : ConvexCone \u0000\u0000 E).closure.Pointed :=\n  subset_closure <| PointedCone.toConvexCone_pointed _",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp]\ntheorem toConvexCone_pointed (S : PointedCone \u0000\u0000 E) : (S : ConvexCone \u0000\u0000 E).Pointed := by\n  simp [toConvexCone, ConvexCone.Pointed]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp, norm_cast]\ntheorem coe_closure (K : ConvexCone \u0000\u0000 E) : (K.closure : Set E) = closure K :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl"],
+  "id":
+  {"name": "ProperCone.isClosed",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "protected theorem isClosed (K : ProperCone 𝕜 E) : IsClosed (K : Set E) :=\n  K.isClosed'\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝³ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝² : AddCommMonoid E\ninst✝¹ : TopologicalSpace E\ninst✝ : Module 𝕜 E\nK : ProperCone 𝕜 E\n⊢ IsClosed ↑K",
+  "content_sorry":
+  "protected theorem isClosed (K : ProperCone 𝕜 E) : IsClosed (K : Set E) := by sorry",
+  "annotation":
+  "protected theorem isClosed (K : ProperCone 𝕜 E) : IsClosed (K : Set E) :=\n  K.isClosed'\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem nonempty (K : ProperCone \u0000\u0000 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem isClosed (K : ProperCone \u0000\u0000 E) : IsClosed (K : Set E) :=\n  K.isClosed'",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_coe {x : E} {K : ProperCone \u0000\u0000 E} : x ∈ (K : PointedCone \u0000\u0000 E) ↔ x ∈ K :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- A proper cone is a pointed cone `K` that is closed. Proper cones have the nice property that\nthey are equal to their double dual, see `ProperCone.dual_dual`.\nThis makes them useful for defining cone programs and proving duality theorems. -/\nstructure ProperCone (\u0000\u0000 : Type*) (E : Type*) [OrderedSemiring \u0000\u0000] [AddCommMonoid E]\n    [TopologicalSpace E] [Module \u0000\u0000 E] extends Submodule {c : \u0000\u0000 // 0 ≤ c} E where\n  isClosed' : IsClosed (carrier : Set E)",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem toPointedCone_injective : Function.Injective ((↑) : ProperCone \u0000\u0000 E → PointedCone \u0000\u0000 E) :=\n  fun S T h => by cases S; cases T; congr\n-- TODO: add `ConvexConeClass` that extends `SetLike` and replace the below instance",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\ntheorem closure_eq {K L : PointedCone \u0000\u0000 E} : K.closure = L ↔ closure (K : Set E) = L :=\n  SetLike.ext'_iff",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\ntheorem toConvexCone_injective : Injective ((↑) : PointedCone \u0000\u0000 E → ConvexCone \u0000\u0000 E) :=\n  fun _ _ => by simp [toConvexCone]",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem pointed (K : ProperCone ℝ E) : (K : ConvexCone ℝ E).Pointed :=\n  (K : ConvexCone ℝ E).pointed_of_nonempty_of_isClosed K.nonempty K.isClosed",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_positive {x : E} : x ∈ positive \u0000\u0000 E ↔ 0 ≤ x :=\n  Iff.rfl"],
+  "id":
+  {"name": "ProperCone.nonempty",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "protected theorem nonempty (K : ProperCone 𝕜 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝³ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝² : AddCommMonoid E\ninst✝¹ : TopologicalSpace E\ninst✝ : Module 𝕜 E\nx : E\nK : ProperCone 𝕜 E\n⊢ Eq (Membership.mem K x) (Membership.mem (↑K) x)",
+  "content_sorry":
+  "protected theorem nonempty (K : ProperCone 𝕜 E) : (K : Set E).Nonempty :=\n  ⟨0, by sorry",
+  "annotation":
+  "protected theorem nonempty (K : ProperCone 𝕜 E) : (K : Set E).Nonempty :=\n         /-\n           𝕜 : Type u_1\n           inst✝³ : OrderedSemiring 𝕜\n           E : Type u_2\n           inst✝² : AddCommMonoid E\n           inst✝¹ : TopologicalSpace E\n           inst✝ : Module 𝕜 E\n           K : ProperCone 𝕜 E\n           ⊢ Membership.mem (↑K) 0\n         -/\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩\n         /-\n           🎉 no goals\n         -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Submodule.zero_mem",
+    "module": "Mathlib.Algebra.Module.Submodule.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nprotected theorem zero_mem : (0 : M) ∈ p :=\n  zero_mem _"},
+   {"name": "SetLike.mem_coe",
+    "module": "Mathlib.Data.SetLike.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_coe {x : B} : x ∈ (p : Set B) ↔ x ∈ p :=\n  Iff.rfl"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_coe {x : E} {K : ProperCone \u0000\u0000 E} : x ∈ (K : PointedCone \u0000\u0000 E) ↔ x ∈ K :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem nonempty (K : ProperCone \u0000\u0000 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem isClosed (K : ProperCone \u0000\u0000 E) : IsClosed (K : Set E) :=\n  K.isClosed'",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem toPointedCone_injective : Function.Injective ((↑) : ProperCone \u0000\u0000 E → PointedCone \u0000\u0000 E) :=\n  fun S T h => by cases S; cases T; congr\n-- TODO: add `ConvexConeClass` that extends `SetLike` and replace the below instance",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- A proper cone is a pointed cone `K` that is closed. Proper cones have the nice property that\nthey are equal to their double dual, see `ProperCone.dual_dual`.\nThis makes them useful for defining cone programs and proving duality theorems. -/\nstructure ProperCone (\u0000\u0000 : Type*) (E : Type*) [OrderedSemiring \u0000\u0000] [AddCommMonoid E]\n    [TopologicalSpace E] [Module \u0000\u0000 E] extends Submodule {c : \u0000\u0000 // 0 ≤ c} E where\n  isClosed' : IsClosed (carrier : Set E)",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\nprotected theorem mem_closure {K : PointedCone \u0000\u0000 E} {a : E} :\n    a ∈ K.closure ↔ a ∈ closure (K : Set E) :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_comap {f : E →L[ℝ] F} {S : ProperCone ℝ F} {x : E} : x ∈ S.comap f ↔ f x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp]\nlemma _root_.ConvexCone.mem_toPointedCone {S : ConvexCone \u0000\u0000 E} (hS : S.Pointed) (x : E) :\n    x ∈ S.toPointedCone hS ↔ x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp, norm_cast]\ntheorem coe_map (S : PointedCone \u0000\u0000 E) (f : E →ₗ[\u0000\u0000] F) : (S.map f : Set F) = f '' S :=\n  rfl"],
+  "id":
+  {"name": "ProperCone.mem_coe",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem mem_coe {x : E} {K : ProperCone 𝕜 E} : x ∈ (K : PointedCone 𝕜 E) ↔ x ∈ K :=\n  Iff.rfl\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝³ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝² : AddCommMonoid E\ninst✝¹ : TopologicalSpace E\ninst✝ : Module 𝕜 E\nx : E\nK : ProperCone 𝕜 E\n⊢ Eq (Membership.mem (↑K) x) (Membership.mem K x)",
+  "content_sorry":
+  "@[simp]\ntheorem mem_coe {x : E} {K : ProperCone 𝕜 E} : x ∈ (K : PointedCone 𝕜 E) ↔ x ∈ K := by sorry",
+  "annotation":
+  "@[simp]\ntheorem mem_coe {x : E} {K : ProperCone 𝕜 E} : x ∈ (K : PointedCone 𝕜 E) ↔ x ∈ K :=\n  Iff.rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Iff.rfl",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "protected theorem Iff.rfl {a : Prop} : a ↔ a :=\n  Iff.refl a"},
+   {"name": "PointedCone",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A pointed cone is a submodule of a module with scalars restricted to being nonnegative. -/\nabbrev PointedCone (𝕜 E) [OrderedSemiring 𝕜] [AddCommMonoid E] [Module 𝕜 E] :=\n  Submodule {c : 𝕜 // 0 ≤ c} E"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_coe {x : E} {K : ProperCone \u0000\u0000 E} : x ∈ (K : PointedCone \u0000\u0000 E) ↔ x ∈ K :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem toPointedCone_injective : Function.Injective ((↑) : ProperCone \u0000\u0000 E → PointedCone \u0000\u0000 E) :=\n  fun S T h => by cases S; cases T; congr\n-- TODO: add `ConvexConeClass` that extends `SetLike` and replace the below instance",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem nonempty (K : ProperCone \u0000\u0000 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n/-- A proper cone is a pointed cone `K` that is closed. Proper cones have the nice property that\nthey are equal to their double dual, see `ProperCone.dual_dual`.\nThis makes them useful for defining cone programs and proving duality theorems. -/\nstructure ProperCone (\u0000\u0000 : Type*) (E : Type*) [OrderedSemiring \u0000\u0000] [AddCommMonoid E]\n    [TopologicalSpace E] [Module \u0000\u0000 E] extends Submodule {c : \u0000\u0000 // 0 ≤ c} E where\n  isClosed' : IsClosed (carrier : Set E)",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[ext]\ntheorem ext {S T : PointedCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Basic\n/-- Two `ConvexCone`s are equal if they have the same elements. -/\n@[ext]\ntheorem ext {S T : ConvexCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp, norm_cast]\ntheorem coe_closure (K : PointedCone \u0000\u0000 E) : (K.closure : Set E) = closure K :=\n  rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem coe_comap (f : E →L[ℝ] F) (S : ProperCone ℝ F) : (S.comap f : Set E) = f ⁻¹' S :=\n  rfl"],
+  "id":
+  {"name": "ProperCone.ext",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[ext]\ntheorem ext {S T : ProperCone 𝕜 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h\n\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝³ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝² : AddCommMonoid E\ninst✝¹ : TopologicalSpace E\ninst✝ : Module 𝕜 E\nS T : ProperCone 𝕜 E\nh : ∀ (x : E), Iff (Membership.mem S x) (Membership.mem T x)\n⊢ Eq S T",
+  "content_sorry":
+  "@[ext]\ntheorem ext {S T : ProperCone 𝕜 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T := by sorry",
+  "annotation":
+  "@[ext]\ntheorem ext {S T : ProperCone 𝕜 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "SetLike.ext",
+    "module": "Mathlib.Data.SetLike.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Note: implementers of `SetLike` must copy this lemma in order to tag it with `@[ext]`. -/\ntheorem ext (h : ∀ x, x ∈ p ↔ x ∈ q) : p = q :=\n  coe_injective <| Set.ext h"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Convex.Cone.Proper\ntheorem toPointedCone_injective : Function.Injective ((↑) : ProperCone \u0000\u0000 E → PointedCone \u0000\u0000 E) :=\n  fun S T h => by cases S; cases T; congr\n-- TODO: add `ConvexConeClass` that extends `SetLike` and replace the below instance",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[ext]\ntheorem ext {S T : ProperCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\n@[simp]\ntheorem mem_coe {x : E} {K : ProperCone \u0000\u0000 E} : x ∈ (K : PointedCone \u0000\u0000 E) ↔ x ∈ K :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Proper\nprotected theorem nonempty (K : ProperCone \u0000\u0000 E) : (K : Set E).Nonempty :=\n  ⟨0, by { simp_rw [SetLike.mem_coe, ← ProperCone.mem_coe, Submodule.zero_mem] }⟩",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\ntheorem toConvexCone_injective : Injective ((↑) : PointedCone \u0000\u0000 E → ConvexCone \u0000\u0000 E) :=\n  fun _ _ => by simp [toConvexCone]",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp]\ntheorem toConvexCone_pointed (S : PointedCone \u0000\u0000 E) : (S : ConvexCone \u0000\u0000 E).Pointed := by\n  simp [toConvexCone, ConvexCone.Pointed]",
+   "--src: Mathlib.Analysis.Convex.Cone.Closure\n@[simp]\ntheorem closure_eq {K L : PointedCone \u0000\u0000 E} : K.closure = L ↔ closure (K : Set E) = L :=\n  SetLike.ext'_iff",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[ext]\ntheorem ext {S T : PointedCone \u0000\u0000 E} (h : ∀ x, x ∈ S ↔ x ∈ T) : S = T :=\n  SetLike.ext h",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp]\nlemma _root_.ConvexCone.mem_toPointedCone {S : ConvexCone \u0000\u0000 E} (hS : S.Pointed) (x : E) :\n    x ∈ S.toPointedCone hS ↔ x ∈ S :=\n  Iff.rfl",
+   "--src: Mathlib.Analysis.Convex.Cone.Pointed\n@[simp]\ntheorem mem_map {f : E →ₗ[\u0000\u0000] F} {S : PointedCone \u0000\u0000 E} {y : F} : y ∈ S.map f ↔ ∃ x ∈ S, f x = y :=\n  Iff.rfl"],
+  "id":
+  {"name": "ProperCone.toPointedCone_injective",
+   "module": "Mathlib.Analysis.Convex.Cone.Proper",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem toPointedCone_injective : Function.Injective ((↑) : ProperCone 𝕜 E → PointedCone 𝕜 E) :=\n  fun S T h => by cases S; cases T; congr\n\n-- TODO: add `ConvexConeClass` that extends `SetLike` and replace the below instance\n"},
+  "goal":
+  "𝕜 : Type u_1\ninst✝³ : OrderedSemiring 𝕜\nE : Type u_2\ninst✝² : AddCommMonoid E\ninst✝¹ : TopologicalSpace E\ninst✝ : Module 𝕜 E\n⊢ Function.Injective ProperCone.toPointedCone",
+  "content_sorry":
+  "theorem toPointedCone_injective : Function.Injective ((↑) : ProperCone 𝕜 E → PointedCone 𝕜 E) :=\n  fun S T h => by sorry",
+  "annotation":
+  "theorem toPointedCone_injective : Function.Injective ((↑) : ProperCone 𝕜 E → PointedCone 𝕜 E) :=\n                  /-\n                    𝕜 : Type u_1\n                    inst✝³ : OrderedSemiring 𝕜\n                    E : Type u_2\n                    inst✝² : AddCommMonoid E\n                    inst✝¹ : TopologicalSpace E\n                    inst✝ : Module 𝕜 E\n                    S T : ProperCone 𝕜 E\n                    h : Eq ↑S ↑T\n                    ⊢ Eq S T\n                  -/\n  fun S T h => by cases S; cases T; congr\n                                    /-\n                                      🎉 no goals\n                                    -/\n\n-- TODO: add `ConvexConeClass` that extends `SetLike` and replace the below instance\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "PointedCone",
+    "module": "Mathlib.Analysis.Convex.Cone.Pointed",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A pointed cone is a submodule of a module with scalars restricted to being nonnegative. -/\nabbrev PointedCone (𝕜 E) [OrderedSemiring 𝕜] [AddCommMonoid E] [Module 𝕜 E] :=\n  Submodule {c : 𝕜 // 0 ≤ c} E"},
+   {"name": "Function.Injective",
+    "module": "Mathlib.Logic.Function.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A function `f : α → β` is called injective if `f x = f y` implies `x = y`. -/\ndef Injective (f : α → β) : Prop :=\n  ∀ ⦃a₁ a₂⦄, f a₁ = f a₂ → a₁ = a₂"}]}]

@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:A6000:6
+#SBATCH --gres=gpu:A6000:7
 #SBATCH --mem=160G
 #SBATCH --exclude=babel-1-27,babel-4-37
 
@@ -18,8 +18,8 @@ export NCCL_DEBUG=INFO
 
 export HF_HOME="/data/user_data/riyaza/HF"
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6
 
 accelerate launch --main-process-port=29501 -m \
-    axolotl.cli.train /home/riyaza/eval_improver/improver/train/configs/cmp_inf.yml \
+    axolotl.cli.train /home/riyaza/eval_improver/improver/train/configs/Q14_inf.yml \
     --deepspeed /home/riyaza/deepspeed_configs/zero3_bf16_cpuoffload_params.json

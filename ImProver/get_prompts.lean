@@ -1,22 +1,8 @@
 import ImProver.online.prompting.state_comments
 import ImProver.online.prompting.context
 import Cli
--- import ImProver.prompting.prompts
--- import ImProver.inference.inference
--- import ImProver.evaluation.eval
--- import ImProver.utils
--- import ImProver.prompting.rag
-
--- import ImProver.prompting.state_comments
 import ImProver.online.prompting.prompts
--- import ImProver.online.inference.inference
--- import ImProver.online.evaluation.eval
--- import ImProver.online.utils
 import ImProver.online.prompting.rag
-
-
-
-
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 import TrainingData.Utils.HumanTheorem
@@ -24,15 +10,11 @@ import ImportGraph.RequiredModules
 import ImportGraph.Imports
 import TrainingData.TreeParser
 import TrainingData.ExtractGoal
-
--- import ImProver.ProofTree.getPfTree
-
 import Lean.Util.SearchPath
 import Mathlib.Lean.CoreM
 import Mathlib.Control.Basic
 import Mathlib.Lean.Expr.Basic
 import Batteries.Lean.HashMap
--- import Compfiles
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
@@ -41,22 +23,13 @@ set_option autoImplicit true
 
 
 
--- def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
---   { state with
---     scopes := state.scopes.map fun s : Scope =>
---       { s with opts := Id.run do
---           let mut opts := s.opts
---           for (k, v) in options do
---             opts := opts.insert k v
---           opts } }
-
 
 partial def maxEndPos (bp : ProofTree) (pos : Nat := 0) : Nat :=
   let curr := bp.node.tailPos.map (fun x => x.byteIdx) |>.getD pos
   let children := bp.children.map (fun child => maxEndPos child curr)
   children.foldl (init := curr) (fun acc x => max acc x)
 
-
+-- given a list of possible theorems, return the first that compiles without errors
 def test_extracted_theorems (thms : List String)
   (contentsBefore : Substring) (cmd : CompilationStep)
   (options : Options) (fileName : String)
@@ -95,6 +68,38 @@ def test_extracted_theorems (thms : List String)
       let new_best := (best.1, pure new_best2)
       test_extracted_theorems rest contentsBefore cmd options fileName new_best
 
+-- given two theorems, compile the latter and get its error msgs
+def test_extracted_theorems' (thms : List String)
+  (contentsBefore : Substring) (cmd : CompilationStep)
+  (options : Options) (fileName : String)
+  : IO (Option (String × String × IO (List String))) := do
+
+  match thms with
+  | pp::stx::[] =>
+    IO.println s!"Testing theorem: {pp}"
+
+    let elaborated_steps := Lean.Elab.IO.compilationSteps
+      (Parser.mkInputContext (contentsBefore.toString ++ stx) fileName)
+      cmd.parserStateBefore
+      (cmd.commandStateBefore.withOptions options)
+
+    let head? ← elaborated_steps.uncons
+    let cstep? : Option CompilationStep := match head? with
+    | none => none
+    | some (cstep, _) => some cstep
+
+    let msgs : IO (List String) := match cstep? with
+      | none => return ["Unexpected error: failed to compile"]
+      | some cstep => do
+        let filtered_msg := cstep.msgs.filter (fun (msg : Message) => msg.severity == MessageSeverity.error)
+        let strMsg ← filtered_msg.mapM (fun (msg : Message) => msg.toString)
+        return strMsg
+    IO.println s!"Messages: {← msgs}"
+    IO.println "===================="
+    return some (pp, stx, msgs)
+  | _ => return none
+
+
 partial def getIndentSize (line : String) : Nat :=
   let rec countLeadingSpaces (idx : Nat) : Nat :=
     if idx < line.length then
@@ -128,8 +133,9 @@ def removeCommonIndent (s : String) : String :=
 
 
 
+-- given a theorem cmd, return a list of split (theorem (pp), theorem syntax, context items, error msgs)
 def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String := "all_splits")
-  : IO (List (String × List ExternalContext × (List String))) := do
+  : IO (List (String × String × List ExternalContext × (List String))) := do
 
   IO.println s!"Processing: {cmd.src.toString}"
 
@@ -212,15 +218,14 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
       let cleanedRest := removeCommonIndent rest
       let cleanProof := firstLine ++ (if rest == "" then "" else "\n" ++ cleanedRest)
       let thms_raw := thms.map (fun thm => s!"lemma {thm} := by\n{cleanProof}")
-      let implicit_thms := thms_raw.map (fun thm => s!"set_option autoImplicit true in\n{thm.trim}")
-      thms_raw ++ implicit_thms
+      thms_raw
 
       )
 
   -- IO.println s!"Split Theorems: \n{"\n".intercalate <| splits}\n"
 
   let mut output := []
-
+  -- must be 2 thms, first is pp, second is syntax
   for (thms,bp) in splits.zip breakpoints do
     let pos := bp.node.pos.get!
     let endPos : String.Pos := ⟨maxEndPos bp pos.byteIdx⟩
@@ -230,16 +235,21 @@ def splitC2 (fileName : String) (cmd : CompilationStep) (breakpointType : String
       dep.pos.get!.byteIdx >= pos.byteIdx &&
       dep.endPos.get!.byteIdx <= endPos.byteIdx)
 
-    let compiled := test_extracted_theorems thms contentsBefore cmd options fileName
-    let (thm, io_msgs) ← compiled
+    let compiled? ← test_extracted_theorems' thms contentsBefore cmd options fileName
+
+    if compiled?.isNone then
+      IO.println s!"Failed to compile any of the split theorems: {thms}"
+      continue
+
+    let (pp_thm, stx_thm, io_msgs) := compiled?.get!
     let msgs : (List String) ← io_msgs
 
 
 
-    IO.println s!"Split Theorem: \n{thm}\n"
+    IO.println s!"Split Theorem: \n{pp_thm}\n"
     IO.println s!"Dependencies: \n{dependencies_filtered.map (fun x => x.name.toString)}\n"
     IO.println s!"Messages: \n{msgs}\n"
-    output := (thm, dependencies_filtered, msgs) :: output
+    output := (pp_thm, stx_thm, dependencies_filtered, msgs) :: output
 
 
   IO.println "===================="
@@ -251,6 +261,7 @@ structure TheoremID where
   name : Name
   module : Name
   content : Option String := none
+  compilationAlias : Option String := none
   isExtracted : Bool := false
   errorMsgs : Array String := #[]
   kind : String := "theorem"
@@ -271,9 +282,7 @@ structure TheoremData where
 
 
 
-
-
-def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO Unit := do
+def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String): IO Unit := do
   searchPathRef.set compile_time_search_path%
 
   let fileName := (← findLean mod).toString
@@ -296,8 +305,25 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO
       | none => false
     if not isThm? || not isHuman then
       continue
+
+    let curr_name_variants :=
+      let fullName := ci.name.toString
+      let nameParts := fullName.splitOn "."
+      let rec buildVariants (remaining : List String) (acc : List String) :=
+        match remaining with
+        | [] => acc
+        | _ :: rest =>
+          let currVariant := ".".intercalate remaining
+          buildVariants rest (currVariant :: acc)
+      buildVariants nameParts []
+
+    let included? := curr_name_variants.map (fun n => theorems.contains n) |>.any id
+
+    if (not theorems.isEmpty && not included?) then
+      continue
     targets_new := targets_new.push (cmd, ci)
 
+  IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ===="
 
   let rag_strings : Array Json ← do
       let items ← retrieve_batch_indep targets_new python_cmd
@@ -341,12 +367,13 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO
     let mut extracted_thms : List TheoremData := []
     let mut C2_dependencies : List TheoremID := []
     -- errors = none means didn't compile, some [] means no errors, some [errors] means there were errors
-    for ((thm, deps, errors), idx) in C2_raw.zipIdx do
+    for ((pp_thm, stx_thm, deps, errors), idx) in C2_raw.zipIdx do
 
       let split_thm : TheoremID :=
         {name := s!"extracted_split_{ci.name}_{idx}".toName,
           module := mod,
-          content := thm,
+          content := pp_thm,
+          compilationAlias := stx_thm,
           isExtracted := true,
           errorMsgs := errors.toArray
         }
@@ -360,7 +387,7 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO
         }
       extracted_thms := split_data :: extracted_thms
 
-    let id : TheoremID := {name := ci.name, module := mod, content := some srcCommand}
+    let id : TheoremID := {name := ci.name, module := mod, content := some srcCommand, compilationAlias := some srcCommand}
 
     let mainData : TheoremData :=
       { id := id,
@@ -470,9 +497,12 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
+  let theorems_raw : String := args.positionalArg! "theorems" |>.as! String
+  let theorems : List String := if theorems_raw.isEmpty then [] else theorems_raw.splitOn ","
 
 
-  getPrompts mod outputDirectory python_cmd
+
+  getPrompts mod outputDirectory python_cmd theorems
   return 0
 
 
@@ -485,6 +515,8 @@ def get_prompts : Cmd := `[Cli|
     file : ModuleName; "Lean module to get prompts for."
     outputDirectory : String; "Where to save the Json output."
     pythonCommand : String; "Path to python executable."
+    theorems : String; "List of theorems to include in the prompts, separated by \",\". If empty, all theorems in the module will be used."
+
 ]
 
 

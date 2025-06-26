@@ -5,6 +5,8 @@ from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
 import torch
 import gc
+import datetime
+
 
 def build_db(db_path, out_dir, model):
     con = duckdb.connect(db_path, read_only=True)
@@ -68,12 +70,14 @@ if __name__ == "__main__":
         torch.cuda.ipc_collect()
     gc.collect()
     parser = argparse.ArgumentParser(description="Build vector DB for informal theorems")
-    parser.add_argument("KG_id", type=str)
-    parser.add_argument("--KG_dir", type=str, default="KG2.75")
+    parser.add_argument("prompts_id", type=str)
+    parser.add_argument("KG_id", type=str, nargs='?', default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
+    parser.add_argument("--prompts_dir", type=str, default=".prompts")
+    parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     # parser.add_argument("--out_dir", type=str, default="chroma_db")
     parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
     args = parser.parse_args()
-    db_path = os.path.join(args.KG_dir, args.KG_id, "informal_data.duckdb")
+    db_path = os.path.join(args.prompts_dir, args.prompts_id, "informal_data.duckdb")
     out_dir = os.path.join(args.KG_dir, args.KG_id, "chroma_db")
 
     build_db(db_path, out_dir, args.model)

@@ -1,0 +1,34 @@
+[{"rag":
+  ["--src: Mathlib.Data.Int.GCD\ntheorem xgcdAux_rec {r s t r' s' t'} (h : 0 < r) :\n    xgcdAux r s t r' s' t' = xgcdAux (r' % r) (s' - r' / r * s) (t' - r' / r * t) r s t := by\n  obtain ⟨r, rfl⟩ := Nat.exists_eq_succ_of_ne_zero h.ne'\n  simp [xgcdAux]",
+   "--src: Mathlib.Data.Int.Defs\n/-- If two integers are congruent to a sufficiently large modulus, they are equal. -/\nlemma eq_of_mod_eq_of_natAbs_sub_lt_natAbs {a b c : ℤ} (h1 : a % b = c)\n    (h2 : natAbs (a - c) < natAbs b) : a = c :=\n  Int.eq_of_sub_eq_zero (eq_zero_of_dvd_of_natAbs_lt_natAbs (dvd_sub_of_emod_eq h1) h2)",
+   "--src: Mathlib.Data.Int.ModEq\n/-- To cancel a common factor `c` from a `ModEq` we must divide the modulus `m` by `gcd m c`. -/\ntheorem cancel_left_div_gcd (hm : 0 < m) (h : c * a ≡ c * b [ZMOD m]) : a ≡ b [ZMOD m / gcd m c] :=\n  cancel_right_div_gcd hm <| by simpa [mul_comm] using h",
+   "--src: Mathlib.Data.Int.Defs\nlemma natMod_lt {n : ℕ} (hn : n ≠ 0) : m.natMod n < n :=\n  (toNat_lt' hn).2 <| emod_lt_of_pos _ <| by omega",
+   "--src: Mathlib.Data.Num.Lemmas\ntheorem divMod_to_nat_aux {n d : PosNum} {q r : Num} (h₁ : (r : ℕ) + d * ((q : ℕ) + q) = n)\n    (h₂ : (r : ℕ) < 2 * d) :\n    ((divModAux d q r).2 + d * (divModAux d q r).1 : ℕ) = ↑n ∧ ((divModAux d q r).2 : ℕ) < d := by\n  unfold divModAux\n  have : ∀ {r₂}, Num.ofZNum' (Num.sub' r (Num.pos d)) = some r₂ ↔ (r : ℕ) = r₂ + d := by\n    intro r₂\n    apply Num.mem_ofZNum'.trans\n    rw [← ZNum.to_int_inj, Num.cast_toZNum, Num.cast_sub', sub_eq_iff_eq_add, ← Int.natCast_inj]\n    simp\n  cases' e : Num.ofZNum' (Num.sub' r (Num.pos d)) with r₂\n  · rw [Num.cast_bit0, two_mul]\n    refine ⟨h₁, lt_of_not_ge fun h => ?_⟩\n    cases' Nat.le.dest h with r₂ e'\n    rw [← Num.to_of_nat r₂, add_comm] at e'\n    cases e.symm.trans (this.2 e'.symm)\n  · have := this.1 e\n    simp only [Num.cast_bit1]\n    constructor\n    · rwa [two_mul, add_comm _ 1, mul_add, mul_one, ← add_assoc, ← this]\n    · rwa [this, two_mul, add_lt_add_iff_right] at h₂",
+   "--src: Mathlib.Data.ZMod.Basic\n@[push_cast, simp]\ntheorem intCast_mod (a : ℤ) (b : ℕ) : ((a % b : ℤ) : ZMod b) = (a : ZMod b) := by\n  rw [ZMod.intCast_eq_intCast_iff]\n  apply Int.mod_modEq",
+   "--src: Mathlib.NumberTheory.PythagoreanTriples\ntheorem isPrimitiveClassified_aux (hc : x.gcd y = 1) (hzpos : 0 < z) {m n : ℤ}\n    (hm2n2 : 0 < m ^ 2 + n ^ 2) (hv2 : (x : ℚ) / z = 2 * m * n / ((m : ℚ) ^ 2 + (n : ℚ) ^ 2))\n    (hw2 : (y : ℚ) / z = ((m : ℚ) ^ 2 - (n : ℚ) ^ 2) / ((m : ℚ) ^ 2 + (n : ℚ) ^ 2))\n    (H : Int.gcd (m ^ 2 - n ^ 2) (m ^ 2 + n ^ 2) = 1) (co : Int.gcd m n = 1)\n    (pp : m % 2 = 0 ∧ n % 2 = 1 ∨ m % 2 = 1 ∧ n % 2 = 0) : h.IsPrimitiveClassified := by\n  have hz : z ≠ 0 := ne_of_gt hzpos\n  have h2 : y = m ^ 2 - n ^ 2 ∧ z = m ^ 2 + n ^ 2 := by\n    apply Rat.div_int_inj hzpos hm2n2 (h.coprime_of_coprime hc) H\n    rw [hw2]\n    norm_cast\n  use m, n\n  apply And.intro _ (And.intro co pp)\n  right\n  refine ⟨?_, h2.left⟩\n  rw [← Rat.coe_int_inj _ _, ← div_left_inj' ((mt (Rat.coe_int_inj z 0).mp) hz), hv2, h2.right]\n  norm_cast",
+   "--src: Mathlib.Data.Int.ModEq\ntheorem existsUnique_equiv (a : ℤ) {b : ℤ} (hb : 0 < b) :\n    ∃ z : ℤ, 0 ≤ z ∧ z < b ∧ z ≡ a [ZMOD b] :=\n  ⟨a % b, emod_nonneg _ (ne_of_gt hb),\n    by\n      have : a % b < |b| := emod_lt _ (ne_of_gt hb)\n      rwa [abs_of_pos hb] at this, by simp [ModEq]⟩",
+   "--src: Mathlib.Data.Fin.Basic\nlemma natCast_def [NeZero n] (a : ℕ) : (a : Fin n) = ⟨a % n, mod_lt _ n.pos_of_neZero⟩ := rfl",
+   "--src: Mathlib.Topology.Instances.AddCircle\ntheorem addOrderOf_div_of_gcd_eq_one' {m : ℤ} {n : ℕ} (hn : 0 < n) (h : m.natAbs.gcd n = 1) :\n    addOrderOf (↑(↑m / ↑n * p) : AddCircle p) = n := by\n  induction m\n  · simp only [Int.ofNat_eq_coe, Int.cast_natCast, Int.natAbs_ofNat] at h ⊢\n    exact addOrderOf_div_of_gcd_eq_one hn h\n  · simp only [Int.cast_negSucc, neg_div, neg_mul, coe_neg, addOrderOf_neg]\n    exact addOrderOf_div_of_gcd_eq_one hn h"],
+  "id":
+  {"name": "Imo2018P5.imo2018_p5",
+   "module": "Compfiles.Imo2018P5",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "problem imo2018_p5\n    (a : ℕ → ℤ)\n    (apos : ∀ n, 0 < a n)\n    (N : ℕ)\n    (hN : 0 < N)\n    (h : ∀ n, N ≤ n →\n      ∃ z : ℤ,\n        z = ∑ i ∈ Finset.range n, (a i : ℚ) / a ((i + 1) % n))\n    : ∃ M, ∀ m, M ≤ m → a m = a (m + 1) := by\n  sorry\n\n\n"},
+  "goal":
+  "a : Nat → Int\napos : ∀ (n : Nat), LT.lt 0 (a n)\nN : Nat\nhN : LT.lt 0 N\nh : ∀ (n : Nat), LE.le N n → Exists fun z => Eq (↑z) ((Finset.range n).sum fun i => HDiv.hDiv ↑(a i) ↑(a (HMod.hMod (HAdd.hAdd i 1) n)))\n⊢ Exists fun M => ∀ (m : Nat), LE.le M m → Eq (a m) (a (HAdd.hAdd m 1))",
+  "content_sorry":
+  "problem imo2018_p5\n    (a : ℕ → ℤ)\n    (apos : ∀ n, 0 < a n)\n    (N : ℕ)\n    (hN : 0 < N)\n    (h : ∀ n, N ≤ n →\n      ∃ z : ℤ,\n        z = ∑ i ∈ Finset.range n, (a i : ℚ) / a ((i + 1) % n))\n    : ∃ M, ∀ m, M ≤ m → a m = a (m + 1) := by\n  sorry",
+  "annotation":
+  "problem imo2018_p5\n    (a : ℕ → ℤ)\n    (apos : ∀ n, 0 < a n)\n    (N : ℕ)\n    (hN : 0 < N)\n    (h : ∀ n, N ≤ n →\n      ∃ z : ℤ,\n        z = ∑ i ∈ Finset.range n, (a i : ℚ) / a ((i + 1) % n))\n    : ∃ M, ∀ m, M ≤ m → a m = a (m + 1) := by\n  /-\n    a : Nat → Int\n    apos : ∀ (n : Nat), LT.lt 0 (a n)\n    N : Nat\n    hN : LT.lt 0 N\n    h : ∀ (n : Nat), LE.le N n → Exists fun z => Eq (↑z) ((Finset.range n).sum fun …\n    ⊢ Exists fun M => ∀ (m : Nat), LE.le M m → Eq (a m) (a (HAdd.hAdd m 1))\n  -/\n  sorry\n  /-\n    🎉 no goals\n  -/\n\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Finset.range",
+    "module": "Mathlib.Data.Finset.Range",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩"}]}]

@@ -118,7 +118,12 @@ def run_inference(df, args, ray_init=True):
 def construct_prompts(config_data, data, args):
     idx = 0
     items = []
-    for name, decl_data in data.items():
+    for item in data:
+        if item['id']['isExtracted'] or len(item['id']['errorMsgs']) !=0:
+            continue
+        
+        name = item["id"]["name"]
+
         prompt = config_data["system_prompt"][args.metric] + "\n"
         
         if args.examples != 0:
@@ -169,21 +174,22 @@ def construct_prompts(config_data, data, args):
             prompt += f"</EXAMPLES>\n\n"
 
         if args.context != 0:
+            
             prompt += f"<CONTEXT>\n"
-            for context in decl_data["context"][: min(args.context,len(decl_data["context"]))]:
+            for context in item["C1_dependencies"][: min(args.context,len(item["C1_dependencies"]))]:
                 prompt += f"<ITEM>\n--name={context['name']}\n--type={context['context_item_type']}\n{context['content']}\n</ITEM>\n"
             prompt += f"</CONTEXT>\n\n"
 
         if args.rag != 0:
             prompt += f"<RAG>\n"
-            for rag in decl_data["rag"][: min(args.rag,len(decl_data["rag"]))]:
+            for rag in item["rag"][: min(args.rag,len(item["rag"]))]:
                 prompt += f"<DOC>\n{rag}\n</DOC>\n"
             prompt += f"</RAG>\n\n"
 
         if args.annotation:
-            prompt += f"<ANNOTATION>\n{decl_data['annotation']}\n</ANNOTATION>\n\n"
+            prompt += f"<ANNOTATION>\n{item['annotation']}\n</ANNOTATION>\n\n"
 
-        prompt += f"\n<CURRENT>\n{decl_data['current'] if args.metric!="completion" else decl_data['current_sorry']}\n</CURRENT>\n\n"
+        prompt += f"\n<CURRENT>\n{item['id']['content'] if args.metric!="completion" else item['content_sorry']}\n</CURRENT>\n\n"
         prompt += "<IMPROVED>"
 
         data = {
@@ -224,8 +230,11 @@ def main(args):
     
     df = pd.DataFrame(columns=["module", "decl", "decl_idx", "raw_prompt"])
     data = {}
-    for file in files_to_process:
-        file_path = os.path.join(prompt_root, file.replace(".lean", ".json"))
+    for file_info in files_to_process:
+        file = file_info if type(file_info) is str else file_info["file"]
+        
+        file_path = os.path.join(prompt_root, "src", file.replace(".lean", ".json"))
+        # file_path = os.path.join(prompt_root, file.replace(".lean", ".json")) #LEGACY, REVERT!
         module = file.replace(".lean", "").replace("/", ".")
         if os.path.exists(file_path):
             with open(file_path, "r") as f:

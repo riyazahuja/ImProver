@@ -3,7 +3,7 @@
 #SBATCH --job-name=base_eval
 #SBATCH --output=logs/base_eval.out
 #SBATCH --error=logs/base_eval.err
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=24
 #SBATCH --time=1-00:00:00
 #SBATCH --mem=100G
 
@@ -16,8 +16,8 @@ export HF_HOME="/data/user_data/riyaza/HF"
 
 cd ~/eval_improver/improver
 
-lake build ImProver.eval_improver
+lake build eval_improver
 
 sleep 5
 
-python /home/riyaza/eval_improver/improver/ImProver/eval_improver.py Completion_base_new --cpus 12
+python /home/riyaza/eval_improver/improver/ImProver/eval_improver.py Q14-cmp --cpus 24

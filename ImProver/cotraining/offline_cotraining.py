@@ -79,7 +79,7 @@ class CoTrainer:
         #         query = "MATCH (t:Theorem) RETURN t.module AS module, t.name AS name, t.text AS text"
         #     res = session.run(query)
         #     return [r.data() for r in res]
-        with open("/home/riyaza/eval_improver/improver/ImProver/cotraining/records_small.json", "r", encoding="utf-8-sig") as f:
+        with open("/home/riyaza/eval_improver/improver/ImProver/cotraining/records.json", "r", encoding="utf-8-sig") as f:
             records = json.load(f)
 
         return [{r['keys'][i] : r['_fields'][i] for i in range(len(r['keys']))} for r in records]
@@ -199,7 +199,7 @@ class CoTrainer:
         modules = modules_df["module"].tolist()
         con.close()
 
-        cpus = 12#multiprocessing.cpu_count()
+        cpus = 18#multiprocessing.cpu_count()
         
         semaphore = asyncio.Semaphore(cpus)
         progress_bar = tqdm.tqdm(total=len(modules), desc="Processing files")
@@ -299,11 +299,11 @@ class CoTrainer:
             for seed in seeds
         ]
         # conj_data_path, conj_lists = self.batch_generate(prompts, c, self.conj_model_path, metric="conjecturer")
-        conj_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_001803"
+        # conj_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_001803"
         print("=======================================")
         # print(f"Ran inference on conjectures to get {len(conj_lists)} conjecture lists.")
         print("=======================================")
-        # conj_data_path = '/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_001803'
+        conj_data_path = '/home/riyaza/eval_improver/improver/cotraining_runs/Q14_inf_conj'
         # asyncio.run(self.lean_check_batch(conj_data_path, "conjecturer"))
 
         eval_conn = duckdb.connect(os.path.join(conj_data_path, "eval.duckdb"))
@@ -341,11 +341,12 @@ class CoTrainer:
         # print(f"Generated {sum(len(lst) for lst in proof_lists)} proofs across all conjectures.")
         print("=======================================")
         print(f"Checking validity of proofs.")
-        # prover_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250623_220903"
+        
+        
+        prover_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/Q14_inf_conj_prover"
         # asyncio.run(self.lean_check_batch(prover_data_path))
         # Read proof validity results from the evaluation database
         proof_valid = []
-        prover_data_path = "/home/riyaza/eval_improver/improver/cotraining_runs/RUN_20250624_022501"
         eval_conn = duckdb.connect(os.path.join(prover_data_path, "eval.duckdb"))
         eval_df = eval_conn.execute(
         "SELECT decl_idx, original_prompt, new_correct, new_raw, new_trimmed, new_errors FROM evaluation_results ORDER BY decl_idx"
@@ -448,7 +449,7 @@ class CoTrainer:
         with open("raw_dataset.json", "w") as f:
             json.dump(raw_dataset2, f, indent=2)
         
-        conj_data, prov_data = [], []
+        conj_data, prov_data, lean_data = [], [], []
         
         # Create directories for training data
         os.makedirs("cotraining_data", exist_ok=True)
@@ -496,6 +497,14 @@ class CoTrainer:
                     "output": proof,
                     "module": seed_module,
                     "name": name,
+                })
+                
+                lean_data.append({
+                    "module": seed_module,
+                    "name": name,
+                    "seed": seed_text,
+                    "conjecture": conjecture_str,
+                    "proof": proof,
                 })
                 
                 # Update knowledge graph and vector database
@@ -587,6 +596,23 @@ class CoTrainer:
         with open("cotraining_data/prover.jsonl", "w") as f:
             for item in prov_data:
                 f.write(json.dumps(item) + "\n")
+                
+        with open("cotraining_data/lean_data.lean", "w") as f:
+            all_modules = list(set(item["module"] for item in lean_data))
+            for module in all_modules:
+                f.write(f"import {module}\n")
+            f.write("\n")
+            
+            for item in lean_data:
+                comment = f"""/-
+Seed (module: {item['module']}, name: {item['name']}):
+{item['seed']}
+
+Conjecture:
+{item['conjecture']}
+
+-/"""
+                f.write(comment + "\n\n"+item['proof']+'\n\n')
         # Train models on the newly collected data
         # self.train_conjecturer("cotraining_data/conjecturer.jsonl")
         # self.train_prover("cotraining_data/prover.jsonl")
