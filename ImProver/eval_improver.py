@@ -106,8 +106,8 @@ async def main_async(args):
 
 
 
-if __name__ == "__main__":
-
+def get_parser() -> argparse.ArgumentParser:
+    """Return the ``argparse`` parser used for evaluation."""
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("runID", type=str, help="Run ID to use for evaluation")
     parser.add_argument(
@@ -122,9 +122,11 @@ if __name__ == "__main__":
         default=multiprocessing.cpu_count(),
         help="Number of CPUs to use (default: all available)",
     )
+    return parser
 
 
+if __name__ == "__main__":
+    parser = get_parser()
     args = parser.parse_args()
-
     asyncio.run(main_async(args))
 

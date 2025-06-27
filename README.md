@@ -119,6 +119,32 @@ newly discovered results, produce JSONL files containing training data for both
 models in `cotraining_data/`, and save updated model checkpoints in
 `cotraining_models/`.
 
+## Command Line Interface
+
+The `improver_cli.py` script provides a simple interface for running the main
+pipelines. Each command reuses the argument parser of the underlying Python
+module so any updates to the scripts are automatically reflected in the CLI.
+An executable wrapper named `improver` is included so you can call
+the CLI directly once the repository root is on your `PATH`. After installing
+the dependencies you can invoke:
+
+```bash
+# generate prompts
+improver get_prompts --config configs/run_example.yaml
+
+# run the full evaluation pipeline
+improver run --config configs/run_example.yaml
+
+# knowledge graph utilities
+improver KG run --config configs/kg_example.yaml
+improver KG data --config configs/kg_example.yaml  # without Neo4j insertion
+improver KG insert --config configs/kg_example.yaml  # insert only
+```
+
+Each command accepts a flat YAML config with fields matching the command line
+options of the underlying script. Example configs are provided in the `configs/`
+directory as `run_example.yaml` and `kg_example.yaml`.
+
 ## Acknowledgements
 We would like to thank Kim Morrison for the [Training Data repository](https://github.com/semorrison/lean-training-data) and Sean Welleck for the [Neural Theorem Proving (NTP) toolkit repository](https://github.com/cmu-l3/ntp-toolkit), which served as foundational resources for this project. Additionally, we would like to thank the Paperproof team for the [Paperproof repository](https://github.com/Paper-Proof/paperproof), which paved the way for our own prooftree generation and analysis system.
 

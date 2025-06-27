@@ -80,8 +80,8 @@ def run_inference(df, args, ray_init=True):
     )
     ds = vllm_processor(ds).materialize()
 
-    id = f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    run_output_dir = os.path.join(args.output_dir, id)
+    run_id = args.runID or f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_output_dir = os.path.join(args.output_dir, run_id)
     os.makedirs(run_output_dir, exist_ok=True)
 
     output_path = os.path.join(run_output_dir, "data")
@@ -95,6 +95,7 @@ def run_inference(df, args, ray_init=True):
         "context": args.context,
         "rag": args.rag,
         "model": args.model,
+        "run_id": run_id,
     }
 
     config_path = os.path.join(run_output_dir, "config.json")
@@ -112,7 +113,7 @@ def run_inference(df, args, ray_init=True):
     """
     )
 
-    return run_output_dir
+    return run_output_dir, run_id
 
 
 def construct_prompts(config_data, data, args):
@@ -189,7 +190,7 @@ def construct_prompts(config_data, data, args):
         if args.annotation:
             prompt += f"<ANNOTATION>\n{item['annotation']}\n</ANNOTATION>\n\n"
 
-        prompt += f"\n<CURRENT>\n{item['id']['content'] if args.metric!="completion" else item['content_sorry']}\n</CURRENT>\n\n"
+        prompt += f"\n<CURRENT>\n{item['id']['content'] if args.metric!='completion' else item['content_sorry']}\n</CURRENT>\n\n"
         prompt += "<IMPROVED>"
 
         data = {
@@ -257,17 +258,20 @@ def main(args):
     print(sum(data.values()))
 
     # returns the path to the directory containing run metadata and the parquet lake
-    output_path = run_inference(df, args)
+    output_path, run_id = run_inference(df, args)
+    print(f"Run stored at {output_path} with id {run_id}")
+    return run_id
 
     # we should also initialize + index the duckDB stuff
 
 
-if __name__ == "__main__":
-
+def get_parser() -> argparse.ArgumentParser:
+    """Return the ``argparse`` parser used for inference."""
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("metric", type=str, help="Metric to use for evaluation")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
     parser.add_argument("prompt_id", type=str, help="Prompt ID to use")
+    parser.add_argument("--runID", type=str, default=None, help="Optional run identifier")
     parser.add_argument(
         "--model",
         type=str,
@@ -329,7 +333,10 @@ if __name__ == "__main__":
         default=0,
         help="Number of few-shot example retrievals (default: 0)",
     )
+    return parser
 
+
+if __name__ == "__main__":
+    parser = get_parser()
     args = parser.parse_args()
-
     main(args)

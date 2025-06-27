@@ -218,15 +218,47 @@ def remove_informal_cycles(session):
     else:
         print("No bidirectional INFORMALLY_DEPENDS_ON relationships found")
 
-if __name__ == "__main__":
+def get_parser() -> argparse.ArgumentParser:
+    """Return the parser for inserting the KG into Neo4j."""
     parser = argparse.ArgumentParser(description="Export KG with class3 edges")
     parser.add_argument("KG_id", type=str)
-
     parser.add_argument("KG_dir", type=str, help="Path to KG directory")
     parser.add_argument("--neo4j_uri", type=str, default="bolt://localhost:7687")
     parser.add_argument("--neo4j_user", type=str, default="neo4j")
     parser.add_argument("--neo4j_pass", type=str, default="12345678")
-    args = parser.parse_args()
+    return parser
+
+
+def main(args=None):
+    parser = get_parser()
+    if args is None:
+        args = parser.parse_args()
+
+    driver = GraphDatabase.driver(args.neo4j_uri, auth=(args.neo4j_user, args.neo4j_pass))
+
+    db_path = os.path.join(args.KG_dir, args.KG_id, "combined.duckdb")
+
+    con = duckdb.connect(db_path, read_only=True)
+    rows = con.execute("SELECT * FROM theorems").fetchall()
+    cols = [c[1] for c in con.execute("PRAGMA table_info('theorems')").fetchall()]
+    con.close()
+
+    filtered_path = os.path.join(args.KG_dir, args.KG_id, "filtered_data.duckdb")
+    con = duckdb.connect(filtered_path, read_only=True)
+
+    with driver.session() as session:
+        for row in tqdm(rows, desc="Uploading"):
+            row_dict = dict(zip(cols, row))
+            session.write_transaction(process_row, row_dict, con)
+
+        print("Checking for cycles in INFORMALLY_DEPENDS_ON relationships...")
+        remove_informal_cycles(session)
+
+    driver.close()
+
+
+if __name__ == "__main__":
+    main()
 
     driver = GraphDatabase.driver(args.neo4j_uri, auth=(args.neo4j_user, args.neo4j_pass))
     

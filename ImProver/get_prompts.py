@@ -142,12 +142,11 @@ async def main_async(args):
     progress_bar.close()
 
 
-if __name__ == "__main__":
-
+def get_parser() -> argparse.ArgumentParser:
+    """Return the ``argparse`` parser used by this module."""
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
-    parser.add_argument("--prompt_id", type=str, default="prompts_" + datetime.now().strftime("%Y%m%d_%H%M%S")),
-
+    parser.add_argument("--prompt_id", type=str, default="prompts_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
     parser.add_argument(
         "--split",
         type=str,
@@ -178,10 +177,12 @@ if __name__ == "__main__":
         default=sys.executable,
         help="Python executable to use (default: current)",
     )
-    
-    args = parser.parse_args()
+    return parser
 
+
+if __name__ == "__main__":
+    parser = get_parser()
+    args = parser.parse_args()
     make_config(args)
-    
     asyncio.run(main_async(args))
 

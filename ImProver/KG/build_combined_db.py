@@ -115,11 +115,98 @@ def main(args):
     con.close()
 
 
-if __name__ == "__main__":
+def get_parser() -> argparse.ArgumentParser:
+    """Return the parser for building the combined KG database."""
     parser = argparse.ArgumentParser(description="Build combined KG database")
     parser.add_argument("dataset_path", type=str)
     parser.add_argument("KG_id", type=str)
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
-    args = parser.parse_args()
-    main(args)
+    return parser
+
+
+def main(args=None):
+    if args is None:
+        parser = get_parser()
+        args = parser.parse_args()
+    main_func(args)
+
+
+def main_func(args):
+    os.makedirs(os.path.join(args.KG_dir, args.KG_id), exist_ok=True)
+    combined_path = os.path.join(args.KG_dir, args.KG_id, "combined.duckdb")
+    con = duckdb.connect(combined_path)
+    con.execute("DROP TABLE IF EXISTS theorems")
+    con.execute(
+        """
+        CREATE TABLE theorems(
+            module TEXT,
+            name TEXT,
+            text TEXT,
+            informalStatement TEXT,
+            informalProof TEXT,
+            isExtracted BOOLEAN,
+            isOriginal BOOLEAN,
+            isCorrect BOOLEAN,
+            errorMsgs JSON,
+            C1Dependencies JSON,
+            C2Dependencies JSON,
+            C3Dependencies JSON
+        )
+        """
+    )
+
+    class3_edges = load_edges(os.path.join(args.KG_dir, args.KG_id, "c3edges.json"))
+
+    with open(args.dataset_path, "r") as f:
+        all_ds = json.load(f)
+        dataset = all_ds[args.split]
+    files = []
+    for repo in dataset.values():
+        files.extend(repo)
+
+    files_real = [file_info if type(file_info) is str else file_info["file"] for file_info in files]
+    modules = set(f.replace(".lean", "").replace("/", ".") for f in files_real)
+
+    informal_path = os.path.join(args.KG_dir, args.KG_id, "informal_data.duckdb")
+    informal_con = duckdb.connect(informal_path)
+
+    for root, _, files in os.walk(args.KG_dir):
+        for file in files:
+            if not file.endswith(".json"):
+                continue
+            if file == "config.json":
+                continue
+            module_path = os.path.relpath(os.path.join(root, file), args.KG_dir)
+            module = module_path.replace("/", ".").replace(".json", "")
+            with open(os.path.join(root, file), "r") as f:
+                theorems = json.load(f)
+            for thm in theorems:
+                thm_module = thm.get("id", {}).get("module", module)
+                if thm_module not in modules:
+                    continue
+                stmt = thm.get("informal_statement", "")
+                proof = thm.get("informal_proof", "")
+                c3 = class3_edges.get(f"{thm_module}:{thm.get('id', {}).get('name')}", [])
+                con.execute(
+                    "INSERT INTO theorems VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        thm_module,
+                        thm.get("id", {}).get("name"),
+                        thm.get("id", {}).get("content"),
+                        stmt,
+                        proof,
+                        thm.get("isExtracted", False),
+                        thm.get("isOriginal", False),
+                        thm.get("isCorrect", False),
+                        thm.get("errorMessages", []),
+                        json.dumps(thm.get("C1_dependencies", [])),
+                        json.dumps(thm.get("C2_dependencies", [])),
+                        json.dumps(c3),
+                    ),
+                )
+    con.close()
+
+
+if __name__ == "__main__":
+    main()

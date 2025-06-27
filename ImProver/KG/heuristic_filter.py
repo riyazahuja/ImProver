@@ -587,8 +587,8 @@ def main(args):
     
 
 
-if __name__ == "__main__":
-
+def get_parser() -> argparse.ArgumentParser:
+    """Return the parser for filtering the knowledge graph."""
     parser = argparse.ArgumentParser(description="Filter KG for ImProver")
     parser.add_argument("KG_id", type=str)
 
@@ -634,13 +634,59 @@ if __name__ == "__main__":
     parser.add_argument(
         "--training_data", action=argparse.BooleanOptionalAction , type=bool, default=True, help="Whether to generate training data (default: True)"
     )
+    return parser
 
-    args = parser.parse_args()
 
-    # ------------------------------------------------------------------
-    # Initialise tokenizer once so we can measure prompt lengths
+def main(args=None):
+    parser = get_parser()
+    if args is None:
+        args = parser.parse_args()
+
     MAX_PROMPT_TOKENS = 16384 - 512   # model context minus generation tokens
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-    # ------------------------------------------------------------------
 
-    main(args)
+    main_func(args, tokenizer, MAX_PROMPT_TOKENS)
+
+
+def main_func(args, tokenizer, MAX_PROMPT_TOKENS):
+    if args.run_inference:
+
+        combined_dataset_path = os.path.join(args.KG_dir, args.KG_id, "combined.duckdb")
+        con = duckdb.connect(combined_dataset_path)
+
+        df_raw = con.execute("SELECT * FROM theorems").df()
+
+        prompts = []
+        truncation_count = 0
+        for _, row in df_raw.iterrows():
+            thm_prompt = get_thm_prompt(row.to_dict())
+            if thm_prompt is None:
+                continue
+
+            tokens = tokenizer.encode(thm_prompt["raw_prompt"], add_special_tokens=False)
+            if len(tokens) > MAX_PROMPT_TOKENS:
+                tokens = tokens[-MAX_PROMPT_TOKENS:]
+                thm_prompt["raw_prompt"] = tokenizer.decode(tokens)
+                truncation_count += 1
+
+            prompts.append(thm_prompt)
+
+        print(f"Total prompts: {len(prompts)}")
+        print(f"Truncated prompts: {truncation_count}")
+        df = pd.DataFrame(prompts)
+
+        output_path = run_inference(df, args)
+        print(f"Run inference complete. Output saved to {output_path}")
+
+    database_path = os.path.join(args.KG_dir, args.KG_id, "filtered_data.duckdb")
+    con = duckdb.connect(database_path)
+    if args.augment_DB:
+        construct_KG_data(con, args)
+        print("Constructed KG data and updated run_data table.")
+    if args.training_data:
+        get_training_dataset(con, args)
+        print("Generated training dataset and saved to training.jsonl.")
+
+
+if __name__ == "__main__":
+    main()

@@ -497,12 +497,20 @@ def run_training_analysis(run_id, run_dir_path, config):
     print("Training data extraction finished.")
 
 
-def main():
+def get_parser() -> argparse.ArgumentParser:
+    """Return the argument parser used for analysis."""
     parser = argparse.ArgumentParser(description="Perform analysis on experimental run data.")
     parser.add_argument("RunID", help="Identifier for the run.")
-    parser.add_argument("--run_dir", help="Path to the run directory (default: .evals/).", default=".evals/")
-    parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data (default: True)", default=True)
-    args = parser.parse_args()
+    parser.add_argument("--run_dir", default=".evals/", help="Path to the run directory (default: .evals/)")
+    parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, default=True,
+                        help="Whether to extract training data (default: True)")
+    return parser
+
+
+def main(args=None):
+    parser = get_parser()
+    if args is None:
+        args = parser.parse_args()
 
     run_id = args.RunID
     run_dir_path = Path(args.run_dir)

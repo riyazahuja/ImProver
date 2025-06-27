@@ -88,8 +88,9 @@ Thus, we have a contradiction, and therefore $p$ must be greater than $n$.
 
 Now, with this example in mind, informalize the following theorem and proof, which is wrapped in <FORMAL>...</FORMAL> tags, and be sure to wrap your informal statement in <STATEMENT>...</STATEMENT> tags and your informal proof in <PROOF>...</PROOF> tags.
 
-{context + "\n\n" if include_context else ""}<FORMAL>\n{theorem_text}\n</FORMAL>
 """
+    context_block = context + "\n\n" if include_context else ""
+    prompt += f"{context_block}<FORMAL>\n{theorem_text}\n</FORMAL>"
     
     
 
@@ -200,7 +201,8 @@ def populate_database(output_dir, prompts_dir):
     con.close()
 
 
-if __name__ == "__main__":
+def get_parser() -> argparse.ArgumentParser:
+    """Return the parser for informalizing theorems."""
     parser = argparse.ArgumentParser(description="Informalize theorems")
     parser.add_argument("dataset_path", type=str)
     parser.add_argument("prompts_id", type=str)
@@ -226,14 +228,24 @@ if __name__ == "__main__":
         default=available_gpus,
         help="Number of GPUs to use (default: all available)",
     )
-    args = parser.parse_args()
-    
+    return parser
+
+
+def main(args=None):
+    parser = get_parser()
+    if args is None:
+        args = parser.parse_args()
+
     MAX_PROMPT_TOKENS = 16384 - 2048   # model context minus generation tokens
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
 
-    df = collect_prompts(os.path.join(args.prompts_dir,args.prompts_id,"src"), args.dataset_path, args.split, args.include_context)
+    df = collect_prompts(os.path.join(args.prompts_dir, args.prompts_id, "src"), args.dataset_path, args.split, args.include_context)
     if len(df) == 0:
         print("No theorems to process")
-        exit()
+        return
     output_dir = run_inference(df, args)
-    populate_database(output_dir, os.path.join(args.prompts_dir,args.prompts_id))
+    populate_database(output_dir, os.path.join(args.prompts_dir, args.prompts_id))
+
+
+if __name__ == "__main__":
+    main()
