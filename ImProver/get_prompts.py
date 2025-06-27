@@ -75,15 +75,26 @@ async def calculate_prompt(file_info, args):
     
     
     st = time.time()
-    cmd = [
-        "lake",
-        "exe",
-        "get_prompts",
-        file.replace("/", ".").replace(".lean", ""),
-        os.path.join(args.prompts_dir, args.prompt_id, "src"),
-        args.python_cmd,
-        ",".join(theorems) if theorems else ""
-    ]
+    if len(theorems)!=0:
+        cmd = [
+            "lake",
+            "exe",
+            "get_prompts",
+            file.replace("/", ".").replace(".lean", ""),
+            os.path.join(args.prompts_dir, args.prompt_id, "src"),
+            args.python_cmd,
+            "--theorems",
+            ",".join(theorems) if theorems else ""
+        ]
+    else:
+        cmd = [
+            "lake",
+            "exe",
+            "get_prompts",
+            file.replace("/", ".").replace(".lean", ""),
+            os.path.join(args.prompts_dir, args.prompt_id, "src"),
+            args.python_cmd,
+        ]
     print(" ".join(cmd))
     try:
         proc = await asyncio.create_subprocess_exec(

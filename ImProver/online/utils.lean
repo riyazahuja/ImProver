@@ -92,6 +92,16 @@ def annotateTheorems (targetModule : Name) (decls : Option (List Name)) (proofAs
 
 
 
+
+
+
+
+
+
+
+
+
+
 /- Not sure what this is for but the file doesn't run without it :| -/
 def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options : Options) :=
   { state with

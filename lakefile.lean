@@ -22,6 +22,25 @@ require PFR from git
   "https://github.com/teorth/pfr" @ "v4.17.0"
 
 
+require FLT from git
+  "https://github.com/taterowney/FLT" @ "main"
+
+require foundation from git
+  "https://github.com/taterowney/Foundation" @ "master"
+
+require carleson from git
+  "https://github.com/taterowney/carleson" @ "master"
+
+require ConNF from git
+  "https://github.com/taterowney/con-nf" @ "main"
+
+require Seymour from git
+  "https://github.com/taterowney/seymour" @ "main"
+
+require HepLean from git
+  "https://github.com/taterowney/PhysLean" @ "master"
+
+
 lean_lib TrainingData where
 
 @[default_target]

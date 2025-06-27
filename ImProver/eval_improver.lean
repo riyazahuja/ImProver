@@ -5,6 +5,7 @@ import Cli
 import ImProver.online.inference.inference
 import ImProver.online.evaluation.eval
 import ImProver.online.utils
+import ImProver.online.c2
 import ImProver.online.prompting.rag
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
@@ -42,6 +43,7 @@ structure Instance where
   new_trimmed : String
   original_prompt : String
   decl_idx : String
+  recgen : Option (List TheoremData) := none
 deriving Inhabited, ToJson
 
 
@@ -134,21 +136,22 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
 
     match new? with
     | none =>
-      let out := (Instance.mk mod
-        ci.name.toString
-        old_correct
-        oldMsgs
-        old_score
-        false
-        [bombEmoji++"Unknown Error, CompilationStep not found"]
-        none
-        none
-        original.src.toString
-        model_output
-        trimmed_output
-        prompt
-        decl_idx
-        )
+      let out := {
+        module := mod,
+        decl := ci.name.toString,
+        og_correct := old_correct,
+        og_errors := oldMsgs,
+        og_score := old_score,
+        new_correct := false,
+        new_errors := [bombEmoji++"Unknown Error, CompilationStep not found"],
+        new_score := none,
+        delta := none,
+        og_raw := original.src.toString,
+        new_raw := model_output,
+        new_trimmed := trimmed_output,
+        original_prompt := prompt,
+        decl_idx := decl_idx
+      }
 
       instances := out :: instances
     | some head =>
@@ -182,6 +185,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
           false
         pure <| msgs.isEmpty && head.trees.length > 0 && trimmed_output.trim != ""
         -- && equal_types? && contains?
+        -- MUST BE A BETTER WAY TO DO THIS!!! ^^^^
       let correct ← io_correct
 
       if correct then
@@ -203,20 +207,22 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
           )
         else none
 
-      let out := Instance.mk mod
-        ci.name.toString
-        old_correct
-        oldMsgs
-        old_score
-        correct
-        msgs
-        metric_score
-        delta
-        original.src.toString
-        model_output
-        trimmed_output
-        prompt
-        decl_idx
+      let out := {
+        module := mod,
+        decl := ci.name.toString,
+        og_correct := old_correct,
+        og_errors := oldMsgs,
+        og_score := old_score,
+        new_correct := correct,
+        new_errors := msgs,
+        new_score := metric_score,
+        delta := delta,
+        og_raw := original.src.toString,
+        new_raw := model_output,
+        new_trimmed := trimmed_output,
+        original_prompt := prompt,
+        decl_idx := decl_idx
+      }
 
       instances := out :: instances
 
