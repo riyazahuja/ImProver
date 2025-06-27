@@ -86,7 +86,7 @@ Thus, we have a contradiction, and therefore $p$ must be greater than $n$.
 </PROOF>
 </EXAMPLE>
 
-Now, informalize the following theorem and proof, which is wrapped in <FORMAL>...</FORMAL> tags, and be sure to wrap your informal statement in <STATEMENT>...</STATEMENT> tags and your informal proof in <PROOF>...</PROOF> tags.
+Now, with this example in mind, informalize the following theorem and proof, which is wrapped in <FORMAL>...</FORMAL> tags, and be sure to wrap your informal statement in <STATEMENT>...</STATEMENT> tags and your informal proof in <PROOF>...</PROOF> tags.
 
 {context + "\n\n" if include_context else ""}<FORMAL>\n{theorem_text}\n</FORMAL>
 """
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     parser.add_argument("dataset_path", type=str)
     parser.add_argument("prompts_id", type=str)
     parser.add_argument("--split", type=str, default="train")
-    parser.add_argument("--prompts_dir", type=str, default=".knowledge_graphs")
+    parser.add_argument("--prompts_dir", type=str, default=".prompts")
     parser.add_argument("--include_context", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
     parser.add_argument(
