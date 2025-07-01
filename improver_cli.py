@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import multiprocessing
 import datetime
+
 try:
     import torch
     _DEFAULT_GPUS = torch.cuda.device_count()
@@ -30,6 +31,23 @@ def apply_config(params, defaults, config_path):
     return res
 
 
+def extract_defaults(parser):
+    defaults = {}
+    for action in parser._actions:
+        if action.dest == 'help':
+            continue
+        defaults[action.dest] = action.default
+    return defaults
+
+
+def require_params(params, required):
+    missing = [k for k in required if params.get(k) is None]
+    if missing:
+        raise click.UsageError(
+            "Missing required parameters: " + ", ".join(missing)
+        )
+
+
 @click.group()
 def cli():
     """ImProver command line interface."""
@@ -43,8 +61,8 @@ def metrics():
 
 
 @metrics.command('add')
-@click.argument('name')
-@click.argument('system_prompt')
+@click.argument('name', required=False)
+@click.argument('system_prompt', required=False)
 @click.option('--score_fn', default=None)
 @click.option('--sorry_ok', is_flag=True, default=False)
 @click.option('--correctness_condition', default='none')
@@ -63,20 +81,21 @@ def metrics_add(**kwargs):
 
     config = kwargs.pop('config')
     parser = metric_parser()
-    defaults = vars(parser.parse_args([]))
+    defaults = extract_defaults(parser)
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['name', 'system_prompt'])
     args = argparse.Namespace(**params)
     create_metric(args)
 
 # ----- Get Prompts group -----
 @cli.group()
-def get_prompts():
+def prompts():
     """Prompt generation utilities."""
     pass
 
 
-@get_prompts.command('default')
-@click.argument('dataset_path')
+@prompts.command('get')
+@click.argument('dataset_path', required=False)
 @click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
@@ -85,21 +104,22 @@ def get_prompts():
 @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
 @click.option('--gpus', default=_DEFAULT_GPUS)
 @click.option('--config', type=click.Path(exists=True), default=None)
-def get_prompts_default(**kwargs):
+def prompts_get(**kwargs):
     """Generate prompts."""
     from ImProver.get_prompts.get_prompts import make_config as gp_make_config, main_async as gp_main_async
 
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path'])
     args = argparse.Namespace(**params)
     gp_make_config(args)
     asyncio.run(gp_main_async(args))
 
 
-@get_prompts.command('informalize')
-@click.argument('dataset_path')
-@click.argument('prompts_id')
+@prompts.command('informalize')
+@click.argument('dataset_path', required=False)
+@click.argument('prompts_id', required=False)
 @click.option('--split', default='train')
 @click.option('--include_context', is_flag=True, default=False)
 @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
@@ -113,6 +133,7 @@ def informalize(dataset_path, prompts_id, split, include_context, model, cpus, g
     defaults = dict(dataset_path=dataset_path, prompts_id=prompts_id, split=split,
                     include_context=include_context, model=model, cpus=cpus, gpus=gpus)
     params = apply_config(defaults, defaults, config)
+    require_params(params, ['dataset_path', 'prompts_id'])
     args = argparse.Namespace(**params)
     informalize_main(args)
 
@@ -124,9 +145,9 @@ def run():
 
 
 @run.command('inference')
-@click.argument('metric')
-@click.argument('dataset_path')
-@click.argument('prompt_id')
+@click.argument('metric', required=False)
+@click.argument('dataset_path', required=False)
+@click.argument('prompt_id', required=False)
 @click.option('--runID', default=f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--model', default='deepseek-ai/DeepSeek-Prover-V2-7B')
 @click.option('--split', default='train')
@@ -144,12 +165,13 @@ def run_inference(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['metric', 'dataset_path', 'prompt_id'])
     args = argparse.Namespace(**params)
     inference_main(args)
 
 
 @run.command('eval')
-@click.argument('runID')
+@click.argument('runID', required=False)
 @click.option('--cpus', default=multiprocessing.cpu_count())
 @click.option('--config', type=click.Path(exists=True), default=None)
 def run_eval(**kwargs):
@@ -158,12 +180,13 @@ def run_eval(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['runID'])
     args = argparse.Namespace(**params)
     asyncio.run(eval_main_async(args))
 
 
 @run.command('analysis')
-@click.argument('runID')
+@click.argument('runID', required=False)
 @click.option('--training_data', is_flag=True, default=True)
 @click.option('--config', type=click.Path(exists=True), default=None)
 def run_analysis(**kwargs):
@@ -171,15 +194,16 @@ def run_analysis(**kwargs):
 
     config = kwargs.pop('config')
     parser = analysis_parser()
-    defaults = vars(parser.parse_args([]))
+    defaults = extract_defaults(parser)
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['runID'])
     args = argparse.Namespace(**params)
     analysis_main(args)
 
 
 @run.command('llm_metric')
-@click.argument('runID')
-@click.argument('prompts_id')
+@click.argument('runID', required=False)
+@click.argument('prompts_id', required=False)
 @click.option('--model', default=None)
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
@@ -192,14 +216,15 @@ def run_llm_metric(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['runID', 'prompts_id'])
     args = argparse.Namespace(**params)
     llm_metric_main(args)
 
 
 @run.command('pipeline')
-@click.argument('metric')
-@click.argument('dataset_path')
-@click.argument('prompt_id')
+@click.argument('metric', required=False)
+@click.argument('dataset_path', required=False)
+@click.argument('prompt_id', required=False)
 @click.option('--model', default='deepseek-ai/DeepSeek-Prover-V2-7B')
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
@@ -218,6 +243,7 @@ def run_pipeline(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['metric', 'dataset_path', 'prompt_id'])
     args = argparse.Namespace(**params)
     pipeline_main(args)
 
@@ -229,7 +255,7 @@ def KG():
 
 
 @KG.command('embed')
-@click.argument('prompts_id')
+@click.argument('prompts_id', required=False)
 @click.argument('KG_id', required=False, default=f"KG_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--embedding_model', default='Qwen/Qwen3-Embedding-0.6B')
 @click.option('--config', type=click.Path(exists=True), default=None)
@@ -239,11 +265,12 @@ def kg_embed(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['prompts_id'])
     args = argparse.Namespace(**params)
     embed_main(args)
 
 @KG.command('c3')
-@click.argument('KG_id')
+@click.argument('KG_id', required=False)
 @click.option('--embedding_model', default='Qwen/Qwen3-Embedding-0.6B')
 @click.option('--k', default=40)
 @click.option('--threshold', default=0.35)
@@ -254,12 +281,13 @@ def kg_c3(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['KG_id'])
     args = argparse.Namespace(**params)
     c3_main(args)
 
 @KG.command('make_db')
-@click.argument('dataset_path')
-@click.argument('KG_id')
+@click.argument('dataset_path', required=False)
+@click.argument('KG_id', required=False)
 @click.option('--split', default='train')
 @click.option('--config', type=click.Path(exists=True), default=None)
 def kg_make_db(**kwargs):
@@ -268,11 +296,12 @@ def kg_make_db(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path', 'KG_id'])
     args = argparse.Namespace(**params)
     combined_main(args)
 
 @KG.command('filter')
-@click.argument('KG_id')
+@click.argument('KG_id', required=False)
 @click.option('--heuristic_model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
 @click.option('--cpus', default=multiprocessing.cpu_count())
 @click.option('--gpus', default=_DEFAULT_GPUS)
@@ -287,11 +316,12 @@ def kg_filter(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['KG_id'])
     args = argparse.Namespace(**params)
     filter_main(args)
 
 @KG.command('insert')
-@click.argument('KG_id')
+@click.argument('KG_id', required=False)
 @click.option('--neo4j_uri', default='bolt://localhost:7687')
 @click.option('--neo4j_user', default='neo4j')
 @click.option('--neo4j_pass', default='12345678')
@@ -302,12 +332,13 @@ def kg_insert(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['KG_id'])
     args = argparse.Namespace(**params)
     insert_main(args)
 
 @KG.command('full')
-@click.argument('dataset_path')
-@click.argument('prompts_id')
+@click.argument('dataset_path', required=False)
+@click.argument('prompts_id', required=False)
 @click.option('--KG_id', default=f"KG_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--split', default='train')
 @click.option('--embedding_model', default='Qwen/Qwen3-Embedding-0.6B')
@@ -330,6 +361,7 @@ def kg_full(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path', 'prompts_id'])
     args = argparse.Namespace(**params)
     kg_main(args)
 
