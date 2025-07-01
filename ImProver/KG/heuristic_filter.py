@@ -603,7 +603,7 @@ if __name__ == "__main__":
     #     help="Directory to get KG (default: .knowledge_graphs)",
     # )
     parser.add_argument(
-        "--model",
+        "--heuristic_model",
         type=str,
         default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
         help="Model to use",
