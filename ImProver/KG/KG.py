@@ -52,8 +52,8 @@ def main():
     parser.add_argument("--KG_id", type=str, help="ID for Knowledge Graph",
                         default=f"KG_{__import__('datetime').datetime.now().strftime('%Y%m%d_%H%M%S')}")
     parser.add_argument("--split", type=str, default="train", help="Dataset split to use")
-    parser.add_argument("--prompts_dir", type=str, default=".prompts", help="Directory for prompts")
-    parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs", help="Directory for knowledge graphs")
+    # parser.add_argument("--prompts_dir", type=str, default=".prompts", help="Directory for prompts")
+    # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs", help="Directory for knowledge graphs")
     parser.add_argument("--embedding_model", type=str, default="Qwen/Qwen3-Embedding-0.6B", 
                         help="Embedding model to use")
     
@@ -95,8 +95,8 @@ def main():
     vec_args = argparse.Namespace(
         prompts_id=args.prompts_id,
         KG_id=args.KG_id,
-        prompts_dir=args.prompts_dir,
-        KG_dir=args.KG_dir,
+        # prompts_dir=args.prompts_dir,
+        # KG_dir=args.KG_dir,
         model=args.embedding_model
     )
     vec_main(vec_args)
@@ -107,7 +107,7 @@ def main():
         dataset_path=args.dataset_path,
         KG_id=args.KG_id,
         split=args.split,
-        KG_dir=args.KG_dir
+        # KG_dir=args.KG_dir
     )
     combined_main(combined_args)
     
@@ -115,7 +115,7 @@ def main():
     print("[IMPROVER: Computing class 3 edges...]")
     c3_args = argparse.Namespace(
         KG_id=args.KG_id,
-        KG_dir=args.KG_dir,
+        # KG_dir=args.KG_dir,
         model=args.embedding_model,
         k=args.k,
         threshold=args.threshold
@@ -126,7 +126,7 @@ def main():
     print("[IMPROVER: Applying heuristic filtering...]")
     filter_args = argparse.Namespace(
         KG_id=args.KG_id,
-        KG_dir=args.KG_dir,
+        # KG_dir=args.KG_dir,
         model=args.heuristic_model,
         cpus=args.cpus,
         gpus=args.gpus,
@@ -141,7 +141,7 @@ def main():
     print("[IMPROVER: Inserting into Neo4j...]")
     neo4j_args = argparse.Namespace(
         KG_id=args.KG_id,
-        KG_dir=args.KG_dir,
+        # KG_dir=args.KG_dir,
         neo4j_uri=args.neo4j_uri,
         neo4j_user=args.neo4j_user,
         neo4j_pass=args.neo4j_pass

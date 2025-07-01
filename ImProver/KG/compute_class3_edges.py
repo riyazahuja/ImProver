@@ -61,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("KG_id", type=str)
     # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     # parser.add_argument("--chroma_dir", type=str, default = "chroma_db", help="Path to chroma db")
-    parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
+    parser.add_argument("--embedding_model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
 
     parser.add_argument("--k", type=int, default=40)
     parser.add_argument("--threshold", type=float, default=0.35)

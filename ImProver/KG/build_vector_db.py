@@ -83,6 +83,6 @@ if __name__ == "__main__":
     parser.add_argument("KG_id", type=str, nargs='?', default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
     # parser.add_argument("--prompts_dir", type=str, default=".prompts")
     # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
-    parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
+    parser.add_argument("--embedding_model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
     args = parser.parse_args()
     
