@@ -499,15 +499,14 @@ def run_training_analysis(run_id, run_dir_path, config):
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Perform analysis on experimental run data.")
-    parser.add_argument("RunID", help="Identifier for the run.")
-    parser.add_argument("--output_dir", help="Path to the run directory (default: .evals/).", default=".evals/")
+    parser.add_argument("runID", help="Identifier for the run.")
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data (default: True)", default=True)
     return parser
 
 def main(args):
 
-    run_id = args.RunID
-    run_dir_path = Path(args.run_dir)
+    run_id = args.runID
+    run_dir_path = "evals"
 
     db_path = run_dir_path / run_id / "eval.duckdb"
     config_path = run_dir_path / run_id / "config.json"

@@ -87,13 +87,6 @@ def main():
     eval_main(eval_args)
     
     # 3. Run Analysis
-    print(f"[IMPROVER: Analyzing run {args.runID}...]")
-    analysis_args = argparse.Namespace(
-        RunID=args.runID,
-        # run_dir=args.output_dir,
-        training_data=args.training_data
-    )
-    analysis_main(analysis_args)
     
     
     
@@ -126,7 +119,20 @@ def main():
         )
         llm_main(llm_args)
 
+    
+    print(f"[IMPROVER: Analyzing run {args.runID}...]")
+    analysis_args = argparse.Namespace(
+        RunID=args.runID,
+        # run_dir=args.output_dir,
+        training_data=args.training_data
+    )
+    analysis_main(analysis_args)
+    
+    
+    
     print(f"[IMPROVER: ImProver pipeline completed for run {args.runID}]")
+
+    
 
 if __name__ == "__main__":
     main()
