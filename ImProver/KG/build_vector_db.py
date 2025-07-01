@@ -64,20 +64,25 @@ def build_db(db_path, out_dir, model):
             gc.collect()
 
 
-if __name__ == "__main__":
+def main(args):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
     gc.collect()
+    
+    db_path = os.path.join("prompts", args.prompts_id, "informal_data.duckdb")
+    out_dir = os.path.join("knowledge_graphs", args.KG_id, "chroma_db")
+
+    build_db(db_path, out_dir, args.model)
+
+
+if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser(description="Build vector DB for informal theorems")
     parser.add_argument("prompts_id", type=str)
     parser.add_argument("KG_id", type=str, nargs='?', default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
-    parser.add_argument("--prompts_dir", type=str, default=".prompts")
-    parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
-    # parser.add_argument("--out_dir", type=str, default="chroma_db")
+    # parser.add_argument("--prompts_dir", type=str, default=".prompts")
+    # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
     args = parser.parse_args()
-    db_path = os.path.join(args.prompts_dir, args.prompts_id, "informal_data.duckdb")
-    out_dir = os.path.join(args.KG_dir, args.KG_id, "chroma_db")
-
-    build_db(db_path, out_dir, args.model)
+    

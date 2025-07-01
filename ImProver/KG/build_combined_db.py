@@ -13,8 +13,8 @@ def load_edges(path):
 
 
 def main(args):
-    os.makedirs(os.path.join(args.KG_dir, args.KG_id), exist_ok=True)
-    combined_path = os.path.join(args.KG_dir, args.KG_id, "combined.duckdb")
+    os.makedirs(os.path.join("knowledge_graphs", args.KG_id), exist_ok=True)
+    combined_path = os.path.join("knowledge_graphs", args.KG_id, "combined.duckdb")
     con = duckdb.connect(combined_path)
     con.execute("DROP TABLE IF EXISTS theorems")
     con.execute(
@@ -36,7 +36,7 @@ def main(args):
         """
     )
 
-    class3_edges = load_edges(os.path.join(args.KG_dir, args.KG_id, "c3edges.json"))
+    class3_edges = load_edges(os.path.join("knowledge_graphs", args.KG_id, "c3edges.json"))
 
     with open(args.dataset_path, "r") as f:
         all_ds = json.load(f)
@@ -52,10 +52,10 @@ def main(args):
     # modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
 
 
-    informal_path = os.path.join(args.KG_dir, args.KG_id, "informal_data.duckdb")
+    informal_path = os.path.join("knowledge_graphs", args.KG_id, "informal_data.duckdb")
     informal_con = duckdb.connect(informal_path)
 
-    for root, _, files in os.walk(args.KG_dir):
+    for root, _, files in os.walk("knowledge_graphs"):
         for file in files:
             if not file.endswith(".json"):
                 continue
@@ -63,7 +63,7 @@ def main(args):
                 continue
             if "edges" in file:
                 continue
-            module_path = os.path.relpath(os.path.join(root, file), args.KG_dir)
+            module_path = os.path.relpath(os.path.join(root, file), "knowledge_graphs")
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
@@ -120,6 +120,6 @@ if __name__ == "__main__":
     parser.add_argument("dataset_path", type=str)
     parser.add_argument("KG_id", type=str)
     parser.add_argument("--split", type=str, default="train")
-    parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
+    # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     args = parser.parse_args()
     main(args)

@@ -48,21 +48,24 @@ lean_lib ImProver where
 
 lean_lib Examples where
 
+lean_lib metrics where
 
 lean_lib RAG where
 
 
 @[default_target]
 lean_exe get_prompts where
-  root := `ImProver.get_prompts
+  root := `ImProver.get_prompts.get_prompts
   supportInterpreter := true
 
+
 @[default_target]
-lean_exe get_class2 where
-  root := `ImProver.KG.get_class2
+lean_exe get_examples where
+  root := `ImProver.metrics.get_examples
   supportInterpreter := true
+
 
 @[default_target]
 lean_exe eval_improver where
-  root := `ImProver.eval_improver
+  root := `ImProver.basic.eval_improver
   supportInterpreter := true

@@ -516,8 +516,12 @@ def evalImproverCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputPath := args.positionalArg! "outputPath" |>.as! String
   let mod :Name := module
 
+  let routerFile := args.positionalArg! "routerFile" |>.as! String
+  let sorryOk := args.positionalArg! "sorryOk" |>.as! Bool
+  let correctnessCondition := args.positionalArg! "correctnessCondition" |>.as! String
 
-  evalImprover mod metric runPath outputPath
+
+  evalImprover mod metric runPath outputPath routerFile sorryOk correctnessCondition
 
 
 def eval_improver : Cmd := `[Cli|
@@ -530,6 +534,9 @@ def eval_improver : Cmd := `[Cli|
     metric : String; "Metric to use for evaluation."
     runPath : String; "Path to the run DB."
     outputPath : String; "Where to save the Json output."
+    routerFile :String; "Path to the router file."
+    sorryOk : Bool; "Whether to allow 'sorry' in the output."
+    correctnessCondition : String; "Condition to check correctness of the output."
 ]
 
 

@@ -96,7 +96,7 @@ Now, with this example in mind, informalize the following theorem and proof, whi
     return prompt
 
 
-def collect_prompts(prompts_dir, dataset_path, split="train", include_context=False):
+def collect_prompts(prompts_dir, dataset_path, tokenizer, MAX_PROMPT_TOKENS, split="train", include_context=False):
     with open(dataset_path, "r") as f:
         all_ds = json.load(f)
         dataset = all_ds[split]
@@ -174,7 +174,7 @@ def run_inference(df, args):
     ds = ray.data.from_pandas(df).repartition(max(1, args.gpus) * 8)
     ds = processor(ds).materialize()
 
-    output_dir = os.path.join(args.prompts_dir, args.prompts_id, "informal_data")
+    output_dir = os.path.join("prompts", args.prompts_id, "informal_data")
     os.makedirs(output_dir, exist_ok=True)
     ds.write_parquet(f"local://{output_dir}")
     return output_dir
@@ -200,12 +200,25 @@ def populate_database(output_dir, prompts_dir):
     con.close()
 
 
+def main(args):
+    
+    MAX_PROMPT_TOKENS = 16384 - 2048   # model context minus generation tokens
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+
+    df = collect_prompts(os.path.join("prompts",args.prompts_id,"src"), args.dataset_path, tokenizer, MAX_PROMPT_TOKENS, args.split, args.include_context)
+    if len(df) == 0:
+        print("No theorems to process")
+        exit()
+    output_dir = run_inference(df, args)
+    populate_database(output_dir, os.path.join("prompts",args.prompts_id))
+
+    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Informalize theorems")
     parser.add_argument("dataset_path", type=str)
     parser.add_argument("prompts_id", type=str)
     parser.add_argument("--split", type=str, default="train")
-    parser.add_argument("--prompts_dir", type=str, default=".prompts")
     parser.add_argument("--include_context", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
     parser.add_argument(
@@ -228,12 +241,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     
-    MAX_PROMPT_TOKENS = 16384 - 2048   # model context minus generation tokens
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-
-    df = collect_prompts(os.path.join(args.prompts_dir,args.prompts_id,"src"), args.dataset_path, args.split, args.include_context)
-    if len(df) == 0:
-        print("No theorems to process")
-        exit()
-    output_dir = run_inference(df, args)
-    populate_database(output_dir, os.path.join(args.prompts_dir,args.prompts_id))
+    main(args)

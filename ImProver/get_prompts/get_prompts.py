@@ -12,6 +12,8 @@ import time
 from datetime import datetime
 import argparse
 from multiprocessing import cpu_count
+import torch
+from informalize import main as informalizer_main
 
 SYSTEM_PROMPTS = {
     "length" : "You are an expert Lean4 theorem rewriting assistant. Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n",
@@ -42,17 +44,17 @@ EXAMPLE_PROMPT = "Here are some examples of such optimization, as wrapped in <EX
 
 def make_config(args):
     config = {
-        "example_dir": args.example_dir,
+        # "example_dir": args.example_dir,
         "dataset_path": args.dataset_path,
         "split": args.split,
-        "system_prompt": SYSTEM_PROMPTS,
-        "annotation_prompt": ANNOTATION_PROMPT,
-        "context_prompt": CONTEXT_PROMPT,
-        "rag_prompt": RAG_PROMPT,
-        "example_prompt": EXAMPLE_PROMPT,
+        # "system_prompt": SYSTEM_PROMPTS,
+        # "annotation_prompt": ANNOTATION_PROMPT,
+        # "context_prompt": CONTEXT_PROMPT,
+        # "rag_prompt": RAG_PROMPT,
+        # "example_prompt": EXAMPLE_PROMPT,
     }
 
-    config_file = os.path.join(args.prompts_dir, args.prompt_id, "config.json")
+    config_file = os.path.join("local", "prompts", args.prompts_id, "config.json")
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     with open(config_file, "w") as f:
         json.dump(config, f, indent=4)
@@ -81,8 +83,8 @@ async def calculate_prompt(file_info, args):
             "exe",
             "get_prompts",
             file.replace("/", ".").replace(".lean", ""),
-            os.path.join(args.prompts_dir, args.prompt_id, "src"),
-            args.python_cmd,
+            os.path.join("prompts", args.prompts_id, "src"),
+            sys.executable,
             "--theorems",
             ",".join(theorems) if theorems else ""
         ]
@@ -92,8 +94,8 @@ async def calculate_prompt(file_info, args):
             "exe",
             "get_prompts",
             file.replace("/", ".").replace(".lean", ""),
-            os.path.join(args.prompts_dir, args.prompt_id, "src"),
-            args.python_cmd,
+            os.path.join("prompts", args.prompts_id, "src"),
+            sys.executable,
         ]
     print(" ".join(cmd))
     try:
@@ -140,13 +142,18 @@ async def main_async(args):
 
     await asyncio.gather(*progress_tasks)
     progress_bar.close()
+    
+    
+    if args.informalize:
+        print("Informalizing theorems...")
+        informalizer_main(args)
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
-    parser.add_argument("--prompt_id", type=str, default="prompts_" + datetime.now().strftime("%Y%m%d_%H%M%S")),
+    parser.add_argument("--prompts_id", type=str, default="prompts_" + datetime.now().strftime("%Y%m%d_%H%M%S")),
 
     parser.add_argument(
         "--split",
@@ -155,33 +162,44 @@ if __name__ == "__main__":
         help="Dataset split to use (default: train)",
     )
     parser.add_argument(
-        "--prompts_dir",
-        type=str,
-        default=".prompts",
-        help="Directory to output prompts (default: .prompts)",
-    )
-    parser.add_argument(
-        "--example_dir",
-        type=str,
-        default=".prompts/.prompt_examples",
-        help="Directory to prompt examples (default: .prompts/.prompt_examples)",
-    )
-    parser.add_argument(
         "--cpus",
         type=int,
         default=cpu_count(),
         help="Number of CPUs to use (default: all available)",
     )
     parser.add_argument(
-        "--python_cmd",
-        type=str,
-        default=sys.executable,
-        help="Python executable to use (default: current)",
+        "--informalize",
+       action=argparse.BooleanOptionalAction, default=False
     )
+    
+    
+    
+    parser.add_argument("--include_context", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+
+    try:
+        available_gpus = torch.cuda.device_count()
+    except (ImportError, AttributeError):
+        available_gpus = 0
+
+    parser.add_argument(
+        "--gpus",
+        type=int,
+        default=available_gpus,
+        help="Number of GPUs to use (default: all available)",
+    )
+
+
+
+    
+    
     
     args = parser.parse_args()
 
     make_config(args)
     
     asyncio.run(main_async(args))
+
+
+
 
