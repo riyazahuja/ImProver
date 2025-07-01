@@ -16,11 +16,11 @@ import duckdb
 from glob import glob
 
 
-async def eval_file(file, args, config):
+async def eval_file(file, args, config, metric_config):
     st = time.time()
     # output at inference_dir/runID/evals/[file_path].json
     output_path = os.path.join(
-        args.inference_dir, args.runID, "evals", file.replace(".lean", ".json")
+        "evals", args.runID, "evals", file.replace(".lean", ".json")
     )
     # print(file)
     #['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']
@@ -30,8 +30,11 @@ async def eval_file(file, args, config):
         "eval_improver",
         file.replace("/", ".").replace(".lean", ""),
         config["metric"],
-        os.path.join(args.inference_dir, args.runID),
-        output_path
+        os.path.join("evals", args.runID),
+        output_path,
+        metric_config['scoring']['router_file'],
+        metric_config['scoring']['sorry_ok'],
+        metric_config['scoring']['correctness_condition'],
     ]
     print(" ".join(cmd))
     proc = await asyncio.create_subprocess_exec(
@@ -60,12 +63,16 @@ async def eval_file(file, args, config):
 
 async def main_async(args):
     
-    with open(os.path.join(args.inference_dir, args.runID, "config.json"), "r") as f:
+    with open(os.path.join("evals", args.runID, "config.json"), "r") as f:
         config = json.load(f)
         
     with open(config["dataset"], "r") as f:
         all = json.load(f)
         dataset = all[config["split"]]
+        
+    with open(os.path.join("metrics", config["metric"], "config.json"), "r") as f:
+        metric_config = json.load(f)
+    
         
     files_to_process = []
     for repo in dataset.keys():
@@ -76,7 +83,7 @@ async def main_async(args):
 
     async def worker(f):
         async with semaphore:
-            ok = await eval_file(f, args, config)
+            ok = await eval_file(f, args, config, metric_config)
             progress_bar.update(1)
             return ok
     tasks = [asyncio.create_task(worker(file_info)) for file_info in files_to_process]
@@ -87,8 +94,8 @@ async def main_async(args):
     
    
 
-    evals_dir = os.path.join(args.inference_dir, args.runID, "evals")
-    db_path = os.path.join(args.inference_dir, args.runID, "eval.duckdb")
+    evals_dir = os.path.join("evals", args.runID, "evals")
+    db_path = os.path.join("evals", args.runID, "eval.duckdb")
     con = duckdb.connect(db_path)
     
     #   SAFE MODE
@@ -110,12 +117,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("runID", type=str, help="Run ID to use for evaluation")
-    parser.add_argument(
-        "--inference_dir",
-        type=str,
-        default=".evals/",
-        help="Directory of runs (default: .evals/)",
-    )
     parser.add_argument(
         "--cpus",
         type=int,

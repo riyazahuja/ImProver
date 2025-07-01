@@ -426,92 +426,92 @@ def parse_readabilityDB(args):
     
 
 def main(args):
-    if args.inference:    
-        promptDB_path = os.path.join(args.prompts_dir, args.prompts_id, "readability.duckdb")
-        promptDB_connection = None
-        if os.path.exists(promptDB_path):
-            try:
-                promptDB_connection = duckdb.connect(promptDB_path)
-                print(f"Connected to existing database at {promptDB_path}")
-            except Exception as e:
-                print(f"Error connecting to existing database: {e}")
-                promptDB_connection = None
-        
-        
-        # Try to open the eval.duckdb file
-        eval_db_path = os.path.join(args.output_dir, args.runID, "eval.duckdb")
+
+    promptDB_path = os.path.join(args.prompts_dir, args.prompts_id, "readability.duckdb")
+    promptDB_connection = None
+    if os.path.exists(promptDB_path):
         try:
-            eval_connection = duckdb.connect(eval_db_path)
-            print(f"Successfully connected to {eval_db_path}")
+            promptDB_connection = duckdb.connect(promptDB_path)
+            print(f"Connected to existing database at {promptDB_path}")
         except Exception as e:
-            raise RuntimeError(f"Failed to open evaluation database at {eval_db_path}: {e}")
+            print(f"Error connecting to existing database: {e}")
+            promptDB_connection = None
+    
+    
+    # Try to open the eval.duckdb file
+    eval_db_path = os.path.join(args.output_dir, args.runID, "eval.duckdb")
+    try:
+        eval_connection = duckdb.connect(eval_db_path)
+        print(f"Successfully connected to {eval_db_path}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to open evaluation database at {eval_db_path}: {e}")
 
-        # Initialize our dataframe to hold proofs for evaluation
-        proof_data = []
+    # Initialize our dataframe to hold proofs for evaluation
+    proof_data = []
 
-        # If we don't have a prompt database connection
-        if promptDB_connection is None:
-            print("No prompt database connection. Will fetch original proofs from eval database.")
-            # Get one row per module+decl with original proofs
-            original_proofs = eval_connection.execute("""
-                SELECT 
-                    MIN(rowid) as rowid, 
-                    module, 
-                    decl, 
-                    ANY_VALUE(og_raw) as og_raw
-                FROM 
-                    evaluation_results 
-                GROUP BY 
-                    module, decl
-            """).fetchall()
-            
-            # Add original proofs to our data
-            for _, module, decl, old_raw in original_proofs:
-                if old_raw:  # Ensure we have a valid proof
-                    proof_data.append({
-                        'module': module,
-                        'decl': decl,
-                        'proof': old_raw,
-                        'rowid': None,
-                        'is_og': True
-                    })
-
-        # Get all improved proofs that are marked as correct
-        improved_proofs = eval_connection.execute("""
+    # If we don't have a prompt database connection
+    if promptDB_connection is None:
+        print("No prompt database connection. Will fetch original proofs from eval database.")
+        # Get one row per module+decl with original proofs
+        original_proofs = eval_connection.execute("""
             SELECT 
-                rowid, 
+                MIN(rowid) as rowid, 
                 module, 
                 decl, 
-                new_raw 
+                ANY_VALUE(og_raw) as og_raw
             FROM 
                 evaluation_results 
-            WHERE 
-                new_correct = TRUE
+            GROUP BY 
+                module, decl
         """).fetchall()
-
-        # Add improved proofs to our data
-        for rowid, module, decl, new_raw in improved_proofs:
-            if new_raw:  # Ensure we have a valid proof
+        
+        # Add original proofs to our data
+        for _, module, decl, old_raw in original_proofs:
+            if old_raw:  # Ensure we have a valid proof
                 proof_data.append({
                     'module': module,
                     'decl': decl,
-                    'proof': new_raw,
-                    'rowid': int(rowid),
-                    'is_og': False
+                    'proof': old_raw,
+                    'rowid': None,
+                    'is_og': True
                 })
 
-        data = []
-        for item in proof_data:
-            prompts = calculate_prompt(item["proof"])
-            data.extend([{**prompt, **item} for prompt in prompts])
-        
-        proof_df = pd.DataFrame(data)
+    # Get all improved proofs that are marked as correct
+    improved_proofs = eval_connection.execute("""
+        SELECT 
+            rowid, 
+            module, 
+            decl, 
+            new_raw 
+        FROM 
+            evaluation_results 
+        WHERE 
+            new_correct = TRUE
+    """).fetchall()
 
-        
+    # Add improved proofs to our data
+    for rowid, module, decl, new_raw in improved_proofs:
+        if new_raw:  # Ensure we have a valid proof
+            proof_data.append({
+                'module': module,
+                'decl': decl,
+                'proof': new_raw,
+                'rowid': int(rowid),
+                'is_og': False
+            })
 
-        # returns the path to the directory containing run metadata and the parquet lake
+    data = []
+    for item in proof_data:
+        prompts = calculate_prompt(item["proof"])
+        data.extend([{**prompt, **item} for prompt in prompts])
     
-        output_path = run_inference(proof_df, args)
+    proof_df = pd.DataFrame(data)
+
+    
+
+    # returns the path to the directory containing run metadata and the parquet lake
+
+    output_path = run_inference(proof_df, args)
     
     
     parse_readabilityDB(args)
@@ -529,14 +529,7 @@ if __name__ == "__main__":
         description="Generates and infers the LLM-based readability metric on a collection of proofs"
     )
     parser.add_argument("runID", type=str, help="Run ID to use for evaluation")
-    parser.add_argument("prompts_id", type=str, help="Prompt ID to use for evaluation")
-    parser.add_argument(
-        "--inference",
-        type=bool,
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Whether to run inference (default: True)",
-    )    
+    parser.add_argument("prompts_id", type=str, help="Prompt ID to use for evaluation")   
     parser.add_argument(
         "--output_dir",
         type=str,

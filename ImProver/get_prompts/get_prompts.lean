@@ -1,40 +1,31 @@
--- import ImProver.prompting.state_comments
+import ImProver.online.prompting.state_comments
 import ImProver.online.prompting.context
 import Cli
 import ImProver.online.prompting.prompts
--- import ImProver.online.inference.inference
--- import ImProver.online.evaluation.eval
--- import ImProver.online.utils
 import ImProver.online.prompting.rag
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 import TrainingData.Utils.HumanTheorem
 import ImportGraph.RequiredModules
 import ImportGraph.Imports
-
-
+import TrainingData.TreeParser
+import TrainingData.ExtractGoal
 import Lean.Util.SearchPath
 import Mathlib.Lean.CoreM
 import Mathlib.Control.Basic
 import Mathlib.Lean.Expr.Basic
 import Batteries.Lean.HashMap
--- import Compfiles
+import ImProver.online.c2
+import ImProver.get_prompts.utils
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
 set_option autoImplicit true
 
 
-
-
-
-
-
-def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO Unit := do
+def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String): IO Unit := do
   searchPathRef.set compile_time_search_path%
-
   let fileName := (← findLean mod).toString
-  -- let mut trajectories_json := []
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
@@ -42,7 +33,6 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO
   let mut targets_new : Array (CompilationStep × ConstantInfo) := #[]
 
   for (cmd, ci) in targets do
-    -- let ci_name_stem := ci.name.toString.splitOn "." |>.getLast! |>.toName
     let isThm? := match ci with
       | .thmInfo _ => true
       | _ => false
@@ -53,30 +43,37 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO
     let isHuman := match (← CoreM.run (Lean.Name.isHumanTheorem ci.name) ctx state |>.toIO').toOption with
       | some x => x.1
       | none => false
-
-
-
     if not isThm? || not isHuman then
       continue
 
+    let curr_name_variants :=
+      let fullName := ci.name.toString
+      let nameParts := fullName.splitOn "."
+      let rec buildVariants (remaining : List String) (acc : List String) :=
+        match remaining with
+        | [] => acc
+        | _ :: rest =>
+          let currVariant := ".".intercalate remaining
+          buildVariants rest (currVariant :: acc)
+      buildVariants nameParts []
+
+    let included? := curr_name_variants.map (fun n => theorems.contains n) |>.any id
+
+    if (not theorems.isEmpty && not included?) then
+      continue
     targets_new := targets_new.push (cmd, ci)
 
+  IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ===="
+
+  let outputs_raw ← getPromptsAux targets_new mod python_cmd fileName
+  let outputs := outputs_raw.map (fun x => x.1) |>.flatten
 
 
-  -- IO.println s!"Found {targets_new.size} targets"
-
-  let targets_with_prompts : Json ← get_prompt_eval_batched mod targets_new python_cmd
-
-
-
-
-
+  let json_data := Json.arr <| outputs.toArray.map (ToJson.toJson)
 
   let json_path := outputDirectory ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
   IO.println s!"Writing to {json_path}"
-  -- let trajectories := Json.arr (trajectories_json.toArray)
-  -- match json_path with
-  -- | some path =>
+
   if not (← System.FilePath.pathExists json_path) then
     let parent := System.FilePath.parent json_path
     match parent with
@@ -85,10 +82,10 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String): IO
       IO.FS.createDirAll path
     | none => pure ()
 
-  IO.println s!"Path exists, now writing:\n{targets_with_prompts}"
 
-  IO.FS.writeFile json_path (targets_with_prompts.compress)
-  -- | none => pure ()
+
+  IO.FS.writeFile json_path (ToString.toString json_data)
+
 
 
 
@@ -97,9 +94,14 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
+  let theorems_raw : String := match args.positionalArg? "theorems" with
+  | some x => x |>.as! String
+  | none => ""
+  let theorems : List String := if theorems_raw.isEmpty then [] else theorems_raw.splitOn ","
 
 
-  getPrompts mod outputDirectory python_cmd
+
+  getPrompts mod outputDirectory python_cmd theorems
   return 0
 
 
@@ -107,17 +109,19 @@ def get_prompts : Cmd := `[Cli|
   get_prompts VIA getPromptsCLI; ["0.0.1"]
 "Generate prompts for ImProver."
 
+  FLAGS:
+    theorems : String; "List of theorems to include in the prompts, separated by \",\". If empty, all theorems in the module will be used."
+
 
   ARGS:
     file : ModuleName; "Lean module to get prompts for."
     outputDirectory : String; "Where to save the Json output."
     pythonCommand : String; "Path to python executable."
+
+  EXTENSIONS:
+    defaultValues! #[("theorems", "")]
 ]
 
 
 def main (args : List String) : IO UInt32 :=
   get_prompts.validate args
-
-
-
--- #eval getPrompts `MIL.C07_Hierarchies.solutions.Solutions_S01_Basics "completion" "temp" "prompt_examples"

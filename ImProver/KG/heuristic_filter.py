@@ -112,7 +112,7 @@ def run_inference(df, args):
     ds = vllm_processor(ds).materialize()
 
     # id = f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    run_output_dir = os.path.join(args.KG_dir, args.KG_id)
+    run_output_dir = os.path.join("knowledge_graphs", args.KG_id)
     os.makedirs(run_output_dir, exist_ok=True)
 
     output_path = os.path.join(run_output_dir, "filtered_data")
@@ -422,7 +422,7 @@ Note that this is a heuristic, and so your output should be given by reasoning a
 
 def construct_KG_data(con, args):
 
-  output_path = os.path.join(args.KG_dir, args.KG_id, "filter_data")
+  output_path = os.path.join("knowledge_graphs", args.KG_id, "filter_data")
       #safe mode
     # con.execute(
     #     f"""
@@ -522,7 +522,7 @@ def get_training_dataset(con, args):
     })
   
   # Write the JSONL file
-  output_path = os.path.join(args.KG_dir, args.KG_id, "training.jsonl")
+  output_path = os.path.join("knowledge_graphs", args.KG_id, "training.jsonl")
   with open(output_path, "w") as f:
     for entry in jsonl_entries:
       f.write(json.dumps(entry) + "\n")
@@ -531,10 +531,14 @@ def get_training_dataset(con, args):
 
 
 def main(args):
+  
+    MAX_PROMPT_TOKENS = 16384 - 512   # model context minus generation tokens
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+
 
     if args.run_inference:
       
-      combined_dataset_path = os.path.join(args.KG_dir, args.KG_id, "combined.duckdb")
+      combined_dataset_path = os.path.join("knowledge_graphs", args.KG_id, "combined.duckdb")
       con = duckdb.connect(combined_dataset_path)
       
       df_raw = con.execute("SELECT * FROM theorems").df()
@@ -571,7 +575,7 @@ def main(args):
       output_path = run_inference(df, args)
       print(f"Run inference complete. Output saved to {output_path}")
     
-    database_path = os.path.join(args.KG_dir, args.KG_id, "filtered_data.duckdb")
+    database_path = os.path.join("knowledge_graphs", args.KG_id, "filtered_data.duckdb")
     con = duckdb.connect(database_path)
     if args.augment_DB:
       construct_KG_data(con, args)
@@ -592,12 +596,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Filter KG for ImProver")
     parser.add_argument("KG_id", type=str)
 
-    parser.add_argument(
-        "--KG_dir",
-        type=str,
-        default=".knowledge_graphs",
-        help="Directory to get KG (default: .knowledge_graphs)",
-    )
+    # parser.add_argument(
+    #     "--KG_dir",
+    #     type=str,
+    #     default=".knowledge_graphs",
+    #     help="Directory to get KG (default: .knowledge_graphs)",
+    # )
     parser.add_argument(
         "--model",
         type=str,
@@ -637,10 +641,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # ------------------------------------------------------------------
-    # Initialise tokenizer once so we can measure prompt lengths
-    MAX_PROMPT_TOKENS = 16384 - 512   # model context minus generation tokens
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-    # ------------------------------------------------------------------
 
     main(args)
