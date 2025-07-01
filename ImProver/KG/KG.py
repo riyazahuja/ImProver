@@ -39,9 +39,7 @@ neo4j_pass: optional, default is "12345678"
 '''
 
 
-
-
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(description="Build and process Knowledge Graph")
     
     # Required arguments
@@ -87,8 +85,11 @@ def main():
     parser.add_argument("--neo4j_uri", type=str, default="bolt://localhost:7687", help="Neo4j URI")
     parser.add_argument("--neo4j_user", type=str, default="neo4j", help="Neo4j username")
     parser.add_argument("--neo4j_pass", type=str, default="12345678", help="Neo4j password")
+    return parser
+
+def main(args):
     
-    args = parser.parse_args()
+
     
     # Build vector DB
     print("[IMPROVER: Building vector database...]")
@@ -151,7 +152,9 @@ def main():
     print(f"[IMPROVER: Knowledge Graph {args.KG_id} successfully built and processed.]")
 
 if __name__ == "__main__":
-    main()
+    parser = get_parser()
+    args = parser.parse_args()
+    main(args)
 
 
 

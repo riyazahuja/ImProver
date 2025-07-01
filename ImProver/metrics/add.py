@@ -214,9 +214,8 @@ def get_parser():
 
     return parser
 
-def main():
-    parser = get_parser()
-    args = parser.parse_args()
+def main(args):
+   
 
     if args.llm_metric:
         if args.score_fn is not None:
@@ -235,4 +234,6 @@ def main():
     )
 
 if __name__ == "__main__":
-    main()
+    parser = get_parser()
+    args = parser.parse_args()
+    main(args)

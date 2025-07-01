@@ -3,17 +3,15 @@ import torch
 import datetime
 import multiprocessing
 import argparse
-from inference import main as inference_main
-from eval_improver import main_async as eval_main
-from analysis import main as analysis_main
-from ImProver.basic.llm_metric import main as llm_main
+from .inference import main as inference_main
+from .eval_improver import main_async as eval_main
+from .analysis import main as analysis_main
+from .llm_metric import main as llm_main
 import json
 
 
 
-
-
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(description="ImProver: Inference, Evaluation, and Analysis Tool")
     
     # Required arguments
@@ -49,9 +47,10 @@ def main():
     
     # Analysis settings
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data", default=True)
-    
-    args = parser.parse_args()
-    
+    return parser
+
+def main(args):
+        
     # Create output directory if it doesn't exist
     os.makedirs("evals", exist_ok=True)
     
@@ -135,6 +134,9 @@ def main():
     
 
 if __name__ == "__main__":
+    parser = get_parser()
+    args = parser.parse_args()
+
     main()
 
 

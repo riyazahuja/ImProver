@@ -86,3 +86,5 @@ if __name__ == "__main__":
     parser.add_argument("--embedding_model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
     args = parser.parse_args()
     
+    main(args)
+    
