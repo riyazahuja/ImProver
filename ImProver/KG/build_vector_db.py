@@ -46,8 +46,8 @@ def build_db(db_path, out_dir, model):
         print(f"Adding {len(documents)} documents to the collection.")
 
         # Add documents in batches
-        BATCH_SIZE = 8  # smaller batches to avoid GPU OOM
-        for i in range(2752, len(documents), BATCH_SIZE):
+        BATCH_SIZE = 16  # smaller batches to avoid GPU OOM
+        for i in range(0, len(documents), BATCH_SIZE):
             end_idx = min(i + BATCH_SIZE, len(documents))
             # if i//BATCH_SIZE + 1 < 58*2:
             #     continue
@@ -71,7 +71,7 @@ def main(args):
     gc.collect()
     
     db_path = os.path.join("prompts", args.prompts_id, "informal_data.duckdb")
-    out_dir = os.path.join("knowledge_graphs", args.KG_id, "chroma_db")
+    out_dir = os.path.join("knowledge_graphs", args.kg_id, "chroma_db")
 
     build_db(db_path, out_dir, args.model)
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Build vector DB for informal theorems")
     parser.add_argument("prompts_id", type=str)
-    parser.add_argument("KG_id", type=str, nargs='?', default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
+    parser.add_argument("kg_id", type=str, default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
     # parser.add_argument("--prompts_dir", type=str, default=".prompts")
     # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     parser.add_argument("--embedding_model", type=str, default="Qwen/Qwen3-Embedding-0.6B")

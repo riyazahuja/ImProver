@@ -95,31 +95,42 @@ def getUsedConstantsAsSet (t : TacticInfo) : NameSet :=
   set
 
 
+def getKind' (c : ConstantInfo) : String :=
+  match c with
+  | .axiomInfo _ => "axiom"
+  | .defnInfo _ => "def"
+  | .thmInfo _ => "theorem"
+  | .opaqueInfo _ => "opaque"
+  | .quotInfo _ => "quot"
+  | .inductInfo _ => "inductive"
+  | .ctorInfo _ => "constructor"
+  | .recInfo _ => "recursor"
+
 def getKind (const_map : ConstMap) (m : Name) : String :=
   let local_const := const_map.map₂
   let ext_const := const_map.map₁
   let c := local_const.find? m
   match c with
   | none => match ext_const[m]? with
-    | some d => match d with
-      | .axiomInfo _ => "axiom"
-      | .defnInfo _ => "def"
-      | .thmInfo _ => "theorem"
-      | .opaqueInfo _ => "opaque"
-      | .quotInfo _ => "quot"
-      | .inductInfo _ => "inductive"
-      | .ctorInfo _ => "constructor"
-      | .recInfo _ => "recursor"
+    | some d => getKind' d
+      -- | .axiomInfo _ => "axiom"
+      -- | .defnInfo _ => "def"
+      -- | .thmInfo _ => "theorem"
+      -- | .opaqueInfo _ => "opaque"
+      -- | .quotInfo _ => "quot"
+      -- | .inductInfo _ => "inductive"
+      -- | .ctorInfo _ => "constructor"
+      -- | .recInfo _ => "recursor"
     | none => "Not Found"
-  | some c => match c with
-    | .axiomInfo _ => "axiom (internal)"
-    | .defnInfo _ => "def (internal)"
-    | .thmInfo _ => "theorem (internal)"
-    | .opaqueInfo _ => "opaque (internal)"
-    | .quotInfo _ => "quot (internal)"
-    | .inductInfo _ => "inductive (internal)"
-    | .ctorInfo _ => "constructor (internal)"
-    | .recInfo _ => "recursor (internal)"
+  | some c => getKind' c --match c with
+    -- | .axiomInfo _ => "axiom (internal)"
+    -- | .defnInfo _ => "def (internal)"
+    -- | .thmInfo _ => "theorem (internal)"
+    -- | .opaqueInfo _ => "opaque (internal)"
+    -- | .quotInfo _ => "quot (internal)"
+    -- | .inductInfo _ => "inductive (internal)"
+    -- | .ctorInfo _ => "constructor (internal)"
+    -- | .recInfo _ => "recursor (internal)"
 
 def isAuxLemma : Name → Bool
 | .num (.str _ "_auxLemma") _ => true

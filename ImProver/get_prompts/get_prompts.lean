@@ -33,17 +33,18 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
   let mut targets_new : Array (CompilationStep × ConstantInfo) := #[]
 
   for (cmd, ci) in targets do
-    let isThm? := match ci with
-      | .thmInfo _ => true
-      | _ => false
+    -- let isThm? := match ci with
+    --   | .thmInfo _ => true
+    --   | _ => false
 
     let pf_env := cmd.after
     let ctx : Core.Context := {fileName := "", fileMap := default}
     let state : Core.State := {env := pf_env}
     let isHuman := match (← CoreM.run (Lean.Name.isHumanTheorem ci.name) ctx state |>.toIO').toOption with
-      | some x => x.1
+      | some x => x.1 -- currently modified to return something that is not necessarily a theorem
       | none => false
-    if not isThm? || not isHuman then
+    if --not isThm? ||
+      not isHuman then
       continue
 
     let curr_name_variants :=
@@ -58,7 +59,9 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
       buildVariants nameParts []
 
     let included? := curr_name_variants.map (fun n => theorems.contains n) |>.any id
-
+    -- IO.println s!"Checking {ci.name.toString} against {theorems} => {included?}"
+    -- IO.println s!"Current name variants: {curr_name_variants}"
+    -- IO.println ""
     if (not theorems.isEmpty && not included?) then
       continue
     targets_new := targets_new.push (cmd, ci)
@@ -94,13 +97,13 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
-  let theorems_raw : String := match args.positionalArg? "theorems" with
+  let theorems_raw : String := match args.flag? "theorems" with
   | some x => x |>.as! String
   | none => ""
   let theorems : List String := if theorems_raw.isEmpty then [] else theorems_raw.splitOn ","
 
 
-
+  -- IO.println theorems
   getPrompts mod outputDirectory python_cmd theorems
   return 0
 

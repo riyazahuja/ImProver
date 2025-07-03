@@ -28,6 +28,7 @@ def Lean.Name.isTheorem (name : Name) : CoreM Bool := do
 -/
 def Lean.Name.isHumanTheorem (name : Name) : CoreM Bool := do
   let hasDeclRange := (← Lean.findDeclarationRanges? name).isSome
-  let isTheorem ← Name.isTheorem name
+  -- let isTheorem ← Name.isTheorem name
   let notProjFn := !(← Lean.isProjectionFn name)
-  return hasDeclRange && isTheorem && notProjFn
+  return hasDeclRange --&& isTheorem
+    && notProjFn

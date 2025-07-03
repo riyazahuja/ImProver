@@ -75,6 +75,8 @@ def getExamples (mod : Name) (outputFile : String) (python_cmd : String) : IO Un
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
   let targets_flat ← targets.force
   IO.println s!"Found {targets_flat.length} compilation steps for module {mod}"
+  for (cmd, ci) in targets_flat do
+    -- IO.println s!">> Processing {ci.name.toString} in {mod.toString} with command {cmd.src.toString}"
   let final_env? := match targets_flat.getLast? with
   | none => none
   | some (cmd,_) => some cmd.after

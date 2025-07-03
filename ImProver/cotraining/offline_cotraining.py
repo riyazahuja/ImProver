@@ -23,9 +23,10 @@ import torch
 import random
 import tqdm
 import sys
+import itertools
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-# from ImProver.inference import run_inference
+from ImProver.basic.inference import run_inference
 import time
 
 def make_conjecturer_prompt_old(conjecture: str) -> str:
@@ -68,7 +69,7 @@ class CoTrainer:
         self.prov_model_path = prov_model
         self.embed_fn = embed
 
-    def get_seeds(self, frontier: bool = True) -> List[Dict]:
+    def get_seeds(self, frontier: bool = True, strong: bool = True, max_seeds: int = 1) -> List[Dict]:
         # with self.driver.session() as session:
         #     if frontier:
         #         query = (
@@ -82,12 +83,21 @@ class CoTrainer:
         with open("/home/riyaza/eval_improver/improver/ImProver/cotraining/records.json", "r", encoding="utf-8-sig") as f:
             records = json.load(f)
 
-        return [{r['keys'][i] : r['_fields'][i] for i in range(len(r['keys']))} for r in records]
+        data =  [{r['keys'][i] : r['_fields'][i] for i in range(len(r['keys']))} for r in records]
+        
+        random.shuffle(data)
+        if max_seeds > 1:
+            # Get all combinations of max_seeds items
+            combinations = list(itertools.combinations(data, max_seeds))
+            return combinations
+        else:
+            return data
 
 
     def similarity(self, a: str, b: str) -> float:
         emb = self.embed_fn([a, b])
         import numpy as np
+        
 
         v1, v2 = np.array(emb[0]), np.array(emb[1])
         if np.linalg.norm(v1) == 0 or np.linalg.norm(v2) == 0:

@@ -23,6 +23,32 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 set_option autoImplicit true
 
 
+
+def getNormalId (target : CompilationStep × ConstantInfo) (mod : Name): IO TheoremID := do
+  let (cmd, ci) := target
+  -- name : Name
+  -- module : Name
+  -- content : Option String := none
+  -- compilationAlias : Option String := none
+  -- isExtracted : Bool := false
+  -- errorMsgs : Array String := #[]
+  -- kind : String := "theorem"
+  let msgs ← cmd.msgs.filterMapM (fun msg => do
+        let m ← msg.data.toString
+        if msg.severity != .error then
+          return none
+        return some m)
+  let kind := getKind cmd.after.constants ci.name
+  return {
+    name := ci.name,
+    module := mod,
+    content := some cmd.src.toString,
+    compilationAlias := some cmd.src.toString,
+    isExtracted := false,
+    errorMsgs := msgs.toArray,
+    kind := kind
+  }
+
 def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod : Name) (python_cmd : String) (fileName: String) : IO (List (List TheoremData × Nat)) := do
   let rag_strings : Array Json ← do
     let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new python_cmd
@@ -32,15 +58,23 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
 
   IO.println s!"==== Got {rag_strings.size} prompts from RAG ===="
 
+  -- let targets_new_with_id : Array (CompilationStep × ConstantInfo × (Array (CompilationStep × ConstantInfo))) :=
+  --   targets_new.mapIdx (fun i target => (target.1, target.2, targets_new.extract 0 i))
+  let targets_new_with_id : Array (CompilationStep × ConstantInfo × TheoremID) ←
+    targets_new.mapM (fun target => do
+      let id ← getNormalId target mod
+      return (target.1, target.2, id))
+
+  let targets_new_cumulative : Array (CompilationStep × ConstantInfo × TheoremID × (Array TheoremID)) :=
+    targets_new_with_id.mapIdx (fun i (cmd, ci, id) =>
+      let deps := targets_new_with_id.extract 0 i |>.map (fun (_, _, dep_id) => dep_id)
+      (cmd, ci, id, deps))
+
+
 
   let mut outputs := []
-  for (((cmd, ci), rag), target_idx) in (targets_new.zip rag_strings).zipIdx do
+  for (((cmd, ci, id, prev_ids), rag), target_idx) in (targets_new_cumulative.zip rag_strings).zipIdx do
     IO.println s!"Processing {ci.name.toString} in {mod.toString}"
-
-
-
-    let srcCommand := cmd.src.toString
-
     -- eventually want annotation on partial proofs, but for now, ignore
     let annotation_string : String ← insert_state_comments cmd
 
@@ -81,15 +115,19 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
 
       let split_data : TheoremData :=
         { id := split_thm,
+          C0_dependencies := prev_ids, --idk yet whether to keep this
           C1_dependencies := deps.map (fun ctx => {name := ctx.name, module := ctx.module, content := some ctx.text}) |>.toArray,
           C2_dependencies := #[]
         }
       extracted_thms := split_data :: extracted_thms
 
-    let id : TheoremID := {name := ci.name, module := mod, content := some srcCommand, compilationAlias := some srcCommand}
+    -- let id : TheoremID := {name := ci.name, module := mod, content := some srcCommand, compilationAlias := some srcCommand}
+    -- let id ← getNormalId (cmd, ci) mod
+
 
     let mainData : TheoremData :=
       { id := id,
+        C0_dependencies := prev_ids,
         C1_dependencies := C1_dependencies.toArray,
         C2_dependencies := C2_dependencies.toArray,
         annotation := annotation_string,

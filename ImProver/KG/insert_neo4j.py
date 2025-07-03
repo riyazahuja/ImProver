@@ -129,19 +129,21 @@ def process_row(tx, row, con):
         "informalProof": row["informalProof"],
         "errorMessages": row["errorMsgs"]
     }
+    c0 = json.loads(row["C0Dependencies"]) if row["C0Dependencies"] else []
     c1 = json.loads(row["C1Dependencies"]) if row["C1Dependencies"] else []
     c2 = json.loads(row["C2Dependencies"]) if row["C2Dependencies"] else []
     c3 = json.loads(row["C3Dependencies"]) if row["C3Dependencies"] else []
 
     init_node(tx, thm)
-    for dep in c1 + c2 + c3:
+    for dep in c0 + c1 + c2 + c3:
         init_node(tx, dep)
 
+    create_edges(tx, thm, c0, "WEAKLY_DEPENDS_ON")
     create_edges(tx, thm, c1, "DEPENDS_ON")
     create_edges(tx, thm, c2, "DEPENDS_ON")
     create_edges(tx, thm, c3, "INFORMALLY_DEPENDS_ON")
     
-    dependencies = c1 + c2
+    dependencies = c0 + c1 + c2
     result = con.execute(
             f"""
             SELECT core_dependencies
@@ -223,14 +225,14 @@ def main(args):
     
     driver = GraphDatabase.driver(args.neo4j_uri, auth=(args.neo4j_user, args.neo4j_pass))
     
-    db_path = os.path.join("knowledge_graphs", args.KG_id,"combined.duckdb")
+    db_path = os.path.join("knowledge_graphs", args.kg_id,"combined.duckdb")
     
     con = duckdb.connect(db_path, read_only=True)
     rows = con.execute("SELECT * FROM theorems").fetchall()
     cols = [c[1] for c in con.execute("PRAGMA table_info('theorems')").fetchall()]
     con.close()
 
-    filtered_path = os.path.join("knowledge_graphs", args.KG_id,"filtered_data.duckdb")
+    filtered_path = os.path.join("knowledge_graphs", args.kg_id,"filtered_data.duckdb")
     con = duckdb.connect(filtered_path, read_only=True)
     
     
@@ -248,7 +250,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export KG with class3 edges")
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
 
     # parser.add_argument("KG_dir", type=str, help="Path to KG directory")
     parser.add_argument("--neo4j_uri", type=str, default="bolt://localhost:7687")

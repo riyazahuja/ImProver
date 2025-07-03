@@ -1,0 +1,239 @@
+[{"rag":
+  ["--src: Mathlib.ModelTheory.Types\n/-- A complete type over a given theory in a certain type of variables is a maximally\n  consistent (with the theory) set of formulas in that type. -/\nstructure CompleteType where\n  toTheory : L[[α]].Theory\n  subset' : (L.lhomWithConstants α).onTheory T ⊆ toTheory\n  isMaximal' : toTheory.IsMaximal",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem IsQF.induction_on_sup_not {P : L.BoundedFormula α n → Prop} {φ : L.BoundedFormula α n}\n    (h : IsQF φ) (hf : P (⊥ : L.BoundedFormula α n))\n    (ha : ∀ ψ : L.BoundedFormula α n, IsAtomic ψ → P ψ)\n    (hsup : ∀ {φ₁ φ₂}, P φ₁ → P φ₂ → P (φ₁ ⊔ φ₂)) (hnot : ∀ {φ}, P φ → P φ.not)\n    (hse :\n      ∀ {φ₁ φ₂ : L.BoundedFormula α n}, (φ₁ ⇔[∅] φ₂) → (P φ₁ ↔ P φ₂)) :\n    P φ :=\n  IsQF.recOn h hf @(ha) fun {φ₁ φ₂} _ _ h1 h2 =>\n    (hse (φ₁.imp_iff_not_sup φ₂)).2 (hsup (hnot h1) h2)",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- The inclusion of an empty language into any other language. -/\n@[simps]\nprotected def ofIsEmpty [L.IsAlgebraic] [L.IsRelational] : L →ᴸ L' where",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem isSatisfiable_union_distinctConstantsTheory_of_card_le (T : L.Theory) (s : Set α)\n    (M : Type w') [Nonempty M] [L.Structure M] [M ⊨ T]\n    (h : Cardinal.lift.{w'} #s ≤ Cardinal.lift.{w} #M) :\n    ((L.lhomWithConstants α).onTheory T ∪ L.distinctConstantsTheory s).IsSatisfiable := by\n  haveI : Inhabited M := Classical.inhabited_of_nonempty inferInstance\n  rw [Cardinal.lift_mk_le'] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure (Function.extend (↑) h.some default)\n  have : M ⊨ (L.lhomWithConstants α).onTheory T ∪ L.distinctConstantsTheory s := by\n    refine ((LHom.onTheory_model _ _).2 inferInstance).union ?_\n    rw [model_distinctConstantsTheory]\n    refine fun a as b bs ab => ?_\n    rw [← Subtype.coe_mk a as, ← Subtype.coe_mk b bs, ← Subtype.ext_iff]\n    exact\n      h.some.injective\n        ((Subtype.coe_injective.extend_apply h.some default ⟨a, as⟩).symm.trans\n          (ab.trans (Subtype.coe_injective.extend_apply h.some default ⟨b, bs⟩)))\n  exact Model.isSatisfiable M",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language equivalence maps the symbols of one language to symbols of another bijectively. -/\nstructure LEquiv (L L' : Language) where\n  toLHom : L →ᴸ L'\n  invLHom : L' →ᴸ L\n  left_inv : invLHom.comp toLHom = LHom.id L\n  right_inv : toLHom.comp invLHom = LHom.id L'",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- A universal formula is a formula defined by applying only universal quantifiers to a\nquantifier-free formula. -/\ninductive IsUniversal : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsUniversal φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsUniversal φ) : IsUniversal φ.all",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance sumElim_isExpansionOn {L'' : Language} (ψ : L'' →ᴸ L') (M : Type*) [L.Structure M]\n    [L'.Structure M] [L''.Structure M] [ϕ.IsExpansionOn M] [ψ.IsExpansionOn M] :\n    (ϕ.sumElim ψ).IsExpansionOn M :=\n  ⟨fun f _ => Sum.casesOn f (by simp) (by simp), fun R _ => Sum.casesOn R (by simp) (by simp)⟩",
+   "--src: Mathlib.ModelTheory.Basic\n/-- A homomorphism between first-order structures is a function that commutes with the\n  interpretations of functions and maps tuples in one structure where a given relation is true to\n  tuples in the second structure where that relation is still true. -/\nstructure Hom where\n  /-- The underlying function of a homomorphism of structures -/\n  toFun : M → N\n  /-- The homomorphism commutes with the interpretations of the function symbols -/\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    intros; trivial\n  /-- The homomorphism sends related elements to related elements -/\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r x → RelMap r (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Syntax\n/-- Maps a sentence's symbols along a language equivalence. -/\n@[simps!] -- Porting note: add `!` to `simps`\ndef onSentence (φ : L ≃ᴸ L') : L.Sentence ≃ L'.Sentence :=\n  φ.onFormula",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_mapTermRel_id [L'.Structure M]\n    {ft : ∀ n, L.Term (α ⊕ (Fin n)) → L'.Term (β ⊕ (Fin n))}\n    {fr : ∀ n, L.Relations n → L'.Relations n} {n} {φ : L.BoundedFormula α n} {v : α → M}\n    {v' : β → M} {xs : Fin n → M}\n    (h1 :\n      ∀ (n) (t : L.Term (α ⊕ (Fin n))) (xs : Fin n → M),\n        (ft n t).realize (Sum.elim v' xs) = t.realize (Sum.elim v xs))\n    (h2 : ∀ (n) (R : L.Relations n) (x : Fin n → M), RelMap (fr n R) x = RelMap R x) :\n    (φ.mapTermRel ft fr fun _ => id).Realize v' xs ↔ φ.Realize v xs := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [mapTermRel, Realize, h1]\n  | rel => simp [mapTermRel, Realize, h1, h2]\n  | imp _ _ ih1 ih2 => simp [mapTermRel, Realize, ih1, ih2]\n  | all _ ih => simp only [mapTermRel, Realize, ih, id]"],
+  "id":
+  {"name": "LO.FirstOrder.EQ.provOf",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma EQ.provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M]\n         [Structure L M] [Structure.Eq L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := consequence_iff_consequence.{u, w}.mp <| consequence_iff_eq.mpr fun M _ _ _ hT =>\n  letI : (Structure.Model L M) ⊧ₘ* T :=\n    ((Structure.ElementaryEquiv.modelsTheory (Structure.Model.elementaryEquiv L M)).mp hT)\n  (Structure.ElementaryEquiv.models (Structure.Model.elementaryEquiv L M)).mpr (H (Structure.Model L M))\n\n",
+   "compilationAlias":
+   "lemma EQ.provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M]\n         [Structure L M] [Structure.Eq L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := consequence_iff_consequence.{u, w}.mp <| consequence_iff_eq.mpr fun M _ _ _ hT =>\n  letI : (Structure.Model L M) ⊧ₘ* T :=\n    ((Structure.ElementaryEquiv.modelsTheory (Structure.Model.elementaryEquiv L M)).mp hT)\n  (Structure.ElementaryEquiv.models (Structure.Model.elementaryEquiv L M)).mpr (H (Structure.Model L M))\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\ninst✝¹ : L.Eq\nT : LO.FirstOrder.Theory L\ninst✝ : LO.System.Subtheory LO.FirstOrder.Theory.eqAxiom T\nφ : LO.FirstOrder.SyntacticFormula L\nH : ∀ (M : Type (max u w)) [inst : Nonempty M] [inst_1 : LO.FirstOrder.Structure L M] [inst_2 : LO.FirstOrder.Structure.Eq L M] [inst_3 : LO.FirstOrder.ModelsTheory M T], LO.FirstOrder.Models M φ\n⊢ LO.FirstOrder.Consequence T φ",
+  "content_sorry":
+  "lemma EQ.provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M]\n         [Structure L M] [Structure.Eq L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := by sorry",
+  "annotation":
+  "lemma EQ.provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M]\n         [Structure L M] [Structure.Eq L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := consequence_iff_consequence.{u, w}.mp <| consequence_iff_eq.mpr fun M _ _ _ hT =>\n  letI : (Structure.Model L M) ⊧ₘ* T :=\n    ((Structure.ElementaryEquiv.modelsTheory (Structure.Model.elementaryEquiv L M)).mp hT)\n  (Structure.ElementaryEquiv.models (Structure.Model.elementaryEquiv L M)).mpr (H (Structure.Model L M))\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Basic\n@[simp]\ntheorem card_relations_sum (i : ℕ) :\n    #((L.sum L').Relations i) =\n      Cardinal.lift.{v'} #(L.Relations i) + Cardinal.lift.{v} #(L'.Relations i) := by\n  simp [Language.sum]",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem ModelsBoundedFormula.realize_formula {φ : L.Formula α} (h : T ⊨ᵇ φ) (M : Type*)\n    [L.Structure M] [M ⊨ T] [Nonempty M] {v : α → M} : φ.Realize v := by\n  rw [models_formula_iff_onTheory_models_equivSentence] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure v\n  have : M ⊨ (L.lhomWithConstants α).onTheory T := (LHom.onTheory_model _ _).2 inferInstance\n  exact (Formula.realize_equivSentence _ _).1 (h.realize_sentence M)",
+   "--src: Mathlib.ModelTheory.Satisfiability\n/-- Any theory with an infinite model has arbitrarily large models. -/\ntheorem exists_large_model_of_infinite_model (T : L.Theory) (κ : Cardinal.{w}) (M : Type w')\n    [L.Structure M] [M ⊨ T] [Infinite M] :\n    ∃ N : ModelType.{_, _, max u v w} T, Cardinal.lift.{max u v w} κ ≤ #N := by\n  obtain ⟨N⟩ :=\n    isSatisfiable_union_distinctConstantsTheory_of_infinite T (Set.univ : Set κ.out) M\n  refine ⟨(N.is_model.mono Set.subset_union_left).bundled.reduct _, ?_⟩\n  haveI : N ⊨ distinctConstantsTheory _ _ := N.is_model.mono Set.subset_union_right\n  rw [ModelType.reduct_Carrier, coe_of]\n  refine _root_.trans (lift_le.2 (le_of_eq (Cardinal.mk_out κ).symm)) ?_\n  rw [← mk_univ]\n  refine\n    (card_le_of_model_distinctConstantsTheory L Set.univ N).trans (lift_le.{max u v w}.1 ?_)\n  rw [lift_lift]",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem models_sentence_of_mem {φ : L.Sentence} (h : φ ∈ T) : T ⊨ᵇ φ :=\n  models_sentence_iff.2 fun _ => realize_sentence_of_mem T h",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addConstants_expansion {L' : Language} [L'.Structure M] (φ : L →ᴸ L') [φ.IsExpansionOn M] :\n    (φ.addConstants α).IsExpansionOn M :=\n  LHom.sumMap_isExpansionOn _ _ M",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- The language map removing an empty constant set. -/\n@[simps]\ndef LEquiv.addEmptyConstants [ie : IsEmpty α] : L ≃ᴸ L[[α]] where\n  toLHom := lhomWithConstants L α\n  invLHom := LHom.sumElim (LHom.id L) (LHom.ofIsEmpty (constantsOn α) L)\n  left_inv := by rw [lhomWithConstants, LHom.sumElim_comp_inl]\n  right_inv := by\n    simp only [LHom.comp_sumElim, lhomWithConstants, LHom.comp_id]\n    exact _root_.trans (congr rfl (Subsingleton.elim _ _)) LHom.sumElim_inl_inr",
+   "--src: Mathlib.ModelTheory.LanguageMap\ntheorem sumInl_injective : (LHom.sumInl : L →ᴸ L.sum L').Injective :=\n  ⟨fun h => Sum.inl_injective h, fun h => Sum.inl_injective h⟩",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language map defined on two factors of a sum. -/\n@[simps]\nprotected def sumElim : L.sum L'' →ᴸ L' where\n  onFunction _n := Sum.elim (fun f => ϕ.onFunction f) fun f => ψ.onFunction f\n  onRelation _n := Sum.elim (fun f => ϕ.onRelation f) fun f => ψ.onRelation f",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem Model.union {T' : L.Theory} (h : M ⊨ T) (h' : M ⊨ T') : M ⊨ T ∪ T' := by\n  simp only [model_iff, Set.mem_union] at *\n  exact fun φ hφ => hφ.elim (h _) (h' _)",
+   "--src: Mathlib.ModelTheory.Bundled\n/-- The type of nonempty models of a first-order theory. -/\nstructure ModelType where\n  Carrier : Type w\n  [struc : L.Structure Carrier]\n  [is_model : T.Model Carrier]\n  [nonempty' : Nonempty Carrier]\n-- Porting note: In Lean4, other instances precedes `FirstOrder.Language.Theory.ModelType.struc`,\n-- it's issues in `ModelTheory.Satisfiability`. So, we increase these priorities."],
+  "id":
+  {"name": "LO.FirstOrder.ModelsTheory.of_add_left_right",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_add_left_right [M ⊧ₘ* T + U + V] : M ⊧ₘ* U := @of_add_right _ M _ _ T U (of_add_left M (T + U) V)\n\n",
+   "compilationAlias":
+   "lemma of_add_left_right [M ⊧ₘ* T + U + V] : M ⊧ₘ* U := @of_add_right _ M _ _ T U (of_add_left M (T + U) V)\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nM : Type w\ninst✝² : Nonempty M\ninst✝¹ : LO.FirstOrder.Structure L M\nT U V : LO.FirstOrder.Theory L\ninst✝ : LO.FirstOrder.ModelsTheory M (HAdd.hAdd (HAdd.hAdd T U) V)\n⊢ LO.FirstOrder.ModelsTheory M U",
+  "content_sorry":
+  "lemma of_add_left_right [M ⊧ₘ* T + U + V] : M ⊧ₘ* U := by sorry",
+  "annotation":
+  "lemma of_add_left_right [M ⊧ₘ* T + U + V] : M ⊧ₘ* U := @of_add_right _ M _ _ T U (of_add_left M (T + U) V)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Basic\n@[simp]\ntheorem card_relations_sum (i : ℕ) :\n    #((L.sum L').Relations i) =\n      Cardinal.lift.{v'} #(L.Relations i) + Cardinal.lift.{v} #(L'.Relations i) := by\n  simp [Language.sum]",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem ModelsBoundedFormula.realize_formula {φ : L.Formula α} (h : T ⊨ᵇ φ) (M : Type*)\n    [L.Structure M] [M ⊨ T] [Nonempty M] {v : α → M} : φ.Realize v := by\n  rw [models_formula_iff_onTheory_models_equivSentence] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure v\n  have : M ⊨ (L.lhomWithConstants α).onTheory T := (LHom.onTheory_model _ _).2 inferInstance\n  exact (Formula.realize_equivSentence _ _).1 (h.realize_sentence M)",
+   "--src: Mathlib.ModelTheory.Satisfiability\n/-- Any theory with an infinite model has arbitrarily large models. -/\ntheorem exists_large_model_of_infinite_model (T : L.Theory) (κ : Cardinal.{w}) (M : Type w')\n    [L.Structure M] [M ⊨ T] [Infinite M] :\n    ∃ N : ModelType.{_, _, max u v w} T, Cardinal.lift.{max u v w} κ ≤ #N := by\n  obtain ⟨N⟩ :=\n    isSatisfiable_union_distinctConstantsTheory_of_infinite T (Set.univ : Set κ.out) M\n  refine ⟨(N.is_model.mono Set.subset_union_left).bundled.reduct _, ?_⟩\n  haveI : N ⊨ distinctConstantsTheory _ _ := N.is_model.mono Set.subset_union_right\n  rw [ModelType.reduct_Carrier, coe_of]\n  refine _root_.trans (lift_le.2 (le_of_eq (Cardinal.mk_out κ).symm)) ?_\n  rw [← mk_univ]\n  refine\n    (card_le_of_model_distinctConstantsTheory L Set.univ N).trans (lift_le.{max u v w}.1 ?_)\n  rw [lift_lift]",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem models_sentence_of_mem {φ : L.Sentence} (h : φ ∈ T) : T ⊨ᵇ φ :=\n  models_sentence_iff.2 fun _ => realize_sentence_of_mem T h",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addConstants_expansion {L' : Language} [L'.Structure M] (φ : L →ᴸ L') [φ.IsExpansionOn M] :\n    (φ.addConstants α).IsExpansionOn M :=\n  LHom.sumMap_isExpansionOn _ _ M",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- The language map removing an empty constant set. -/\n@[simps]\ndef LEquiv.addEmptyConstants [ie : IsEmpty α] : L ≃ᴸ L[[α]] where\n  toLHom := lhomWithConstants L α\n  invLHom := LHom.sumElim (LHom.id L) (LHom.ofIsEmpty (constantsOn α) L)\n  left_inv := by rw [lhomWithConstants, LHom.sumElim_comp_inl]\n  right_inv := by\n    simp only [LHom.comp_sumElim, lhomWithConstants, LHom.comp_id]\n    exact _root_.trans (congr rfl (Subsingleton.elim _ _)) LHom.sumElim_inl_inr",
+   "--src: Mathlib.ModelTheory.LanguageMap\ntheorem sumInl_injective : (LHom.sumInl : L →ᴸ L.sum L').Injective :=\n  ⟨fun h => Sum.inl_injective h, fun h => Sum.inl_injective h⟩",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language map defined on two factors of a sum. -/\n@[simps]\nprotected def sumElim : L.sum L'' →ᴸ L' where\n  onFunction _n := Sum.elim (fun f => ϕ.onFunction f) fun f => ψ.onFunction f\n  onRelation _n := Sum.elim (fun f => ϕ.onRelation f) fun f => ψ.onRelation f",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem Model.union {T' : L.Theory} (h : M ⊨ T) (h' : M ⊨ T') : M ⊨ T ∪ T' := by\n  simp only [model_iff, Set.mem_union] at *\n  exact fun φ hφ => hφ.elim (h _) (h' _)",
+   "--src: Mathlib.ModelTheory.Bundled\n/-- The type of nonempty models of a first-order theory. -/\nstructure ModelType where\n  Carrier : Type w\n  [struc : L.Structure Carrier]\n  [is_model : T.Model Carrier]\n  [nonempty' : Nonempty Carrier]\n-- Porting note: In Lean4, other instances precedes `FirstOrder.Language.Theory.ModelType.struc`,\n-- it's issues in `ModelTheory.Satisfiability`. So, we increase these priorities."],
+  "id":
+  {"name": "LO.FirstOrder.ModelsTheory.of_add_left_left",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_add_left_left [M ⊧ₘ* T + U + V] : M ⊧ₘ* T := @of_add_left _ M _ _ T U (of_add_left M (T + U) V)\n\n",
+   "compilationAlias":
+   "lemma of_add_left_left [M ⊧ₘ* T + U + V] : M ⊧ₘ* T := @of_add_left _ M _ _ T U (of_add_left M (T + U) V)\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nM : Type w\ninst✝² : Nonempty M\ninst✝¹ : LO.FirstOrder.Structure L M\nT U V : LO.FirstOrder.Theory L\ninst✝ : LO.FirstOrder.ModelsTheory M (HAdd.hAdd (HAdd.hAdd T U) V)\n⊢ LO.FirstOrder.ModelsTheory M T",
+  "content_sorry":
+  "lemma of_add_left_left [M ⊧ₘ* T + U + V] : M ⊧ₘ* T := by sorry",
+  "annotation":
+  "lemma of_add_left_left [M ⊧ₘ* T + U + V] : M ⊧ₘ* T := @of_add_left _ M _ _ T U (of_add_left M (T + U) V)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Satisfiability\ntheorem ModelsBoundedFormula.realize_formula {φ : L.Formula α} (h : T ⊨ᵇ φ) (M : Type*)\n    [L.Structure M] [M ⊨ T] [Nonempty M] {v : α → M} : φ.Realize v := by\n  rw [models_formula_iff_onTheory_models_equivSentence] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure v\n  have : M ⊨ (L.lhomWithConstants α).onTheory T := (LHom.onTheory_model _ _).2 inferInstance\n  exact (Formula.realize_equivSentence _ _).1 (h.realize_sentence M)",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem models_sentence_of_mem {φ : L.Sentence} (h : φ ∈ T) : T ⊨ᵇ φ :=\n  models_sentence_iff.2 fun _ => realize_sentence_of_mem T h",
+   "--src: Mathlib.ModelTheory.Bundled\n/-- The type of nonempty models of a first-order theory. -/\nstructure ModelType where\n  Carrier : Type w\n  [struc : L.Structure Carrier]\n  [is_model : T.Model Carrier]\n  [nonempty' : Nonempty Carrier]\n-- Porting note: In Lean4, other instances precedes `FirstOrder.Language.Theory.ModelType.struc`,\n-- it's issues in `ModelTheory.Satisfiability`. So, we increase these priorities.",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addEmptyConstants_is_expansion_on' :\n    (LEquiv.addEmptyConstants L (∅ : Set M)).toLHom.IsExpansionOn M :=\n  L.withConstants_expansion _",
+   "--src: Mathlib.ModelTheory.Basic\n/-- Given a language with a nonempty type of constants, any structure will be nonempty. This cannot\n  be a global instance, because `L` becomes a metavariable. -/\ntheorem nonempty_of_nonempty_constants [h : Nonempty L.Constants] : Nonempty M :=\n  h.map (↑)",
+   "--src: Mathlib.ModelTheory.Basic\n@[simp]\ntheorem card_relations_sum (i : ℕ) :\n    #((L.sum L').Relations i) =\n      Cardinal.lift.{v'} #(L.Relations i) + Cardinal.lift.{v} #(L'.Relations i) := by\n  simp [Language.sum]",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem card_le_of_model_distinctConstantsTheory (s : Set α) (M : Type w) [L[[α]].Structure M]\n    [h : M ⊨ L.distinctConstantsTheory s] : Cardinal.lift.{w} #s ≤ Cardinal.lift.{u'} #M :=\n  lift_mk_le'.2 ⟨⟨_, Set.injOn_iff_injective.1 ((L.model_distinctConstantsTheory s).1 h)⟩⟩",
+   "--src: Mathlib.ModelTheory.LanguageMap\ntheorem sumInl_injective : (LHom.sumInl : L →ᴸ L.sum L').Injective :=\n  ⟨fun h => Sum.inl_injective h, fun h => Sum.inl_injective h⟩",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addConstants_expansion {L' : Language} [L'.Structure M] (φ : L →ᴸ L') [φ.IsExpansionOn M] :\n    (φ.addConstants α).IsExpansionOn M :=\n  LHom.sumMap_isExpansionOn _ _ M",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]"],
+  "id":
+  {"name": "LO.FirstOrder.ModelsTheory.of_add_right",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_add_right [M ⊧ₘ* T + U] : M ⊧ₘ* U := of_ss inferInstance (show U ⊆ T + U from by simp [Theory.add_def])\n\n",
+   "compilationAlias":
+   "lemma of_add_right [M ⊧ₘ* T + U] : M ⊧ₘ* U := of_ss inferInstance (show U ⊆ T + U from by simp [Theory.add_def])\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nM : Type w\ninst✝² : Nonempty M\ninst✝¹ : LO.FirstOrder.Structure L M\nT U : LO.FirstOrder.Theory L\ninst✝ : LO.FirstOrder.ModelsTheory M (HAdd.hAdd T U)\n⊢ LO.FirstOrder.ModelsTheory M U",
+  "content_sorry":
+  "lemma of_add_right [M ⊧ₘ* T + U] : M ⊧ₘ* U := of_ss inferInstance (show U ⊆ T + U from by sorry",
+  "annotation":
+  "                                                                                          /-\n                                                                                            L : LO.FirstOrder.Language\n                                                                                            M : Type w\n                                                                                            inst✝² : Nonempty M\n                                                                                            inst✝¹ : LO.FirstOrder.Structure L M\n                                                                                            T U : LO.FirstOrder.Theory L\n                                                                                            inst✝ : LO.FirstOrder.ModelsTheory M (HAdd.hAdd T U)\n                                                                                            ⊢ HasSubset.Subset U (HAdd.hAdd T U)\n                                                                                          -/\nlemma of_add_right [M ⊧ₘ* T + U] : M ⊧ₘ* U := of_ss inferInstance (show U ⊆ T + U from by simp [Theory.add_def])\n                                                                                          /-\n                                                                                            🎉 no goals\n                                                                                          -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "inferInstance",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
+    "compilationAlias":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Satisfiability\ntheorem ModelsBoundedFormula.realize_formula {φ : L.Formula α} (h : T ⊨ᵇ φ) (M : Type*)\n    [L.Structure M] [M ⊨ T] [Nonempty M] {v : α → M} : φ.Realize v := by\n  rw [models_formula_iff_onTheory_models_equivSentence] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure v\n  have : M ⊨ (L.lhomWithConstants α).onTheory T := (LHom.onTheory_model _ _).2 inferInstance\n  exact (Formula.realize_equivSentence _ _).1 (h.realize_sentence M)",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem models_sentence_of_mem {φ : L.Sentence} (h : φ ∈ T) : T ⊨ᵇ φ :=\n  models_sentence_iff.2 fun _ => realize_sentence_of_mem T h",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addEmptyConstants_is_expansion_on' :\n    (LEquiv.addEmptyConstants L (∅ : Set M)).toLHom.IsExpansionOn M :=\n  L.withConstants_expansion _",
+   "--src: Mathlib.ModelTheory.Basic\n/-- Given a language with a nonempty type of constants, any structure will be nonempty. This cannot\n  be a global instance, because `L` becomes a metavariable. -/\ntheorem nonempty_of_nonempty_constants [h : Nonempty L.Constants] : Nonempty M :=\n  h.map (↑)",
+   "--src: Mathlib.ModelTheory.Basic\n@[simp]\ntheorem card_relations_sum (i : ℕ) :\n    #((L.sum L').Relations i) =\n      Cardinal.lift.{v'} #(L.Relations i) + Cardinal.lift.{v} #(L'.Relations i) := by\n  simp [Language.sum]",
+   "--src: Mathlib.ModelTheory.LanguageMap\ntheorem sumInl_injective : (LHom.sumInl : L →ᴸ L.sum L').Injective :=\n  ⟨fun h => Sum.inl_injective h, fun h => Sum.inl_injective h⟩",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem card_le_of_model_distinctConstantsTheory (s : Set α) (M : Type w) [L[[α]].Structure M]\n    [h : M ⊨ L.distinctConstantsTheory s] : Cardinal.lift.{w} #s ≤ Cardinal.lift.{u'} #M :=\n  lift_mk_le'.2 ⟨⟨_, Set.injOn_iff_injective.1 ((L.model_distinctConstantsTheory s).1 h)⟩⟩",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addConstants_expansion {L' : Language} [L'.Structure M] (φ : L →ᴸ L') [φ.IsExpansionOn M] :\n    (φ.addConstants α).IsExpansionOn M :=\n  LHom.sumMap_isExpansionOn _ _ M",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]",
+   "--src: Mathlib.ModelTheory.LanguageMap\ntheorem lhomWithConstants_injective : (L.lhomWithConstants α).Injective :=\n  LHom.sumInl_injective"],
+  "id":
+  {"name": "LO.FirstOrder.ModelsTheory.of_add_left",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_add_left [M ⊧ₘ* T + U] : M ⊧ₘ* T := of_ss inferInstance (show T ⊆ T + U from by simp [Theory.add_def])\n\n",
+   "compilationAlias":
+   "lemma of_add_left [M ⊧ₘ* T + U] : M ⊧ₘ* T := of_ss inferInstance (show T ⊆ T + U from by simp [Theory.add_def])\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nM : Type w\ninst✝² : Nonempty M\ninst✝¹ : LO.FirstOrder.Structure L M\nT U : LO.FirstOrder.Theory L\ninst✝ : LO.FirstOrder.ModelsTheory M (HAdd.hAdd T U)\n⊢ LO.FirstOrder.ModelsTheory M T",
+  "content_sorry":
+  "lemma of_add_left [M ⊧ₘ* T + U] : M ⊧ₘ* T := of_ss inferInstance (show T ⊆ T + U from by sorry",
+  "annotation":
+  "                                                                                         /-\n                                                                                           L : LO.FirstOrder.Language\n                                                                                           M : Type w\n                                                                                           inst✝² : Nonempty M\n                                                                                           inst✝¹ : LO.FirstOrder.Structure L M\n                                                                                           T U : LO.FirstOrder.Theory L\n                                                                                           inst✝ : LO.FirstOrder.ModelsTheory M (HAdd.hAdd T U)\n                                                                                           ⊢ HasSubset.Subset T (HAdd.hAdd T U)\n                                                                                         -/\nlemma of_add_left [M ⊧ₘ* T + U] : M ⊧ₘ* T := of_ss inferInstance (show T ⊆ T + U from by simp [Theory.add_def])\n                                                                                         /-\n                                                                                           🎉 no goals\n                                                                                         -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "inferInstance",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
+    "compilationAlias":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\ninstance model_nonempty [h : Nonempty M] : M ⊨ L.nonemptyTheory :=\n  L.model_nonemptyTheory_iff.2 h",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem ModelsBoundedFormula.realize_formula {φ : L.Formula α} (h : T ⊨ᵇ φ) (M : Type*)\n    [L.Structure M] [M ⊨ T] [Nonempty M] {v : α → M} : φ.Realize v := by\n  rw [models_formula_iff_onTheory_models_equivSentence] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure v\n  have : M ⊨ (L.lhomWithConstants α).onTheory T := (LHom.onTheory_model _ _).2 inferInstance\n  exact (Formula.realize_equivSentence _ _).1 (h.realize_sentence M)",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]",
+   "--src: Mathlib.ModelTheory.ElementarySubstructures\ninstance theory_model {T : L.Theory} [h : M ⊨ T] {S : L.ElementarySubstructure M} : S ⊨ T :=\n  (theory_model_iff S T).2 h",
+   "--src: Mathlib.ModelTheory.Substructures\ntheorem Term.realize_mem {α : Type*} (t : L.Term α) (xs : α → M) (h : ∀ a, xs a ∈ S) :\n    t.realize xs ∈ S := by\n  induction' t with a n f ts ih\n  · exact h a\n  · exact Substructure.fun_mem _ _ _ ih",
+   "--src: Mathlib.ModelTheory.Order\ninstance (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.dlo] [Nonempty M] :\n    Infinite M := by\n  letI := orderStructure ℚ\n  obtain ⟨f, _⟩ := embedding_from_cg cg_of_countable default (dlo_isExtensionPair ℚ M)\n  exact Infinite.of_injective f f.injective",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_age [Language.order.Structure M] [Mdlo : M ⊨ Language.order.dlo] [Nonempty M] :\n    Language.order.age M = {M : CategoryTheory.Bundled.{w'} Language.order.Structure |\n      Finite M ∧ M ⊨ Language.order.linearOrderTheory} := by\n  classical\n  rw [age]\n  ext N\n  refine ⟨fun ⟨hF, h⟩ => ⟨hF.finite, Theory.IsUniversal.models_of_embedding h.some⟩,\n    fun ⟨hF, h⟩ => ⟨FG.of_finite, ?_⟩⟩\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  exact ⟨StrongHomClass.toEmbedding (nonempty_orderEmbedding_of_finite_infinite N M).some⟩",
+   "--src: Mathlib.ModelTheory.ElementarySubstructures\ninstance instNonempty [Nonempty M] {S : L.ElementarySubstructure M} : Nonempty S :=\n  (model_nonemptyTheory_iff L).1 inferInstance",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem models_sentence_of_mem {φ : L.Sentence} (h : φ ∈ T) : T ⊨ᵇ φ :=\n  models_sentence_iff.2 fun _ => realize_sentence_of_mem T h",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addEmptyConstants_is_expansion_on' :\n    (LEquiv.addEmptyConstants L (∅ : Set M)).toLHom.IsExpansionOn M :=\n  L.withConstants_expansion _"],
+  "id":
+  {"name": "LO.FirstOrder.ModelsTheory.of_provably_subtheory'",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_provably_subtheory' [T ≼ U] [M ⊧ₘ* U] : M ⊧ₘ* T := of_provably_subtheory M T U inferInstance inferInstance\n\n",
+   "compilationAlias":
+   "lemma of_provably_subtheory' [T ≼ U] [M ⊧ₘ* U] : M ⊧ₘ* T := of_provably_subtheory M T U inferInstance inferInstance\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nM : Type w\ninst✝³ : Nonempty M\ninst✝² : LO.FirstOrder.Structure L M\nT U : LO.FirstOrder.Theory L\ninst✝¹ : LO.System.Subtheory T U\ninst✝ : LO.FirstOrder.ModelsTheory M U\n⊢ LO.FirstOrder.ModelsTheory M T",
+  "content_sorry":
+  "lemma of_provably_subtheory' [T ≼ U] [M ⊧ₘ* U] : M ⊧ₘ* T := by sorry",
+  "annotation":
+  "lemma of_provably_subtheory' [T ≼ U] [M ⊧ₘ* U] : M ⊧ₘ* T := of_provably_subtheory M T U inferInstance inferInstance\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "inferInstance",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
+    "compilationAlias":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"},
+   {"name": "inferInstance",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
+    "compilationAlias":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Satisfiability\ntheorem ModelsBoundedFormula.realize_formula {φ : L.Formula α} (h : T ⊨ᵇ φ) (M : Type*)\n    [L.Structure M] [M ⊨ T] [Nonempty M] {v : α → M} : φ.Realize v := by\n  rw [models_formula_iff_onTheory_models_equivSentence] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure v\n  have : M ⊨ (L.lhomWithConstants α).onTheory T := (LHom.onTheory_model _ _).2 inferInstance\n  exact (Formula.realize_equivSentence _ _).1 (h.realize_sentence M)",
+   "--src: Mathlib.ModelTheory.Semantics\ninstance model_nonempty [h : Nonempty M] : M ⊨ L.nonemptyTheory :=\n  L.model_nonemptyTheory_iff.2 h",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]",
+   "--src: Mathlib.ModelTheory.ElementarySubstructures\ninstance theory_model {T : L.Theory} [h : M ⊨ T] {S : L.ElementarySubstructure M} : S ⊨ T :=\n  (theory_model_iff S T).2 h",
+   "--src: Mathlib.ModelTheory.Substructures\ntheorem Term.realize_mem {α : Type*} (t : L.Term α) (xs : α → M) (h : ∀ a, xs a ∈ S) :\n    t.realize xs ∈ S := by\n  induction' t with a n f ts ih\n  · exact h a\n  · exact Substructure.fun_mem _ _ _ ih",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem models_sentence_of_mem {φ : L.Sentence} (h : φ ∈ T) : T ⊨ᵇ φ :=\n  models_sentence_iff.2 fun _ => realize_sentence_of_mem T h",
+   "--src: Mathlib.ModelTheory.Order\ninstance [h : M ⊨ L.dlo] : M ⊨ L.linearOrderTheory := h.mono Set.subset_union_left",
+   "--src: Mathlib.ModelTheory.Bundled\ninstance of_small (M : Type w) [Nonempty M] [L.Structure M] [M ⊨ T] [h : Small.{w'} M] :\n    Small.{w'} (ModelType.of T M) :=\n  h",
+   "--src: Mathlib.ModelTheory.LanguageMap\ninstance addEmptyConstants_is_expansion_on' :\n    (LEquiv.addEmptyConstants L (∅ : Set M)).toLHom.IsExpansionOn M :=\n  L.withConstants_expansion _",
+   "--src: Mathlib.ModelTheory.ElementarySubstructures\ninstance instNonempty [Nonempty M] {S : L.ElementarySubstructure M} : Nonempty S :=\n  (model_nonemptyTheory_iff L).1 inferInstance"],
+  "id":
+  {"name": "LO.FirstOrder.ModelsTheory.of_provably_subtheory",
+   "module": "Foundation.FirstOrder.Completeness.Corollaries",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_provably_subtheory (_ : T ≼ U) (h : M ⊧ₘ* U) : M ⊧ₘ* T := ⟨by\n  intro φ hp\n  have : U ⊢ φ := System.Subtheory.prf (System.byAxm hp)\n  exact consequence_iff'.{u, w}.mp (sound! ⟨this⟩) M⟩\n\n",
+   "compilationAlias":
+   "lemma of_provably_subtheory (_ : T ≼ U) (h : M ⊧ₘ* U) : M ⊧ₘ* T := ⟨by\n  intro φ hp\n  have : U ⊢ φ := System.Subtheory.prf (System.byAxm hp)\n  exact consequence_iff'.{u, w}.mp (sound! ⟨this⟩) M⟩\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nM : Type w\ninst✝¹ : Nonempty M\ninst✝ : LO.FirstOrder.Structure L M\nT U : LO.FirstOrder.Theory L\nx✝ : LO.System.Subtheory T U\nh : LO.FirstOrder.ModelsTheory M U\n⊢ LO.FirstOrder.ModelsTheory M T",
+  "content_sorry":
+  "lemma of_provably_subtheory (_ : T ≼ U) (h : M ⊧ₘ* U) : M ⊧ₘ* T := ⟨by\n  sorry",
+  "annotation":
+  "lemma of_provably_subtheory (_ : T ≼ U) (h : M ⊧ₘ* U) : M ⊧ₘ* T := ⟨by\n  /-\n    L : LO.FirstOrder.Language\n    M : Type w\n    inst✝¹ : Nonempty M\n    inst✝ : LO.FirstOrder.Structure L M\n    T U : LO.FirstOrder.Theory L\n    x✝ : LO.System.Subtheory T U\n    h : LO.FirstOrder.ModelsTheory M U\n    ⊢ ∀ ⦃f : LO.FirstOrder.SyntacticFormula L⦄, Membership.mem T f → LO.Semantics. …\n  -/\n  intro φ hp\n  /-\n    L : LO.FirstOrder.Language\n    M : Type w\n    inst✝¹ : Nonempty M\n    inst✝ : LO.FirstOrder.Structure L M\n    T U : LO.FirstOrder.Theory L\n    x✝ : LO.System.Subtheory T U\n    h : LO.FirstOrder.ModelsTheory M U\n    φ : LO.FirstOrder.SyntacticFormula L\n    hp : Membership.mem T φ\n    ⊢ LO.Semantics.Realize inst✝.toStruc φ\n  -/\n  have : U ⊢ φ := System.Subtheory.prf (System.byAxm hp)\n  /-\n    L : LO.FirstOrder.Language\n    M : Type w\n    inst✝¹ : Nonempty M\n    inst✝ : LO.FirstOrder.Structure L M\n    T U : LO.FirstOrder.Theory L\n    x✝ : LO.System.Subtheory T U\n    h : LO.FirstOrder.ModelsTheory M U\n    φ : LO.FirstOrder.SyntacticFormula L\n    hp : Membership.mem T φ\n    this : LO.System.Prf U φ\n    ⊢ LO.Semantics.Realize inst✝.toStruc φ\n  -/\n  exact consequence_iff'.{u, w}.mp (sound! ⟨this⟩) M⟩\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []}]
