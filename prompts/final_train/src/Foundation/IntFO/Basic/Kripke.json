@@ -1,0 +1,609 @@
+[{"rag":
+  ["--src: Mathlib.ModelTheory.Types\n/-- A complete type over a given theory in a certain type of variables is a maximally\n  consistent (with the theory) set of formulas in that type. -/\nstructure CompleteType where\n  toTheory : L[[α]].Theory\n  subset' : (L.lhomWithConstants α).onTheory T ⊆ toTheory\n  isMaximal' : toTheory.IsMaximal",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- An existential formula is a formula defined by applying only existential quantifiers to a\nquantifier-free formula. -/\ninductive IsExistential : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsExistential φ\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsExistential φ) : IsExistential φ.ex",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- A universal formula is a formula defined by applying only universal quantifiers to a\nquantifier-free formula. -/\ninductive IsUniversal : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsUniversal φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsUniversal φ) : IsUniversal φ.all",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem IsQF.induction_on_inf_not {P : L.BoundedFormula α n → Prop} {φ : L.BoundedFormula α n}\n    (h : IsQF φ) (hf : P (⊥ : L.BoundedFormula α n))\n    (ha : ∀ ψ : L.BoundedFormula α n, IsAtomic ψ → P ψ)\n    (hinf : ∀ {φ₁ φ₂}, P φ₁ → P φ₂ → P (φ₁ ⊓ φ₂)) (hnot : ∀ {φ}, P φ → P φ.not)\n    (hse :\n      ∀ {φ₁ φ₂ : L.BoundedFormula α n}, (φ₁ ⇔[∅] φ₂) → (P φ₁ ↔ P φ₂)) :\n    P φ :=\n  h.induction_on_sup_not hf ha\n    (fun {φ₁ φ₂} h1 h2 =>\n      (hse (φ₁.sup_iff_not_inf_not φ₂)).2 (hnot (hinf (hnot h1) (hnot h2))))\n    (fun {_} => hnot) fun {_ _} => hse",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language homomorphism maps the symbols of one language to symbols of another. -/\nstructure LHom where\n  onFunction : ∀ ⦃n⦄, L.Functions n → L'.Functions n := by\n    exact fun {n} => isEmptyElim\n  onRelation : ∀ ⦃n⦄, L.Relations n → L'.Relations n :=by\n    exact fun {n} => isEmptyElim",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem isSatisfiable_union_distinctConstantsTheory_of_card_le (T : L.Theory) (s : Set α)\n    (M : Type w') [Nonempty M] [L.Structure M] [M ⊨ T]\n    (h : Cardinal.lift.{w'} #s ≤ Cardinal.lift.{w} #M) :\n    ((L.lhomWithConstants α).onTheory T ∪ L.distinctConstantsTheory s).IsSatisfiable := by\n  haveI : Inhabited M := Classical.inhabited_of_nonempty inferInstance\n  rw [Cardinal.lift_mk_le'] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure (Function.extend (↑) h.some default)\n  have : M ⊨ (L.lhomWithConstants α).onTheory T ∪ L.distinctConstantsTheory s := by\n    refine ((LHom.onTheory_model _ _).2 inferInstance).union ?_\n    rw [model_distinctConstantsTheory]\n    refine fun a as b bs ab => ?_\n    rw [← Subtype.coe_mk a as, ← Subtype.coe_mk b bs, ← Subtype.ext_iff]\n    exact\n      h.some.injective\n        ((Subtype.coe_injective.extend_apply h.some default ⟨a, as⟩).symm.trans\n          (ab.trans (Subtype.coe_injective.extend_apply h.some default ⟨b, bs⟩)))\n  exact Model.isSatisfiable M",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_mapTermRel_add_castLe [L'.Structure M] {k : ℕ}\n    {ft : ∀ n, L.Term (α ⊕ (Fin n)) → L'.Term (β ⊕ (Fin (k + n)))}\n    {fr : ∀ n, L.Relations n → L'.Relations n} {n} {φ : L.BoundedFormula α n}\n    (v : ∀ {n}, (Fin (k + n) → M) → α → M) {v' : β → M} (xs : Fin (k + n) → M)\n    (h1 :\n      ∀ (n) (t : L.Term (α ⊕ (Fin n))) (xs' : Fin (k + n) → M),\n        (ft n t).realize (Sum.elim v' xs') = t.realize (Sum.elim (v xs') (xs' ∘ Fin.natAdd _)))\n    (h2 : ∀ (n) (R : L.Relations n) (x : Fin n → M), RelMap (fr n R) x = RelMap R x)\n    (hv : ∀ (n) (xs : Fin (k + n) → M) (x : M), @v (n + 1) (snoc xs x : Fin _ → M) = v xs) :\n    (φ.mapTermRel ft fr fun _ => castLE (add_assoc _ _ _).symm.le).Realize v' xs ↔\n      φ.Realize (v xs) (xs ∘ Fin.natAdd _) := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [mapTermRel, Realize, h1]\n  | rel => simp [mapTermRel, Realize, h1, h2]\n  | imp _ _ ih1 ih2 => simp [mapTermRel, Realize, ih1, ih2]\n  | all _ ih => simp [mapTermRel, Realize, ih, hv]",
+   "--src: Mathlib.ModelTheory.Basic\n/-- A homomorphism between first-order structures is a function that commutes with the\n  interpretations of functions and maps tuples in one structure where a given relation is true to\n  tuples in the second structure where that relation is still true. -/\nstructure Hom where\n  /-- The underlying function of a homomorphism of structures -/\n  toFun : M → N\n  /-- The homomorphism commutes with the interpretations of the function symbols -/\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    intros; trivial\n  /-- The homomorphism sends related elements to related elements -/\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r x → RelMap r (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- Indicates that a bounded formula is in prenex normal form - that is, it consists of quantifiers\n  applied to a quantifier-free formula. -/\ninductive IsPrenex : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsPrenex φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsPrenex φ) : IsPrenex φ.all\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsPrenex φ) : IsPrenex φ.ex",
+   "--src: Mathlib.ModelTheory.Equivalence\nprotected theorem imp {φ ψ φ' ψ' : L.BoundedFormula α n} (h : φ ⇔[T] ψ) (h' : φ' ⇔[T] ψ') :\n    (φ.imp φ') ⇔[T] (ψ.imp ψ') := by\n  simp_rw [Theory.Iff, ModelsBoundedFormula, BoundedFormula.realize_iff,\n    BoundedFormula.realize_imp]\n  exact fun M v xs => imp_congr h.realize_bd_iff h'.realize_bd_iff"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_rew",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_rew {bv : Fin n₂ → Domain w} {fv : ξ₂ → Domain w} {ω : Rew L ξ₁ n₁ ξ₂ n₂} {φ : Semiformulaᵢ L ξ₁ n₁} :\n    w ⊩[bv|fv] (ω ▹ φ) ↔\n    w ⊩[fun x ↦ (ω #x).val (Domain w).struc bv fv|fun x ↦ (ω &x).val (Domain w).struc bv fv] φ := by\n  induction φ using Semiformulaᵢ.rec' generalizing n₂ w\n  case hRel k R t =>\n    simp only [Semiformulaᵢ.rew_rel, val_rel]\n    apply iff_of_eq; congr; funext x\n    simp [Semiterm.val_rew ω (t x), Function.comp_def]\n  case hImp φ ψ ihφ ihψ =>\n    simp only [val_imply, Function.comp_apply, wire_val]\n    constructor\n    · intro h v hwv hφ\n      simpa [Function.comp_def] using ihψ.mp <| h v hwv (ihφ.mpr <| by simpa [Function.comp_def, wire_val] using hφ)\n    · intro h v hwv hφ\n      exact ihψ.mpr <| h v hwv <| by simpa [Function.comp_def] using ihφ.mp hφ\n  case hAnd φ ψ ihφ ihψ => simp [ihφ, ihψ]\n  case hOr φ ψ ihφ ihψ => simp [ihφ, ihψ]\n  case hVerum => simp\n  case hFalsum => simp\n  case hAll φ ih =>\n    constructor\n    · simp only [val_all, Nat.succ_eq_add_one, wire_val]\n      intro h v hwv x\n      exact cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) <| ih.mp <| h v hwv x\n    · simp only [val_all, Nat.succ_eq_add_one, wire_val]\n      intro h v hwv x\n      apply ih.mpr\n      exact cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) <| h v hwv x\n  case hEx φ ih =>\n    constructor\n    · simp only [Rewriting.app_ex, val_ex, Nat.succ_eq_add_one, forall_exists_index]\n      intro x h\n      exact ⟨x, cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) (ih.mp h)⟩\n    · simp only [val_ex, Nat.succ_eq_add_one, forall_exists_index]\n      intro x h\n      exact ⟨x, ih.mpr <| cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) h⟩\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_rew {bv : Fin n₂ → Domain w} {fv : ξ₂ → Domain w} {ω : Rew L ξ₁ n₁ ξ₂ n₂} {φ : Semiformulaᵢ L ξ₁ n₁} :\n    w ⊩[bv|fv] (ω ▹ φ) ↔\n    w ⊩[fun x ↦ (ω #x).val (Domain w).struc bv fv|fun x ↦ (ω &x).val (Domain w).struc bv fv] φ := by\n  induction φ using Semiformulaᵢ.rec' generalizing n₂ w\n  case hRel k R t =>\n    simp only [Semiformulaᵢ.rew_rel, val_rel]\n    apply iff_of_eq; congr; funext x\n    simp [Semiterm.val_rew ω (t x), Function.comp_def]\n  case hImp φ ψ ihφ ihψ =>\n    simp only [val_imply, Function.comp_apply, wire_val]\n    constructor\n    · intro h v hwv hφ\n      simpa [Function.comp_def] using ihψ.mp <| h v hwv (ihφ.mpr <| by simpa [Function.comp_def, wire_val] using hφ)\n    · intro h v hwv hφ\n      exact ihψ.mpr <| h v hwv <| by simpa [Function.comp_def] using ihφ.mp hφ\n  case hAnd φ ψ ihφ ihψ => simp [ihφ, ihψ]\n  case hOr φ ψ ihφ ihψ => simp [ihφ, ihψ]\n  case hVerum => simp\n  case hFalsum => simp\n  case hAll φ ih =>\n    constructor\n    · simp only [val_all, Nat.succ_eq_add_one, wire_val]\n      intro h v hwv x\n      exact cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) <| ih.mp <| h v hwv x\n    · simp only [val_all, Nat.succ_eq_add_one, wire_val]\n      intro h v hwv x\n      apply ih.mpr\n      exact cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) <| h v hwv x\n  case hEx φ ih =>\n    constructor\n    · simp only [Rewriting.app_ex, val_ex, Nat.succ_eq_add_one, forall_exists_index]\n      intro x h\n      exact ⟨x, cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) (ih.mp h)⟩\n    · simp only [val_ex, Nat.succ_eq_add_one, forall_exists_index]\n      intro x h\n      exact ⟨x, ih.mpr <| cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) h⟩\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nn₂ : Nat\nξ₂ : Type u_1\nξ₁ : Type u_2\nn₁ : Nat\nbv : Fin n₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nω : LO.FirstOrder.Rew L ξ₁ n₁ ξ₂ n₂\nφ : LO.FirstOrder.Semiformulaᵢ L ξ₁ n₁\n⊢ Eq (LO.FirstOrder.KripkeModel.Val w bv fv ((LO.FirstOrder.Rewriting.app ω) φ)) (LO.FirstOrder.KripkeModel.Val w (fun x => LO.FirstOrder.Semiterm.val (LO.FirstOrder.KripkeModel.Domain w).struc bv fv (ω (LO.FirstOrder.Semiterm.bvar x))) (fun x => LO.FirstOrder.Semiterm.val (LO.FirstOrder.KripkeModel.Domain w).struc bv fv (ω (LO.FirstOrder.Semiterm.fvar x))) φ)",
+  "content_sorry":
+  "@[simp] lemma val_rew {bv : Fin n₂ → Domain w} {fv : ξ₂ → Domain w} {ω : Rew L ξ₁ n₁ ξ₂ n₂} {φ : Semiformulaᵢ L ξ₁ n₁} :\n    w ⊩[bv|fv] (ω ▹ φ) ↔\n    w ⊩[fun x ↦ (ω #x).val (Domain w).struc bv fv|fun x ↦ (ω &x).val (Domain w).struc bv fv] φ := by\n  sorry",
+  "annotation":
+  "@[simp] lemma val_rew {bv : Fin n₂ → Domain w} {fv : ξ₂ → Domain w} {ω : Rew L ξ₁ n₁ ξ₂ n₂} {φ : Semiformulaᵢ L ξ₁ n₁} :\n    w ⊩[bv|fv] (ω ▹ φ) ↔\n    w ⊩[fun x ↦ (ω #x).val (Domain w).struc bv fv|fun x ↦ (ω &x).val (Domain w).struc bv fv] φ := by\n  /-\n    L : LO.FirstOrder.Language\n    𝓚 : LO.FirstOrder.KripkeModel L\n    w : 𝓚.Frame.World\n    n₂ : Nat\n    ξ₂ : Type u_1\n    ξ₁ : Type u_2\n    n₁ : Nat\n    bv : Fin n₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    fv : ξ₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    ω : LO.FirstOrder.Rew L ξ₁ n₁ ξ₂ n₂\n    φ : LO.FirstOrder.Semiformulaᵢ L ξ₁ n₁\n    ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv ((LO.FirstOrder.Rewriting.app ω)  …\n  -/\n  induction φ using Semiformulaᵢ.rec' generalizing n₂ w\n  case hRel k R t =>\n    simp only [Semiformulaᵢ.rew_rel, val_rel]\n    apply iff_of_eq; congr; funext x\n    simp [Semiterm.val_rew ω (t x), Function.comp_def]\n  case hImp φ ψ ihφ ihψ =>\n    simp only [val_imply, Function.comp_apply, wire_val]\n    constructor\n    · intro h v hwv hφ\n      simpa [Function.comp_def] using ihψ.mp <| h v hwv (ihφ.mpr <| by simpa [Function.comp_def, wire_val] using hφ)\n    · intro h v hwv hφ\n      exact ihψ.mpr <| h v hwv <| by simpa [Function.comp_def] using ihφ.mp hφ\n  /-\n    case hVerum\n    L : LO.FirstOrder.Language\n    𝓚 : LO.FirstOrder.KripkeModel L\n    ξ₂ : Type u_1\n    ξ₁ : Type u_2\n    n₁ n✝ : Nat\n    w : 𝓚.Frame.World\n    n₂ : Nat\n    bv : Fin n₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    fv : ξ₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    ω : LO.FirstOrder.Rew L ξ₁ n✝ ξ₂ n₂\n    ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv ((LO.FirstOrder.Rewriting.app ω)  …\n  -/\n  case hAnd φ ψ ihφ ihψ => simp [ihφ, ihψ]\n  /-\n    case hVerum\n    L : LO.FirstOrder.Language\n    𝓚 : LO.FirstOrder.KripkeModel L\n    ξ₂ : Type u_1\n    ξ₁ : Type u_2\n    n₁ n✝ : Nat\n    w : 𝓚.Frame.World\n    n₂ : Nat\n    bv : Fin n₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    fv : ξ₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    ω : LO.FirstOrder.Rew L ξ₁ n✝ ξ₂ n₂\n    ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv ((LO.FirstOrder.Rewriting.app ω)  …\n  -/\n  case hOr φ ψ ihφ ihψ => simp [ihφ, ihψ]\n  /-\n    case hVerum\n    L : LO.FirstOrder.Language\n    𝓚 : LO.FirstOrder.KripkeModel L\n    ξ₂ : Type u_1\n    ξ₁ : Type u_2\n    n₁ n✝ : Nat\n    w : 𝓚.Frame.World\n    n₂ : Nat\n    bv : Fin n₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    fv : ξ₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    ω : LO.FirstOrder.Rew L ξ₁ n✝ ξ₂ n₂\n    ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv ((LO.FirstOrder.Rewriting.app ω)  …\n  -/\n  case hVerum => simp\n  /-\n    case hFalsum\n    L : LO.FirstOrder.Language\n    𝓚 : LO.FirstOrder.KripkeModel L\n    ξ₂ : Type u_1\n    ξ₁ : Type u_2\n    n₁ n✝ : Nat\n    w : 𝓚.Frame.World\n    n₂ : Nat\n    bv : Fin n₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    fv : ξ₂ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    ω : LO.FirstOrder.Rew L ξ₁ n✝ ξ₂ n₂\n    ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv ((LO.FirstOrder.Rewriting.app ω)  …\n  -/\n  case hFalsum => simp\n  case hAll φ ih =>\n    constructor\n    · simp only [val_all, Nat.succ_eq_add_one, wire_val]\n      intro h v hwv x\n      exact cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) <| ih.mp <| h v hwv x\n    · simp only [val_all, Nat.succ_eq_add_one, wire_val]\n      intro h v hwv x\n      apply ih.mpr\n      exact cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) <| h v hwv x\n  case hEx φ ih =>\n    constructor\n    · simp only [Rewriting.app_ex, val_ex, Nat.succ_eq_add_one, forall_exists_index]\n      intro x h\n      exact ⟨x, cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) (ih.mp h)⟩\n    · simp only [val_ex, Nat.succ_eq_add_one, forall_exists_index]\n      intro x h\n      exact ⟨x, ih.mpr <| cast (by congr; { funext x; cases x using Fin.cases <;> simp }; { simp }) h⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.cases",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i",
+    "compilationAlias":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i"},
+   {"name": "cast",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a",
+    "compilationAlias":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a"},
+   {"name": "forall_exists_index",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nAs `simp` does not index foralls, this `@[simp]` lemma is tried on every `forall` expression.\nThis is not ideal, and likely a performance issue, but it is difficult to remove this attribute at this time.\n-/\n@[simp] theorem forall_exists_index {q : (∃ x, p x) → Prop} :\n    (∀ h, q h) ↔ ∀ x (h : p x), q ⟨x, h⟩ :=\n  ⟨fun h x hpx => h ⟨x, hpx⟩, fun h ⟨x, hpx⟩ => h x hpx⟩",
+    "compilationAlias":
+    "/--\nAs `simp` does not index foralls, this `@[simp]` lemma is tried on every `forall` expression.\nThis is not ideal, and likely a performance issue, but it is difficult to remove this attribute at this time.\n-/\n@[simp] theorem forall_exists_index {q : (∃ x, p x) → Prop} :\n    (∀ h, q h) ↔ ∀ x (h : p x), q ⟨x, h⟩ :=\n  ⟨fun h x hpx => h ⟨x, hpx⟩, fun h ⟨x, hpx⟩ => h x hpx⟩"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Fin.cases",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i",
+    "compilationAlias":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i"},
+   {"name": "cast",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a",
+    "compilationAlias":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a"},
+   {"name": "forall_exists_index",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nAs `simp` does not index foralls, this `@[simp]` lemma is tried on every `forall` expression.\nThis is not ideal, and likely a performance issue, but it is difficult to remove this attribute at this time.\n-/\n@[simp] theorem forall_exists_index {q : (∃ x, p x) → Prop} :\n    (∀ h, q h) ↔ ∀ x (h : p x), q ⟨x, h⟩ :=\n  ⟨fun h x hpx => h ⟨x, hpx⟩, fun h ⟨x, hpx⟩ => h x hpx⟩",
+    "compilationAlias":
+    "/--\nAs `simp` does not index foralls, this `@[simp]` lemma is tried on every `forall` expression.\nThis is not ideal, and likely a performance issue, but it is difficult to remove this attribute at this time.\n-/\n@[simp] theorem forall_exists_index {q : (∃ x, p x) → Prop} :\n    (∀ h, q h) ↔ ∀ x (h : p x), q ⟨x, h⟩ :=\n  ⟨fun h x hpx => h ⟨x, hpx⟩, fun h ⟨x, hpx⟩ => h x hpx⟩"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Fin.cases",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i",
+    "compilationAlias":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i"},
+   {"name": "cast",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a",
+    "compilationAlias":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Fin.cases",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i",
+    "compilationAlias":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i"},
+   {"name": "cast",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a",
+    "compilationAlias":
+    "/--\nCast across a type equality. If `h : α = β` is an equality of types, and\n`a : α`, then `a : β` will usually not typecheck directly, but this function\nwill allow you to work around this and embed `a` in type `β` as `cast h a : β`.\n\nIt is best to avoid this function if you can, because it is more complicated\nto reason about terms containing casts, but if the types don't match up\ndefinitionally sometimes there isn't anything better you can do.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[macro_inline] def cast {α β : Sort u} (h : Eq α β) (a : α) : β :=\n  h.rec a"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Function.comp_def",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl",
+    "compilationAlias":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl"},
+   {"name": "Function.comp_def",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl",
+    "compilationAlias":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl"},
+   {"name": "Function.comp_def",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl",
+    "compilationAlias":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "Function.comp_def",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl",
+    "compilationAlias":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl"},
+   {"name": "iff_of_eq",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem iff_of_eq : a = b → (a ↔ b) := Iff.of_eq",
+    "compilationAlias": "theorem iff_of_eq : a = b → (a ↔ b) := Iff.of_eq"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Basic\n/-- A homomorphism between first-order structures is a function that commutes with the\n  interpretations of functions and maps tuples in one structure where a given relation is true to\n  tuples in the second structure where that relation is still true. -/\nstructure Hom where\n  /-- The underlying function of a homomorphism of structures -/\n  toFun : M → N\n  /-- The homomorphism commutes with the interpretations of the function symbols -/\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    intros; trivial\n  /-- The homomorphism sends related elements to related elements -/\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r x → RelMap r (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Types\n/-- A complete type over a given theory in a certain type of variables is a maximally\n  consistent (with the theory) set of formulas in that type. -/\nstructure CompleteType where\n  toTheory : L[[α]].Theory\n  subset' : (L.lhomWithConstants α).onTheory T ⊆ toTheory\n  isMaximal' : toTheory.IsMaximal",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- An existential formula is a formula defined by applying only existential quantifiers to a\nquantifier-free formula. -/\ninductive IsExistential : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsExistential φ\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsExistential φ) : IsExistential φ.ex",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language homomorphism maps the symbols of one language to symbols of another. -/\nstructure LHom where\n  onFunction : ∀ ⦃n⦄, L.Functions n → L'.Functions n := by\n    exact fun {n} => isEmptyElim\n  onRelation : ∀ ⦃n⦄, L.Relations n → L'.Relations n :=by\n    exact fun {n} => isEmptyElim",
+   "--src: Mathlib.ModelTheory.Basic\n/-- An embedding of first-order structures is an embedding that commutes with the\n  interpretations of functions and relations. -/\nstructure Embedding extends M ↪ N where\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r (toFun ∘ x) ↔ RelMap r x := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- A universal formula is a formula defined by applying only universal quantifiers to a\nquantifier-free formula. -/\ninductive IsUniversal : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsUniversal φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsUniversal φ) : IsUniversal φ.all",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_mapTermRel_add_castLe [L'.Structure M] {k : ℕ}\n    {ft : ∀ n, L.Term (α ⊕ (Fin n)) → L'.Term (β ⊕ (Fin (k + n)))}\n    {fr : ∀ n, L.Relations n → L'.Relations n} {n} {φ : L.BoundedFormula α n}\n    (v : ∀ {n}, (Fin (k + n) → M) → α → M) {v' : β → M} (xs : Fin (k + n) → M)\n    (h1 :\n      ∀ (n) (t : L.Term (α ⊕ (Fin n))) (xs' : Fin (k + n) → M),\n        (ft n t).realize (Sum.elim v' xs') = t.realize (Sum.elim (v xs') (xs' ∘ Fin.natAdd _)))\n    (h2 : ∀ (n) (R : L.Relations n) (x : Fin n → M), RelMap (fr n R) x = RelMap R x)\n    (hv : ∀ (n) (xs : Fin (k + n) → M) (x : M), @v (n + 1) (snoc xs x : Fin _ → M) = v xs) :\n    (φ.mapTermRel ft fr fun _ => castLE (add_assoc _ _ _).symm.le).Realize v' xs ↔\n      φ.Realize (v xs) (xs ∘ Fin.natAdd _) := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [mapTermRel, Realize, h1]\n  | rel => simp [mapTermRel, Realize, h1, h2]\n  | imp _ _ ih1 ih2 => simp [mapTermRel, Realize, ih1, ih2]\n  | all _ ih => simp [mapTermRel, Realize, ih, hv]",
+   "--src: Mathlib.ModelTheory.Substructures\n/-- A dependent version of `Substructure.closure_induction`. -/\n@[elab_as_elim]\ntheorem closure_induction' (s : Set M) {p : ∀ x, x ∈ closure L s → Prop}\n    (Hs : ∀ (x) (h : x ∈ s), p x (subset_closure h))\n    (Hfun : ∀ {n : ℕ} (f : L.Functions n), ClosedUnder f { x | ∃ hx, p x hx }) {x}\n    (hx : x ∈ closure L s) : p x hx := by\n  refine Exists.elim ?_ fun (hx : x ∈ closure L s) (hc : p x hx) => hc\n  exact closure_induction hx (fun x hx => ⟨subset_closure hx, Hs x hx⟩) @Hfun",
+   "--src: Mathlib.ModelTheory.Satisfiability\ntheorem isSatisfiable_union_distinctConstantsTheory_of_card_le (T : L.Theory) (s : Set α)\n    (M : Type w') [Nonempty M] [L.Structure M] [M ⊨ T]\n    (h : Cardinal.lift.{w'} #s ≤ Cardinal.lift.{w} #M) :\n    ((L.lhomWithConstants α).onTheory T ∪ L.distinctConstantsTheory s).IsSatisfiable := by\n  haveI : Inhabited M := Classical.inhabited_of_nonempty inferInstance\n  rw [Cardinal.lift_mk_le'] at h\n  letI : (constantsOn α).Structure M := constantsOn.structure (Function.extend (↑) h.some default)\n  have : M ⊨ (L.lhomWithConstants α).onTheory T ∪ L.distinctConstantsTheory s := by\n    refine ((LHom.onTheory_model _ _).2 inferInstance).union ?_\n    rw [model_distinctConstantsTheory]\n    refine fun a as b bs ab => ?_\n    rw [← Subtype.coe_mk a as, ← Subtype.coe_mk b bs, ← Subtype.ext_iff]\n    exact\n      h.some.injective\n        ((Subtype.coe_injective.extend_apply h.some default ⟨a, as⟩).symm.trans\n          (ab.trans (Subtype.coe_injective.extend_apply h.some default ⟨b, bs⟩)))\n  exact Model.isSatisfiable M",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- A quantifier-free formula is a formula defined without quantifiers. These are all equivalent\nto boolean combinations of atomic formulas. -/\ninductive IsQF : L.BoundedFormula α n → Prop\n  | falsum : IsQF falsum\n  | of_isAtomic {φ} (h : IsAtomic φ) : IsQF φ\n  | imp {φ₁ φ₂} (h₁ : IsQF φ₁) (h₂ : IsQF φ₂) : IsQF (φ₁.imp φ₂)"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.wire_val",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma wire_val (t : Semiterm L ξ n) {v : 𝓚} (hwv : w ≺ v) :\n    𝓚.wire w v hwv (t.val (Domain w).struc bv fv) =\n    t.val (Domain v).struc (fun x ↦ 𝓚.wire w v hwv (bv x)) (fun x ↦ 𝓚.wire w v hwv (fv x)) := by\n  induction t <;> simp [Semiterm.val_func, wire_func, *]\n\n",
+   "compilationAlias":
+   "lemma wire_val (t : Semiterm L ξ n) {v : 𝓚} (hwv : w ≺ v) :\n    𝓚.wire w v hwv (t.val (Domain w).struc bv fv) =\n    t.val (Domain v).struc (fun x ↦ 𝓚.wire w v hwv (bv x)) (fun x ↦ 𝓚.wire w v hwv (fv x)) := by\n  induction t <;> simp [Semiterm.val_func, wire_func, *]\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nt : LO.FirstOrder.Semiterm L ξ n\nv : 𝓚.Frame.World\nhwv : 𝓚.Frame.Rel w v\n⊢ Eq ((𝓚.wire w v hwv) (LO.FirstOrder.Semiterm.val (LO.FirstOrder.KripkeModel.Domain w).struc bv fv t)) (LO.FirstOrder.Semiterm.val (LO.FirstOrder.KripkeModel.Domain v).struc (fun x => (𝓚.wire w v hwv) (bv x)) (fun x => (𝓚.wire w v hwv) (fv x)) t)",
+  "content_sorry":
+  "lemma wire_val (t : Semiterm L ξ n) {v : 𝓚} (hwv : w ≺ v) :\n    𝓚.wire w v hwv (t.val (Domain w).struc bv fv) =\n    t.val (Domain v).struc (fun x ↦ 𝓚.wire w v hwv (bv x)) (fun x ↦ 𝓚.wire w v hwv (fv x)) := by\n  sorry",
+  "annotation":
+  "lemma wire_val (t : Semiterm L ξ n) {v : 𝓚} (hwv : w ≺ v) :\n    𝓚.wire w v hwv (t.val (Domain w).struc bv fv) =\n    t.val (Domain v).struc (fun x ↦ 𝓚.wire w v hwv (bv x)) (fun x ↦ 𝓚.wire w v hwv (fv x)) := by\n  /-\n    n : Nat\n    ξ : Type u_1\n    L : LO.FirstOrder.Language\n    𝓚 : LO.FirstOrder.KripkeModel L\n    w : 𝓚.Frame.World\n    bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n    t : LO.FirstOrder.Semiterm L ξ n\n    v : 𝓚.Frame.World\n    hwv : 𝓚.Frame.Rel w v\n    ⊢ Eq ((𝓚.wire w v hwv) (LO.FirstOrder.Semiterm.val (LO.FirstOrder.KripkeModel. …\n  -/\n                  /-\n                    🎉 no goals\n                  -/\n                  /-\n                    🎉 no goals\n                  -/\n  induction t <;> simp [Semiterm.val_func, wire_func, *]\n                  /-\n                    🎉 no goals\n                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_not_not : φ ⇔[T] φ.not.not :=\n  BoundedFormula.iff_not_not φ",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem imp_iff_not_sup : (φ.imp ψ) ⇔[T] (φ.not ⊔ ψ) :=\n  BoundedFormula.imp_iff_not_sup φ ψ",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem realize_bd_iff {φ ψ : L.BoundedFormula α n} (h : φ ⇔[T] ψ)\n    {v : α → M} {xs : Fin n → M} : φ.Realize v xs ↔ ψ.Realize v xs :=\n  BoundedFormula.realize_iff.1 (h.realize_boundedFormula M)",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_not : φ.not.Realize v xs ↔ ¬φ.Realize v xs :=\n  Iff.rfl",
+   "--src: Mathlib.ModelTheory.Equivalence\nprotected theorem imp {φ ψ φ' ψ' : L.BoundedFormula α n} (h : φ ⇔[T] ψ) (h' : φ' ⇔[T] ψ') :\n    (φ.imp φ') ⇔[T] (ψ.imp ψ') := by\n  simp_rw [Theory.Iff, ModelsBoundedFormula, BoundedFormula.realize_iff,\n    BoundedFormula.realize_imp]\n  exact fun M v xs => imp_congr h.realize_bd_iff h'.realize_bd_iff",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem all_iff_not_ex_not (φ : L.BoundedFormula α (n + 1)) :\n    φ.all ⇔[T] φ.not.ex.not := fun M v xs => by simp",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem not {φ : L.BoundedFormula α n} (h : IsQF φ) : IsQF φ.not :=\n  h.imp isQF_bot",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem sup_iff_not_inf_not : (φ ⊔ ψ) ⇔[T] (φ.not ⊓ ψ.not).not :=\n  fun M v xs => by simp [imp_iff_not_or]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_sup : (φ ⊔ ψ).Realize v xs ↔ φ.Realize v xs ∨ ψ.Realize v xs := by\n  simp only [realize, max, realize_not, eq_iff_iff]\n  tauto",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma sup_imp_iff {φ ψ θ : L.BoundedFormula α n} :\n    (φ ⊔ ψ ⟹[T] θ) ↔ (φ ⟹[T] θ) ∧ (ψ ⟹[T] θ) :=\n  ⟨fun h => ⟨(imp_sup_left _ _).trans h, (imp_sup_right _ _).trans h⟩,\n    fun ⟨h₁, h₂⟩ => sup_imp h₁ h₂⟩"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_neg",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_neg {φ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] ∼φ ↔\n    ∀ v, (hwv : w ≺ v) → ¬v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_neg {φ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] ∼φ ↔\n    ∀ v, (hwv : w ≺ v) → ¬v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nφ : LO.FirstOrder.Semiformulaᵢ L ξ n\n⊢ Eq (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Tilde.tilde φ)) (∀ (v : 𝓚.Frame.World) (hwv : 𝓚.Frame.Rel w v), Not (LO.FirstOrder.KripkeModel.Val v (fun x => (𝓚.wire w v hwv) (bv x)) (fun x => (𝓚.wire w v hwv) (fv x)) φ))",
+  "content_sorry":
+  "@[simp] lemma val_neg {φ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] ∼φ ↔\n    ∀ v, (hwv : w ≺ v) → ¬v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by sorry",
+  "annotation":
+  "@[simp] lemma val_neg {φ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] ∼φ ↔\n                                                                                                   /-\n                                                                                                     n : Nat\n                                                                                                     ξ : Type u_1\n                                                                                                     L : LO.FirstOrder.Language\n                                                                                                     𝓚 : LO.FirstOrder.KripkeModel L\n                                                                                                     w : 𝓚.Frame.World\n                                                                                                     bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                     fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                     φ : LO.FirstOrder.Semiformulaᵢ L ξ n\n                                                                                                     ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Tilde.tilde φ)) (∀ (v : 𝓚.Fra …\n                                                                                                   -/\n    ∀ v, (hwv : w ≺ v) → ¬v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by rfl\n                                                                                                   /-\n                                                                                                     🎉 no goals\n                                                                                                   -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_total : M ⊨ r.total ↔ Total fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => realize_sup.trans (or_congr realize_rel₂ realize_rel₂)",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_antisymmetric :\n    M ⊨ r.antisymmetric ↔ AntiSymmetric fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => imp_congr realize_rel₂ (imp_congr realize_rel₂ Iff.rfl)",
+   "--src: Mathlib.ModelTheory.Graph\n/-- Any model of the theory of simple graphs represents a simple graph. -/\n@[simps]\ndef simpleGraphOfStructure [Language.graph.Structure V] [V ⊨ Theory.simpleGraph] :\n    SimpleGraph V where\n  Adj x y := RelMap adj ![x, y]\n  symm :=\n    Relations.realize_symmetric.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph\n        (Set.mem_insert_of_mem _ (Set.mem_singleton _)))\n  loopless :=\n    Relations.realize_irreflexive.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph (Set.mem_insert _ _))",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel₂ {R : L.Relations 2} {t₁ t₂ : L.Term _} :\n    (R.formula₂ t₁ t₂).Realize v ↔ RelMap R ![t₁.realize v, t₂.realize v] := by\n  rw [Relations.formula₂, realize_rel, iff_eq_eq]\n  refine congr rfl (funext (Fin.cases ?_ ?_))\n  · simp only [Matrix.cons_val_zero]\n  · simp only [Matrix.cons_val_succ, Matrix.cons_val_fin_one, forall_const]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel₁ {R : L.Relations 1} {t : L.Term _} :\n    (R.boundedFormula₁ t).Realize v xs ↔ RelMap R ![t.realize (Sum.elim v xs)] := by\n  rw [Relations.boundedFormula₁, realize_rel, iff_eq_eq]\n  refine congr rfl (funext fun _ => ?_)\n  simp only [Matrix.cons_val_fin_one]",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem imp_iff_not_sup : (φ.imp ψ) ⇔[T] (φ.not ⊔ ψ) :=\n  BoundedFormula.imp_iff_not_sup φ ψ",
+   "--src: Mathlib.ModelTheory.Graph\n@[simp]\ntheorem Theory.simpleGraph_model_iff [Language.graph.Structure V] :\n    V ⊨ Theory.simpleGraph ↔\n      (Irreflexive fun x y : V => RelMap adj ![x, y]) ∧\n        Symmetric fun x y : V => RelMap adj ![x, y] := by\n  simp [Theory.simpleGraph]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_bdEqual (t₁ t₂ : L.Term (α ⊕ (Fin l))) :\n    (t₁.bdEqual t₂).Realize v xs ↔ t₁.realize (Sum.elim v xs) = t₂.realize (Sum.elim v xs) :=\n  Iff.rfl",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem Term.realize_lt {t₁ t₂ : L.Term (α ⊕ (Fin n))}\n    {v : α → M} {xs : Fin n → M} :\n    (t₁.lt t₂).Realize v xs ↔ t₁.realize (Sum.elim v xs) < t₂.realize (Sum.elim v xs) := by\n  simp [Term.lt, lt_iff_le_not_le]",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma imp_inf_iff {φ ψ θ : L.BoundedFormula α n} :\n    (φ ⟹[T] ψ ⊓ θ) ↔ (φ ⟹[T] ψ) ∧ (φ ⟹[T] θ) :=\n  ⟨fun h => ⟨h.trans (inf_imp_left _ _), h.trans (inf_imp_right _ _)⟩,\n    fun ⟨h₁, h₂⟩ => imp_inf h₁ h₂⟩"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_ex",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_ex {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∃' φ ↔ ∃ x : Domain w, w ⊩[x :> bv|fv] φ := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_ex {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∃' φ ↔ ∃ x : Domain w, w ⊩[x :> bv|fv] φ := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nφ : LO.FirstOrder.Semiformulaᵢ L ξ (HAdd.hAdd n 1)\n⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.ExQuantifier.ex φ)) (Exists fun x => LO.FirstOrder.KripkeModel.Val w (Matrix.vecCons x bv) fv φ)",
+  "content_sorry":
+  "@[simp] lemma val_ex {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∃' φ ↔ ∃ x : Domain w, w ⊩[x :> bv|fv] φ := by sorry",
+  "annotation":
+  "@[simp] lemma val_ex {φ : Semiformulaᵢ L ξ (n + 1)} :\n                                                              /-\n                                                                n : Nat\n                                                                ξ : Type u_1\n                                                                L : LO.FirstOrder.Language\n                                                                𝓚 : LO.FirstOrder.KripkeModel L\n                                                                w : 𝓚.Frame.World\n                                                                bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                φ : LO.FirstOrder.Semiformulaᵢ L ξ (HAdd.hAdd n 1)\n                                                                ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.ExQuantifier.ex φ)) (Exists f …\n                                                              -/\n    w ⊩[bv|fv] ∃' φ ↔ ∃ x : Domain w, w ⊩[x :> bv|fv] φ := by rfl\n                                                              /-\n                                                                🎉 no goals\n                                                              -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel₂ {R : L.Relations 2} {t₁ t₂ : L.Term _} :\n    (R.boundedFormula₂ t₁ t₂).Realize v xs ↔\n      RelMap R ![t₁.realize (Sum.elim v xs), t₂.realize (Sum.elim v xs)] := by\n  rw [Relations.boundedFormula₂, realize_rel, iff_eq_eq]\n  refine congr rfl (funext (Fin.cases ?_ ?_))\n  · simp only [Matrix.cons_val_zero]\n  · simp only [Matrix.cons_val_succ, Matrix.cons_val_fin_one, forall_const]",
+   "--src: Mathlib.ModelTheory.Graph\n/-- Any model of the theory of simple graphs represents a simple graph. -/\n@[simps]\ndef simpleGraphOfStructure [Language.graph.Structure V] [V ⊨ Theory.simpleGraph] :\n    SimpleGraph V where\n  Adj x y := RelMap adj ![x, y]\n  symm :=\n    Relations.realize_symmetric.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph\n        (Set.mem_insert_of_mem _ (Set.mem_singleton _)))\n  loopless :=\n    Relations.realize_irreflexive.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph (Set.mem_insert _ _))",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_antisymmetric :\n    M ⊨ r.antisymmetric ↔ AntiSymmetric fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => imp_congr realize_rel₂ (imp_congr realize_rel₂ Iff.rfl)",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem realize_bd_iff {φ ψ : L.BoundedFormula α n} (h : φ ⇔[T] ψ)\n    {v : α → M} {xs : Fin n → M} : φ.Realize v xs ↔ ψ.Realize v xs :=\n  BoundedFormula.realize_iff.1 (h.realize_boundedFormula M)",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem Term.realize_lt {t₁ t₂ : L.Term (α ⊕ (Fin n))}\n    {v : α → M} {xs : Fin n → M} :\n    (t₁.lt t₂).Realize v xs ↔ t₁.realize (Sum.elim v xs) < t₂.realize (Sum.elim v xs) := by\n  simp [Term.lt, lt_iff_le_not_le]",
+   "--src: Mathlib.ModelTheory.Equivalence\nprotected theorem imp {φ ψ φ' ψ' : L.BoundedFormula α n} (h : φ ⇔[T] ψ) (h' : φ' ⇔[T] ψ') :\n    (φ.imp φ') ⇔[T] (ψ.imp ψ') := by\n  simp_rw [Theory.Iff, ModelsBoundedFormula, BoundedFormula.realize_iff,\n    BoundedFormula.realize_imp]\n  exact fun M v xs => imp_congr h.realize_bd_iff h'.realize_bd_iff",
+   "--src: Mathlib.ModelTheory.Graph\n@[simp]\ntheorem Theory.simpleGraph_model_iff [Language.graph.Structure V] :\n    V ⊨ Theory.simpleGraph ↔\n      (Irreflexive fun x y : V => RelMap adj ![x, y]) ∧\n        Symmetric fun x y : V => RelMap adj ![x, y] := by\n  simp [Theory.simpleGraph]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_bdEqual (t₁ t₂ : L.Term (α ⊕ (Fin l))) :\n    (t₁.bdEqual t₂).Realize v xs ↔ t₁.realize (Sum.elim v xs) = t₂.realize (Sum.elim v xs) :=\n  Iff.rfl",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_relabel_sum_inr (φ : L.Formula (Fin n)) {v : Empty → M} {x : Fin n → M} :\n    (BoundedFormula.relabel Sum.inr φ).Realize v x ↔ φ.Realize x := by\n  rw [BoundedFormula.realize_relabel, Formula.Realize, Sum.elim_comp_inr, Fin.castAdd_zero,\n    cast_refl, Function.comp_id,\n    Subsingleton.elim (x ∘ (natAdd n : Fin 0 → Fin n)) default]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel {k : ℕ} {R : L.Relations k} {ts : Fin k → L.Term _} :\n    (R.boundedFormula ts).Realize v xs ↔ RelMap R fun i => (ts i).realize (Sum.elim v xs) :=\n  Iff.rfl"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_all",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_all {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∀' φ ↔\n    ∀ v, (hwv : w ≺ v) →\n      ∀ x : Domain v, v ⊩[x :> fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_all {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∀' φ ↔\n    ∀ v, (hwv : w ≺ v) →\n      ∀ x : Domain v, v ⊩[x :> fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nφ : LO.FirstOrder.Semiformulaᵢ L ξ (HAdd.hAdd n 1)\n⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.UnivQuantifier.univ φ)) (∀ (v : 𝓚.Frame.World) (hwv : 𝓚.Frame.Rel w v) (x : (LO.FirstOrder.KripkeModel.Domain v).Dom), LO.FirstOrder.KripkeModel.Val v (Matrix.vecCons x fun x => (𝓚.wire w v hwv) (bv x)) (fun x => (𝓚.wire w v hwv) (fv x)) φ)",
+  "content_sorry":
+  "@[simp] lemma val_all {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∀' φ ↔\n    ∀ v, (hwv : w ≺ v) →\n      ∀ x : Domain v, v ⊩[x :> fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by sorry",
+  "annotation":
+  "@[simp] lemma val_all {φ : Semiformulaᵢ L ξ (n + 1)} :\n    w ⊩[bv|fv] ∀' φ ↔\n    ∀ v, (hwv : w ≺ v) →\n                                                                                                    /-\n                                                                                                      n : Nat\n                                                                                                      ξ : Type u_1\n                                                                                                      L : LO.FirstOrder.Language\n                                                                                                      𝓚 : LO.FirstOrder.KripkeModel L\n                                                                                                      w : 𝓚.Frame.World\n                                                                                                      bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                      fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                      φ : LO.FirstOrder.Semiformulaᵢ L ξ (HAdd.hAdd n 1)\n                                                                                                      ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.UnivQuantifier.univ φ)) (∀ (v …\n                                                                                                    -/\n      ∀ x : Domain v, v ⊩[x :> fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ := by rfl\n                                                                                                    /-\n                                                                                                      🎉 no goals\n                                                                                                    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Equivalence\nprotected theorem imp {φ ψ φ' ψ' : L.BoundedFormula α n} (h : φ ⇔[T] ψ) (h' : φ' ⇔[T] ψ') :\n    (φ.imp φ') ⇔[T] (ψ.imp ψ') := by\n  simp_rw [Theory.Iff, ModelsBoundedFormula, BoundedFormula.realize_iff,\n    BoundedFormula.realize_imp]\n  exact fun M v xs => imp_congr h.realize_bd_iff h'.realize_bd_iff",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem imp_iff_not_sup : (φ.imp ψ) ⇔[T] (φ.not ⊔ ψ) :=\n  BoundedFormula.imp_iff_not_sup φ ψ",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_not_not : φ ⇔[T] φ.not.not :=\n  BoundedFormula.iff_not_not φ",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma imp_inf {φ ψ θ : L.BoundedFormula α n} (h₁ : φ ⟹[T] ψ) (h₂ : φ ⟹[T] θ) :\n    φ ⟹[T] ψ ⊓ θ := fun M v xs => by\n  simp only [BoundedFormula.realize_imp, BoundedFormula.realize_inf]\n  exact fun h => ⟨h₁ M v xs h, h₂ M v xs h⟩",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_castLE_of_eq {m n : ℕ} (h : m = n) {h' : m ≤ n} {φ : L.BoundedFormula α m}\n    {v : α → M} {xs : Fin n → M} : (φ.castLE h').Realize v xs ↔ φ.Realize v (xs ∘ cast h) := by\n  subst h\n  simp only [castLE_rfl, cast_refl, OrderIso.coe_refl, Function.comp_id]",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem realize_bd_iff {φ ψ : L.BoundedFormula α n} (h : φ ⇔[T] ψ)\n    {v : α → M} {xs : Fin n → M} : φ.Realize v xs ↔ ψ.Realize v xs :=\n  BoundedFormula.realize_iff.1 (h.realize_boundedFormula M)",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_graph {f : L.Functions n} {x : Fin n → M} {y : M} :\n    (Formula.graph f).Realize (Fin.cons y x : _ → M) ↔ funMap f x = y := by\n  simp only [Formula.graph, Term.realize, realize_equal, Fin.cons_zero, Fin.cons_succ]\n  rw [eq_comm]",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem realize_toPrenexImp {φ ψ : L.BoundedFormula α n} (hφ : IsPrenex φ) (hψ : IsPrenex ψ)\n    {v : α → M} {xs : Fin n → M} : (φ.toPrenexImp ψ).Realize v xs ↔ (φ.imp ψ).Realize v xs := by\n  revert ψ\n  induction hφ with\n  | of_isQF hφ =>\n    intro ψ hψ\n    rw [hφ.toPrenexImp]\n    exact realize_toPrenexImpRight hφ hψ\n  | all _ ih =>\n    intro ψ hψ\n    unfold toPrenexImp\n    rw [realize_ex]\n    refine _root_.trans (exists_congr fun _ => ih hψ.liftAt) ?_\n    simp only [realize_imp, realize_liftAt_one_self, snoc_comp_castSucc, realize_all]\n    refine ⟨?_, fun h' => ?_⟩\n    · rintro ⟨a, ha⟩ h\n      exact ha (h a)\n    · by_cases h : ψ.Realize v xs\n      · inhabit M\n        exact ⟨default, fun _h'' => h⟩\n      · obtain ⟨a, ha⟩ := not_forall.1 (h ∘ h')\n        exact ⟨a, fun h => (ha h).elim⟩\n  | ex _ ih =>\n    intro ψ hψ\n    refine _root_.trans (forall_congr' fun _ => ih hψ.liftAt) ?_\n    simp",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- The composition of equivalences of first-order languages. -/\n@[simps, trans]\nprotected def trans (e : L ≃ᴸ L') (e' : L' ≃ᴸ L'') : L ≃ᴸ L'' :=\n  ⟨e'.toLHom.comp e.toLHom, e.invLHom.comp e'.invLHom, by\n    rw [LHom.comp_assoc, ← LHom.comp_assoc e'.invLHom, e'.left_inv, LHom.id_comp, e.left_inv], by\n    rw [LHom.comp_assoc, ← LHom.comp_assoc e.toLHom, e.right_inv, LHom.id_comp, e'.right_inv]⟩",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem sup_iff_not_inf_not : (φ ⊔ ψ) ⇔[T] (φ.not ⊓ ψ.not).not :=\n  fun M v xs => by simp [imp_iff_not_or]"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_imply",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_imply {φ ψ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] φ ➝ ψ ↔\n    ∀ v, (hwv : w ≺ v) →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] ψ := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_imply {φ ψ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] φ ➝ ψ ↔\n    ∀ v, (hwv : w ≺ v) →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] ψ := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nφ ψ : LO.FirstOrder.Semiformulaᵢ L ξ n\n⊢ Eq (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Arrow.arrow φ ψ)) (∀ (v : 𝓚.Frame.World) (hwv : 𝓚.Frame.Rel w v), LO.FirstOrder.KripkeModel.Val v (fun x => (𝓚.wire w v hwv) (bv x)) (fun x => (𝓚.wire w v hwv) (fv x)) φ → LO.FirstOrder.KripkeModel.Val v (fun x => (𝓚.wire w v hwv) (bv x)) (fun x => (𝓚.wire w v hwv) (fv x)) ψ)",
+  "content_sorry":
+  "@[simp] lemma val_imply {φ ψ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] φ ➝ ψ ↔\n    ∀ v, (hwv : w ≺ v) →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] ψ := by sorry",
+  "annotation":
+  "@[simp] lemma val_imply {φ ψ : Semiformulaᵢ L ξ n} :\n    w ⊩[bv|fv] φ ➝ ψ ↔\n    ∀ v, (hwv : w ≺ v) →\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] φ →\n                                                                               /-\n                                                                                 n : Nat\n                                                                                 ξ : Type u_1\n                                                                                 L : LO.FirstOrder.Language\n                                                                                 𝓚 : LO.FirstOrder.KripkeModel L\n                                                                                 w : 𝓚.Frame.World\n                                                                                 bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                 fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                 φ ψ : LO.FirstOrder.Semiformulaᵢ L ξ n\n                                                                                 ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Arrow.arrow φ ψ)) (∀ (v : 𝓚.F …\n                                                                               -/\n      v ⊩[fun x ↦ 𝓚.wire w v hwv (bv x)|fun x ↦ 𝓚.wire w v hwv (fv x)] ψ := by rfl\n                                                                               /-\n                                                                                 🎉 no goals\n                                                                               -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Equivalence\ntheorem sup_iff_not_inf_not : (φ ⊔ ψ) ⇔[T] (φ.not ⊓ ψ.not).not :=\n  BoundedFormula.sup_iff_not_inf_not φ ψ",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_sup : (φ ⊔ ψ).Realize v xs ↔ φ.Realize v xs ∨ ψ.Realize v xs := by\n  simp only [realize, max, realize_not, eq_iff_iff]\n  tauto",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma inf_not_iff_bot :\n    φ ⊓ ∼φ ⇔[T] ⊥ := fun M v xs => by\n  simp only [realize_iff, realize_inf, realize_not, and_not_self, realize_bot]",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem inf {φ ψ : L.BoundedFormula α n} (hφ : IsQF φ) (hψ : IsQF ψ) : IsQF (φ ⊓ ψ) :=\n  (hφ.imp hψ.not).not",
+   "--src: Mathlib.ModelTheory.Satisfiability\n/-- Any theory with an infinite model has arbitrarily large models. -/\ntheorem exists_large_model_of_infinite_model (T : L.Theory) (κ : Cardinal.{w}) (M : Type w')\n    [L.Structure M] [M ⊨ T] [Infinite M] :\n    ∃ N : ModelType.{_, _, max u v w} T, Cardinal.lift.{max u v w} κ ≤ #N := by\n  obtain ⟨N⟩ :=\n    isSatisfiable_union_distinctConstantsTheory_of_infinite T (Set.univ : Set κ.out) M\n  refine ⟨(N.is_model.mono Set.subset_union_left).bundled.reduct _, ?_⟩\n  haveI : N ⊨ distinctConstantsTheory _ _ := N.is_model.mono Set.subset_union_right\n  rw [ModelType.reduct_Carrier, coe_of]\n  refine _root_.trans (lift_le.2 (le_of_eq (Cardinal.mk_out κ).symm)) ?_\n  rw [← mk_univ]\n  refine\n    (card_le_of_model_distinctConstantsTheory L Set.univ N).trans (lift_le.{max u v w}.1 ?_)\n  rw [lift_lift]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem model_union_iff {T' : L.Theory} : M ⊨ T ∪ T' ↔ M ⊨ T ∧ M ⊨ T' :=\n  ⟨fun h => ⟨h.mono Set.subset_union_left, h.mono Set.subset_union_right⟩, fun h =>\n    h.1.union h.2⟩",
+   "--src: Mathlib.ModelTheory.Graph\ninstance simpleGraph_model (G : SimpleGraph V) :\n    @Theory.Model _ V G.structure Theory.simpleGraph := by\n  letI := G.structure\n  rw [Theory.simpleGraph_model_iff]\n  exact ⟨G.loopless, G.symm⟩",
+   "--src: Mathlib.ModelTheory.Types\ntheorem formula_mem_typeOf {φ : L.Formula α} :\n    Formula.equivSentence φ ∈ T.typeOf v ↔ φ.Realize v := by simp",
+   "--src: Mathlib.ModelTheory.Equivalence\nprotected theorem not {φ ψ : L.BoundedFormula α n} (h : φ ⇔[T] ψ) :\n    φ.not ⇔[T] ψ.not := by\n  simp_rw [Theory.Iff, ModelsBoundedFormula, BoundedFormula.realize_iff,\n    BoundedFormula.realize_not]\n  exact fun M v xs => not_congr h.realize_bd_iff",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma imp_inf {φ ψ θ : L.BoundedFormula α n} (h₁ : φ ⟹[T] ψ) (h₂ : φ ⟹[T] θ) :\n    φ ⟹[T] ψ ⊓ θ := fun M v xs => by\n  simp only [BoundedFormula.realize_imp, BoundedFormula.realize_inf]\n  exact fun h => ⟨h₁ M v xs h, h₂ M v xs h⟩"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_or",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_or {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋎ ψ ↔ w ⊩[bv|fv] φ ∨ w ⊩[bv|fv] ψ := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_or {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋎ ψ ↔ w ⊩[bv|fv] φ ∨ w ⊩[bv|fv] ψ := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nφ ψ : LO.FirstOrder.Semiformulaᵢ L ξ n\n⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Vee.vee φ ψ)) (Or (LO.FirstOrder.KripkeModel.Val w bv fv φ) (LO.FirstOrder.KripkeModel.Val w bv fv ψ))",
+  "content_sorry":
+  "@[simp] lemma val_or {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋎ ψ ↔ w ⊩[bv|fv] φ ∨ w ⊩[bv|fv] ψ := by sorry",
+  "annotation":
+  "                                                                                                       /-\n                                                                                                         n : Nat\n                                                                                                         ξ : Type u_1\n                                                                                                         L : LO.FirstOrder.Language\n                                                                                                         𝓚 : LO.FirstOrder.KripkeModel L\n                                                                                                         w : 𝓚.Frame.World\n                                                                                                         bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                         fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                         φ ψ : LO.FirstOrder.Semiformulaᵢ L ξ n\n                                                                                                         ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Vee.vee φ ψ)) (Or (LO.FirstOr …\n                                                                                                       -/\n@[simp] lemma val_or {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋎ ψ ↔ w ⊩[bv|fv] φ ∨ w ⊩[bv|fv] ψ := by rfl\n                                                                                                       /-\n                                                                                                         🎉 no goals\n                                                                                                       -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Equivalence\ntheorem sup_iff_not_inf_not : (φ ⊔ ψ) ⇔[T] (φ.not ⊓ ψ.not).not :=\n  BoundedFormula.sup_iff_not_inf_not φ ψ",
+   "--src: Mathlib.ModelTheory.Graph\ninstance simpleGraph_model (G : SimpleGraph V) :\n    @Theory.Model _ V G.structure Theory.simpleGraph := by\n  letI := G.structure\n  rw [Theory.simpleGraph_model_iff]\n  exact ⟨G.loopless, G.symm⟩",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_not_not : φ ⇔[T] φ.not.not := fun M v xs => by\n  simp",
+   "--src: Mathlib.ModelTheory.Complexity\nprotected theorem castLE {h : l ≤ n} (hφ : IsQF φ) : (φ.castLE h).IsQF :=\n  IsQF.recOn hφ isQF_bot (fun ih => ih.castLE.isQF) fun _ _ ih1 ih2 => ih1.imp ih2",
+   "--src: Mathlib.ModelTheory.Types\ntheorem formula_mem_typeOf {φ : L.Formula α} :\n    Formula.equivSentence φ ∈ T.typeOf v ↔ φ.Realize v := by simp",
+   "--src: Mathlib.ModelTheory.Graph\n/-- Any model of the theory of simple graphs represents a simple graph. -/\n@[simps]\ndef simpleGraphOfStructure [Language.graph.Structure V] [V ⊨ Theory.simpleGraph] :\n    SimpleGraph V where\n  Adj x y := RelMap adj ![x, y]\n  symm :=\n    Relations.realize_symmetric.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph\n        (Set.mem_insert_of_mem _ (Set.mem_singleton _)))\n  loopless :=\n    Relations.realize_irreflexive.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph (Set.mem_insert _ _))",
+   "--src: Mathlib.ModelTheory.Satisfiability\n/-- Any theory with an infinite model has arbitrarily large models. -/\ntheorem exists_large_model_of_infinite_model (T : L.Theory) (κ : Cardinal.{w}) (M : Type w')\n    [L.Structure M] [M ⊨ T] [Infinite M] :\n    ∃ N : ModelType.{_, _, max u v w} T, Cardinal.lift.{max u v w} κ ≤ #N := by\n  obtain ⟨N⟩ :=\n    isSatisfiable_union_distinctConstantsTheory_of_infinite T (Set.univ : Set κ.out) M\n  refine ⟨(N.is_model.mono Set.subset_union_left).bundled.reduct _, ?_⟩\n  haveI : N ⊨ distinctConstantsTheory _ _ := N.is_model.mono Set.subset_union_right\n  rw [ModelType.reduct_Carrier, coe_of]\n  refine _root_.trans (lift_le.2 (le_of_eq (Cardinal.mk_out κ).symm)) ?_\n  rw [← mk_univ]\n  refine\n    (card_le_of_model_distinctConstantsTheory L Set.univ N).trans (lift_le.{max u v w}.1 ?_)\n  rw [lift_lift]",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma inf_not_iff_bot :\n    φ ⊓ ∼φ ⇔[T] ⊥ := fun M v xs => by\n  simp only [realize_iff, realize_inf, realize_not, and_not_self, realize_bot]",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem realize_bd_iff {φ ψ : L.BoundedFormula α n} (h : φ ⇔[T] ψ)\n    {v : α → M} {xs : Fin n → M} : φ.Realize v xs ↔ ψ.Realize v xs :=\n  BoundedFormula.realize_iff.1 (h.realize_boundedFormula M)",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem imp_iff_not_sup : (φ.imp ψ) ⇔[T] (φ.not ⊔ ψ) :=\n  fun M v xs => by simp [imp_iff_not_or]"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_and",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_and {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋏ ψ ↔ w ⊩[bv|fv] φ ∧ w ⊩[bv|fv] ψ := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_and {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋏ ψ ↔ w ⊩[bv|fv] φ ∧ w ⊩[bv|fv] ψ := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_1\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nφ ψ : LO.FirstOrder.Semiformulaᵢ L ξ n\n⊢ Eq (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Wedge.wedge φ ψ)) (And (LO.FirstOrder.KripkeModel.Val w bv fv φ) (LO.FirstOrder.KripkeModel.Val w bv fv ψ))",
+  "content_sorry":
+  "@[simp] lemma val_and {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋏ ψ ↔ w ⊩[bv|fv] φ ∧ w ⊩[bv|fv] ψ := by sorry",
+  "annotation":
+  "                                                                                                        /-\n                                                                                                          n : Nat\n                                                                                                          ξ : Type u_1\n                                                                                                          L : LO.FirstOrder.Language\n                                                                                                          𝓚 : LO.FirstOrder.KripkeModel L\n                                                                                                          w : 𝓚.Frame.World\n                                                                                                          bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                          fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                          φ ψ : LO.FirstOrder.Semiformulaᵢ L ξ n\n                                                                                                          ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.Wedge.wedge φ ψ)) (And (LO.Fi …\n                                                                                                        -/\n@[simp] lemma val_and {φ ψ : Semiformulaᵢ L ξ n} : w ⊩[bv|fv] φ ⋏ ψ ↔ w ⊩[bv|fv] φ ∧ w ⊩[bv|fv] ψ := by rfl\n                                                                                                        /-\n                                                                                                          🎉 no goals\n                                                                                                        -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Quotients\n/-- A prestructure is a first-order structure with a `Setoid` equivalence relation on it,\n  such that quotienting by that equivalence relation is still a structure. -/\nclass Prestructure (s : Setoid M) where\n  toStructure : L.Structure M\n  fun_equiv : ∀ {n} {f : L.Functions n} (x y : Fin n → M), x ≈ y → funMap f x ≈ funMap f y\n  rel_equiv : ∀ {n} {r : L.Relations n} (x y : Fin n → M) (_ : x ≈ y), RelMap r x = RelMap r y",
+   "--src: Mathlib.ModelTheory.Basic\n@[simp]\ntheorem map_rel (φ : M →[L] N) {n : ℕ} (r : L.Relations n) (x : Fin n → M) :\n    RelMap r x → RelMap r (φ ∘ x) :=\n  HomClass.map_rel φ r x",
+   "--src: Mathlib.ModelTheory.Graph\n/-- Any model of the theory of simple graphs represents a simple graph. -/\n@[simps]\ndef simpleGraphOfStructure [Language.graph.Structure V] [V ⊨ Theory.simpleGraph] :\n    SimpleGraph V where\n  Adj x y := RelMap adj ![x, y]\n  symm :=\n    Relations.realize_symmetric.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph\n        (Set.mem_insert_of_mem _ (Set.mem_singleton _)))\n  loopless :=\n    Relations.realize_irreflexive.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph (Set.mem_insert _ _))",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel {k : ℕ} {R : L.Relations k} {ts : Fin k → L.Term _} :\n    (R.boundedFormula ts).Realize v xs ↔ RelMap R fun i => (ts i).realize (Sum.elim v xs) :=\n  Iff.rfl",
+   "--src: Mathlib.ModelTheory.LanguageMap\n@[simp]\ntheorem withConstants_relMap_sum_inl [L[[α]].Structure M] [(lhomWithConstants L α).IsExpansionOn M]\n    {n} {R : L.Relations n} {x : Fin n → M} : @RelMap (L[[α]]) M _ n (Sum.inl R) x = RelMap R x :=\n  (lhomWithConstants L α).map_onRelation R x",
+   "--src: Mathlib.ModelTheory.Complexity\nprotected theorem castLE {h : l ≤ n} (hφ : IsQF φ) : (φ.castLE h).IsQF :=\n  IsQF.recOn hφ isQF_bot (fun ih => ih.castLE.isQF) fun _ _ ih1 ih2 => ih1.imp ih2",
+   "--src: Mathlib.ModelTheory.Basic\n/-- An embedding of first-order structures is an embedding that commutes with the\n  interpretations of functions and relations. -/\nstructure Embedding extends M ↪ N where\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r (toFun ∘ x) ↔ RelMap r x := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Basic\n@[simp]\ntheorem relMap_sum_inl {n : ℕ} (R : L₁.Relations n) :\n    @RelMap (L₁.sum L₂) S _ n (Sum.inl R) = RelMap R :=\n  rfl",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_antisymmetric :\n    M ⊨ r.antisymmetric ↔ AntiSymmetric fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => imp_congr realize_rel₂ (imp_congr realize_rel₂ Iff.rfl)",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem relabel_imp (g : α → β ⊕ (Fin n)) {k} (φ ψ : L.BoundedFormula α k) :\n    (φ.imp ψ).relabel g = (φ.relabel g).imp (ψ.relabel g) :=\n  rfl"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_rel",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma val_rel {k} {R : L.Rel k} {t} :\n    w ⊩[bv|fv] .rel R t ↔ (Domain w).struc.rel R fun i ↦ Semiterm.val (Domain w).struc bv fv (t i) := by rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_rel {k} {R : L.Rel k} {t} :\n    w ⊩[bv|fv] .rel R t ↔ (Domain w).struc.rel R fun i ↦ Semiterm.val (Domain w).struc bv fv (t i) := by rfl\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_2\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\nk : Nat\nR : L.Rel k\nt : Fin k → LO.FirstOrder.Semiterm L ξ n\n⊢ Eq (LO.FirstOrder.KripkeModel.Val w bv fv (LO.FirstOrder.Semiformulaᵢ.rel R t)) (LO.FirstOrder.Structure.rel R fun i => LO.FirstOrder.Semiterm.val (LO.FirstOrder.KripkeModel.Domain w).struc bv fv (t i))",
+  "content_sorry":
+  "@[simp] lemma val_rel {k} {R : L.Rel k} {t} :\n    w ⊩[bv|fv] .rel R t ↔ (Domain w).struc.rel R fun i ↦ Semiterm.val (Domain w).struc bv fv (t i) := by sorry",
+  "annotation":
+  "@[simp] lemma val_rel {k} {R : L.Rel k} {t} :\n                                                                                                         /-\n                                                                                                           n : Nat\n                                                                                                           ξ : Type u_2\n                                                                                                           L : LO.FirstOrder.Language\n                                                                                                           𝓚 : LO.FirstOrder.KripkeModel L\n                                                                                                           w : 𝓚.Frame.World\n                                                                                                           bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                           fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                                                                           k : Nat\n                                                                                                           R : L.Rel k\n                                                                                                           t : Fin k → LO.FirstOrder.Semiterm L ξ n\n                                                                                                           ⊢ Iff (LO.FirstOrder.KripkeModel.Val w bv fv (LO.FirstOrder.Semiformulaᵢ.rel R …\n                                                                                                         -/\n    w ⊩[bv|fv] .rel R t ↔ (Domain w).struc.rel R fun i ↦ Semiterm.val (Domain w).struc bv fv (t i) := by rfl\n                                                                                                         /-\n                                                                                                           🎉 no goals\n                                                                                                         -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_bot : (⊥ : L.BoundedFormula α l).Realize v xs ↔ False :=\n  Iff.rfl",
+   "--src: Mathlib.ModelTheory.Definability\n@[simp]\ntheorem not_mem_bot {x : α → M} : ¬x ∈ (⊥ : L.DefinableSet A α) :=\n  not_mem_empty x",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma inf_not_iff_bot :\n    φ ⊓ ∼φ ⇔[T] ⊥ := fun M v xs => by\n  simp only [realize_iff, realize_inf, realize_not, and_not_self, realize_bot]",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem isQF_bot : IsQF (⊥ : L.BoundedFormula α n) :=\n  IsQF.falsum",
+   "--src: Mathlib.ModelTheory.Graph\ninstance simpleGraph_model (G : SimpleGraph V) :\n    @Theory.Model _ V G.structure Theory.simpleGraph := by\n  letI := G.structure\n  rw [Theory.simpleGraph_model_iff]\n  exact ⟨G.loopless, G.symm⟩",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem inf_iff_not_sup_not : (φ ⊓ ψ) ⇔[T] (φ.not ⊔ ψ.not).not :=\n  BoundedFormula.inf_iff_not_sup_not φ ψ",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]",
+   "--src: Mathlib.ModelTheory.PartialEquiv\nprotected alias ⟨cod, _⟩ := isExtensionPair_iff_cod",
+   "--src: Mathlib.ModelTheory.Order\ntheorem noBotOrder_of_dlo [M ⊨ L.dlo] : NoBotOrder M :=\n  realize_noBotOrder_iff.1 (L.dlo.realize_sentence_of_mem (by\n    simp only [dlo, Set.union_insert, Set.union_singleton, Set.mem_insert_iff, true_or, or_true]))",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem not_ex_isQF (φ : L.BoundedFormula α (n + 1)) : ¬φ.ex.IsQF := fun con => by\n  cases' con with _ con _ _ con\n  · exact φ.not_ex_isAtomic con\n  · exact not_all_isQF _ con"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_falsum",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "@[simp] lemma val_falsum : ¬w ⊩[bv|fv] ⊥ := by rintro ⟨⟩\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_falsum : ¬w ⊩[bv|fv] ⊥ := by rintro ⟨⟩\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_4\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n⊢ Not (LO.FirstOrder.KripkeModel.Val w bv fv Bot.bot)",
+  "content_sorry": "@[simp] lemma val_falsum : ¬w ⊩[bv|fv] ⊥ := by sorry",
+  "annotation":
+  "                                               /-\n                                                 n : Nat\n                                                 ξ : Type u_4\n                                                 L : LO.FirstOrder.Language\n                                                 𝓚 : LO.FirstOrder.KripkeModel L\n                                                 w : 𝓚.Frame.World\n                                                 bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                 fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                                 ⊢ Not (LO.FirstOrder.KripkeModel.Val w bv fv Bot.bot)\n                                               -/\n@[simp] lemma val_falsum : ¬w ⊩[bv|fv] ⊥ := by rintro ⟨⟩\n                                               /-\n                                                 🎉 no goals\n                                               -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_top : (⊤ : L.BoundedFormula α l).Realize v xs ↔ True := by simp [Top.top]",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem top : IsQF (⊤ : L.BoundedFormula α n) := isQF_bot.not",
+   "--src: Mathlib.ModelTheory.Graph\ninstance simpleGraph_model (G : SimpleGraph V) :\n    @Theory.Model _ V G.structure Theory.simpleGraph := by\n  letI := G.structure\n  rw [Theory.simpleGraph_model_iff]\n  exact ⟨G.loopless, G.symm⟩",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma imp_top (φ : L.BoundedFormula α n) : φ ⟹[T] ⊤ := fun M v xs => by\n  simp only [BoundedFormula.realize_imp, BoundedFormula.realize_top, implies_true]",
+   "--src: Mathlib.ModelTheory.ElementarySubstructures\n@[simp]\ntheorem mem_top (x : M) : x ∈ (⊤ : L.ElementarySubstructure M) :=\n  Set.mem_univ x",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma imp_inf {φ ψ θ : L.BoundedFormula α n} (h₁ : φ ⟹[T] ψ) (h₂ : φ ⟹[T] θ) :\n    φ ⟹[T] ψ ⊓ θ := fun M v xs => by\n  simp only [BoundedFormula.realize_imp, BoundedFormula.realize_inf]\n  exact fun h => ⟨h₁ M v xs h, h₂ M v xs h⟩",
+   "--src: Mathlib.ModelTheory.Graph\n/-- Any model of the theory of simple graphs represents a simple graph. -/\n@[simps]\ndef simpleGraphOfStructure [Language.graph.Structure V] [V ⊨ Theory.simpleGraph] :\n    SimpleGraph V where\n  Adj x y := RelMap adj ![x, y]\n  symm :=\n    Relations.realize_symmetric.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph\n        (Set.mem_insert_of_mem _ (Set.mem_singleton _)))\n  loopless :=\n    Relations.realize_irreflexive.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph (Set.mem_insert _ _))",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_not_not : φ ⇔[T] φ.not.not :=\n  BoundedFormula.iff_not_not φ",
+   "--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-categorical. -/\ntheorem aleph0_categorical_dlo : (ℵ₀).Categorical Language.order.dlo := fun M₁ M₂ h₁ h₂ => by\n  obtain ⟨_⟩ := denumerable_iff.2 h₁\n  obtain ⟨_⟩ := denumerable_iff.2 h₂\n  exact (isFraisseLimit_of_countable_nonempty_dlo M₁).nonempty_equiv\n    (isFraisseLimit_of_countable_nonempty_dlo M₂)"],
+  "id":
+  {"name": "LO.FirstOrder.KripkeModel.val_verum",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "@[simp] lemma val_verum : w ⊩[bv|fv] ⊤ := by trivial\n\n",
+   "compilationAlias":
+   "@[simp] lemma val_verum : w ⊩[bv|fv] ⊤ := by trivial\n\n"},
+  "goal":
+  "n : Nat\nξ : Type u_4\nL : LO.FirstOrder.Language\n𝓚 : LO.FirstOrder.KripkeModel L\nw : 𝓚.Frame.World\nbv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\nfv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n⊢ Eq (LO.FirstOrder.KripkeModel.Val w bv fv Top.top) True",
+  "content_sorry": "@[simp] lemma val_verum : w ⊩[bv|fv] ⊤ := by sorry",
+  "annotation":
+  "                                             /-\n                                               n : Nat\n                                               ξ : Type u_4\n                                               L : LO.FirstOrder.Language\n                                               𝓚 : LO.FirstOrder.KripkeModel L\n                                               w : 𝓚.Frame.World\n                                               bv : Fin n → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                               fv : ξ → (LO.FirstOrder.KripkeModel.Domain w).Dom\n                                               ⊢ LO.FirstOrder.KripkeModel.Val w bv fv Top.top\n                                             -/\n@[simp] lemma val_verum : w ⊩[bv|fv] ⊤ := by trivial\n                                             /-\n                                               🎉 no goals\n                                             -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Order\ninstance [h : M ⊨ L.dlo] : M ⊨ L.linearOrderTheory := h.mono Set.subset_union_left",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem realize_noBotOrder [h : NoBotOrder M] : M ⊨ L.noBotOrderSentence :=\n  realize_noBotOrder_iff.2 h",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\nlemma forall_relations {P : ∀ (n) (_ : Language.order.Relations n), Prop} :\n    (∀ {n} (R), P n R) ↔ P 2 .le := ⟨fun h => h _, fun h n R =>\n      match n, R with\n      | 2, .le => h⟩",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem isQF_bot : IsQF (⊥ : L.BoundedFormula α n) :=\n  IsQF.falsum",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem orderedStructure_iff\n    [LE M] [Language.order.Structure M] [Language.order.OrderedStructure M] :\n    L.OrderedStructure M ↔ LHom.IsExpansionOn (orderLHom L) M :=\n  ⟨fun _ => inferInstance, fun _ => inferInstance⟩",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem sup {φ ψ : L.BoundedFormula α n} (hφ : IsQF φ) (hψ : IsQF ψ) : IsQF (φ ⊔ ψ) :=\n  hφ.not.imp hψ",
+   "--src: Mathlib.Order.Basic\nalias LE.le.trans := le_trans",
+   "--src: Mathlib.ModelTheory.Satisfiability\n/-- Any theory with an infinite model has arbitrarily large models. -/\ntheorem exists_large_model_of_infinite_model (T : L.Theory) (κ : Cardinal.{w}) (M : Type w')\n    [L.Structure M] [M ⊨ T] [Infinite M] :\n    ∃ N : ModelType.{_, _, max u v w} T, Cardinal.lift.{max u v w} κ ≤ #N := by\n  obtain ⟨N⟩ :=\n    isSatisfiable_union_distinctConstantsTheory_of_infinite T (Set.univ : Set κ.out) M\n  refine ⟨(N.is_model.mono Set.subset_union_left).bundled.reduct _, ?_⟩\n  haveI : N ⊨ distinctConstantsTheory _ _ := N.is_model.mono Set.subset_union_right\n  rw [ModelType.reduct_Carrier, coe_of]\n  refine _root_.trans (lift_le.2 (le_of_eq (Cardinal.mk_out κ).symm)) ?_\n  rw [← mk_univ]\n  refine\n    (card_le_of_model_distinctConstantsTheory L Set.univ N).trans (lift_le.{max u v w}.1 ?_)\n  rw [lift_lift]",
+   "--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-categorical. -/\ntheorem aleph0_categorical_dlo : (ℵ₀).Categorical Language.order.dlo := fun M₁ M₂ h₁ h₂ => by\n  obtain ⟨_⟩ := denumerable_iff.2 h₁\n  obtain ⟨_⟩ := denumerable_iff.2 h₂\n  exact (isFraisseLimit_of_countable_nonempty_dlo M₁).nonempty_equiv\n    (isFraisseLimit_of_countable_nonempty_dlo M₂)",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_not_not : φ ⇔[T] φ.not.not := fun M v xs => by\n  simp"],
+  "id":
+  {"name": "LO.FirstOrder.PreorderFrame.rel_trans",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[trans] lemma rel_trans {w v z : F} : w ≺ v → v ≺ z → w ≺ z := IsTrans.trans w v z\n\n",
+   "compilationAlias":
+   "@[trans] lemma rel_trans {w v z : F} : w ≺ v → v ≺ z → w ≺ z := IsTrans.trans w v z\n\n"},
+  "goal":
+  "F : LO.FirstOrder.PreorderFrame\nw v z : F.World\na✝¹ : F.Rel w v\na✝ : F.Rel v z\n⊢ F.Rel w z",
+  "content_sorry":
+  "@[trans] lemma rel_trans {w v z : F} : w ≺ v → v ≺ z → w ≺ z := by sorry",
+  "annotation":
+  "@[trans] lemma rel_trans {w v z : F} : w ≺ v → v ≺ z → w ≺ z := IsTrans.trans w v z\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsTrans.trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  trans : ∀ a b c, r a b → r b c → r a c",
+    "compilationAlias": "  trans : ∀ a b c, r a b → r b c → r a c"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Complexity\ntheorem top : IsQF (⊤ : L.BoundedFormula α n) := isQF_bot.not",
+   "--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-complete. -/\ntheorem dlo_isComplete : Language.order.dlo.IsComplete :=\n  aleph0_categorical_dlo.{0}.isComplete ℵ₀ _ le_rfl (by simp [one_le_aleph0])\n    ⟨by\n      letI : Language.order.Structure ℚ := orderStructure ℚ\n      exact Theory.ModelType.of _ ℚ⟩\n    fun _ => inferInstance",
+   "--src: Mathlib.ModelTheory.Order\nlemma order.relation_eq_leSymb : (R : Language.order.Relations 2) → R = leSymb\n  | .le => rfl",
+   "--src: Mathlib.ModelTheory.Order\ninstance model_preorder : M ⊨ L.preorderTheory := by\n  simp only [preorderTheory, Theory.model_insert_iff, Relations.realize_reflexive, relMap_leSymb,\n    Theory.model_singleton_iff, Relations.realize_transitive]\n  exact ⟨le_refl, fun _ _ _ => le_trans⟩",
+   "--src: Mathlib.ModelTheory.Order\ninstance [FunLike F M N] [OrderHomClass F M N] : Language.order.HomClass F M N :=\n  ⟨fun _ => isEmptyElim, by\n    simp only [forall_relations, relation_eq_leSymb, relMap_leSymb, Fin.isValue,\n      Function.comp_apply]\n    exact fun φ x => map_rel φ⟩\n-- If `OrderEmbeddingClass` or `RelEmbeddingClass` is defined, this should be generalized.",
+   "--src: Mathlib.ModelTheory.Equivalence\ninstance : IsRefl (L.BoundedFormula α n) T.Iff :=\n  ⟨Iff.refl⟩",
+   "--src: Mathlib.ModelTheory.Basic\n/-- `StrongHomClass L F M N` states that `F` is a type of `L`-homomorphisms which preserve\n  relations in both directions. -/\nclass StrongHomClass (L : outParam Language) (F : Type*) (M N : outParam Type*)\n  [FunLike F M N] [L.Structure M] [L.Structure N] : Prop where\n  map_fun : ∀ (φ : F) {n} (f : L.Functions n) (x), φ (funMap f x) = funMap f (φ ∘ x)\n  map_rel : ∀ (φ : F) {n} (r : L.Relations n) (x), RelMap r (φ ∘ x) ↔ RelMap r x\n-- Porting note: using implicit brackets for `Structure` arguments",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem realize_noBotOrder [h : NoBotOrder M] : M ⊨ L.noBotOrderSentence :=\n  realize_noBotOrder_iff.2 h",
+   "--src: Mathlib.ModelTheory.Fraisse\ntheorem age.nonempty : (L.age M).Nonempty :=\n  ⟨Bundled.of (Substructure.closure L (∅ : Set M)),\n    (fg_iff_structure_fg _).1 (fg_closure Set.finite_empty), ⟨Substructure.subtype _⟩⟩",
+   "--src: Mathlib.ModelTheory.Order\n/-- The class of finite models of the theory of linear orders is Fraïssé. -/\ntheorem isFraisse_finite_linear_order :\n    IsFraisse {M : CategoryTheory.Bundled.{0} Language.order.Structure |\n      Finite M ∧ M ⊨ Language.order.linearOrderTheory} := by\n  letI : Language.order.Structure ℚ := orderStructure _\n  exact (isFraisseLimit_of_countable_nonempty_dlo ℚ).isFraisse"],
+  "id":
+  {"name": "LO.FirstOrder.PreorderFrame.rel_refl",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[refl, simp] lemma rel_refl (w : F) : w ≺ w := IsRefl.refl w\n\n",
+   "compilationAlias":
+   "@[refl, simp] lemma rel_refl (w : F) : w ≺ w := IsRefl.refl w\n\n"},
+  "goal": "F : LO.FirstOrder.PreorderFrame\nw : F.World\n⊢ Eq (F.2 w w) True",
+  "content_sorry": "@[refl, simp] lemma rel_refl (w : F) : w ≺ w := by sorry",
+  "annotation":
+  "@[refl, simp] lemma rel_refl (w : F) : w ≺ w := IsRefl.refl w\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsRefl.refl",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  refl : ∀ a, r a a",
+    "compilationAlias": "  refl : ∀ a, r a a"},
+   {"name": "refl",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma refl [IsRefl α r] (a : α) : a ≺ a := IsRefl.refl a",
+    "compilationAlias":
+    "lemma refl [IsRefl α r] (a : α) : a ≺ a := IsRefl.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-complete. -/\ntheorem dlo_isComplete : Language.order.dlo.IsComplete :=\n  aleph0_categorical_dlo.{0}.isComplete ℵ₀ _ le_rfl (by simp [one_le_aleph0])\n    ⟨by\n      letI : Language.order.Structure ℚ := orderStructure ℚ\n      exact Theory.ModelType.of _ ℚ⟩\n    fun _ => inferInstance",
+   "--src: Mathlib.ModelTheory.Equivalence\ninstance : IsRefl (L.BoundedFormula α n) T.Iff :=\n  ⟨Iff.refl⟩",
+   "--src: Mathlib.ModelTheory.Order\nlemma order.relation_eq_leSymb : (R : Language.order.Relations 2) → R = leSymb\n  | .le => rfl",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem isQF_bot : IsQF (⊥ : L.BoundedFormula α n) :=\n  IsQF.falsum",
+   "--src: Mathlib.ModelTheory.Order\ninstance : Theory.IsUniversal L.partialOrderTheory :=\n  Theory.IsUniversal.insert leSymb.isUniversal_antisymmetric",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]",
+   "--src: Mathlib.ModelTheory.Order\n/-- The language homomorphism sending the unique symbol `≤` of `Language.order` to `≤` in an ordered\n language. -/\n@[simps] def orderLHom : Language.order →ᴸ L where\n  onRelation | _, .le => leSymb",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem realize_noBotOrder [h : NoBotOrder M] : M ⊨ L.noBotOrderSentence :=\n  realize_noBotOrder_iff.2 h",
+   "--src: Mathlib.ModelTheory.Order\ninstance [Language.order.Structure M] [Language.order.OrderedStructure M] :\n    LHom.IsExpansionOn (orderLHom L) M where\n  map_onRelation := by simp [order.relation_eq_leSymb]",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem orderLHom_order : orderLHom Language.order = LHom.id Language.order :=\n  LHom.funext (Subsingleton.elim _ _) (Subsingleton.elim _ _)"],
+  "id":
+  {"name": "LO.FirstOrder.PreorderFrame.instIsPreorderWorldRel",
+   "module": "Foundation.IntFO.Basic.Kripke",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "instance (F : PreorderFrame) : IsPreorder F (· ≺ ·) := F.preorder\n\n",
+   "compilationAlias":
+   "instance (F : PreorderFrame) : IsPreorder F (· ≺ ·) := F.preorder\n\n"},
+  "goal":
+  "F : LO.FirstOrder.PreorderFrame\n⊢ IsPreorder F.World fun x1 x2 => F.Rel x1 x2",
+  "content_sorry":
+  "instance (F : PreorderFrame) : IsPreorder F (· ≺ ·) := by sorry",
+  "annotation":
+  "instance (F : PreorderFrame) : IsPreorder F (· ≺ ·) := F.preorder\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []}]

@@ -1,0 +1,1677 @@
+[{"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        conv_lhs => rw [← normalize_gcd, ← gcd_map_mul, ← ht]).resolve_right <| by\n    contrapose! hs\n    exact s.gcd_eq_zero_iff.1 hs\n/- Porting note: The old proof used a strange form\n`have := _, refine ⟨s.pmap @f (fun _ ↦ id), this, extract_gcd' s _ h this⟩,`\nso I rearranged the proof slightly. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem extract_gcd (f : β → α) (hs : s.Nonempty) :\n    ∃ g : β → α, (∀ b ∈ s, f b = s.gcd f * g b) ∧ s.gcd g = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, f x = (0 : α)\n    · refine ⟨fun _ ↦ 1, fun b hb ↦ by rw [h b hb, gcd_eq_zero_iff.2 h, mul_one], ?_⟩\n      rw [gcd_eq_gcd_image, image_const hs, gcd_singleton, id, normalize_one]\n    · choose g' hg using @gcd_dvd _ _ _ _ s f\n      push_neg at h\n      refine ⟨fun b ↦ if hb : b ∈ s then g' hb else 0, fun b hb ↦ ?_,\n          extract_gcd' f _ h fun b hb ↦ ?_⟩\n      · simp only [hb, hg, dite_true]\n      rw [dif_pos hb, hg hb]"],
+  "id":
+  {"name": "Multiset.extract_gcd",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]\n\n",
+   "compilationAlias":
+   "theorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\nhs : Ne s 0\n⊢ Exists fun t => And (Eq s (Multiset.map (fun x => HMul.hMul s.gcd x) t)) (Eq t.gcd 1)",
+  "content_sorry":
+  "theorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  sorry",
+  "annotation":
+  "theorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"},
+   {"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"},
+   {"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"},
+   {"name": "normalize_one",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem normalize_one : normalize (1 : α) = 1 :=\n  normalize.map_one",
+    "compilationAlias":
+    "theorem normalize_one : normalize (1 : α) = 1 :=\n  normalize.map_one"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "extract_gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem extract_gcd {α : Type*} [CancelCommMonoidWithZero α] [GCDMonoid α] (x y : α) :\n    ∃ x' y', x = gcd x y * x' ∧ y = gcd x y * y' ∧ IsUnit (gcd x' y') := by\n  by_cases h : gcd x y = 0\n  · obtain ⟨rfl, rfl⟩ := (gcd_eq_zero_iff x y).1 h\n    simp_rw [← associated_one_iff_isUnit]\n    exact ⟨1, 1, by rw [h, zero_mul], by rw [h, zero_mul], gcd_one_left' 1⟩\n  obtain ⟨x', ex⟩ := gcd_dvd_left x y\n  obtain ⟨y', ey⟩ := gcd_dvd_right x y\n  exact ⟨x', y', ex, ey, isUnit_gcd_of_eq_mul_gcd ex ey h⟩",
+    "compilationAlias":
+    "theorem extract_gcd {α : Type*} [CancelCommMonoidWithZero α] [GCDMonoid α] (x y : α) :\n    ∃ x' y', x = gcd x y * x' ∧ y = gcd x y * y' ∧ IsUnit (gcd x' y') := by\n  by_cases h : gcd x y = 0\n  · obtain ⟨rfl, rfl⟩ := (gcd_eq_zero_iff x y).1 h\n    simp_rw [← associated_one_iff_isUnit]\n    exact ⟨1, 1, by rw [h, zero_mul], by rw [h, zero_mul], gcd_one_left' 1⟩\n  obtain ⟨x', ex⟩ := gcd_dvd_left x y\n  obtain ⟨y', ey⟩ := gcd_dvd_right x y\n  exact ⟨x', y', ex, ey, isUnit_gcd_of_eq_mul_gcd ex ey h⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        conv_lhs => rw [← normalize_gcd, ← gcd_map_mul, ← ht]).resolve_right <| by\n    contrapose! hs\n    exact s.gcd_eq_zero_iff.1 hs\n/- Porting note: The old proof used a strange form\n`have := _, refine ⟨s.pmap @f (fun _ ↦ id), this, extract_gcd' s _ h this⟩,`\nso I rearranged the proof slightly. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem extract_gcd' (f g : β → α) (hs : ∃ x, x ∈ s ∧ f x ≠ 0)\n    (hg : ∀ b ∈ s, f b = s.gcd f * g b) : s.gcd g = 1 :=\n  ((@mul_right_eq_self₀ _ _ (s.gcd f) _).1 <| by\n        conv_lhs => rw [← normalize_gcd, ← gcd_mul_left, ← gcd_congr rfl hg]).resolve_right <| by\n    contrapose! hs\n    exact gcd_eq_zero_iff.1 hs"],
+  "id":
+  {"name": "Multiset.extract_gcd'",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        conv_lhs => rw [← normalize_gcd, ← gcd_map_mul, ← ht]).resolve_right <| by\n    contrapose! hs\n    exact s.gcd_eq_zero_iff.1 hs\n\n",
+   "compilationAlias":
+   "theorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        conv_lhs => rw [← normalize_gcd, ← gcd_map_mul, ← ht]).resolve_right <| by\n    contrapose! hs\n    exact s.gcd_eq_zero_iff.1 hs\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns t : Multiset α\nhs : Exists fun x => And (Membership.mem s x) (Ne x 0)\nht : Eq s (Multiset.map (fun x => HMul.hMul s.gcd x) t)\n⊢ Eq t.gcd 1",
+  "content_sorry":
+  "theorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        sorry",
+  "annotation":
+  "theorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        /-\n          α : Type u_1\n          inst✝¹ : CancelCommMonoidWithZero α\n          inst✝ : NormalizedGCDMonoid α\n          s t : Multiset α\n          hs : Exists fun x => And (Membership.mem s x) (Ne x 0)\n          ht : Eq s (Multiset.map (fun x => HMul.hMul s.gcd x) t)\n          ⊢ Eq (HMul.hMul s.gcd t.gcd) s.gcd\n        -/\n        conv_lhs => rw [← normalize_gcd, ← gcd_map_mul, ← ht]).resolve_right <| by\n        /-\n          🎉 no goals\n        -/\n    /-\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s t : Multiset α\n      hs : Exists fun x => And (Membership.mem s x) (Ne x 0)\n      ht : Eq s (Multiset.map (fun x => HMul.hMul s.gcd x) t)\n      ⊢ Not (Eq s.gcd 0)\n    -/\n    contrapose! hs\n    /-\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s t : Multiset α\n      ht : Eq s (Multiset.map (fun x => HMul.hMul s.gcd x) t)\n      hs : Eq s.gcd 0\n      ⊢ ∀ (x : α), Membership.mem s x → Eq x 0\n    -/\n    exact s.gcd_eq_zero_iff.1 hs\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "normalize_gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem normalize_gcd [NormalizedGCDMonoid α] : ∀ a b : α, normalize (gcd a b) = gcd a b :=\n  NormalizedGCDMonoid.normalize_gcd",
+    "compilationAlias":
+    "@[simp]\ntheorem normalize_gcd [NormalizedGCDMonoid α] : ∀ a b : α, normalize (gcd a b) = gcd a b :=\n  NormalizedGCDMonoid.normalize_gcd"},
+   {"name": "mul_right_eq_self₀",
+    "module": "Mathlib.Algebra.GroupWithZero.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mul_right_eq_self₀ : a * b = a ↔ b = 1 ∨ a = 0 :=\n  calc\n    a * b = a ↔ a * b = a * 1 := by rw [mul_one]\n    _ ↔ b = 1 ∨ a = 0 := mul_eq_mul_left_iff",
+    "compilationAlias":
+    "theorem mul_right_eq_self₀ : a * b = a ↔ b = 1 ∨ a = 0 :=\n  calc\n    a * b = a ↔ a * b = a * 1 := by rw [mul_one]\n    _ ↔ b = 1 ∨ a = 0 := mul_eq_mul_left_iff"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem Associated.gcd_eq_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    gcd m k = gcd n k :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _) (gcd_dvd_gcd h.dvd dvd_rfl)\n    (gcd_dvd_gcd h.symm.dvd dvd_rfl)",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem gcd_insert [DecidableEq β] {b : β} :\n    (insert b s : Finset β).gcd f = GCDMonoid.gcd (f b) (s.gcd f) := by\n  by_cases h : b ∈ s\n  · rw [insert_eq_of_mem h,\n      (gcd_eq_right_iff (f b) (s.gcd f) (Multiset.normalize_gcd (s.1.map f))).2 (gcd_dvd h)]\n  apply fold_insert h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl"],
+  "id":
+  {"name": "Multiset.gcd_ndinsert",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\na : α\ns : Multiset α\n⊢ Eq (Multiset.ndinsert a s).gcd (GCDMonoid.gcd a s.gcd)",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    a : α\n    s : Multiset α\n    ⊢ Eq (Multiset.ndinsert a s).gcd (GCDMonoid.gcd a s.gcd)\n  -/\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    a : α\n    s : Multiset α\n    ⊢ ∀ (a_1 : α), Iff (Membership.mem (Multiset.ndinsert a s) a_1) (Membership.me …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  gcd : α → α → α",
+    "compilationAlias": "  gcd : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_union [DecidableEq β] : (s₁ ∪ s₂).gcd f = GCDMonoid.gcd (s₁.gcd f) (s₂.gcd f) :=\n  Finset.induction_on s₁ (by rw [empty_union, gcd_empty, gcd_zero_left, normalize_gcd])\n    fun a s _ ih ↦ by rw [insert_union, gcd_insert, gcd_insert, ih, gcd_assoc]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem gcd_comm [NormalizedGCDMonoid α] (a b : α) : gcd a b = gcd b a :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _)\n    (dvd_gcd (gcd_dvd_right _ _) (gcd_dvd_left _ _))\n    (dvd_gcd (gcd_dvd_right _ _) (gcd_dvd_left _ _))"],
+  "id":
+  {"name": "Multiset.gcd_union",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\ns₁ s₂ : Multiset α\n⊢ Eq (Union.union s₁ s₂).gcd (GCDMonoid.gcd s₁.gcd s₂.gcd)",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ Eq (Union.union s₁ s₂).gcd (GCDMonoid.gcd s₁.gcd s₂.gcd)\n  -/\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ ∀ (a : α), Iff (Membership.mem (Union.union s₁ s₂) a) (Membership.mem (HAdd. …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  gcd : α → α → α",
+    "compilationAlias": "  gcd : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_union [DecidableEq β] : (s₁ ∪ s₂).gcd f = GCDMonoid.gcd (s₁.gcd f) (s₂.gcd f) :=\n  Finset.induction_on s₁ (by rw [empty_union, gcd_empty, gcd_zero_left, normalize_gcd])\n    fun a s _ ih ↦ by rw [insert_union, gcd_insert, gcd_insert, ih, gcd_assoc]",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem Associated.gcd_eq_right [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    gcd k m = gcd k n :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _) (gcd_dvd_gcd dvd_rfl h.dvd)\n    (gcd_dvd_gcd dvd_rfl h.symm.dvd)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/"],
+  "id":
+  {"name": "Multiset.gcd_ndunion",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\ns₁ s₂ : Multiset α\n⊢ Eq (s₁.ndunion s₂).gcd (GCDMonoid.gcd s₁.gcd s₂.gcd)",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ Eq (s₁.ndunion s₂).gcd (GCDMonoid.gcd s₁.gcd s₂.gcd)\n  -/\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ ∀ (a : α), Iff (Membership.mem (s₁.ndunion s₂) a) (Membership.mem (HAdd.hAdd …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  gcd : α → α → α",
+    "compilationAlias": "  gcd : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl",
+   "--src: Mathlib.Data.Multiset.Dedup\ntheorem dedup_map_dedup_eq [DecidableEq β] (f : α → β) (s : Multiset α) :\n    dedup (map f (dedup s)) = dedup (map f s) := by\n  simp [dedup_ext]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd' (s t : Multiset α) (hs : ∃ x, x ∈ s ∧ x ≠ (0 : α))\n    (ht : s = t.map (s.gcd * ·)) : t.gcd = 1 :=\n  ((@mul_right_eq_self₀ _ _ s.gcd _).1 <| by\n        conv_lhs => rw [← normalize_gcd, ← gcd_map_mul, ← ht]).resolve_right <| by\n    contrapose! hs\n    exact s.gcd_eq_zero_iff.1 hs\n/- Porting note: The old proof used a strange form\n`have := _, refine ⟨s.pmap @f (fun _ ↦ id), this, extract_gcd' s _ h this⟩,`\nso I rearranged the proof slightly. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h"],
+  "id":
+  {"name": "Multiset.gcd_dedup",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\ns : Multiset α\n⊢ Eq s.dedup.gcd s.gcd",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n                              /-\n                                α : Type u_1\n                                inst✝² : CancelCommMonoidWithZero α\n                                inst✝¹ : NormalizedGCDMonoid α\n                                inst✝ : DecidableEq α\n                                s : Multiset α\n                                ⊢ Eq (Multiset.dedup 0).gcd (Multiset.gcd 0)\n                              -/\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n                              /-\n                                🎉 no goals\n                              -/\n    /-\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.gcd s.gcd\n      ⊢ Eq (Multiset.cons a s).dedup.gcd (Multiset.cons a s).gcd\n    -/\n    by_cases h : a ∈ s <;> simp [IH, h]\n                           /-\n                             🎉 no goals\n                           -/\n    /-\n      case pos\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.gcd s.gcd\n      h : Membership.mem s a\n      ⊢ Eq s.gcd (GCDMonoid.gcd a s.gcd)\n    -/\n    unfold gcd\n    /-\n      case pos\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.gcd s.gcd\n      h : Membership.mem s a\n      ⊢ Eq (Multiset.fold GCDMonoid.gcd 0 s) (GCDMonoid.gcd a (Multiset.fold GCDMono …\n    -/\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    /-\n      case pos\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.gcd s.gcd\n      h : Membership.mem s a\n      ⊢ Eq (GCDMonoid.gcd a (Multiset.fold GCDMonoid.gcd 0 (s.erase a))) (GCDMonoid. …\n    -/\n    apply (associated_normalize _).gcd_eq_left\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "associated_normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem associated_normalize (x : α) : Associated x (normalize x) :=\n  ⟨_, rfl⟩",
+    "compilationAlias":
+    "theorem associated_normalize (x : α) : Associated x (normalize x) :=\n  ⟨_, rfl⟩"},
+   {"name": "gcd_same",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem gcd_same [NormalizedGCDMonoid α] (a : α) : gcd a a = normalize a :=\n  gcd_eq_normalize (gcd_dvd_left _ _) (dvd_gcd (dvd_refl a) (dvd_refl a))",
+    "compilationAlias":
+    "@[simp]\ntheorem gcd_same [NormalizedGCDMonoid α] (a : α) : gcd a a = normalize a :=\n  gcd_eq_normalize (gcd_dvd_left _ _) (dvd_gcd (dvd_refl a) (dvd_refl a))"},
+   {"name": "gcd_assoc",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gcd_assoc [NormalizedGCDMonoid α] (m n k : α) : gcd (gcd m n) k = gcd m (gcd n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _)\n    (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_left m n))\n      (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_right m n)) (gcd_dvd_right (gcd m n) k)))\n    (dvd_gcd\n      (dvd_gcd (gcd_dvd_left m (gcd n k)) ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_left n k)))\n      ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_right n k)))",
+    "compilationAlias":
+    "theorem gcd_assoc [NormalizedGCDMonoid α] (m n k : α) : gcd (gcd m n) k = gcd m (gcd n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _)\n    (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_left m n))\n      (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_right m n)) (gcd_dvd_right (gcd m n) k)))\n    (dvd_gcd\n      (dvd_gcd (gcd_dvd_left m (gcd n k)) ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_left n k)))\n      ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_right n k)))"},
+   {"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem gcd_mul_left [NormalizedGCDMonoid α] (a b c : α) :\n    gcd (a * b) (a * c) = normalize a * gcd b c :=\n  (by_cases (by rintro rfl; simp only [zero_mul, gcd_zero_left, normalize_zero]))\n    fun ha : a ≠ 0 =>\n    suffices gcd (a * b) (a * c) = normalize (a * gcd b c) by simpa\n    let ⟨d, eq⟩ := dvd_gcd (dvd_mul_right a b) (dvd_mul_right a c)\n    gcd_eq_normalize\n      (eq.symm ▸ mul_dvd_mul_left a\n        (show d ∣ gcd b c from\n          dvd_gcd ((mul_dvd_mul_iff_left ha).1 <| eq ▸ gcd_dvd_left _ _)\n            ((mul_dvd_mul_iff_left ha).1 <| eq ▸ gcd_dvd_right _ _)))\n      (dvd_gcd (mul_dvd_mul_left a <| gcd_dvd_left _ _) (mul_dvd_mul_left a <| gcd_dvd_right _ _))",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\nnonrec theorem gcd_mul_right {a : α} : (s.gcd fun x ↦ f x * a) = s.gcd f * normalize a := by\n  classical\n    refine s.induction_on ?_ ?_\n    · simp\n    · intro b t _ h\n      rw [gcd_insert, gcd_insert, h, ← gcd_mul_right]\n      apply ((normalize_associated a).mul_left _).gcd_eq_right"],
+  "id":
+  {"name": "Multiset.gcd_map_mul",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right\n\n",
+   "compilationAlias":
+   "theorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\na b c : α\n⊢ Eq (HMul.hMul (normalize a) (GCDMonoid.gcd b c)) (GCDMonoid.gcd (HMul.hMul a b) (HMul.hMul a c))",
+  "content_sorry":
+  "theorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  sorry",
+  "annotation":
+  "theorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  /-\n    α : Type u_1\n    inst✝¹ : CancelCommMonoidWithZero α\n    inst✝ : NormalizedGCDMonoid α\n    a : α\n    s : Multiset α\n    ⊢ Eq (Multiset.map (fun x => HMul.hMul a x) s).gcd (HMul.hMul (normalize a) s. …\n  -/\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n    /-\n      case refine_1\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      a : α\n      s : Multiset α\n      ⊢ Eq (Multiset.map (fun x => HMul.hMul a x) 0).gcd (HMul.hMul (normalize a) (M …\n    -/\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_2\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      a : α\n      s✝ : Multiset α\n      b : α\n      s : Multiset α\n      ih : Eq (Multiset.map (fun x => HMul.hMul a x) s).gcd (HMul.hMul (normalize a) …\n      ⊢ Eq (Multiset.map (fun x => HMul.hMul a x) (Multiset.cons b s)).gcd (HMul.hMu …\n    -/\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    /-\n      case refine_2\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      a : α\n      s✝ : Multiset α\n      b : α\n      s : Multiset α\n      ih : Eq (Multiset.map (fun x => HMul.hMul a x) s).gcd (HMul.hMul (normalize a) …\n      ⊢ Eq (GCDMonoid.gcd (HMul.hMul a b) (Multiset.map (fun x => HMul.hMul a x) s). …\n    -/\n    rw [ih]\n    /-\n      case refine_2\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      a : α\n      s✝ : Multiset α\n      b : α\n      s : Multiset α\n      ih : Eq (Multiset.map (fun x => HMul.hMul a x) s).gcd (HMul.hMul (normalize a) …\n      ⊢ Eq (GCDMonoid.gcd (HMul.hMul a b) (HMul.hMul (normalize a) s.gcd)) (GCDMonoi …\n    -/\n    apply ((normalize_associated a).mul_right _).gcd_eq_right\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "normalize_associated",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem normalize_associated (x : α) : Associated (normalize x) x :=\n  (associated_normalize _).symm",
+    "compilationAlias":
+    "theorem normalize_associated (x : α) : Associated (normalize x) x :=\n  (associated_normalize _).symm"},
+   {"name": "gcd_mul_left",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem gcd_mul_left [NormalizedGCDMonoid α] (a b c : α) :\n    gcd (a * b) (a * c) = normalize a * gcd b c :=\n  (by_cases (by rintro rfl; simp only [zero_mul, gcd_zero_left, normalize_zero]))\n    fun ha : a ≠ 0 =>\n    suffices gcd (a * b) (a * c) = normalize (a * gcd b c) by simpa\n    let ⟨d, eq⟩ := dvd_gcd (dvd_mul_right a b) (dvd_mul_right a c)\n    gcd_eq_normalize\n      (eq.symm ▸ mul_dvd_mul_left a\n        (show d ∣ gcd b c from\n          dvd_gcd ((mul_dvd_mul_iff_left ha).1 <| eq ▸ gcd_dvd_left _ _)\n            ((mul_dvd_mul_iff_left ha).1 <| eq ▸ gcd_dvd_right _ _)))\n      (dvd_gcd (mul_dvd_mul_left a <| gcd_dvd_left _ _) (mul_dvd_mul_left a <| gcd_dvd_right _ _))",
+    "compilationAlias":
+    "@[simp]\ntheorem gcd_mul_left [NormalizedGCDMonoid α] (a b c : α) :\n    gcd (a * b) (a * c) = normalize a * gcd b c :=\n  (by_cases (by rintro rfl; simp only [zero_mul, gcd_zero_left, normalize_zero]))\n    fun ha : a ≠ 0 =>\n    suffices gcd (a * b) (a * c) = normalize (a * gcd b c) by simpa\n    let ⟨d, eq⟩ := dvd_gcd (dvd_mul_right a b) (dvd_mul_right a c)\n    gcd_eq_normalize\n      (eq.symm ▸ mul_dvd_mul_left a\n        (show d ∣ gcd b c from\n          dvd_gcd ((mul_dvd_mul_iff_left ha).1 <| eq ▸ gcd_dvd_left _ _)\n            ((mul_dvd_mul_iff_left ha).1 <| eq ▸ gcd_dvd_right _ _)))\n      (dvd_gcd (mul_dvd_mul_left a <| gcd_dvd_left _ _) (mul_dvd_mul_left a <| gcd_dvd_right _ _))"},
+   {"name": "map_zero",
+    "module": "Mathlib.Algebra.Group.Hom.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp low)]",
+    "compilationAlias": "@[to_additive (attr := simp low)]"},
+   {"name": "normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]",
+    "compilationAlias":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_eq_zero_iff : s.gcd f = 0 ↔ ∀ x : β, x ∈ s → f x = 0 := by\n  rw [gcd_def, Multiset.gcd_eq_zero_iff]\n  constructor <;> intro h\n  · intro b bs\n    apply h (f b)\n    simp only [Multiset.mem_map, mem_def.1 bs]\n    use b\n    simp only [mem_def.1 bs, eq_self_iff_true, and_self]\n  · intro a as\n    rw [Multiset.mem_map] at as\n    rcases as with ⟨b, ⟨bs, rfl⟩⟩\n    apply h b (mem_def.1 bs)\n/- Porting note: The change from `p : α → Prop` to `p : α → Bool` made this slightly less nice with\nall the `decide`s around. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem normalize_eq_zero {x : α} : normalize x = 0 ↔ x = 0 :=\n  ⟨fun hx => (associated_zero_iff_eq_zero x).1 <| hx ▸ associated_normalize _, by\n    rintro rfl; exact normalize_zero⟩",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _"],
+  "id":
+  {"name": "Multiset.gcd_eq_zero_iff",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]\n\n",
+   "compilationAlias":
+   "theorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\n⊢ Iff (Eq s.gcd 0) (∀ (x : α), Membership.mem s x → Eq x 0)",
+  "content_sorry":
+  "theorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  sorry",
+  "annotation":
+  "theorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  /-\n    α : Type u_1\n    inst✝¹ : CancelCommMonoidWithZero α\n    inst✝ : NormalizedGCDMonoid α\n    s : Multiset α\n    ⊢ Iff (Eq s.gcd 0) (∀ (x : α), Membership.mem s x → Eq x 0)\n  -/\n  constructor\n    /-\n      case mp\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s : Multiset α\n      ⊢ Eq s.gcd 0 → ∀ (x : α), Membership.mem s x → Eq x 0\n    -/\n  · intro h x hx\n    /-\n      case mp\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s : Multiset α\n      h : Eq s.gcd 0\n      x : α\n      hx : Membership.mem s x\n      ⊢ Eq x 0\n    -/\n    apply eq_zero_of_zero_dvd\n    /-\n      case mp.h\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s : Multiset α\n      h : Eq s.gcd 0\n      x : α\n      hx : Membership.mem s x\n      ⊢ Dvd.dvd 0 x\n    -/\n    rw [← h]\n    /-\n      case mp.h\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s : Multiset α\n      h : Eq s.gcd 0\n      x : α\n      hx : Membership.mem s x\n      ⊢ Dvd.dvd s.gcd x\n    -/\n    apply gcd_dvd hx\n    /-\n      🎉 no goals\n    -/\n    /-\n      case mpr\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s : Multiset α\n      ⊢ (∀ (x : α), Membership.mem s x → Eq x 0) → Eq s.gcd 0\n    -/\n  · refine s.induction_on ?_ ?_\n      /-\n        case mpr.refine_1\n        α : Type u_1\n        inst✝¹ : CancelCommMonoidWithZero α\n        inst✝ : NormalizedGCDMonoid α\n        s : Multiset α\n        ⊢ (∀ (x : α), Membership.mem 0 x → Eq x 0) → Eq (Multiset.gcd 0) 0\n      -/\n    · simp\n      /-\n        🎉 no goals\n      -/\n    /-\n      case mpr.refine_2\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s : Multiset α\n      ⊢ ∀ (a : α) (s : Multiset α), ((∀ (x : α), Membership.mem s x → Eq x 0) → Eq s …\n    -/\n    intro a s sgcd h\n    /-\n      case mpr.refine_2\n      α : Type u_1\n      inst✝¹ : CancelCommMonoidWithZero α\n      inst✝ : NormalizedGCDMonoid α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      sgcd : (∀ (x : α), Membership.mem s x → Eq x 0) → Eq s.gcd 0\n      h : ∀ (x : α), Membership.mem (Multiset.cons a s) x → Eq x 0\n      ⊢ Eq (Multiset.cons a s).gcd 0\n    -/\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "eq_zero_of_zero_dvd",
+    "module": "Mathlib.Algebra.GroupWithZero.Divisibility",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_zero_of_zero_dvd (h : 0 ∣ a) : a = 0 :=\n  Dvd.elim h fun c H' => H'.trans (zero_mul c)",
+    "compilationAlias":
+    "theorem eq_zero_of_zero_dvd (h : 0 ∣ a) : a = 0 :=\n  Dvd.elim h fun c H' => H'.trans (zero_mul c)"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "gcd_eq_zero_iff",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem gcd_eq_zero_iff [GCDMonoid α] (a b : α) : gcd a b = 0 ↔ a = 0 ∧ b = 0 :=\n  Iff.intro\n    (fun h => by\n      let ⟨ca, ha⟩ := gcd_dvd_left a b\n      let ⟨cb, hb⟩ := gcd_dvd_right a b\n      rw [h, zero_mul] at ha hb\n      exact ⟨ha, hb⟩)\n    fun ⟨ha, hb⟩ => by\n    rw [ha, hb, ← zero_dvd_iff]\n    apply dvd_gcd <;> rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem gcd_eq_zero_iff [GCDMonoid α] (a b : α) : gcd a b = 0 ↔ a = 0 ∧ b = 0 :=\n  Iff.intro\n    (fun h => by\n      let ⟨ca, ha⟩ := gcd_dvd_left a b\n      let ⟨cb, hb⟩ := gcd_dvd_right a b\n      rw [h, zero_mul] at ha hb\n      exact ⟨ha, hb⟩)\n    fun ⟨ha, hb⟩ => by\n    rw [ha, hb, ← zero_dvd_iff]\n    apply dvd_gcd <;> rfl"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem gcd_zero_right [NormalizedGCDMonoid α] (a : α) : gcd a 0 = normalize a :=\n  gcd_eq_normalize (gcd_dvd_left a 0) (dvd_gcd (dvd_refl a) (dvd_zero _))",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem Associated.gcd_eq_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    gcd m k = gcd n k :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _) (gcd_dvd_gcd h.dvd dvd_rfl)\n    (gcd_dvd_gcd h.symm.dvd dvd_rfl)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h"],
+  "id":
+  {"name": "Multiset.normalize_gcd",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\n⊢ Eq (normalize s.gcd) s.gcd",
+  "content_sorry":
+  "@[simp]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by sorry",
+  "annotation":
+  "@[simp]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n                              /-\n                                α : Type u_1\n                                inst✝¹ : CancelCommMonoidWithZero α\n                                inst✝ : NormalizedGCDMonoid α\n                                s : Multiset α\n                                ⊢ Eq (normalize (Multiset.gcd 0)) (Multiset.gcd 0)\n                              -/\n                              /-\n                                🎉 no goals\n                              -/\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp\n                                                   /-\n                                                     🎉 no goals\n                                                   -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]",
+    "compilationAlias":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "normalize_gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem normalize_gcd [NormalizedGCDMonoid α] : ∀ a b : α, normalize (gcd a b) = gcd a b :=\n  NormalizedGCDMonoid.normalize_gcd",
+    "compilationAlias":
+    "@[simp]\ntheorem normalize_gcd [NormalizedGCDMonoid α] : ∀ a b : α, normalize (gcd a b) = gcd a b :=\n  NormalizedGCDMonoid.normalize_gcd"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/\n/- Porting note: Mathport seems to be replacing `Multiset.induction_on s $` with\n`(Multiset.induction_on s)`, when it should be `Multiset.induction_on s <|`. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_mono (h : s₁ ⊆ s₂) : s₂.gcd f ∣ s₁.gcd f :=\n  dvd_gcd fun _ hb ↦ gcd_dvd (h hb)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Associative (α := α) gcd where\n  assoc := gcd_assoc",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem gcd_greatest {α : Type*} [CancelCommMonoidWithZero α] [NormalizedGCDMonoid α] {a b d : α}\n    (hda : d ∣ a) (hdb : d ∣ b) (hd : ∀ e : α, e ∣ a → e ∣ b → e ∣ d) :\n    GCDMonoid.gcd a b = normalize d :=\n  haveI h := hd _ (GCDMonoid.gcd_dvd_left a b) (GCDMonoid.gcd_dvd_right a b)\n  gcd_eq_normalize h (GCDMonoid.dvd_gcd hda hdb)"],
+  "id":
+  {"name": "Multiset.gcd_mono",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n\n",
+   "compilationAlias":
+   "theorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns₁ s₂ : Multiset α\nh : HasSubset.Subset s₁ s₂\n⊢ Dvd.dvd s₂.gcd s₁.gcd",
+  "content_sorry":
+  "theorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd := by sorry",
+  "annotation":
+  "theorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_dvd {b : β} (hb : b ∈ s) : s.gcd f ∣ f b :=\n  dvd_gcd_iff.1 dvd_rfl _ hb",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl"],
+  "id":
+  {"name": "Multiset.gcd_dvd",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h\n\n",
+   "compilationAlias":
+   "theorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\na : α\nh : Membership.mem s a\n⊢ Dvd.dvd s.gcd a",
+  "content_sorry":
+  "theorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a := by sorry",
+  "annotation":
+  "theorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "dvd_rfl",
+    "module": "Mathlib.Algebra.Divisibility.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem dvd_rfl : ∀ {a : α}, a ∣ a := fun {a} => dvd_refl a",
+    "compilationAlias":
+    "theorem dvd_rfl : ∀ {a : α}, a ∣ a := fun {a} => dvd_refl a"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem dvd_gcd {a : α} : (∀ b ∈ s, a ∣ f b) → a ∣ s.gcd f :=\n  dvd_gcd_iff.2",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem extract_gcd (s : Multiset α) (hs : s ≠ 0) :\n    ∃ t : Multiset α, s = t.map (s.gcd * ·) ∧ t.gcd = 1 := by\n  classical\n    by_cases h : ∀ x ∈ s, x = (0 : α)\n    · use replicate (card s) 1\n      rw [map_replicate, eq_replicate, mul_one, s.gcd_eq_zero_iff.2 h, ← nsmul_singleton,\n    ← gcd_dedup, dedup_nsmul (card_pos.2 hs).ne', dedup_singleton, gcd_singleton]\n      exact ⟨⟨rfl, h⟩, normalize_one⟩\n    · choose f hf using @gcd_dvd _ _ _ s\n      push_neg at h\n      refine ⟨s.pmap @f fun _ ↦ id, ?_, extract_gcd' s _ h ?_⟩ <;>\n      · rw [map_pmap]\n        conv_lhs => rw [← s.map_id, ← s.pmap_eq_map _ _ fun _ ↦ id]\n        congr with (x hx)\n        rw [id, ← hf hx]",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem gcd_def : s.gcd f = (s.1.map f).gcd :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem normalize_dvd_iff {a b : α} : normalize a ∣ b ↔ a ∣ b :=\n  Units.mul_right_dvd"],
+  "id":
+  {"name": "Multiset.dvd_gcd",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])\n\n",
+   "compilationAlias":
+   "theorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\na : α\n⊢ Iff (Dvd.dvd a s.gcd) (∀ (b : α), Membership.mem s b → Dvd.dvd a b)",
+  "content_sorry":
+  "theorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by sorry",
+  "annotation":
+  "theorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n                              /-\n                                α : Type u_1\n                                inst✝¹ : CancelCommMonoidWithZero α\n                                inst✝ : NormalizedGCDMonoid α\n                                s : Multiset α\n                                a : α\n                                ⊢ Iff (Dvd.dvd a (Multiset.gcd 0)) (∀ (b : α), Membership.mem 0 b → Dvd.dvd a b)\n                              -/\n  Multiset.induction_on s (by simp)\n                              /-\n                                🎉 no goals\n                              -/\n        /-\n          α : Type u_1\n          inst✝¹ : CancelCommMonoidWithZero α\n          inst✝ : NormalizedGCDMonoid α\n          s : Multiset α\n          a : α\n          ⊢ ∀ (a_1 : α) (s : Multiset α), Iff (Dvd.dvd a s.gcd) (∀ (b : α), Membership.m …\n        -/\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])\n        /-\n          🎉 no goals\n        -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "dvd_gcd_iff",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem dvd_gcd_iff [GCDMonoid α] (a b c : α) : a ∣ gcd b c ↔ a ∣ b ∧ a ∣ c :=\n  Iff.intro (fun h => ⟨h.trans (gcd_dvd_left _ _), h.trans (gcd_dvd_right _ _)⟩) fun ⟨hab, hac⟩ =>\n    dvd_gcd hab hac",
+    "compilationAlias":
+    "theorem dvd_gcd_iff [GCDMonoid α] (a b c : α) : a ∣ gcd b c ↔ a ∣ b ∧ a ∣ c :=\n  Iff.intro (fun h => ⟨h.trans (gcd_dvd_left _ _), h.trans (gcd_dvd_right _ _)⟩) fun ⟨hab, hac⟩ =>\n    dvd_gcd hab hac"},
+   {"name": "forall_and",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem forall_and : (∀ x, p x ∧ q x) ↔ (∀ x, p x) ∧ (∀ x, q x) :=\n  ⟨fun h => ⟨fun x => (h x).1, fun x => (h x).2⟩, fun ⟨h₁, h₂⟩ x => ⟨h₁ x, h₂ x⟩⟩",
+    "compilationAlias":
+    "theorem forall_and : (∀ x, p x ∧ q x) ↔ (∀ x, p x) ∧ (∀ x, q x) :=\n  ⟨fun h => ⟨fun x => (h x).1, fun x => (h x).2⟩, fun ⟨h₁, h₂⟩ x => ⟨h₁ x, h₂ x⟩⟩"},
+   {"name": "or_imp",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem or_imp : (a ∨ b → c) ↔ (a → c) ∧ (b → c) :=\n  Iff.intro (fun h => ⟨h ∘ .inl, h ∘ .inr⟩) (fun ⟨ha, hb⟩ => Or.rec ha hb)",
+    "compilationAlias":
+    "theorem or_imp : (a ∨ b → c) ↔ (a → c) ∧ (b → c) :=\n  Iff.intro (fun h => ⟨h ∘ .inl, h ∘ .inr⟩) (fun ⟨ha, hb⟩ => Or.rec ha hb)"},
+   {"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem gcd_assoc [NormalizedGCDMonoid α] (m n k : α) : gcd (gcd m n) k = gcd m (gcd n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _)\n    (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_left m n))\n      (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_right m n)) (gcd_dvd_right (gcd m n) k)))\n    (dvd_gcd\n      (dvd_gcd (gcd_dvd_left m (gcd n k)) ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_left n k)))\n      ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_right n k)))",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Associative (α := α) gcd where\n  assoc := gcd_assoc"],
+  "id":
+  {"name": "Multiset.gcd_add",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns₁ s₂ : Multiset α\n⊢ Eq (HAdd.hAdd s₁ s₂).gcd (GCDMonoid.gcd s₁.gcd s₂.gcd)",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n               /-\n                 α : Type u_1\n                 inst✝¹ : CancelCommMonoidWithZero α\n                 inst✝ : NormalizedGCDMonoid α\n                 s₁ s₂ : Multiset α\n                 ⊢ Eq (HAdd.hAdd s₁ s₂).gcd (Multiset.fold GCDMonoid.gcd (GCDMonoid.gcd 0 0) (H …\n               -/\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)\n               /-\n                 🎉 no goals\n               -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Eq.trans",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nEquality is transitive: if `a = b` and `b = c` then `a = c`.\n\nBecause this is in the `Eq` namespace, if you have variables or expressions\n`h₁ : a = b` and `h₂ : b = c`, you can use `h₁.trans h₂ : a = c` as shorthand\nfor `Eq.trans h₁ h₂`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem Eq.trans {α : Sort u} {a b c : α} (h₁ : Eq a b) (h₂ : Eq b c) : Eq a c :=\n  h₂ ▸ h₁",
+    "compilationAlias":
+    "/--\nEquality is transitive: if `a = b` and `b = c` then `a = c`.\n\nBecause this is in the `Eq` namespace, if you have variables or expressions\n`h₁ : a = b` and `h₂ : b = c`, you can use `h₁.trans h₂ : a = c` as shorthand\nfor `Eq.trans h₁ h₂`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem Eq.trans {α : Sort u} {a b c : α} (h₁ : Eq a b) (h₂ : Eq b c) : Eq a c :=\n  h₂ ▸ h₁"},
+   {"name": "GCDMonoid.gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  gcd : α → α → α",
+    "compilationAlias": "  gcd : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem gcd_singleton {b : β} : ({b} : Finset β).gcd f = normalize (f b) :=\n  Multiset.gcd_singleton\n-- Porting note: Priority changed for `simpNF`",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem gcd_zero_left [NormalizedGCDMonoid α] (a : α) : gcd 0 a = normalize a :=\n  gcd_eq_normalize (gcd_dvd_right 0 a) (dvd_gcd (dvd_zero _) (dvd_refl a))",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp 1100]\ntheorem normalize_gcd : normalize (s.gcd f) = s.gcd f := by simp [gcd_def]",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem normalize_gcd [NormalizedGCDMonoid α] : ∀ a b : α, normalize (gcd a b) = gcd a b :=\n  NormalizedGCDMonoid.normalize_gcd",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem Associated.gcd_eq_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    gcd m k = gcd n k :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _) (gcd_dvd_gcd h.dvd dvd_rfl)\n    (gcd_dvd_gcd h.symm.dvd dvd_rfl)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance subsingleton_normalizedGCDMonoid_of_unique_units : Subsingleton (NormalizedGCDMonoid α) :=\n  ⟨by\n    intro a b\n    cases a; rename_i a_norm a_gcd _ _\n    cases b; rename_i b_norm b_gcd _ _\n    have := Subsingleton.elim a_gcd b_gcd\n    subst this\n    have := Subsingleton.elim a_norm b_norm\n    subst this\n    rfl⟩",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem lcm_same [NormalizedGCDMonoid α] (a : α) : lcm a a = normalize a :=\n  lcm_eq_normalize (lcm_dvd dvd_rfl dvd_rfl) (dvd_lcm_left _ _)"],
+  "id":
+  {"name": "Multiset.gcd_singleton",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\na : α\n⊢ Eq (Singleton.singleton a).gcd (normalize a)",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a := by sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "gcd_zero_right",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem gcd_zero_right [NormalizedGCDMonoid α] (a : α) : gcd a 0 = normalize a :=\n  gcd_eq_normalize (gcd_dvd_left a 0) (dvd_gcd (dvd_refl a) (dvd_zero _))",
+    "compilationAlias":
+    "@[simp]\ntheorem gcd_zero_right [NormalizedGCDMonoid α] (a : α) : gcd a 0 = normalize a :=\n  gcd_eq_normalize (gcd_dvd_left a 0) (dvd_gcd (dvd_refl a) (dvd_zero _))"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"},
+   {"name": "normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]",
+    "compilationAlias":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem lcm_eq_of_associated_right [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    lcm k m = lcm k n :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _) (lcm_dvd_lcm dvd_rfl h.dvd)\n    (lcm_dvd_lcm dvd_rfl h.symm.dvd)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem gcd_assoc [NormalizedGCDMonoid α] (m n k : α) : gcd (gcd m n) k = gcd m (gcd n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_gcd _ _) (normalize_gcd _ _)\n    (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_left m n))\n      (dvd_gcd ((gcd_dvd_left (gcd m n) k).trans (gcd_dvd_right m n)) (gcd_dvd_right (gcd m n) k)))\n    (dvd_gcd\n      (dvd_gcd (gcd_dvd_left m (gcd n k)) ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_left n k)))\n      ((gcd_dvd_right m (gcd n k)).trans (gcd_dvd_right n k)))"],
+  "id":
+  {"name": "Multiset.gcd_cons",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\na : α\ns : Multiset α\n⊢ Eq (Multiset.cons a s).gcd (GCDMonoid.gcd a s.gcd)",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd := by sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.gcd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  gcd : α → α → α",
+    "compilationAlias": "  gcd : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_map_mul (a : α) (s : Multiset α) : (s.map (a * ·)).gcd = normalize a * s.gcd := by\n  refine s.induction_on ?_ fun b s ih ↦ ?_\n  · simp_rw [map_zero, gcd_zero, mul_zero]\n  · simp_rw [map_cons, gcd_cons, ← gcd_mul_left]\n    rw [ih]\n    apply ((normalize_associated a).mul_right _).gcd_eq_right",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem gcd_same [NormalizedGCDMonoid α] (a : α) : gcd a a = normalize a :=\n  gcd_eq_normalize (gcd_dvd_left _ _) (dvd_gcd (dvd_refl a) (dvd_refl a))",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem normalize_zero : normalize (0 : α) = 0 :=\n  normalize.map_zero"],
+  "id":
+  {"name": "Multiset.gcd_zero",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\n⊢ Eq (Multiset.gcd 0) 0",
+  "content_sorry":
+  "@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 := by sorry",
+  "annotation":
+  "@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).gcd = GCDMonoid.gcd a s.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem lcm_insert [DecidableEq β] {b : β} :\n    (insert b s : Finset β).lcm f = GCDMonoid.lcm (f b) (s.lcm f) := by\n  by_cases h : b ∈ s\n  · rw [insert_eq_of_mem h,\n      (lcm_eq_right_iff (f b) (s.lcm f) (Multiset.normalize_lcm (s.1.map f))).2 (dvd_lcm h)]\n  apply fold_insert h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem lcm_assoc [NormalizedGCDMonoid α] (m n k : α) : lcm (lcm m n) k = lcm m (lcm n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _)\n    (lcm_dvd (lcm_dvd (dvd_lcm_left _ _) ((dvd_lcm_left _ _).trans (dvd_lcm_right _ _)))\n      ((dvd_lcm_right _ _).trans (dvd_lcm_right _ _)))\n    (lcm_dvd ((dvd_lcm_left _ _).trans (dvd_lcm_left _ _))\n      (lcm_dvd ((dvd_lcm_right _ _).trans (dvd_lcm_left _ _)) (dvd_lcm_right _ _)))",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_def : s.lcm f = (s.1.map f).lcm :=\n  rfl"],
+  "id":
+  {"name": "Multiset.lcm_ndinsert",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\na : α\ns : Multiset α\n⊢ Eq (Multiset.ndinsert a s).lcm (GCDMonoid.lcm a s.lcm)",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    a : α\n    s : Multiset α\n    ⊢ Eq (Multiset.ndinsert a s).lcm (GCDMonoid.lcm a s.lcm)\n  -/\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    a : α\n    s : Multiset α\n    ⊢ ∀ (a_1 : α), Iff (Membership.mem (Multiset.ndinsert a s) a_1) (Membership.me …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.lcm",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  lcm : α → α → α",
+    "compilationAlias": "  lcm : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_union [DecidableEq β] : (s₁ ∪ s₂).lcm f = GCDMonoid.lcm (s₁.lcm f) (s₂.lcm f) :=\n  Finset.induction_on s₁ (by rw [empty_union, lcm_empty, lcm_one_left, normalize_lcm])\n    fun a s _ ih ↦ by rw [insert_union, lcm_insert, lcm_insert, ih, lcm_assoc]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/\n/- Porting note: Mathport seems to be replacing `Multiset.induction_on s $` with\n`(Multiset.induction_on s)`, when it should be `Multiset.induction_on s <|`. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem lcm_eq_of_associated_right [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    lcm k m = lcm k n :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _) (lcm_dvd_lcm dvd_rfl h.dvd)\n    (lcm_dvd_lcm dvd_rfl h.symm.dvd)"],
+  "id":
+  {"name": "Multiset.lcm_union",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\ns₁ s₂ : Multiset α\n⊢ Eq (Union.union s₁ s₂).lcm (GCDMonoid.lcm s₁.lcm s₂.lcm)",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ Eq (Union.union s₁ s₂).lcm (GCDMonoid.lcm s₁.lcm s₂.lcm)\n  -/\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ ∀ (a : α), Iff (Membership.mem (Union.union s₁ s₂) a) (Membership.mem (HAdd. …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.lcm",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  lcm : α → α → α",
+    "compilationAlias": "  lcm : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_union [DecidableEq β] : (s₁ ∪ s₂).lcm f = GCDMonoid.lcm (s₁.lcm f) (s₂.lcm f) :=\n  Finset.induction_on s₁ (by rw [empty_union, lcm_empty, lcm_one_left, normalize_lcm])\n    fun a s _ ih ↦ by rw [insert_union, lcm_insert, lcm_insert, ih, lcm_assoc]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd := by\n  rw [← gcd_dedup, dedup_ext.2, gcd_dedup, gcd_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_def : s.lcm f = (s.1.map f).lcm :=\n  rfl"],
+  "id":
+  {"name": "Multiset.lcm_ndunion",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\ns₁ s₂ : Multiset α\n⊢ Eq (s₁.ndunion s₂).lcm (GCDMonoid.lcm s₁.lcm s₂.lcm)",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ Eq (s₁.ndunion s₂).lcm (GCDMonoid.lcm s₁.lcm s₂.lcm)\n  -/\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  /-\n    α : Type u_1\n    inst✝² : CancelCommMonoidWithZero α\n    inst✝¹ : NormalizedGCDMonoid α\n    inst✝ : DecidableEq α\n    s₁ s₂ : Multiset α\n    ⊢ ∀ (a : α), Iff (Membership.mem (s₁.ndunion s₂) a) (Membership.mem (HAdd.hAdd …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.lcm",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  lcm : α → α → α",
+    "compilationAlias": "  lcm : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_dedup (s : Multiset α) : (dedup s).gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold gcd\n    rw [← cons_erase h, fold_cons_left, ← gcd_assoc, gcd_same]\n    apply (associated_normalize _).gcd_eq_left",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_def : s.lcm f = (s.1.map f).lcm :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Data.Multiset.Dedup\n@[simp]\ntheorem dedup_cons_of_not_mem {a : α} {s : Multiset α} : a ∉ s → dedup (a ::ₘ s) = a ::ₘ dedup s :=\n  Quot.induction_on s fun _ m => congr_arg ofList <| List.dedup_cons_of_not_mem m",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem lcm_eq_of_associated_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    lcm m k = lcm n k :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _) (lcm_dvd_lcm h.dvd dvd_rfl)\n    (lcm_dvd_lcm h.symm.dvd dvd_rfl)"],
+  "id":
+  {"name": "Multiset.lcm_dedup",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝² : CancelCommMonoidWithZero α\ninst✝¹ : NormalizedGCDMonoid α\ninst✝ : DecidableEq α\ns : Multiset α\n⊢ Eq s.dedup.lcm s.lcm",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n                              /-\n                                α : Type u_1\n                                inst✝² : CancelCommMonoidWithZero α\n                                inst✝¹ : NormalizedGCDMonoid α\n                                inst✝ : DecidableEq α\n                                s : Multiset α\n                                ⊢ Eq (Multiset.dedup 0).lcm (Multiset.lcm 0)\n                              -/\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n                              /-\n                                🎉 no goals\n                              -/\n    /-\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.lcm s.lcm\n      ⊢ Eq (Multiset.cons a s).dedup.lcm (Multiset.cons a s).lcm\n    -/\n    by_cases h : a ∈ s <;> simp [IH, h]\n                           /-\n                             🎉 no goals\n                           -/\n    /-\n      case pos\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.lcm s.lcm\n      h : Membership.mem s a\n      ⊢ Eq s.lcm (GCDMonoid.lcm a s.lcm)\n    -/\n    unfold lcm\n    /-\n      case pos\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.lcm s.lcm\n      h : Membership.mem s a\n      ⊢ Eq (Multiset.fold GCDMonoid.lcm 1 s) (GCDMonoid.lcm a (Multiset.fold GCDMono …\n    -/\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    /-\n      case pos\n      α : Type u_1\n      inst✝² : CancelCommMonoidWithZero α\n      inst✝¹ : NormalizedGCDMonoid α\n      inst✝ : DecidableEq α\n      s✝ : Multiset α\n      a : α\n      s : Multiset α\n      IH : Eq s.dedup.lcm s.lcm\n      h : Membership.mem s a\n      ⊢ Eq (GCDMonoid.lcm a (Multiset.fold GCDMonoid.lcm 1 (s.erase a))) (GCDMonoid. …\n    -/\n    apply lcm_eq_of_associated_left (associated_normalize _)\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "associated_normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem associated_normalize (x : α) : Associated x (normalize x) :=\n  ⟨_, rfl⟩",
+    "compilationAlias":
+    "theorem associated_normalize (x : α) : Associated x (normalize x) :=\n  ⟨_, rfl⟩"},
+   {"name": "lcm_eq_of_associated_left",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lcm_eq_of_associated_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    lcm m k = lcm n k :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _) (lcm_dvd_lcm h.dvd dvd_rfl)\n    (lcm_dvd_lcm h.symm.dvd dvd_rfl)",
+    "compilationAlias":
+    "theorem lcm_eq_of_associated_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    lcm m k = lcm n k :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _) (lcm_dvd_lcm h.dvd dvd_rfl)\n    (lcm_dvd_lcm h.symm.dvd dvd_rfl)"},
+   {"name": "lcm_same",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem lcm_same [NormalizedGCDMonoid α] (a : α) : lcm a a = normalize a :=\n  lcm_eq_normalize (lcm_dvd dvd_rfl dvd_rfl) (dvd_lcm_left _ _)",
+    "compilationAlias":
+    "@[simp]\ntheorem lcm_same [NormalizedGCDMonoid α] (a : α) : lcm a a = normalize a :=\n  lcm_eq_normalize (lcm_dvd dvd_rfl dvd_rfl) (dvd_lcm_left _ _)"},
+   {"name": "lcm_assoc",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lcm_assoc [NormalizedGCDMonoid α] (m n k : α) : lcm (lcm m n) k = lcm m (lcm n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _)\n    (lcm_dvd (lcm_dvd (dvd_lcm_left _ _) ((dvd_lcm_left _ _).trans (dvd_lcm_right _ _)))\n      ((dvd_lcm_right _ _).trans (dvd_lcm_right _ _)))\n    (lcm_dvd ((dvd_lcm_left _ _).trans (dvd_lcm_left _ _))\n      (lcm_dvd ((dvd_lcm_right _ _).trans (dvd_lcm_left _ _)) (dvd_lcm_right _ _)))",
+    "compilationAlias":
+    "theorem lcm_assoc [NormalizedGCDMonoid α] (m n k : α) : lcm (lcm m n) k = lcm m (lcm n k) :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _)\n    (lcm_dvd (lcm_dvd (dvd_lcm_left _ _) ((dvd_lcm_left _ _).trans (dvd_lcm_right _ _)))\n      ((dvd_lcm_right _ _).trans (dvd_lcm_right _ _)))\n    (lcm_dvd ((dvd_lcm_left _ _).trans (dvd_lcm_left _ _))\n      (lcm_dvd ((dvd_lcm_right _ _).trans (dvd_lcm_left _ _)) (dvd_lcm_right _ _)))"},
+   {"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_eq_zero_iff [Nontrivial α] : s.lcm f = 0 ↔ 0 ∈ f '' s := by\n  simp only [Multiset.mem_map, lcm_def, Multiset.lcm_eq_zero_iff, Set.mem_image, mem_coe, ←\n    Finset.mem_def]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_def : s.lcm f = (s.1.map f).lcm :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem lcm_singleton {b : β} : ({b} : Finset β).lcm f = normalize (f b) :=\n  Multiset.lcm_singleton\n-- Porting note: Priority changed for `simpNF`",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/\n/- Porting note: Mathport seems to be replacing `Multiset.induction_on s $` with\n`(Multiset.induction_on s)`, when it should be `Multiset.induction_on s <|`. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem lcm_empty : (∅ : Finset β).lcm f = 1 :=\n  fold_empty"],
+  "id":
+  {"name": "Multiset.lcm_eq_zero_iff",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]\n\n",
+   "compilationAlias":
+   "@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]\n\n"},
+  "goal": "α : Type u_1\na : α\n⊢ Eq (Membership.mem 0 a) False",
+  "content_sorry":
+  "@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  sorry",
+  "annotation":
+  "@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "eq_comm",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem eq_comm {a b : α} : a = b ↔ b = a := Eq.comm",
+    "compilationAlias": "theorem eq_comm {a b : α} : a = b ↔ b = a := Eq.comm"},
+   {"name": "lcm_eq_zero_iff",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem lcm_eq_zero_iff [GCDMonoid α] (a b : α) : lcm a b = 0 ↔ a = 0 ∨ b = 0 :=\n  Iff.intro\n    (fun h : lcm a b = 0 => by\n      have : Associated (a * b) 0 := (gcd_mul_lcm a b).symm.trans <| by rw [h, mul_zero]\n      rwa [← mul_eq_zero, ← associated_zero_iff_eq_zero])\n    (by rintro (rfl | rfl) <;> [apply lcm_zero_left; apply lcm_zero_right])",
+    "compilationAlias":
+    "@[simp]\ntheorem lcm_eq_zero_iff [GCDMonoid α] (a b : α) : lcm a b = 0 ↔ a = 0 ∨ b = 0 :=\n  Iff.intro\n    (fun h : lcm a b = 0 => by\n      have : Associated (a * b) 0 := (gcd_mul_lcm a b).symm.trans <| by rw [h, mul_zero]\n      rwa [← mul_eq_zero, ← associated_zero_iff_eq_zero])\n    (by rintro (rfl | rfl) <;> [apply lcm_zero_left; apply lcm_zero_right])"},
+   {"name": "one_ne_zero",
+    "module": "Mathlib.Algebra.NeZero",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma one_ne_zero [One α] [NeZero (1 : α)] : (1 : α) ≠ 0 := NeZero.ne (1 : α)",
+    "compilationAlias":
+    "@[simp] lemma one_ne_zero [One α] [NeZero (1 : α)] : (1 : α) ≠ 0 := NeZero.ne (1 : α)"},
+   {"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "lcm_eq_zero_iff",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem lcm_eq_zero_iff [GCDMonoid α] (a b : α) : lcm a b = 0 ↔ a = 0 ∨ b = 0 :=\n  Iff.intro\n    (fun h : lcm a b = 0 => by\n      have : Associated (a * b) 0 := (gcd_mul_lcm a b).symm.trans <| by rw [h, mul_zero]\n      rwa [← mul_eq_zero, ← associated_zero_iff_eq_zero])\n    (by rintro (rfl | rfl) <;> [apply lcm_zero_left; apply lcm_zero_right])",
+    "compilationAlias":
+    "@[simp]\ntheorem lcm_eq_zero_iff [GCDMonoid α] (a b : α) : lcm a b = 0 ↔ a = 0 ∨ b = 0 :=\n  Iff.intro\n    (fun h : lcm a b = 0 => by\n      have : Associated (a * b) 0 := (gcd_mul_lcm a b).symm.trans <| by rw [h, mul_zero]\n      rwa [← mul_eq_zero, ← associated_zero_iff_eq_zero])\n    (by rintro (rfl | rfl) <;> [apply lcm_zero_left; apply lcm_zero_right])"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem lcm_one_left [NormalizedGCDMonoid α] (a : α) : lcm 1 a = normalize a :=\n  lcm_units_coe_left 1 a",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp 1100]\ntheorem normalize_lcm : normalize (s.lcm f) = s.lcm f := by simp [lcm_def]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_gcd (s : Multiset α) : normalize s.gcd = s.gcd :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp"],
+  "id":
+  {"name": "Multiset.normalize_lcm",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\n⊢ Eq (normalize s.lcm) s.lcm",
+  "content_sorry":
+  "@[simp]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by sorry",
+  "annotation":
+  "@[simp]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n                              /-\n                                α : Type u_1\n                                inst✝¹ : CancelCommMonoidWithZero α\n                                inst✝ : NormalizedGCDMonoid α\n                                s : Multiset α\n                                ⊢ Eq (normalize (Multiset.lcm 0)) (Multiset.lcm 0)\n                              -/\n                              /-\n                                🎉 no goals\n                              -/\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp\n                                                   /-\n                                                     🎉 no goals\n                                                   -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]",
+    "compilationAlias":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "normalize_lcm",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem normalize_lcm [NormalizedGCDMonoid α] (a b : α) : normalize (lcm a b) = lcm a b :=\n  NormalizedGCDMonoid.normalize_lcm a b",
+    "compilationAlias":
+    "@[simp]\ntheorem normalize_lcm [NormalizedGCDMonoid α] (a b : α) : normalize (lcm a b) = lcm a b :=\n  NormalizedGCDMonoid.normalize_lcm a b"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/\n/- Porting note: Mathport seems to be replacing `Multiset.induction_on s $` with\n`(Multiset.induction_on s)`, when it should be `Multiset.induction_on s <|`. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₂.gcd ∣ s₁.gcd :=\n  dvd_gcd.2 fun _ hb ↦ gcd_dvd (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_mono (h : s₁ ⊆ s₂) : s₁.lcm f ∣ s₂.lcm f :=\n  lcm_dvd fun _ hb ↦ dvd_lcm (h hb)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Commutative (α := α) lcm where\n  comm := lcm_comm"],
+  "id":
+  {"name": "Multiset.lcm_mono",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n\n",
+   "compilationAlias":
+   "theorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns₁ s₂ : Multiset α\nh : HasSubset.Subset s₁ s₂\n⊢ Dvd.dvd s₁.lcm s₂.lcm",
+  "content_sorry":
+  "theorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm := by sorry",
+  "annotation":
+  "theorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "lcm_dvd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lcm_dvd [GCDMonoid α] {a b c : α} (hab : a ∣ b) (hcb : c ∣ b) : lcm a c ∣ b :=\n  lcm_dvd_iff.2 ⟨hab, hcb⟩",
+    "compilationAlias":
+    "theorem lcm_dvd [GCDMonoid α] {a b c : α} (hab : a ∣ b) (hcb : c ∣ b) : lcm a c ∣ b :=\n  lcm_dvd_iff.2 ⟨hab, hcb⟩"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/\n/- Porting note: Mathport seems to be replacing `Multiset.induction_on s $` with\n`(Multiset.induction_on s)`, when it should be `Multiset.induction_on s <|`. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem dvd_lcm {b : β} (hb : b ∈ s) : f b ∣ s.lcm f :=\n  lcm_dvd_iff.1 dvd_rfl _ hb",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_def : s.lcm f = (s.1.map f).lcm :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Commutative (α := α) lcm where\n  comm := lcm_comm"],
+  "id":
+  {"name": "Multiset.dvd_lcm",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h\n\n",
+   "compilationAlias":
+   "theorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns : Multiset α\na : α\nh : Membership.mem s a\n⊢ Dvd.dvd a s.lcm",
+  "content_sorry":
+  "theorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm := by sorry",
+  "annotation":
+  "theorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "dvd_rfl",
+    "module": "Mathlib.Algebra.Divisibility.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem dvd_rfl : ∀ {a : α}, a ∣ a := fun {a} => dvd_refl a",
+    "compilationAlias":
+    "theorem dvd_rfl : ∀ {a : α}, a ∣ a := fun {a} => dvd_refl a"},
+   {"name": "lcm_dvd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lcm_dvd [GCDMonoid α] {a b c : α} (hab : a ∣ b) (hcb : c ∣ b) : lcm a c ∣ b :=\n  lcm_dvd_iff.2 ⟨hab, hcb⟩",
+    "compilationAlias":
+    "theorem lcm_dvd [GCDMonoid α] {a b c : α} (hab : a ∣ b) (hcb : c ∣ b) : lcm a c ∣ b :=\n  lcm_dvd_iff.2 ⟨hab, hcb⟩"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_gcd {s : Multiset α} {a : α} : a ∣ s.gcd ↔ ∀ b ∈ s, a ∣ b :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, dvd_gcd_iff])",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_dvd {s : Multiset α} {a : α} (h : a ∈ s) : s.gcd ∣ a :=\n  dvd_gcd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem lcm_mono {s₁ s₂ : Multiset α} (h : s₁ ⊆ s₂) : s₁.lcm ∣ s₂.lcm :=\n  lcm_dvd.2 fun _ hb ↦ dvd_lcm (h hb)\n/- Porting note: Following `Algebra.GCDMonoid.Basic`'s version of `normalize_gcd`, I'm giving\nthis lower priority to avoid linter complaints about simp-normal form -/\n/- Porting note: Mathport seems to be replacing `Multiset.induction_on s $` with\n`(Multiset.induction_on s)`, when it should be `Multiset.induction_on s <|`. -/",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_dvd {a : α} : (∀ b ∈ s, f b ∣ a) → s.lcm f ∣ a :=\n  lcm_dvd_iff.2",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\ntheorem lcm_def : s.lcm f = (s.1.map f).lcm :=\n  rfl",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem gcd_eq_zero_iff (s : Multiset α) : s.gcd = 0 ↔ ∀ x : α, x ∈ s → x = 0 := by\n  constructor\n  · intro h x hx\n    apply eq_zero_of_zero_dvd\n    rw [← h]\n    apply gcd_dvd hx\n  · refine s.induction_on ?_ ?_\n    · simp\n    intro a s sgcd h\n    simp [h a (mem_cons_self a s), sgcd fun x hx ↦ h x (mem_cons_of_mem hx)]"],
+  "id":
+  {"name": "Multiset.lcm_dvd",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])\n\n",
+   "compilationAlias":
+   "theorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by simp)\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])\n\n"},
+  "goal": "a b c : Prop\n⊢ Eq (Or a b → c) (And (a → c) (b → c))",
+  "content_sorry":
+  "theorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n  Multiset.induction_on s (by sorry",
+  "annotation":
+  "theorem lcm_dvd {s : Multiset α} {a : α} : s.lcm ∣ a ↔ ∀ b ∈ s, b ∣ a :=\n                              /-\n                                α : Type u_1\n                                inst✝¹ : CancelCommMonoidWithZero α\n                                inst✝ : NormalizedGCDMonoid α\n                                s : Multiset α\n                                a : α\n                                ⊢ Iff (Dvd.dvd (Multiset.lcm 0) a) (∀ (b : α), Membership.mem 0 b → Dvd.dvd b a)\n                              -/\n  Multiset.induction_on s (by simp)\n                              /-\n                                🎉 no goals\n                              -/\n        /-\n          α : Type u_1\n          inst✝¹ : CancelCommMonoidWithZero α\n          inst✝ : NormalizedGCDMonoid α\n          s : Multiset α\n          a : α\n          ⊢ ∀ (a_1 : α) (s : Multiset α), Iff (Dvd.dvd s.lcm a) (∀ (b : α), Membership.m …\n        -/\n    (by simp +contextual [or_imp, forall_and, lcm_dvd_iff])\n        /-\n          🎉 no goals\n        -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "lcm_dvd_iff",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lcm_dvd_iff [GCDMonoid α] {a b c : α} : lcm a b ∣ c ↔ a ∣ c ∧ b ∣ c := by\n  by_cases h : a = 0 ∨ b = 0\n  · rcases h with (rfl | rfl) <;>\n      simp +contextual only [iff_def, lcm_zero_left, lcm_zero_right,\n        zero_dvd_iff, dvd_zero, eq_self_iff_true, and_true, imp_true_iff]\n  · obtain ⟨h1, h2⟩ := not_or.1 h\n    have h : gcd a b ≠ 0 := fun H => h1 ((gcd_eq_zero_iff _ _).1 H).1\n    rw [← mul_dvd_mul_iff_left h, (gcd_mul_lcm a b).dvd_iff_dvd_left, ←\n      (gcd_mul_right' c a b).dvd_iff_dvd_right, dvd_gcd_iff, mul_comm b c, mul_dvd_mul_iff_left h1,\n      mul_dvd_mul_iff_right h2, and_comm]",
+    "compilationAlias":
+    "theorem lcm_dvd_iff [GCDMonoid α] {a b c : α} : lcm a b ∣ c ↔ a ∣ c ∧ b ∣ c := by\n  by_cases h : a = 0 ∨ b = 0\n  · rcases h with (rfl | rfl) <;>\n      simp +contextual only [iff_def, lcm_zero_left, lcm_zero_right,\n        zero_dvd_iff, dvd_zero, eq_self_iff_true, and_true, imp_true_iff]\n  · obtain ⟨h1, h2⟩ := not_or.1 h\n    have h : gcd a b ≠ 0 := fun H => h1 ((gcd_eq_zero_iff _ _).1 H).1\n    rw [← mul_dvd_mul_iff_left h, (gcd_mul_lcm a b).dvd_iff_dvd_left, ←\n      (gcd_mul_right' c a b).dvd_iff_dvd_right, dvd_gcd_iff, mul_comm b c, mul_dvd_mul_iff_left h1,\n      mul_dvd_mul_iff_right h2, and_comm]"},
+   {"name": "forall_and",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem forall_and : (∀ x, p x ∧ q x) ↔ (∀ x, p x) ∧ (∀ x, q x) :=\n  ⟨fun h => ⟨fun x => (h x).1, fun x => (h x).2⟩, fun ⟨h₁, h₂⟩ x => ⟨h₁ x, h₂ x⟩⟩",
+    "compilationAlias":
+    "theorem forall_and : (∀ x, p x ∧ q x) ↔ (∀ x, p x) ∧ (∀ x, q x) :=\n  ⟨fun h => ⟨fun x => (h x).1, fun x => (h x).2⟩, fun ⟨h₁, h₂⟩ x => ⟨h₁ x, h₂ x⟩⟩"},
+   {"name": "or_imp",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem or_imp : (a ∨ b → c) ↔ (a → c) ∧ (b → c) :=\n  Iff.intro (fun h => ⟨h ∘ .inl, h ∘ .inr⟩) (fun ⟨ha, hb⟩ => Or.rec ha hb)",
+    "compilationAlias":
+    "theorem or_imp : (a ∨ b → c) ↔ (a → c) ∧ (b → c) :=\n  Iff.intro (fun h => ⟨h ∘ .inl, h ∘ .inr⟩) (fun ⟨ha, hb⟩ => Or.rec ha hb)"},
+   {"name": "Multiset.induction_on",
+    "module": "Mathlib.Data.Multiset.ZeroCons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction_on {p : Multiset α → Prop} (s : Multiset α) (empty : p 0)\n    (cons : ∀ (a : α) (s : Multiset α), p s → p (a ::ₘ s)) : p s :=\n  Multiset.induction empty cons s"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"},
+   {"name": "lcm_dvd",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lcm_dvd [GCDMonoid α] {a b c : α} (hab : a ∣ b) (hcb : c ∣ b) : lcm a c ∣ b :=\n  lcm_dvd_iff.2 ⟨hab, hcb⟩",
+    "compilationAlias":
+    "theorem lcm_dvd [GCDMonoid α] {a b c : α} (hab : a ∣ b) (hcb : c ∣ b) : lcm a c ∣ b :=\n  lcm_dvd_iff.2 ⟨hab, hcb⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndunion (s₁ s₂ : Multiset α) : (ndunion s₁ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_add (s₁ s₂ : Multiset α) : (s₁ + s₂).gcd = GCDMonoid.gcd s₁.gcd s₂.gcd :=\n  Eq.trans (by simp [gcd]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem lcm_eq_of_associated_left [NormalizedGCDMonoid α] {m n : α} (h : Associated m n) (k : α) :\n    lcm m k = lcm n k :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _) (lcm_dvd_lcm h.dvd dvd_rfl)\n    (lcm_dvd_lcm h.symm.dvd dvd_rfl)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Associative (α := α) lcm where\n  assoc := lcm_assoc",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem lcm_same [NormalizedGCDMonoid α] (a : α) : lcm a a = normalize a :=\n  lcm_eq_normalize (lcm_dvd dvd_rfl dvd_rfl) (dvd_lcm_left _ _)"],
+  "id":
+  {"name": "Multiset.lcm_add",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\ns₁ s₂ : Multiset α\n⊢ Eq (HAdd.hAdd s₁ s₂).lcm (GCDMonoid.lcm s₁.lcm s₂.lcm)",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n               /-\n                 α : Type u_1\n                 inst✝¹ : CancelCommMonoidWithZero α\n                 inst✝ : NormalizedGCDMonoid α\n                 s₁ s₂ : Multiset α\n                 ⊢ Eq (HAdd.hAdd s₁ s₂).lcm (Multiset.fold GCDMonoid.lcm (GCDMonoid.lcm 1 1) (H …\n               -/\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)\n               /-\n                 🎉 no goals\n               -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Eq.trans",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nEquality is transitive: if `a = b` and `b = c` then `a = c`.\n\nBecause this is in the `Eq` namespace, if you have variables or expressions\n`h₁ : a = b` and `h₂ : b = c`, you can use `h₁.trans h₂ : a = c` as shorthand\nfor `Eq.trans h₁ h₂`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem Eq.trans {α : Sort u} {a b c : α} (h₁ : Eq a b) (h₂ : Eq b c) : Eq a c :=\n  h₂ ▸ h₁",
+    "compilationAlias":
+    "/--\nEquality is transitive: if `a = b` and `b = c` then `a = c`.\n\nBecause this is in the `Eq` namespace, if you have variables or expressions\n`h₁ : a = b` and `h₂ : b = c`, you can use `h₁.trans h₂ : a = c` as shorthand\nfor `Eq.trans h₁ h₂`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem Eq.trans {α : Sort u} {a b c : α} (h₁ : Eq a b) (h₂ : Eq b c) : Eq a c :=\n  h₂ ▸ h₁"},
+   {"name": "GCDMonoid.lcm",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  lcm : α → α → α",
+    "compilationAlias": "  lcm : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem lcm_singleton {b : β} : ({b} : Finset β).lcm f = normalize (f b) :=\n  Multiset.lcm_singleton\n-- Porting note: Priority changed for `simpNF`",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem lcm_same [NormalizedGCDMonoid α] (a : α) : lcm a a = normalize a :=\n  lcm_eq_normalize (lcm_dvd dvd_rfl dvd_rfl) (dvd_lcm_left _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem lcm_one_left [NormalizedGCDMonoid α] (a : α) : lcm 1 a = normalize a :=\n  lcm_units_coe_left 1 a",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_singleton {a : α} : ({a} : Multiset α).gcd = normalize a :=\n  (fold_singleton _ _ _).trans <| gcd_zero_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp 1100]\ntheorem normalize_lcm : normalize (s.lcm f) = s.lcm f := by simp [lcm_def]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem lcm_empty : (∅ : Finset β).lcm f = 1 :=\n  fold_empty",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Associative (α := α) lcm where\n  assoc := lcm_assoc"],
+  "id":
+  {"name": "Multiset.lcm_singleton",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\na : α\n⊢ Eq (Singleton.singleton a).lcm (normalize a)",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a := by sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "lcm_one_right",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem lcm_one_right [NormalizedGCDMonoid α] (a : α) : lcm a 1 = normalize a :=\n  lcm_units_coe_right a 1",
+    "compilationAlias":
+    "@[simp]\ntheorem lcm_one_right [NormalizedGCDMonoid α] (a : α) : lcm a 1 = normalize a :=\n  lcm_units_coe_right a 1"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"},
+   {"name": "normalize",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]",
+    "compilationAlias":
+    "/-- Chooses an element of each associate class, by multiplying by `normUnit` -/\ndef normalize : α →*₀ α where\n  toFun x := x * normUnit x\n  map_zero' := by\n    simp only [normUnit_zero]\n    exact mul_one (0 : α)\n  map_one' := by dsimp only; rw [normUnit_one, one_mul]; rfl\n  map_mul' x y :=\n    (by_cases fun hx : x = 0 => by dsimp only; rw [hx, zero_mul, zero_mul, zero_mul]) fun hx =>\n      (by_cases fun hy : y = 0 => by dsimp only; rw [hy, mul_zero, zero_mul, mul_zero]) fun hy => by\n        simp only [normUnit_mul hx hy, Units.val_mul]; simp only [mul_assoc, mul_left_comm y]"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_ndinsert (a : α) (s : Multiset α) : (ndinsert a s).lcm = GCDMonoid.lcm a s.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_cons]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_cons (a : α) (s : Multiset α) : (a ::ₘ s).gcd = GCDMonoid.gcd a s.gcd :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ntheorem lcm_comm [NormalizedGCDMonoid α] (a b : α) : lcm a b = lcm b a :=\n  dvd_antisymm_of_normalize_eq (normalize_lcm _ _) (normalize_lcm _ _)\n    (lcm_dvd (dvd_lcm_right _ _) (dvd_lcm_left _ _))\n    (lcm_dvd (dvd_lcm_right _ _) (dvd_lcm_left _ _))",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_dedup (s : Multiset α) : (dedup s).lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s IH ↦ by\n    by_cases h : a ∈ s <;> simp [IH, h]\n    unfold lcm\n    rw [← cons_erase h, fold_cons_left, ← lcm_assoc, lcm_same]\n    apply lcm_eq_of_associated_left (associated_normalize _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_union (s₁ s₂ : Multiset α) : (s₁ ∪ s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm := by\n  rw [← lcm_dedup, dedup_ext.2, lcm_dedup, lcm_add]\n  simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\ninstance [NormalizedGCDMonoid α] : Std.Commutative (α := α) lcm where\n  comm := lcm_comm"],
+  "id":
+  {"name": "Multiset.lcm_cons",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\na : α\ns : Multiset α\n⊢ Eq (Multiset.cons a s).lcm (GCDMonoid.lcm a s.lcm)",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm := by sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "GCDMonoid.lcm",
+    "module": "Mathlib.Algebra.GCDMonoid.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  lcm : α → α → α",
+    "compilationAlias": "  lcm : α → α → α"},
+   {"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp 1100]\ntheorem normalize_lcm (s : Multiset α) : normalize s.lcm = s.lcm :=\n  Multiset.induction_on s (by simp) fun a s _ ↦ by simp",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_cons (a : α) (s : Multiset α) : (a ::ₘ s).lcm = GCDMonoid.lcm a s.lcm :=\n  fold_cons_left _ _ _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Basic\n@[simp]\ntheorem lcm_one_left [NormalizedGCDMonoid α] (a : α) : lcm 1 a = normalize a :=\n  lcm_units_coe_left 1 a",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_add (s₁ s₂ : Multiset α) : (s₁ + s₂).lcm = GCDMonoid.lcm s₁.lcm s₂.lcm :=\n  Eq.trans (by simp [lcm]) (fold_add _ _ _ _ _)",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\nnonrec theorem lcm_eq_zero_iff [Nontrivial α] (s : Multiset α) : s.lcm = 0 ↔ (0 : α) ∈ s := by\n  induction s using Multiset.induction_on with\n  | empty => simp only [lcm_zero, one_ne_zero, not_mem_zero]\n  | cons a s ihs => simp only [mem_cons, lcm_cons, lcm_eq_zero_iff, ihs, @eq_comm _ a]",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem lcm_singleton {a : α} : ({a} : Multiset α).lcm = normalize a :=\n  (fold_singleton _ _ _).trans <| lcm_one_right _",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\ntheorem dvd_lcm {s : Multiset α} {a : α} (h : a ∈ s) : a ∣ s.lcm :=\n  lcm_dvd.1 dvd_rfl _ h",
+   "--src: Mathlib.Algebra.GCDMonoid.Multiset\n@[simp]\ntheorem gcd_zero : (0 : Multiset α).gcd = 0 :=\n  fold_zero _ _",
+   "--src: Mathlib.Algebra.GCDMonoid.Finset\n@[simp]\ntheorem lcm_empty : (∅ : Finset β).lcm f = 1 :=\n  fold_empty"],
+  "id":
+  {"name": "Multiset.lcm_zero",
+   "module": "Mathlib.Algebra.GCDMonoid.Multiset",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _\n\n",
+   "compilationAlias":
+   "@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝¹ : CancelCommMonoidWithZero α\ninst✝ : NormalizedGCDMonoid α\n⊢ Eq (Multiset.lcm 0) 1",
+  "content_sorry":
+  "@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 := by sorry",
+  "annotation":
+  "@[simp]\ntheorem lcm_zero : (0 : Multiset α).lcm = 1 :=\n  fold_zero _ _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Multiset",
+    "module": "Mathlib.Data.Multiset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)",
+    "compilationAlias":
+    "/-- `Multiset α` is the quotient of `List α` by list permutation. The result\n  is a type of finite sets with duplicates allowed. -/\ndef Multiset.{u} (α : Type u) : Type u :=\n  Quotient (List.isSetoid α)"}]}]

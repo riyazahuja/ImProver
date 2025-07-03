@@ -1,0 +1,170 @@
+[{"rag":
+  ["--src: Mathlib.FieldTheory.KrullTopology\n/-- Let `L/E/K` be a tower of fields with `E/K` finite. Then `Gal(L/E)` is an open subgroup of\n  `L ≃ₐ[K] L`. -/\ntheorem IntermediateField.fixingSubgroup_isOpen {K L : Type*} [Field K] [Field L] [Algebra K L]\n    (E : IntermediateField K L) [FiniteDimensional K E] :\n    IsOpen (E.fixingSubgroup : Set (L ≃ₐ[K] L)) := by\n  have h_basis : E.fixingSubgroup.carrier ∈ galGroupBasis K L :=\n    ⟨E.fixingSubgroup, ⟨E, ‹_›, rfl⟩, rfl⟩\n  have h_nhd := GroupFilterBasis.mem_nhds_one (galGroupBasis K L) h_basis\n  exact Subgroup.isOpen_of_mem_nhds _ h_nhd",
+   "--src: Mathlib.Topology.Algebra.OpenSubgroup\n@[to_additive]\nlemma quotient_finite_of_isOpen [ContinuousMul G] [CompactSpace G] (U : Subgroup G)\n    (h : IsOpen (U : Set G)) : Finite (G ⧸ U) :=\n  have : DiscreteTopology (G ⧸ U) := U.discreteTopology h\n  finite_of_compact_of_discrete",
+   "--src: Mathlib.FieldTheory.SeparableClosure\ninstance instNeZeroFinInsepDegree [FiniteDimensional F E] :\n    NeZero (finInsepDegree F E) := ⟨finrank_pos.ne'⟩",
+   "--src: Mathlib.FieldTheory.NormalClosure\n@[stacks 0BMG \"When `L` is normal over `K`, this agrees with 0BMG (1) finiteness.\"]\ninstance is_finiteDimensional [FiniteDimensional F K] :\n    FiniteDimensional F (normalClosure F K L) := by\n  haveI : ∀ f : K →ₐ[F] L, FiniteDimensional F f.fieldRange := fun f ↦\n    f.toLinearMap.finiteDimensional_range\n  apply IntermediateField.finiteDimensional_iSup_of_finite",
+   "--src: Mathlib.FieldTheory.Galois.Infinite\nlemma fixingSubgroup_isClosed (L : IntermediateField k K) [IsGalois k K] :\n    IsClosed (L.fixingSubgroup : Set (K ≃ₐ[k] K)) where\n    isOpen_compl := isOpen_iff_mem_nhds.mpr fun σ h => by\n      apply mem_nhds_iff.mpr\n      rcases Set.not_subset.mp ((mem_fixingSubgroup_iff (K ≃ₐ[k] K)).not.mp h) with ⟨y, yL, ne⟩\n      use σ • ((adjoin k {y}).1.fixingSubgroup : Set (K ≃ₐ[k] K))\n      constructor\n      · intro f hf\n        rcases (Set.mem_smul_set.mp hf) with ⟨g, hg, eq⟩\n        simp only [Set.mem_compl_iff, SetLike.mem_coe, ← eq]\n        apply (mem_fixingSubgroup_iff (K ≃ₐ[k] K)).not.mpr\n        push_neg\n        use y\n        simp only [yL, smul_eq_mul, AlgEquiv.smul_def, AlgEquiv.mul_apply, ne_eq, true_and]\n        have : g y = y := (mem_fixingSubgroup_iff (K ≃ₐ[k] K)).mp hg y <|\n          adjoin_simple_le_iff.mp le_rfl\n        simpa only [this, ne_eq, AlgEquiv.smul_def] using ne\n      · simp only [(IntermediateField.fixingSubgroup_isOpen (adjoin k {y}).1).smul σ, true_and]\n        use 1\n        simp only [SetLike.mem_coe, smul_eq_mul, mul_one, and_true, Subgroup.one_mem]",
+   "--src: Mathlib.FieldTheory.KrullTopology\ninstance krullTopology_discreteTopology_of_finiteDimensional (K L : Type) [Field K] [Field L]\n    [Algebra K L] [FiniteDimensional K L] : DiscreteTopology (L ≃ₐ[K] L) := by\n  rw [discreteTopology_iff_isOpen_singleton_one]\n  change IsOpen ((⊥ : Subgroup (L ≃ₐ[K] L)) : Set (L ≃ₐ[K] L))\n  rw [← IntermediateField.fixingSubgroup_top]\n  exact IntermediateField.fixingSubgroup_isOpen ⊤",
+   "--src: Mathlib.RingTheory.Algebraic.Integral\ntheorem AlgHom.bijective [FiniteDimensional K L] (ϕ : L →ₐ[K] L) : Function.Bijective ϕ :=\n  (Algebra.IsAlgebraic.of_finite K L).algHom_bijective ϕ",
+   "--src: Mathlib.Algebra.Central.Basic\nlemma baseField_essentially_unique\n    (k K D : Type*) [Field k] [Field K] [Ring D] [Nontrivial D]\n    [Algebra k K] [Algebra K D] [Algebra k D] [IsScalarTower k K D]\n    [IsCentral k D] :\n    Function.Bijective (algebraMap k K) := by\n  haveI : IsCentral K D :=\n  { out := fun x ↦ show x ∈ Subalgebra.center k D → _ by\n      simp only [center_eq_bot, mem_bot, Set.mem_range, forall_exists_index]\n      rintro x rfl\n      exact  ⟨algebraMap k K x, by simp [algebraMap_eq_smul_one, smul_assoc]⟩ }\n  refine ⟨NoZeroSMulDivisors.algebraMap_injective k K, fun x => ?_⟩\n  have H : algebraMap K D x ∈ (Subalgebra.center K D : Set D) := Subalgebra.algebraMap_mem _ _\n  rw [show (Subalgebra.center K D : Set D) = Subalgebra.center k D by rfl] at H\n  simp only [center_eq_bot, coe_bot, Set.mem_range] at H\n  obtain ⟨x', H⟩ := H\n  exact ⟨x', (algebraMap K D).injective <| by simp [← H, algebraMap_eq_smul_one]⟩",
+   "--src: Mathlib.LinearAlgebra.FiniteDimensional.Defs\ntheorem trans [FiniteDimensional F K] [FiniteDimensional K A] : FiniteDimensional F A :=\n  Module.Finite.trans K A",
+   "--src: Mathlib.Topology.Algebra.ClosedSubgroup\n@[to_additive]\nlemma isOpen_of_isClosed_of_finiteIndex (H : Subgroup G) [H.FiniteIndex]\n    (h : IsClosed (H : Set G)) : IsOpen (H : Set G) := by\n  apply isClosed_compl_iff.mp\n  convert isClosed_iUnion_of_finite <| fun (x : {x : (G ⧸ H) // x ≠ QuotientGroup.mk 1})\n    ↦ IsClosed.smul h (Quotient.out x.1)\n  ext x\n  refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n  · have : QuotientGroup.mk 1 ≠ QuotientGroup.mk (s := H) x := by\n      apply QuotientGroup.eq.not.mpr\n      simpa only [inv_one, one_mul, ne_eq]\n    simp only [ne_eq, Set.mem_iUnion]\n    use ⟨QuotientGroup.mk (s := H) x, this.symm⟩,\n      (Quotient.out (QuotientGroup.mk (s := H) x))⁻¹ * x\n    simp only [SetLike.mem_coe, smul_eq_mul, mul_inv_cancel_left, and_true]\n    exact QuotientGroup.eq.mp <| QuotientGroup.out_eq' (QuotientGroup.mk (s := H) x)\n  · rcases h with ⟨S,⟨y,hS⟩,mem⟩\n    simp only [← hS] at mem\n    rcases mem with ⟨h,hh,eq⟩\n    simp only [Set.mem_compl_iff, SetLike.mem_coe]\n    by_contra mH\n    simp only [← eq, ne_eq, smul_eq_mul] at mH\n    absurd y.2.symm\n    rw [← QuotientGroup.out_eq' y.1, QuotientGroup.eq]\n    simp only [inv_one, ne_eq, one_mul, (Subgroup.mul_mem_cancel_right H hh).mp mH]"],
+  "id":
+  {"name": "DivisionAlgebra.finiteDoubleCoset",
+   "module": "FLT.DivisionAlgebra.Finiteness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem DivisionAlgebra.finiteDoubleCoset\n    {U : Subgroup (Dfx K D)} (hU : IsOpen (U : Set (Dfx K D))) :\n    Finite (Doset.Quotient (Set.range (incl₁ K D)) U) :=\n  sorry\n",
+   "compilationAlias":
+   "theorem DivisionAlgebra.finiteDoubleCoset\n    {U : Subgroup (Dfx K D)} (hU : IsOpen (U : Set (Dfx K D))) :\n    Finite (Doset.Quotient (Set.range (incl₁ K D)) U) :=\n  sorry\n"},
+  "goal":
+  "K : Type u_1\ninst✝⁵ : Field K\ninst✝⁴ : NumberField K\nD : Type u_2\ninst✝³ : DivisionRing D\ninst✝² : Algebra K D\ninst✝¹ : FiniteDimensional K D\ninst✝ : Algebra.IsCentral K D\nU : Subgroup (Dfx K D)\nhU : IsOpen ↑U\n⊢ Finite (Doset.Quotient (Set.range ⇑(incl₁ K D)) ↑U)",
+  "content_sorry":
+  "theorem DivisionAlgebra.finiteDoubleCoset\n    {U : Subgroup (Dfx K D)} (hU : IsOpen (U : Set (Dfx K D))) :\n    Finite (Doset.Quotient (Set.range (incl₁ K D)) U) := by sorry",
+  "annotation":
+  "theorem DivisionAlgebra.finiteDoubleCoset\n    {U : Subgroup (Dfx K D)} (hU : IsOpen (U : Set (Dfx K D))) :\n    Finite (Doset.Quotient (Set.range (incl₁ K D)) U) :=\n  sorry\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set.range",
+    "module": "Mathlib.Data.Set.Operations",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Range of a function.\n\nThis function is more flexible than `f '' univ`, as the image requires that the domain is in Type\nand not an arbitrary Sort. -/\ndef range (f : ι → α) : Set α := {x | ∃ y, f y = x}",
+    "compilationAlias":
+    "/-- Range of a function.\n\nThis function is more flexible than `f '' univ`, as the image requires that the domain is in Type\nand not an arbitrary Sort. -/\ndef range (f : ι → α) : Set α := {x | ∃ y, f y = x}"},
+   {"name": "Doset.Quotient",
+    "module": "Mathlib.GroupTheory.DoubleCoset",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Quotient of `G` by the double coset relation, i.e. `H \\ G / K` -/\ndef Quotient (H K : Set G) : Type _ :=\n  _root_.Quotient (setoid H K)",
+    "compilationAlias":
+    "/-- Quotient of `G` by the double coset relation, i.e. `H \\ G / K` -/\ndef Quotient (H K : Set G) : Type _ :=\n  _root_.Quotient (setoid H K)"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "IsOpen",
+    "module": "Mathlib.Topology.Defs.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `IsOpen s` means that `s` is open in the ambient topological space on `X` -/\ndef IsOpen : Set X → Prop := TopologicalSpace.IsOpen",
+    "compilationAlias":
+    "/-- `IsOpen s` means that `s` is open in the ambient topological space on `X` -/\ndef IsOpen : Set X → Prop := TopologicalSpace.IsOpen"}]},
+ {"rag":
+  ["--src: Mathlib.NumberTheory.NumberField.AdeleRing\ninstance : TopologicalRing (AdeleRing K) := instTopologicalRingProd",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\ntheorem algebraMap_injective : Function.Injective (algebraMap K (AdeleRing K)) :=\n  fun _ _ hxy => (algebraMap K _).injective (Prod.ext_iff.1 hxy).1",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance [NumberField K] [NumberField L] [Algebra K L] : FiniteDimensional K L :=\n  Module.Finite.of_restrictScalars_finite ℚ K L",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance : IsDedekindDomain (\u0000\u0000 K) :=\n  IsIntegralClosure.isDedekindDomain ℤ ℚ K _",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance {L : Type*} [Ring L] [Algebra K L] : IsScalarTower (\u0000\u0000 K) K L :=\n  inferInstanceAs (IsScalarTower (integralClosure _ _) K L)",
+   "--src: Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing\ninstance : IsScalarTower R K (FiniteAdeleRing R K) :=\n  IsScalarTower.of_algebraMap_eq' rfl",
+   "--src: Mathlib.NumberTheory.NumberField.FinitePlaces\nlemma toNNReal_Valued_eq_vadicAbv (x : K) :\n    toNNReal (norm_ne_zero v) (Valued.v (self:=v.adicValued) x) = vadicAbv v x := rfl",
+   "--src: Mathlib.RingTheory.DedekindDomain.AdicValuation\ninstance adicCompletion_completeSpace : CompleteSpace (v.adicCompletion K) :=\n  @UniformSpace.Completion.completeSpace K v.adicValued.toUniformSpace\n-- Porting note: replaced by `Coe`\n-- instance AdicCompletion.hasLiftT : HasLiftT K (v.adicCompletion K) :=\n--   (inferInstance : HasLiftT K (@UniformSpace.Completion K v.adicValued.toUniformSpace))",
+   "--src: Mathlib.NumberTheory.NumberField.CanonicalEmbedding.ConvexBody\ntheorem convexBodySumFun_continuous :\n    Continuous (convexBodySumFun : mixedSpace K → ℝ) := by\n  refine continuous_finset_sum Finset.univ fun w ↦ ?_\n  obtain hw | hw := isReal_or_isComplex w\n  all_goals\n  · simp only [normAtPlace_apply_isReal, normAtPlace_apply_isComplex, hw]\n    fun_prop",
+   "--src: Mathlib.NumberTheory.NumberField.CanonicalEmbedding.Basic\ninstance : DiscreteTopology (mixedEmbedding.idealLattice K I) := by\n  classical\n  rw [← span_idealLatticeBasis]\n  infer_instance"],
+  "id":
+  {"name": "instIsTopologicalRingTensorProductFiniteAdeleRingRingOfIntegers",
+   "module": "FLT.DivisionAlgebra.Finiteness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "instance : IsTopologicalRing (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) :=\n  IsModuleTopology.Module.topologicalRing (FiniteAdeleRing (𝓞 K) K) _\n\n",
+   "compilationAlias":
+   "instance : IsTopologicalRing (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) :=\n  IsModuleTopology.Module.topologicalRing (FiniteAdeleRing (𝓞 K) K) _\n\n"},
+  "goal":
+  "K : Type u_1\ninst✝³ : Field K\ninst✝² : NumberField K\nD : Type u_2\ninst✝¹ : DivisionRing D\ninst✝ : Algebra K D\n⊢ IsTopologicalRing (TensorProduct K D (DedekindDomain.FiniteAdeleRing (NumberField.RingOfIntegers K) K))",
+  "content_sorry":
+  "instance : IsTopologicalRing (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) := by sorry",
+  "annotation":
+  "instance : IsTopologicalRing (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) :=\n  IsModuleTopology.Module.topologicalRing (FiniteAdeleRing (𝓞 K) K) _\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsModuleTopology.Module.topologicalRing",
+    "module": "FLT.Mathlib.Topology.Algebra.Module.ModuleTopology",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def Module.topologicalRing : IsTopologicalRing D where\n  continuous_add := (toContinuousAdd R D).1\n  continuous_mul := continuous_mul R D\n  continuous_neg := continuous_neg R D",
+    "compilationAlias":
+    "def Module.topologicalRing : IsTopologicalRing D where\n  continuous_add := (toContinuousAdd R D).1\n  continuous_mul := continuous_mul R D\n  continuous_neg := continuous_neg R D"}]},
+ {"rag":
+  ["--src: Mathlib.NumberTheory.NumberField.AdeleRing\ninstance : TopologicalRing (AdeleRing K) := instTopologicalRingProd",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\ninstance : TopologicalRing (InfiniteAdeleRing K) := Pi.instTopologicalRing",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\n/-- The infinite adele ring is locally compact. -/\ninstance locallyCompactSpace [NumberField K] : LocallyCompactSpace (InfiniteAdeleRing K) :=\n  Pi.locallyCompactSpace_of_finite",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance : IsScalarTower (\u0000\u0000 K) (\u0000\u0000 L) L :=\n  IsScalarTower.of_algebraMap_eq' rfl",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\ntheorem algebraMap_injective : Function.Injective (algebraMap K (AdeleRing K)) :=\n  fun _ _ hxy => (algebraMap K _).injective (Prod.ext_iff.1 hxy).1",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance : IsDedekindDomain (\u0000\u0000 K) :=\n  IsIntegralClosure.isDedekindDomain ℤ ℚ K _",
+   "--src: Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing\ninstance ProdAdicCompletions.isScalarTower_completions : IsScalarTower R (R_hat R K) (K_hat R K) :=\n  (by infer_instance :\n    IsScalarTower R (∀ v : HeightOneSpectrum R, v.adicCompletionIntegers K) <|\n      ∀ v : HeightOneSpectrum R, v.adicCompletion K)",
+   "--src: Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing\ninstance (v : HeightOneSpectrum R) : TopologicalRing (v.adicCompletionIntegers K) :=\n  Subring.instTopologicalRing ..",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance [NumberField K] [NumberField L] [Algebra K L] : FiniteDimensional K L :=\n  Module.Finite.of_restrictScalars_finite ℚ K L",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\n@[simp]\ntheorem algebraMap_snd_apply (x : K) (v : HeightOneSpectrum (\u0000\u0000 K)) :\n    (algebraMap K (AdeleRing K) x).2 v = x := rfl"],
+  "id":
+  {"name": "instIsModuleTopologyFiniteAdeleRingRingOfIntegersTensorProduct",
+   "module": "FLT.DivisionAlgebra.Finiteness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "local instance : IsModuleTopology (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) :=\n  ⟨rfl⟩\n\n",
+   "compilationAlias":
+   "local instance : IsModuleTopology (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) :=\n  ⟨rfl⟩\n\n"},
+  "goal":
+  "K : Type u_1\ninst✝³ : Field K\ninst✝² : NumberField K\nD : Type u_2\ninst✝¹ : DivisionRing D\ninst✝ : Algebra K D\n⊢ IsModuleTopology (DedekindDomain.FiniteAdeleRing (NumberField.RingOfIntegers K) K) (TensorProduct K D (DedekindDomain.FiniteAdeleRing (NumberField.RingOfIntegers K) K))",
+  "content_sorry":
+  "local instance : IsModuleTopology (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) := by sorry",
+  "annotation":
+  "local instance : IsModuleTopology (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] (FiniteAdeleRing (𝓞 K) K)) :=\n  ⟨rfl⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.NumberTheory.NumberField.Basic\ninstance : IsDedekindDomain (\u0000\u0000 K) :=\n  IsIntegralClosure.isDedekindDomain ℤ ℚ K _",
+   "--src: Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing\ninstance : IsScalarTower R K (FiniteAdeleRing R K) :=\n  IsScalarTower.of_algebraMap_eq' rfl",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance [NumberField K] [NumberField L] [Algebra K L] : FiniteDimensional K L :=\n  Module.Finite.of_restrictScalars_finite ℚ K L",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance {L : Type*} [Ring L] [Algebra K L] : IsScalarTower (\u0000\u0000 K) K L :=\n  inferInstanceAs (IsScalarTower (integralClosure _ _) K L)",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\ntheorem algebraMap_injective : Function.Injective (algebraMap K (AdeleRing K)) :=\n  fun _ _ hxy => (algebraMap K _).injective (Prod.ext_iff.1 hxy).1",
+   "--src: Mathlib.NumberTheory.NumberField.Units.DirichletTheorem\ninstance : Module.Finite ℤ (Additive ((\u0000\u0000 K)ˣ ⧸ (torsion K))) := by\n  classical exact Module.Finite.equiv (logEmbeddingEquiv K).symm\n-- Note that we prove this instance first and then deduce from it the instance\n-- `Monoid.FG (\u0000\u0000 K)ˣ`, and not the other way around, due to no `Subgroup` version\n-- of `Submodule.fg_of_fg_map_of_fg_inf_ker` existing.",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\n@[simp]\ntheorem algebraMap_snd_apply (x : K) (v : HeightOneSpectrum (\u0000\u0000 K)) :\n    (algebraMap K (AdeleRing K) x).2 v = x := rfl",
+   "--src: Mathlib.NumberTheory.NumberField.AdeleRing\ninstance : TopologicalRing (AdeleRing K) := instTopologicalRingProd",
+   "--src: Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing\n@[simp]\nlemma isFiniteAdele_iff (x : K_hat R K) :\n    x.IsFiniteAdele ↔ {v | x v ∉ adicCompletionIntegers K v}.Finite := Iff.rfl",
+   "--src: Mathlib.NumberTheory.NumberField.Basic\ninstance : NoZeroSMulDivisors (\u0000\u0000 K) (\u0000\u0000 L) :=\n  NoZeroSMulDivisors.of_algebraMap_injective (algebraMap.injective K L)"],
+  "id":
+  {"name": "instFiniteFiniteAdeleRingRingOfIntegersTensorProduct",
+   "module": "FLT.DivisionAlgebra.Finiteness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "instance : Module.Finite (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] FiniteAdeleRing (𝓞 K) K) := sorry\n\n",
+   "compilationAlias":
+   "instance : Module.Finite (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] FiniteAdeleRing (𝓞 K) K) := sorry\n\n"},
+  "goal":
+  "K : Type u_1\ninst✝³ : Field K\ninst✝² : NumberField K\nD : Type u_2\ninst✝¹ : DivisionRing D\ninst✝ : Algebra K D\n⊢ Module.Finite (DedekindDomain.FiniteAdeleRing (NumberField.RingOfIntegers K) K) (TensorProduct K D (DedekindDomain.FiniteAdeleRing (NumberField.RingOfIntegers K) K))",
+  "content_sorry":
+  "instance : Module.Finite (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] FiniteAdeleRing (𝓞 K) K) := by sorry",
+  "annotation":
+  "instance : Module.Finite (FiniteAdeleRing (𝓞 K) K) (D ⊗[K] FiniteAdeleRing (𝓞 K) K) := sorry\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []}]

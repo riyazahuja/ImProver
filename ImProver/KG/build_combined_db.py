@@ -13,8 +13,8 @@ def load_edges(path):
 
 
 def main(args):
-    os.makedirs(os.path.join("knowledge_graphs", args.KG_id), exist_ok=True)
-    combined_path = os.path.join("knowledge_graphs", args.KG_id, "combined.duckdb")
+    os.makedirs(os.path.join("knowledge_graphs", args.kg_id), exist_ok=True)
+    combined_path = os.path.join("knowledge_graphs", args.kg_id, "combined.duckdb")
     con = duckdb.connect(combined_path)
     con.execute("DROP TABLE IF EXISTS theorems")
     con.execute(
@@ -29,6 +29,7 @@ def main(args):
             isOriginal BOOLEAN,
             isCorrect BOOLEAN,
             errorMsgs JSON,
+            C0Dependencies JSON,
             C1Dependencies JSON,
             C2Dependencies JSON,
             C3Dependencies JSON
@@ -36,7 +37,7 @@ def main(args):
         """
     )
 
-    class3_edges = load_edges(os.path.join("knowledge_graphs", args.KG_id, "c3edges.json"))
+    class3_edges = load_edges(os.path.join("knowledge_graphs", args.kg_id, "c3edges.json"))
 
     with open(args.dataset_path, "r") as f:
         all_ds = json.load(f)
@@ -52,7 +53,7 @@ def main(args):
     # modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
 
 
-    informal_path = os.path.join("knowledge_graphs", args.KG_id, "informal_data.duckdb")
+    informal_path = os.path.join("knowledge_graphs", args.kg_id, "informal_data.duckdb")
     informal_con = duckdb.connect(informal_path)
 
     for root, _, files in os.walk("knowledge_graphs"):
@@ -70,6 +71,7 @@ def main(args):
             for thm in theorems:
                 name = thm.get("id",{}).get("name")
                 is_orig = thm.get("id",{}).get("module", module) in modules
+                c0 = json.dumps(thm.get("C0_dependencies", []))
                 c1 = json.dumps(thm.get("C1_dependencies", []))
                 c2 = json.dumps(thm.get("C2_dependencies", []))
                 c3 = json.dumps(class3_edges.get(f"{module}:{name}", []))
@@ -96,7 +98,7 @@ def main(args):
                 
                 
                 con.execute(
-                    "INSERT INTO theorems VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO theorems VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         module,
                         name,
@@ -107,6 +109,7 @@ def main(args):
                         is_orig,
                         is_correct,
                         error_msgs,
+                        c0,
                         c1,
                         c2,
                         c3,
@@ -118,7 +121,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build combined KG database")
     parser.add_argument("dataset_path", type=str)
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
     parser.add_argument("--split", type=str, default="train")
     # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     args = parser.parse_args()

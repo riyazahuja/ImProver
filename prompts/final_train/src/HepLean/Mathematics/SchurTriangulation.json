@@ -1,0 +1,222 @@
+[{"rag":
+  ["--src: Mathlib.LinearAlgebra.Matrix.Spectrum\n/-- **Diagonalization theorem**, **spectral theorem** for matrices; A hermitian matrix can be\ndiagonalized by a change of basis. For the spectral theorem on linear maps, see\n`LinearMap.IsSymmetric.eigenvectorBasis_apply_self_apply`.-/\ntheorem spectral_theorem :\n    A = (eigenvectorUnitary hA : Matrix n n \u0000\u0000) * diagonal (RCLike.ofReal ∘ hA.eigenvalues)\n      * (star (eigenvectorUnitary hA : Matrix n n \u0000\u0000)) := by\n  rw [← star_mul_self_mul_eq_diagonal, mul_assoc, mul_assoc,\n    (Matrix.mem_unitaryGroup_iff).mp (eigenvectorUnitary hA).2, mul_one,\n    ← mul_assoc, (Matrix.mem_unitaryGroup_iff).mp (eigenvectorUnitary hA).2, one_mul]",
+   "--src: Mathlib.LinearAlgebra.Matrix.Spectrum\n/-- The determinant of a hermitian matrix is the product of its eigenvalues. -/\ntheorem det_eq_prod_eigenvalues : det A = ∏ i, (hA.eigenvalues i : \u0000\u0000) := by\n  convert congr_arg det hA.spectral_theorem\n  rw [det_mul_right_comm]\n  simp",
+   "--src: Mathlib.LinearAlgebra.UnitaryGroup\n@[simp] theorem inv_apply : ⇑A⁻¹ = (star A : Matrix n n α) := rfl",
+   "--src: Mathlib.Data.Matrix.ConjTranspose\n/-- A version of `star_mul` for `*` instead of `*`. -/\ntheorem star_mul [Fintype n] [NonUnitalSemiring α] [StarRing α] (M N : Matrix n n α) :\n    star (M * N) = star N * star M :=\n  conjTranspose_mul _ _",
+   "--src: Mathlib.LinearAlgebra.Matrix.Spectrum\n/-- Eigenvalues of a hermitian matrix A are in the ℝ spectrum of A. -/\ntheorem eigenvalues_mem_spectrum_real (i : n) : hA.eigenvalues i ∈ spectrum ℝ A := by\n  apply spectrum.of_algebraMap_mem \u0000\u0000\n  rw [← spectrum_toEuclideanLin]\n  exact LinearMap.IsSymmetric.hasEigenvalue_eigenvalues _ _ _ |>.mem_spectrum",
+   "--src: Mathlib.LinearAlgebra.Matrix.LDL\n/-- Inverse statement of **LDL decomposition**: we can conjugate a positive definite matrix\nby some lower triangular matrix and get a diagonal matrix. -/\ntheorem LDL.diag_eq_lowerInv_conj : LDL.diag hS = LDL.lowerInv hS * S * (LDL.lowerInv hS)ᴴ := by\n  ext i j\n  by_cases hij : i = j\n  · simp only [diag, diagEntries, EuclideanSpace.inner_piLp_equiv_symm, star_star, hij,\n    diagonal_apply_eq, Matrix.mul_assoc]\n    rfl\n  · simp only [LDL.diag, hij, diagonal_apply_ne, Ne, not_false_iff, mul_mul_apply]\n    rw [conjTranspose, transpose_map, transpose_transpose, dotProduct_mulVec,\n      (LDL.lowerInv_orthogonal hS fun h : j = i => hij h.symm).symm, ← inner_conj_symm,\n      mulVec_transpose, EuclideanSpace.inner_piLp_equiv_symm, ← RCLike.star_def, ←\n      star_dotProduct_star, dotProduct_comm, star_star]\n    rfl",
+   "--src: Mathlib.LinearAlgebra.Matrix.LDL\ntheorem LDL.lowerInv_triangular {i j : n} (hij : i < j) : LDL.lowerInv hS i j = 0 := by\n  rw [←\n    @gramSchmidt_triangular \u0000\u0000 (n → \u0000\u0000) _ (_ : _) (InnerProductSpace.ofMatrix hS.transpose) n _ _ _\n      i j hij (Pi.basisFun \u0000\u0000 n),\n    Pi.basisFun_repr, LDL.lowerInv]",
+   "--src: Mathlib.LinearAlgebra.UnitaryGroup\ntheorem mem_unitaryGroup_iff : A ∈ Matrix.unitaryGroup n α ↔ A * star A = 1 := by\n  refine ⟨And.right, fun hA => ⟨?_, hA⟩⟩\n  simpa only [mul_eq_one_comm] using hA",
+   "--src: Mathlib.LinearAlgebra.Matrix.PosDef\nlemma eigenvalues_self_mul_conjTranspose_nonneg (A : Matrix m n \u0000\u0000) [DecidableEq m] (i : m) :\n    0 ≤ (isHermitian_mul_conjTranspose_self A).eigenvalues i :=\n  (posSemidef_self_mul_conjTranspose _).eigenvalues_nonneg _",
+   "--src: Mathlib.LinearAlgebra.Matrix.Hermitian\n/-- Note this is more general for matrices than `isSelfAdjoint_one` as it does not\nrequire `Fintype n`, which is necessary for `Monoid (Matrix n n R)`. -/\n@[simp]\ntheorem isHermitian_one [DecidableEq n] : (1 : Matrix n n α).IsHermitian :=\n  conjTranspose_one"],
+  "id":
+  {"name": "Matrix.schur_triangulation",
+   "module": "HepLean.Mathematics.SchurTriangulation",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- **Schur triangulation**, **Schur decomposition** for matrices over an algebraically closed\nfield. In particular, a complex matrix can be converted to upper-triangular form by a change of\nbasis. In other words, any complex matrix is unitarily similar to an upper triangular matrix. -/\nlemma schur_triangulation :\n    A = A.schurTriangulationUnitary * A.schurTriangulation * star A.schurTriangulationUnitary :=\n  let U := A.schurTriangulationUnitary\n  have h : U * A.schurTriangulation.val = A * U :=\n    let b := A.schurTriangulationBasis.toBasis\n    let c := (EuclideanSpace.basisFun n 𝕜).toBasis\n    calc c.toMatrix b * LinearMap.toMatrix b b (toEuclideanLin A)\n      _ = LinearMap.toMatrix c c (toEuclideanLin A) * c.toMatrix b := by simp\n      _ = LinearMap.toMatrix c c (toLin c c A) * U := rfl\n      _ = A * U := by simp\n  calc A\n    _ = A * U * star U := by simp [mul_assoc]\n    _ = U * A.schurTriangulation * star U := by rw [← h]\n\n",
+   "compilationAlias":
+   "/-- **Schur triangulation**, **Schur decomposition** for matrices over an algebraically closed\nfield. In particular, a complex matrix can be converted to upper-triangular form by a change of\nbasis. In other words, any complex matrix is unitarily similar to an upper triangular matrix. -/\nlemma schur_triangulation :\n    A = A.schurTriangulationUnitary * A.schurTriangulation * star A.schurTriangulationUnitary :=\n  let U := A.schurTriangulationUnitary\n  have h : U * A.schurTriangulation.val = A * U :=\n    let b := A.schurTriangulationBasis.toBasis\n    let c := (EuclideanSpace.basisFun n 𝕜).toBasis\n    calc c.toMatrix b * LinearMap.toMatrix b b (toEuclideanLin A)\n      _ = LinearMap.toMatrix c c (toEuclideanLin A) * c.toMatrix b := by simp\n      _ = LinearMap.toMatrix c c (toLin c c A) * U := rfl\n      _ = A * U := by simp\n  calc A\n    _ = A * U * star U := by simp [mul_assoc]\n    _ = U * A.schurTriangulation * star U := by rw [← h]\n\n"},
+  "goal":
+  "𝕜 : Type u_1\nn : Type u_2\ninst✝⁴ : RCLike 𝕜\ninst✝³ : IsAlgClosed 𝕜\ninst✝² : Fintype n\ninst✝¹ : DecidableEq n\ninst✝ : LinearOrder n\nA : Matrix n n 𝕜\n⊢ Eq A (HMul.hMul (HMul.hMul ↑A.schurTriangulationUnitary ↑A.schurTriangulation) ↑(Star.star A.schurTriangulationUnitary))",
+  "content_sorry":
+  "/-- **Schur triangulation**, **Schur decomposition** for matrices over an algebraically closed\nfield. In particular, a complex matrix can be converted to upper-triangular form by a change of\nbasis. In other words, any complex matrix is unitarily similar to an upper triangular matrix. -/\nlemma schur_triangulation :\n    A = A.schurTriangulationUnitary * A.schurTriangulation * star A.schurTriangulationUnitary :=\n  let U := A.schurTriangulationUnitary\n  have h : U * A.schurTriangulation.val = A * U :=\n    let b := A.schurTriangulationBasis.toBasis\n    let c := (EuclideanSpace.basisFun n 𝕜).toBasis\n    calc c.toMatrix b * LinearMap.toMatrix b b (toEuclideanLin A)\n      _ = LinearMap.toMatrix c c (toEuclideanLin A) * c.toMatrix b := by sorry",
+  "annotation":
+  "/-- **Schur triangulation**, **Schur decomposition** for matrices over an algebraically closed\nfield. In particular, a complex matrix can be converted to upper-triangular form by a change of\nbasis. In other words, any complex matrix is unitarily similar to an upper triangular matrix. -/\nlemma schur_triangulation :\n    A = A.schurTriangulationUnitary * A.schurTriangulation * star A.schurTriangulationUnitary :=\n  let U := A.schurTriangulationUnitary\n  have h : U * A.schurTriangulation.val = A * U :=\n    let b := A.schurTriangulationBasis.toBasis\n    let c := (EuclideanSpace.basisFun n 𝕜).toBasis\n    calc c.toMatrix b * LinearMap.toMatrix b b (toEuclideanLin A)\n                                                                         /-\n                                                                           𝕜 : Type u_1\n                                                                           n : Type u_2\n                                                                           inst✝⁴ : RCLike 𝕜\n                                                                           inst✝³ : IsAlgClosed 𝕜\n                                                                           inst✝² : Fintype n\n                                                                           inst✝¹ : DecidableEq n\n                                                                           inst✝ : LinearOrder n\n                                                                           A : Matrix n n 𝕜\n                                                                           U : Subtype fun x => Membership.mem (Matrix.unitaryGroup n 𝕜) x := A.schurTria …\n                                                                           b : Basis n 𝕜 (EuclideanSpace 𝕜 n) := A.schurTriangulationBasis.toBasis\n                                                                           c : Basis n 𝕜 (EuclideanSpace 𝕜 n) := (EuclideanSpace.basisFun n 𝕜).toBasis\n                                                                           ⊢ Eq (HMul.hMul (c.toMatrix ⇑b) ((LinearMap.toMatrix b b) (Matrix.toEuclideanL …\n                                                                         -/\n      _ = LinearMap.toMatrix c c (toEuclideanLin A) * c.toMatrix b := by simp\n                                                                         /-\n                                                                           🎉 no goals\n                                                                         -/\n      _ = LinearMap.toMatrix c c (toLin c c A) * U := rfl\n                      /-\n                        𝕜 : Type u_1\n                        n : Type u_2\n                        inst✝⁴ : RCLike 𝕜\n                        inst✝³ : IsAlgClosed 𝕜\n                        inst✝² : Fintype n\n                        inst✝¹ : DecidableEq n\n                        inst✝ : LinearOrder n\n                        A : Matrix n n 𝕜\n                        U : Subtype fun x => Membership.mem (Matrix.unitaryGroup n 𝕜) x := A.schurTria …\n                        b : Basis n 𝕜 (EuclideanSpace 𝕜 n) := A.schurTriangulationBasis.toBasis\n                        c : Basis n 𝕜 (EuclideanSpace 𝕜 n) := (EuclideanSpace.basisFun n 𝕜).toBasis\n                        ⊢ Eq (HMul.hMul ((LinearMap.toMatrix c c) ((Matrix.toLin c c) A)) ↑U) (HMul.hM …\n                      -/\n      _ = A * U := by simp\n                      /-\n                        🎉 no goals\n                      -/\n  calc A\n                             /-\n                               𝕜 : Type u_1\n                               n : Type u_2\n                               inst✝⁴ : RCLike 𝕜\n                               inst✝³ : IsAlgClosed 𝕜\n                               inst✝² : Fintype n\n                               inst✝¹ : DecidableEq n\n                               inst✝ : LinearOrder n\n                               A : Matrix n n 𝕜\n                               U : Subtype fun x => Membership.mem (Matrix.unitaryGroup n 𝕜) x := A.schurTria …\n                               h : Eq (HMul.hMul ↑U ↑A.schurTriangulation) (HMul.hMul A ↑U)\n                               ⊢ Eq A (HMul.hMul (HMul.hMul A ↑U) ↑(Star.star U))\n                             -/\n    _ = A * U * star U := by simp [mul_assoc]\n                             /-\n                               🎉 no goals\n                             -/\n                                                /-\n                                                  𝕜 : Type u_1\n                                                  n : Type u_2\n                                                  inst✝⁴ : RCLike 𝕜\n                                                  inst✝³ : IsAlgClosed 𝕜\n                                                  inst✝² : Fintype n\n                                                  inst✝¹ : DecidableEq n\n                                                  inst✝ : LinearOrder n\n                                                  A : Matrix n n 𝕜\n                                                  U : Subtype fun x => Membership.mem (Matrix.unitaryGroup n 𝕜) x := A.schurTria …\n                                                  h : Eq (HMul.hMul ↑U ↑A.schurTriangulation) (HMul.hMul A ↑U)\n                                                  ⊢ Eq (HMul.hMul (HMul.hMul A ↑U) ↑(Star.star U)) (HMul.hMul (HMul.hMul ↑U ↑A.s …\n                                                -/\n    _ = U * A.schurTriangulation * star U := by rw [← h]\n                                                /-\n                                                  🎉 no goals\n                                                -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "LinearMap.toMatrix",
+    "module": "Mathlib.LinearAlgebra.Matrix.ToLin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given bases of two modules `M₁` and `M₂` over a commutative ring `R`, we get a linear\nequivalence between linear maps `M₁ →ₗ M₂` and matrices over `R` indexed by the bases. -/\ndef LinearMap.toMatrix : (M₁ →ₗ[R] M₂) ≃ₗ[R] Matrix m n R :=\n  LinearEquiv.trans (LinearEquiv.arrowCongr v₁.equivFun v₂.equivFun) LinearMap.toMatrix'",
+    "compilationAlias":
+    "/-- Given bases of two modules `M₁` and `M₂` over a commutative ring `R`, we get a linear\nequivalence between linear maps `M₁ →ₗ M₂` and matrices over `R` indexed by the bases. -/\ndef LinearMap.toMatrix : (M₁ →ₗ[R] M₂) ≃ₗ[R] Matrix m n R :=\n  LinearEquiv.trans (LinearEquiv.arrowCongr v₁.equivFun v₂.equivFun) LinearMap.toMatrix'"},
+   {"name": "LinearMap.toMatrix",
+    "module": "Mathlib.LinearAlgebra.Matrix.ToLin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given bases of two modules `M₁` and `M₂` over a commutative ring `R`, we get a linear\nequivalence between linear maps `M₁ →ₗ M₂` and matrices over `R` indexed by the bases. -/\ndef LinearMap.toMatrix : (M₁ →ₗ[R] M₂) ≃ₗ[R] Matrix m n R :=\n  LinearEquiv.trans (LinearEquiv.arrowCongr v₁.equivFun v₂.equivFun) LinearMap.toMatrix'",
+    "compilationAlias":
+    "/-- Given bases of two modules `M₁` and `M₂` over a commutative ring `R`, we get a linear\nequivalence between linear maps `M₁ →ₗ M₂` and matrices over `R` indexed by the bases. -/\ndef LinearMap.toMatrix : (M₁ →ₗ[R] M₂) ≃ₗ[R] Matrix m n R :=\n  LinearEquiv.trans (LinearEquiv.arrowCongr v₁.equivFun v₂.equivFun) LinearMap.toMatrix'"},
+   {"name": "LinearMap.toMatrix",
+    "module": "Mathlib.LinearAlgebra.Matrix.ToLin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given bases of two modules `M₁` and `M₂` over a commutative ring `R`, we get a linear\nequivalence between linear maps `M₁ →ₗ M₂` and matrices over `R` indexed by the bases. -/\ndef LinearMap.toMatrix : (M₁ →ₗ[R] M₂) ≃ₗ[R] Matrix m n R :=\n  LinearEquiv.trans (LinearEquiv.arrowCongr v₁.equivFun v₂.equivFun) LinearMap.toMatrix'",
+    "compilationAlias":
+    "/-- Given bases of two modules `M₁` and `M₂` over a commutative ring `R`, we get a linear\nequivalence between linear maps `M₁ →ₗ M₂` and matrices over `R` indexed by the bases. -/\ndef LinearMap.toMatrix : (M₁ →ₗ[R] M₂) ≃ₗ[R] Matrix m n R :=\n  LinearEquiv.trans (LinearEquiv.arrowCongr v₁.equivFun v₂.equivFun) LinearMap.toMatrix'"},
+   {"name": "EuclideanSpace.basisFun",
+    "module": "Mathlib.Analysis.InnerProductSpace.PiL2",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The basis `Pi.basisFun`, bundled as an orthornormal basis of `EuclideanSpace 𝕜 ι`. -/\nnoncomputable def basisFun : OrthonormalBasis ι 𝕜 (EuclideanSpace 𝕜 ι) :=\n  ⟨LinearIsometryEquiv.refl _ _⟩",
+    "compilationAlias":
+    "/-- The basis `Pi.basisFun`, bundled as an orthornormal basis of `EuclideanSpace 𝕜 ι`. -/\nnoncomputable def basisFun : OrthonormalBasis ι 𝕜 (EuclideanSpace 𝕜 ι) :=\n  ⟨LinearIsometryEquiv.refl _ _⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Equiv.Fin\n/-- Promote a `Fin n` into a larger `Fin m`, as a subtype where the underlying\nvalues are retained.\nThis is the `Equiv` version of `Fin.castLE`. -/\n@[simps apply symm_apply]\ndef Fin.castLEquiv {n m : ℕ} (h : n ≤ m) : Fin n ≃ { i : Fin m // (i : ℕ) < n } where\n  toFun i := ⟨Fin.castLE h i, by simp⟩\n  invFun i := ⟨i, i.prop⟩\n  left_inv _ := by simp\n  right_inv _ := by simp",
+   "--src: Mathlib.Logic.Equiv.Fin\ntheorem finSuccEquiv'_below {i : Fin (n + 1)} {m : Fin n} (h : Fin.castSucc m < i) :\n    (finSuccEquiv' i) (Fin.castSucc m) = m := by\n  rw [← Fin.succAbove_of_castSucc_lt _ _ h, finSuccEquiv'_succAbove]",
+   "--src: Mathlib.Data.Fin.Basic\n@[simp]\ntheorem castPred_mk (i : ℕ) (h₁ : i < n) (h₂ := h₁.trans (Nat.lt_succ_self _))\n    (h₃ : ⟨i, h₂⟩ ≠ last _ := (ne_iff_vne _ _).mpr (val_last _ ▸ h₁.ne)) :\n  castPred ⟨i, h₂⟩ h₃ = ⟨i, h₁⟩ := rfl",
+   "--src: Mathlib.Order.Fin.Tuple\n/-- Promote a `Fin n` into a larger `Fin m`, as a subtype where the underlying\nvalues are retained. This is the `OrderIso` version of `Fin.castLE`. -/\n@[simps apply symm_apply]\ndef Fin.castLEOrderIso {n m : ℕ} (h : n ≤ m) : Fin n ≃o { i : Fin m // (i : ℕ) < n } where\n  toFun i := ⟨Fin.castLE h i, by simp⟩\n  invFun i := ⟨i, i.prop⟩\n  left_inv _ := by simp\n  right_inv _ := by simp\n  map_rel_iff' := by simp [(strictMono_castLE h).le_iff_le]",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finAddFlip_apply_mk_left {k : ℕ} (h : k < m) (hk : k < m + n := Nat.lt_add_right n h)\n    (hnk : n + k < n + m := Nat.add_lt_add_left h n) :\n    finAddFlip (⟨k, hk⟩ : Fin (m + n)) = ⟨n + k, hnk⟩ := by\n  convert finAddFlip_apply_castAdd ⟨k, h⟩ n",
+   "--src: Mathlib.Logic.Equiv.Option\n/-- Any type with a distinguished element is equivalent to an `Option` type on the subtype excluding\nthat element. -/\n@[simps!]\ndef optionSubtypeNe (a : α) : Option {b // b ≠ a} ≃ α := optionSubtype a |>.symm (.refl _) |>.1",
+   "--src: Mathlib.Logic.Equiv.Fin\n/-- Promote a `Fin n` into a larger `Fin m`, as a subtype where the underlying\nvalues are retained.\nThis is the `Equiv` version of `Fin.castLE`. -/\n@[simps apply symm_apply]\ndef Fin.castLEquiv {n m : ℕ} (h : n ≤ m) : Fin n ≃ { i : Fin m // (i : ℕ) < n } where\n  toFun i := ⟨Fin.castLE h i, by simp⟩\n  invFun i := ⟨i, i.prop⟩\n  left_inv _ := by simp\n  right_inv _ := by simp",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_symm_apply_castAdd (x : Fin m) :\n    finSumFinEquiv.symm (Fin.castAdd n x) = Sum.inl x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inl x)",
+   "--src: Mathlib.Logic.Equiv.Fin\ntheorem finSuccAboveEquiv_apply (p : Fin (n + 1)) (i : Fin n) :\n    finSuccAboveEquiv p i = ⟨p.succAbove i, p.succAbove_ne i⟩ :=\n  rfl",
+   "--src: Mathlib.Order.Fin.Basic\n/-- `Fin.natAdd` as an `OrderEmbedding`.\n`natAddOrderEmb n i` adds `n` to `i` \"on the left\". -/\n@[simps! apply toEmbedding]\ndef natAddOrderEmb (n) : Fin m ↪o Fin (n + m) := .ofStrictMono (natAdd n) (strictMono_natAdd n)"],
+  "id":
+  {"name": "Equiv.finAddEquivSigmaCond_false",
+   "module": "HepLean.Mathematics.SchurTriangulation",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma finAddEquivSigmaCond_false (h : ¬ i < m) : finAddEquivSigmaCond i = ⟨false, i.subNat' h⟩ :=\n  let j : Fin n := i.subNat' h\n  calc finAddEquivSigmaCond i\n    _ = finAddEquivSigmaCond (Fin.natAdd m j) :=\n      suffices m + (i - m) = i from congrArg _ (Fin.ext this.symm)\n      Nat.add_sub_of_le (Nat.le_of_not_gt h)\n    _ = ⟨false, i.subNat' h⟩ := congrArg sumEquivSigmalCond <| finSumFinEquiv_symm_apply_natAdd j\n\n",
+   "compilationAlias":
+   "lemma finAddEquivSigmaCond_false (h : ¬ i < m) : finAddEquivSigmaCond i = ⟨false, i.subNat' h⟩ :=\n  let j : Fin n := i.subNat' h\n  calc finAddEquivSigmaCond i\n    _ = finAddEquivSigmaCond (Fin.natAdd m j) :=\n      suffices m + (i - m) = i from congrArg _ (Fin.ext this.symm)\n      Nat.add_sub_of_le (Nat.le_of_not_gt h)\n    _ = ⟨false, i.subNat' h⟩ := congrArg sumEquivSigmalCond <| finSumFinEquiv_symm_apply_natAdd j\n\n"},
+  "goal":
+  "m n : Nat\ni : Fin (HAdd.hAdd m n)\nh : Not (LT.lt (↑i) m)\n⊢ Eq (Equiv.finAddEquivSigmaCond i) ⟨Bool.false, i.subNat' h⟩",
+  "content_sorry":
+  "lemma finAddEquivSigmaCond_false (h : ¬ i < m) : finAddEquivSigmaCond i = ⟨false, i.subNat' h⟩ := by sorry",
+  "annotation":
+  "lemma finAddEquivSigmaCond_false (h : ¬ i < m) : finAddEquivSigmaCond i = ⟨false, i.subNat' h⟩ :=\n  let j : Fin n := i.subNat' h\n  calc finAddEquivSigmaCond i\n    _ = finAddEquivSigmaCond (Fin.natAdd m j) :=\n      suffices m + (i - m) = i from congrArg _ (Fin.ext this.symm)\n      Nat.add_sub_of_le (Nat.le_of_not_gt h)\n    _ = ⟨false, i.subNat' h⟩ := congrArg sumEquivSigmalCond <| finSumFinEquiv_symm_apply_natAdd j\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv_symm_apply_natAdd",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem finSumFinEquiv_symm_apply_natAdd (x : Fin n) :\n    finSumFinEquiv.symm (Fin.natAdd m x) = Sum.inr x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inr x)",
+    "compilationAlias":
+    "@[simp]\ntheorem finSumFinEquiv_symm_apply_natAdd (x : Fin n) :\n    finSumFinEquiv.symm (Fin.natAdd m x) = Sum.inr x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inr x)"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "Nat.le_of_not_gt",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem le_of_not_gt : ∀{a b : Nat}, ¬(b > a) → b ≤ a := Nat.ge_of_not_lt",
+    "compilationAlias":
+    "protected theorem le_of_not_gt : ∀{a b : Nat}, ¬(b > a) → b ≤ a := Nat.ge_of_not_lt"},
+   {"name": "Nat.add_sub_of_le",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem add_sub_of_le {a b : Nat} (h : a ≤ b) : a + (b - a) = b := by\n  induction a with\n  | zero => simp\n  | succ a ih =>\n    have hne : b - a ≠ 0 := Nat.sub_ne_zero_of_lt h\n    have : a ≤ b := Nat.le_of_succ_le h\n    rw [sub_succ, Nat.succ_add, ← Nat.add_succ, Nat.succ_pred hne, ih this]",
+    "compilationAlias":
+    "theorem add_sub_of_le {a b : Nat} (h : a ≤ b) : a + (b - a) = b := by\n  induction a with\n  | zero => simp\n  | succ a ih =>\n    have hne : b - a ≠ 0 := Nat.sub_ne_zero_of_lt h\n    have : a ≤ b := Nat.le_of_succ_le h\n    rw [sub_succ, Nat.succ_add, ← Nat.add_succ, Nat.succ_pred hne, ih this]"},
+   {"name": "Fin.ext",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[ext] protected theorem ext {a b : Fin n} (h : (a : Nat) = b) : a = b := eq_of_val_eq h",
+    "compilationAlias":
+    "@[ext] protected theorem ext {a b : Fin n} (h : (a : Nat) = b) : a = b := eq_of_val_eq h"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "Fin.natAdd",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `natAdd n i` adds `n` to `i` \"on the left\". -/\ndef natAdd (n) (i : Fin m) : Fin (n + m) := ⟨n + i, Nat.add_lt_add_left i.2 _⟩",
+    "compilationAlias":
+    "/-- `natAdd n i` adds `n` to `i` \"on the left\". -/\ndef natAdd (n) (i : Fin m) : Fin (n + m) := ⟨n + i, Nat.add_lt_add_left i.2 _⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Equiv.Fin\n/-- Promote a `Fin n` into a larger `Fin m`, as a subtype where the underlying\nvalues are retained.\nThis is the `Equiv` version of `Fin.castLE`. -/\n@[simps apply symm_apply]\ndef Fin.castLEquiv {n m : ℕ} (h : n ≤ m) : Fin n ≃ { i : Fin m // (i : ℕ) < n } where\n  toFun i := ⟨Fin.castLE h i, by simp⟩\n  invFun i := ⟨i, i.prop⟩\n  left_inv _ := by simp\n  right_inv _ := by simp",
+   "--src: Mathlib.GroupTheory.Perm.Sign\ntheorem mem_finPairsLT {n : ℕ} {a : Σ_ : Fin n, Fin n} : a ∈ finPairsLT n ↔ a.2 < a.1 := by\n  simp only [finPairsLT, Fin.lt_iff_val_lt_val, true_and, mem_attachFin, mem_range, mem_univ,\n    mem_sigma]",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_apply_right (i : Fin n) :\n    (finSumFinEquiv (Sum.inr i) : Fin (m + n)) = Fin.natAdd m i :=\n  rfl",
+   "--src: Mathlib.Data.List.OfFn\n/-- Lists are equivalent to the sigma type of tuples of a given length. -/\n@[simps]\ndef equivSigmaTuple : List α ≃ Σn, Fin n → α where\n  toFun l := ⟨l.length, l.get⟩\n  invFun f := List.ofFn f.2\n  left_inv := List.ofFn_get\n  right_inv := fun ⟨_, f⟩ =>\n    Fin.sigma_eq_of_eq_comp_cast (length_ofFn _) <| funext fun i => get_ofFn f i",
+   "--src: Mathlib.Data.List.FinRange\ntheorem get_finRange {n : ℕ} {i : ℕ} (h) :\n    (finRange n).get ⟨i, h⟩ = ⟨i, length_finRange n ▸ h⟩ := by\n  simp",
+   "--src: Mathlib.Data.List.NodupEquivFin\n/-- If `l` has no duplicates, then `List.get` defines an equivalence between `Fin (length l)` and\nthe set of elements of `l`. -/\n@[simps]\ndef getEquiv (l : List α) (H : Nodup l) : Fin (length l) ≃ { x // x ∈ l } where\n  toFun i := ⟨get l i, get_mem _ _⟩\n  invFun x := ⟨indexOf (↑x) l, indexOf_lt_length.2 x.2⟩\n  left_inv i := by simp only [List.get_indexOf, eq_self_iff_true, Fin.eta, Subtype.coe_mk, H]\n  right_inv x := by simp",
+   "--src: Mathlib.Analysis.Analytic.Composition\ntheorem blocksFun_sigmaCompositionAux (a : Composition n) (b : Composition a.length)\n    (i : Fin b.length) (j : Fin (blocksFun b i)) :\n    blocksFun (sigmaCompositionAux a b ⟨i, (length_gather a b).symm ▸ i.2⟩)\n        ⟨j, (length_sigmaCompositionAux a b i).symm ▸ j.2⟩ =\n      blocksFun a (embedding b i j) := by\n  unfold sigmaCompositionAux\n  rw [blocksFun, get_eq_getElem, getElem_of_eq (getElem_splitWrtComposition _ _ _ _),\n    getElem_drop, getElem_take]; rfl",
+   "--src: Mathlib.Data.Fin.Basic\nprotected theorem prop (a : Fin n) : a.val < n :=\n  a.2",
+   "--src: Mathlib.Logic.Equiv.Fin\ntheorem finSuccEquiv'_below {i : Fin (n + 1)} {m : Fin n} (h : Fin.castSucc m < i) :\n    (finSuccEquiv' i) (Fin.castSucc m) = m := by\n  rw [← Fin.succAbove_of_castSucc_lt _ _ h, finSuccEquiv'_succAbove]",
+   "--src: Mathlib.Logic.Equiv.Fin\ntheorem finSuccAboveEquiv_apply (p : Fin (n + 1)) (i : Fin n) :\n    finSuccAboveEquiv p i = ⟨p.succAbove i, p.succAbove_ne i⟩ :=\n  rfl"],
+  "id":
+  {"name": "Equiv.finAddEquivSigmaCond_true",
+   "module": "HepLean.Mathematics.SchurTriangulation",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma finAddEquivSigmaCond_true (h : i < m) : finAddEquivSigmaCond i = ⟨true, i, h⟩ :=\n  congrArg sumEquivSigmalCond <| finSumFinEquiv_symm_apply_castAdd ⟨i, h⟩\n\n",
+   "compilationAlias":
+   "lemma finAddEquivSigmaCond_true (h : i < m) : finAddEquivSigmaCond i = ⟨true, i, h⟩ :=\n  congrArg sumEquivSigmalCond <| finSumFinEquiv_symm_apply_castAdd ⟨i, h⟩\n\n"},
+  "goal":
+  "m n : Nat\ni : Fin (HAdd.hAdd m n)\nh : LT.lt (↑i) m\n⊢ Eq (Equiv.finAddEquivSigmaCond i) ⟨Bool.true, ⟨↑i, h⟩⟩",
+  "content_sorry":
+  "lemma finAddEquivSigmaCond_true (h : i < m) : finAddEquivSigmaCond i = ⟨true, i, h⟩ := by sorry",
+  "annotation":
+  "lemma finAddEquivSigmaCond_true (h : i < m) : finAddEquivSigmaCond i = ⟨true, i, h⟩ :=\n  congrArg sumEquivSigmalCond <| finSumFinEquiv_symm_apply_castAdd ⟨i, h⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv_symm_apply_castAdd",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem finSumFinEquiv_symm_apply_castAdd (x : Fin m) :\n    finSumFinEquiv.symm (Fin.castAdd n x) = Sum.inl x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inl x)",
+    "compilationAlias":
+    "@[simp]\ntheorem finSumFinEquiv_symm_apply_castAdd (x : Fin m) :\n    finSumFinEquiv.symm (Fin.castAdd n x) = Sum.inl x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inl x)"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"}]}]

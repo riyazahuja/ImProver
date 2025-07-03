@@ -1,0 +1,1333 @@
+[{"rag":
+  ["--src: Mathlib.RepresentationTheory.Invariants\ntheorem mem_invariants_iff_comm {X Y : Rep k G} (f : X.V →ₗ[k] Y.V) (g : G) :\n    (linHom X.ρ Y.ρ) g f = f ↔ f.comp (X.ρ g) = (Y.ρ g).comp f := by\n  dsimp\n  rw [← LinearMap.comp_assoc, ← ModuleCat.hom_ofHom (Y.ρ g), ← ModuleCat.hom_ofHom f,\n      ← ModuleCat.hom_comp, ← ModuleCat.hom_ofHom (X.ρ g⁻¹), ← ModuleCat.hom_comp,\n      Rep.ofHom_ρ, ← ρAut_apply_inv X g, Rep.ofHom_ρ, ← ρAut_apply_hom Y g, ← ModuleCat.hom_ext_iff,\n      Iso.inv_comp_eq, ρAut_apply_hom, ← ModuleCat.hom_ofHom (X.ρ g),\n      ← ModuleCat.hom_comp, ← ModuleCat.hom_ext_iff]\n  exact comm",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem Action_ρ_eq_ρ {A : Rep k G} :\n    Action.ρ A = (ModuleCat.endMulEquiv _).symm.toMonoidHom.comp A.ρ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ihom_obj_ρ_def (A B : Rep k G) : ((ihom A).obj B).ρ = ((Rep.ihom A).obj B).ρ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- Given a `k`-linear `G`-representation `(A, ρ₁)`, this is the 'internal Hom' functor sending\n`(B, ρ₂)` to the representation `Homₖ(A, B)` that maps `g : G` and `f : A →ₗ[k] B` to\n`(ρ₂ g) ∘ₗ f ∘ₗ (ρ₁ g⁻¹)`. -/\n@[simps]\nprotected def ihom (A : Rep k G) : Rep k G ⥤ Rep k G where\n  obj B := Rep.of (Representation.linHom A.ρ B.ρ)\n  map := fun {X} {Y} f =>\n    { hom := ModuleCat.ofHom (LinearMap.llcomp k _ _ _ f.hom.hom)\n      comm := fun g => ModuleCat.hom_ext <| LinearMap.ext fun x => LinearMap.ext fun y => by\n        show f.hom (X.ρ g _) = _\n        simp only [hom_comm_apply]; rfl }\n  map_id := fun _ => by ext; rfl\n  map_comp := fun _ _ => by ext; rfl",
+   "--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive (attr := simp)]\ntheorem ofHom_apply {X Y : Type _} [CommGroup X] [CommGroup Y] (f : X →* Y) (x : X) :\n    @DFunLike.coe (X →* Y) X (fun _ ↦ Y) _ (ofHom f) x = f x :=\n  rfl\n-- We verify that simp lemmas apply when coercing morphisms to functions.",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ρ_inv_self_apply {G : Type u} [Group G] (A : Rep k G) (g : G) (x : A) :\n    A.ρ g⁻¹ (A.ρ g x) = x :=\n  show (A.ρ g⁻¹ * A.ρ g) x = x by rw [← map_mul, inv_mul_cancel, map_one, LinearMap.one_apply]",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- The linearization of a type `X` on which `G` acts trivially is the trivial `G`-representation\non `k[X]`. -/\n@[simps!]\nnoncomputable def linearizationTrivialIso (X : Type u) :\n    (linearization k G).obj (Action.mk X 1) ≅ trivial k G (X →₀ k) :=\n  Action.mkIso (Iso.refl _) fun _ => ModuleCat.hom_ext <| Finsupp.lhom_ext' fun _ => LinearMap.ext\n    fun _ => linearization_single ..",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\n@[simp]\nlemma hom_inv_apply {R S : CommRingCat} (e : R ≅ S) (s : S) : e.hom (e.inv s) = s := by\n  rw [← comp_apply]\n  simp",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\nlemma ρ_hom {X : Rep k G} (g : G) : (Action.ρ X g).hom = X.ρ g := rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.rep_iso_inv_apply_iff",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma rep_iso_inv_apply_iff (x y : Rep k G) (f : x ≅ y) (i : y) (j : x) :\n    f.inv.hom i = j ↔ i = f.hom.hom j := by\n  apply Iff.intro\n  · intro a\n    subst a\n    simp_all only [rep_iso_hom_inv_apply]\n  · intro a\n    subst a\n    simp_all only [rep_iso_inv_hom_apply]\n\n",
+   "compilationAlias":
+   "lemma rep_iso_inv_apply_iff (x y : Rep k G) (f : x ≅ y) (i : y) (j : x) :\n    f.inv.hom i = j ↔ i = f.hom.hom j := by\n  apply Iff.intro\n  · intro a\n    subst a\n    simp_all only [rep_iso_hom_inv_apply]\n  · intro a\n    subst a\n    simp_all only [rep_iso_inv_hom_apply]\n\n"},
+  "goal":
+  "k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nx y : Rep k G\nf : CategoryTheory.Iso x y\ni : ↑y.V\nj : ↑x.V\n⊢ Iff (Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) i) j) (Eq i ((CategoryTheory.ConcreteCategory.hom f.hom.hom) j))",
+  "content_sorry":
+  "lemma rep_iso_inv_apply_iff (x y : Rep k G) (f : x ≅ y) (i : y) (j : x) :\n    f.inv.hom i = j ↔ i = f.hom.hom j := by\n  sorry",
+  "annotation":
+  "lemma rep_iso_inv_apply_iff (x y : Rep k G) (f : x ≅ y) (i : y) (j : x) :\n    f.inv.hom i = j ↔ i = f.hom.hom j := by\n  /-\n    k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    x y : Rep k G\n    f : CategoryTheory.Iso x y\n    i : ↑y.V\n    j : ↑x.V\n    ⊢ Iff (Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) i) j) (Eq i ((Categ …\n  -/\n  apply Iff.intro\n    /-\n      case mp\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑y.V\n      j : ↑x.V\n      ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) i) j → Eq i ((CategoryTh …\n    -/\n  · intro a\n    /-\n      case mp\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑y.V\n      j : ↑x.V\n      a : Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) i) j\n      ⊢ Eq i ((CategoryTheory.ConcreteCategory.hom f.hom.hom) j)\n    -/\n    subst a\n    /-\n      case mp\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑y.V\n      ⊢ Eq i ((CategoryTheory.ConcreteCategory.hom f.hom.hom) ((CategoryTheory.Concr …\n    -/\n    simp_all only [rep_iso_hom_inv_apply]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case mpr\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑y.V\n      j : ↑x.V\n      ⊢ Eq i ((CategoryTheory.ConcreteCategory.hom f.hom.hom) j) → Eq ((CategoryTheo …\n    -/\n  · intro a\n    /-\n      case mpr\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑y.V\n      j : ↑x.V\n      a : Eq i ((CategoryTheory.ConcreteCategory.hom f.hom.hom) j)\n      ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) i) j\n    -/\n    subst a\n    /-\n      case mpr\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      j : ↑x.V\n      ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) ((CategoryTheory.Concret …\n    -/\n    simp_all only [rep_iso_inv_hom_apply]\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Rep",
+    "module": "Mathlib.RepresentationTheory.Rep",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G",
+    "compilationAlias":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Invariants\ntheorem mem_invariants_iff_comm {X Y : Rep k G} (f : X.V →ₗ[k] Y.V) (g : G) :\n    (linHom X.ρ Y.ρ) g f = f ↔ f.comp (X.ρ g) = (Y.ρ g).comp f := by\n  dsimp\n  rw [← LinearMap.comp_assoc, ← ModuleCat.hom_ofHom (Y.ρ g), ← ModuleCat.hom_ofHom f,\n      ← ModuleCat.hom_comp, ← ModuleCat.hom_ofHom (X.ρ g⁻¹), ← ModuleCat.hom_comp,\n      Rep.ofHom_ρ, ← ρAut_apply_inv X g, Rep.ofHom_ρ, ← ρAut_apply_hom Y g, ← ModuleCat.hom_ext_iff,\n      Iso.inv_comp_eq, ρAut_apply_hom, ← ModuleCat.hom_ofHom (X.ρ g),\n      ← ModuleCat.hom_comp, ← ModuleCat.hom_ext_iff]\n  exact comm",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem Action_ρ_eq_ρ {A : Rep k G} :\n    Action.ρ A = (ModuleCat.endMulEquiv _).symm.toMonoidHom.comp A.ρ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- Given a `k`-linear `G`-representation `(A, ρ₁)`, this is the 'internal Hom' functor sending\n`(B, ρ₂)` to the representation `Homₖ(A, B)` that maps `g : G` and `f : A →ₗ[k] B` to\n`(ρ₂ g) ∘ₗ f ∘ₗ (ρ₁ g⁻¹)`. -/\n@[simps]\nprotected def ihom (A : Rep k G) : Rep k G ⥤ Rep k G where\n  obj B := Rep.of (Representation.linHom A.ρ B.ρ)\n  map := fun {X} {Y} f =>\n    { hom := ModuleCat.ofHom (LinearMap.llcomp k _ _ _ f.hom.hom)\n      comm := fun g => ModuleCat.hom_ext <| LinearMap.ext fun x => LinearMap.ext fun y => by\n        show f.hom (X.ρ g _) = _\n        simp only [hom_comm_apply]; rfl }\n  map_id := fun _ => by ext; rfl\n  map_comp := fun _ _ => by ext; rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ihom_obj_ρ_def (A B : Rep k G) : ((ihom A).obj B).ρ = ((Rep.ihom A).obj B).ρ :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\n@[simp]\nlemma hom_inv_apply {R S : CommRingCat} (e : R ≅ S) (s : S) : e.hom (e.inv s) = s := by\n  rw [← comp_apply]\n  simp",
+   "--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive (attr := simp)]\ntheorem ofHom_apply {X Y : Type _} [CommGroup X] [CommGroup Y] (f : X →* Y) (x : X) :\n    @DFunLike.coe (X →* Y) X (fun _ ↦ Y) _ (ofHom f) x = f x :=\n  rfl\n-- We verify that simp lemmas apply when coercing morphisms to functions.",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- The linearization of a type `X` on which `G` acts trivially is the trivial `G`-representation\non `k[X]`. -/\n@[simps!]\nnoncomputable def linearizationTrivialIso (X : Type u) :\n    (linearization k G).obj (Action.mk X 1) ≅ trivial k G (X →₀ k) :=\n  Action.mkIso (Iso.refl _) fun _ => ModuleCat.hom_ext <| Finsupp.lhom_ext' fun _ => LinearMap.ext\n    fun _ => linearization_single ..",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ρ_inv_self_apply {G : Type u} [Group G] (A : Rep k G) (g : G) (x : A) :\n    A.ρ g⁻¹ (A.ρ g x) = x :=\n  show (A.ρ g⁻¹ * A.ρ g) x = x by rw [← map_mul, inv_mul_cancel, map_one, LinearMap.one_apply]",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\nlemma ρ_hom {X : Rep k G} (g : G) : (Action.ρ X g).hom = X.ρ g := rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.rep_iso_apply_iff",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma rep_iso_apply_iff (x y : Rep k G) (f : x ≅ y) (i : x) (j : y) :\n    f.hom.hom i = j ↔ i = f.inv.hom j := by\n  apply Iff.intro\n  · intro a\n    subst a\n    simp_all only [rep_iso_inv_hom_apply]\n  · intro a\n    subst a\n    exact rep_iso_hom_inv_apply x y f j\n\n",
+   "compilationAlias":
+   "lemma rep_iso_apply_iff (x y : Rep k G) (f : x ≅ y) (i : x) (j : y) :\n    f.hom.hom i = j ↔ i = f.inv.hom j := by\n  apply Iff.intro\n  · intro a\n    subst a\n    simp_all only [rep_iso_inv_hom_apply]\n  · intro a\n    subst a\n    exact rep_iso_hom_inv_apply x y f j\n\n"},
+  "goal":
+  "k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nx y : Rep k G\nf : CategoryTheory.Iso x y\ni : ↑x.V\nj : ↑y.V\n⊢ Iff (Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) i) j) (Eq i ((CategoryTheory.ConcreteCategory.hom f.inv.hom) j))",
+  "content_sorry":
+  "lemma rep_iso_apply_iff (x y : Rep k G) (f : x ≅ y) (i : x) (j : y) :\n    f.hom.hom i = j ↔ i = f.inv.hom j := by\n  sorry",
+  "annotation":
+  "lemma rep_iso_apply_iff (x y : Rep k G) (f : x ≅ y) (i : x) (j : y) :\n    f.hom.hom i = j ↔ i = f.inv.hom j := by\n  /-\n    k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    x y : Rep k G\n    f : CategoryTheory.Iso x y\n    i : ↑x.V\n    j : ↑y.V\n    ⊢ Iff (Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) i) j) (Eq i ((Categ …\n  -/\n  apply Iff.intro\n    /-\n      case mp\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑x.V\n      j : ↑y.V\n      ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) i) j → Eq i ((CategoryTh …\n    -/\n  · intro a\n    /-\n      case mp\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑x.V\n      j : ↑y.V\n      a : Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) i) j\n      ⊢ Eq i ((CategoryTheory.ConcreteCategory.hom f.inv.hom) j)\n    -/\n    subst a\n    /-\n      case mp\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑x.V\n      ⊢ Eq i ((CategoryTheory.ConcreteCategory.hom f.inv.hom) ((CategoryTheory.Concr …\n    -/\n    simp_all only [rep_iso_inv_hom_apply]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case mpr\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑x.V\n      j : ↑y.V\n      ⊢ Eq i ((CategoryTheory.ConcreteCategory.hom f.inv.hom) j) → Eq ((CategoryTheo …\n    -/\n  · intro a\n    /-\n      case mpr\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      i : ↑x.V\n      j : ↑y.V\n      a : Eq i ((CategoryTheory.ConcreteCategory.hom f.inv.hom) j)\n      ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) i) j\n    -/\n    subst a\n    /-\n      case mpr\n      k : Type\n      inst✝¹ : CommRing k\n      G : Type\n      inst✝ : Group G\n      x y : Rep k G\n      f : CategoryTheory.Iso x y\n      j : ↑y.V\n      ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) ((CategoryTheory.Concret …\n    -/\n    exact rep_iso_hom_inv_apply x y f j\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Rep",
+    "module": "Mathlib.RepresentationTheory.Rep",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G",
+    "compilationAlias":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Rep\ntheorem Action_ρ_eq_ρ {A : Rep k G} :\n    Action.ρ A = (ModuleCat.endMulEquiv _).symm.toMonoidHom.comp A.ρ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- The linearization of a type `X` on which `G` acts trivially is the trivial `G`-representation\non `k[X]`. -/\n@[simps!]\nnoncomputable def linearizationTrivialIso (X : Type u) :\n    (linearization k G).obj (Action.mk X 1) ≅ trivial k G (X →₀ k) :=\n  Action.mkIso (Iso.refl _) fun _ => ModuleCat.hom_ext <| Finsupp.lhom_ext' fun _ => LinearMap.ext\n    fun _ => linearization_single ..",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ihom_obj_ρ_def (A B : Rep k G) : ((ihom A).obj B).ρ = ((Rep.ihom A).obj B).ρ :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n/-- Build a `MulEquiv` from an isomorphism in the category `CommGroup`. -/\n@[to_additive (attr := simps!)]\ndef commGroupIsoToMulEquiv {X Y : CommGrp} (i : X ≅ Y) : X ≃* Y :=\n  MonoidHom.toMulEquiv i.hom i.inv i.hom_inv_id i.inv_hom_id",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ρ_inv_self_apply {G : Type u} [Group G] (A : Rep k G) (g : G) (x : A) :\n    A.ρ g⁻¹ (A.ρ g x) = x :=\n  show (A.ρ g⁻¹ * A.ρ g) x = x by rw [← map_mul, inv_mul_cancel, map_one, LinearMap.one_apply]",
+   "--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\n@[simp]\nlemma hom_inv_apply {R S : CommRingCat} (e : R ≅ S) (s : S) : e.hom (e.inv s) = s := by\n  rw [← comp_apply]\n  simp",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive (attr := simp)]\ntheorem ofHom_apply {X Y : Type _} [CommGroup X] [CommGroup Y] (f : X →* Y) (x : X) :\n    @DFunLike.coe (X →* Y) X (fun _ ↦ Y) _ (ofHom f) x = f x :=\n  rfl\n-- We verify that simp lemmas apply when coercing morphisms to functions.",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- Given a `k`-linear `G`-representation `(A, ρ₁)`, this is the 'internal Hom' functor sending\n`(B, ρ₂)` to the representation `Homₖ(A, B)` that maps `g : G` and `f : A →ₗ[k] B` to\n`(ρ₂ g) ∘ₗ f ∘ₗ (ρ₁ g⁻¹)`. -/\n@[simps]\nprotected def ihom (A : Rep k G) : Rep k G ⥤ Rep k G where\n  obj B := Rep.of (Representation.linHom A.ρ B.ρ)\n  map := fun {X} {Y} f =>\n    { hom := ModuleCat.ofHom (LinearMap.llcomp k _ _ _ f.hom.hom)\n      comm := fun g => ModuleCat.hom_ext <| LinearMap.ext fun x => LinearMap.ext fun y => by\n        show f.hom (X.ρ g _) = _\n        simp only [hom_comm_apply]; rfl }\n  map_id := fun _ => by ext; rfl\n  map_comp := fun _ _ => by ext; rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\nlemma ρ_hom {X : Rep k G} (g : G) : (Action.ρ X g).hom = X.ρ g := rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.rep_iso_hom_inv_apply",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma rep_iso_hom_inv_apply (x y : Rep k G) (f : x ≅ y) (i : y) :\n    f.hom.hom (f.inv.hom i) = i := by\n  change (f.inv ≫ f.hom).hom i = i\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma rep_iso_hom_inv_apply (x y : Rep k G) (f : x ≅ y) (i : y) :\n    f.hom.hom (f.inv.hom i) = i := by\n  change (f.inv ≫ f.hom).hom i = i\n  simp\n\n"},
+  "goal":
+  "k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nx y : Rep k G\nf : CategoryTheory.Iso x y\ni : ↑y.V\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) ((CategoryTheory.ConcreteCategory.hom f.inv.hom) i)) i",
+  "content_sorry":
+  "@[simp]\nlemma rep_iso_hom_inv_apply (x y : Rep k G) (f : x ≅ y) (i : y) :\n    f.hom.hom (f.inv.hom i) = i := by\n  sorry",
+  "annotation":
+  "@[simp]\nlemma rep_iso_hom_inv_apply (x y : Rep k G) (f : x ≅ y) (i : y) :\n    f.hom.hom (f.inv.hom i) = i := by\n  /-\n    k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    x y : Rep k G\n    f : CategoryTheory.Iso x y\n    i : ↑y.V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.hom.hom) ((CategoryTheory.Concret …\n  -/\n  change (f.inv ≫ f.hom).hom i = i\n  /-\n    k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    x y : Rep k G\n    f : CategoryTheory.Iso x y\n    i : ↑y.V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.CategoryStruct.comp …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Rep",
+    "module": "Mathlib.RepresentationTheory.Rep",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G",
+    "compilationAlias":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Rep\ntheorem Action_ρ_eq_ρ {A : Rep k G} :\n    Action.ρ A = (ModuleCat.endMulEquiv _).symm.toMonoidHom.comp A.ρ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- The linearization of a type `X` on which `G` acts trivially is the trivial `G`-representation\non `k[X]`. -/\n@[simps!]\nnoncomputable def linearizationTrivialIso (X : Type u) :\n    (linearization k G).obj (Action.mk X 1) ≅ trivial k G (X →₀ k) :=\n  Action.mkIso (Iso.refl _) fun _ => ModuleCat.hom_ext <| Finsupp.lhom_ext' fun _ => LinearMap.ext\n    fun _ => linearization_single ..",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ihom_obj_ρ_def (A B : Rep k G) : ((ihom A).obj B).ρ = ((Rep.ihom A).obj B).ρ :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n/-- Build a `MulEquiv` from an isomorphism in the category `CommGroup`. -/\n@[to_additive (attr := simps!)]\ndef commGroupIsoToMulEquiv {X Y : CommGrp} (i : X ≅ Y) : X ≃* Y :=\n  MonoidHom.toMulEquiv i.hom i.inv i.hom_inv_id i.inv_hom_id",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\n@[simp]\nlemma hom_inv_apply {R S : CommRingCat} (e : R ≅ S) (s : S) : e.hom (e.inv s) = s := by\n  rw [← comp_apply]\n  simp",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ρ_inv_self_apply {G : Type u} [Group G] (A : Rep k G) (g : G) (x : A) :\n    A.ρ g⁻¹ (A.ρ g x) = x :=\n  show (A.ρ g⁻¹ * A.ρ g) x = x by rw [← map_mul, inv_mul_cancel, map_one, LinearMap.one_apply]",
+   "--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive (attr := simp)]\ntheorem ofHom_apply {X Y : Type _} [CommGroup X] [CommGroup Y] (f : X →* Y) (x : X) :\n    @DFunLike.coe (X →* Y) X (fun _ ↦ Y) _ (ofHom f) x = f x :=\n  rfl\n-- We verify that simp lemmas apply when coercing morphisms to functions.",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- Given a `k`-linear `G`-representation `(A, ρ₁)`, this is the 'internal Hom' functor sending\n`(B, ρ₂)` to the representation `Homₖ(A, B)` that maps `g : G` and `f : A →ₗ[k] B` to\n`(ρ₂ g) ∘ₗ f ∘ₗ (ρ₁ g⁻¹)`. -/\n@[simps]\nprotected def ihom (A : Rep k G) : Rep k G ⥤ Rep k G where\n  obj B := Rep.of (Representation.linHom A.ρ B.ρ)\n  map := fun {X} {Y} f =>\n    { hom := ModuleCat.ofHom (LinearMap.llcomp k _ _ _ f.hom.hom)\n      comm := fun g => ModuleCat.hom_ext <| LinearMap.ext fun x => LinearMap.ext fun y => by\n        show f.hom (X.ρ g _) = _\n        simp only [hom_comm_apply]; rfl }\n  map_id := fun _ => by ext; rfl\n  map_comp := fun _ _ => by ext; rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Basic\n@[simp]\nlemma inv_hom_apply {M N : ModuleCat.{v} R} (e : M ≅ N) (x : M) : e.inv (e.hom x) = x := by\n  rw [← comp_apply]\n  simp"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.rep_iso_inv_hom_apply",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma rep_iso_inv_hom_apply (x y : Rep k G) (f : x ≅ y) (i : x) :\n    f.inv.hom (f.hom.hom i) = i := by\n  change (f.hom ≫ f.inv).hom i = i\n  simp\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma rep_iso_inv_hom_apply (x y : Rep k G) (f : x ≅ y) (i : x) :\n    f.inv.hom (f.hom.hom i) = i := by\n  change (f.hom ≫ f.inv).hom i = i\n  simp\n\n"},
+  "goal":
+  "k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nx y : Rep k G\nf : CategoryTheory.Iso x y\ni : ↑x.V\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) ((CategoryTheory.ConcreteCategory.hom f.hom.hom) i)) i",
+  "content_sorry":
+  "@[simp]\nlemma rep_iso_inv_hom_apply (x y : Rep k G) (f : x ≅ y) (i : x) :\n    f.inv.hom (f.hom.hom i) = i := by\n  sorry",
+  "annotation":
+  "@[simp]\nlemma rep_iso_inv_hom_apply (x y : Rep k G) (f : x ≅ y) (i : x) :\n    f.inv.hom (f.hom.hom i) = i := by\n  /-\n    k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    x y : Rep k G\n    f : CategoryTheory.Iso x y\n    i : ↑x.V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom f.inv.hom) ((CategoryTheory.Concret …\n  -/\n  change (f.hom ≫ f.inv).hom i = i\n  /-\n    k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    x y : Rep k G\n    f : CategoryTheory.Iso x y\n    i : ↑x.V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.CategoryStruct.comp …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Rep",
+    "module": "Mathlib.RepresentationTheory.Rep",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G",
+    "compilationAlias":
+    "/-- The category of `k`-linear representations of a monoid `G`. -/\nabbrev Rep (k G : Type u) [Ring k] [Monoid G] :=\n  Action (ModuleCat.{u} k) G"}]},
+ {"rag":
+  ["--src: Mathlib.CategoryTheory.Action.Basic\n/-- A homomorphism of `Action V G`s is a morphism between the underlying objects,\ncommuting with the action of `G`.\n-/\n@[ext]\nstructure Hom (M N : Action V G) where\n  hom : M.V ⟶ N.V\n  comm : ∀ g : G, M.ρ g ≫ hom = hom ≫ N.ρ g := by aesop_cat",
+   "--src: Mathlib.CategoryTheory.Action.Monoidal\n@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]\ninstance instMonoidalCategory : MonoidalCategory (Action V G) :=\n  Monoidal.transport (Action.functorCategoryEquivalence _ _).symm\n/- Adding this solves `simpNF` linter report at `tensorUnit_ρ` -/",
+   "--src: Mathlib.CategoryTheory.Action.Basic\n/-- The category of actions of `G` in the category `V`\nis equivalent to the functor category `singleObj G ⥤ V`.\n-/\n@[simps]\ndef functorCategoryEquivalence : Action V G ≌ SingleObj G ⥤ V where\n  functor := functor\n  inverse := inverse\n  unitIso := unitIso\n  counitIso := counitIso",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Presheaf\nvariable (R) in\n/-- A presheaf of modules over `R : Cᵒᵖ ⥤ RingCat` consists of family of\nobjects `obj X : ModuleCat (R.obj X)` for all `X : Cᵒᵖ` together with\nfunctorial maps `obj X ⟶ (ModuleCat.restrictScalars (R.map f)).obj (obj Y)`\nfor all `f : X ⟶ Y` in `Cᵒᵖ`. -/\nstructure PresheafOfModules where\n  /-- a family of modules over `R.obj X` for all `X` -/\n  obj (X : Cᵒᵖ) : ModuleCat.{v} (R.obj X)\n  /-- the restriction maps of a presheaf of modules -/\n  map {X Y : Cᵒᵖ} (f : X ⟶ Y) : obj X ⟶ (ModuleCat.restrictScalars (R.map f).hom).obj (obj Y)\n  map_id (X : Cᵒᵖ) :\n    map (\u0000\u0000 X) =\n      (ModuleCat.restrictScalarsId' _ (congrArg RingCat.Hom.hom (R.map_id X))).inv.app _ := by\n        aesop_cat\n  map_comp {X Y Z : Cᵒᵖ} (f : X ⟶ Y) (g : Y ⟶ Z) :\n    map (f ≫ g) = map f ≫ (ModuleCat.restrictScalars _).map (map g) ≫\n      (ModuleCat.restrictScalarsComp' _ _ _\n        (congrArg RingCat.Hom.hom <| R.map_comp f g)).inv.app _ := by aesop_cat",
+   "--src: Mathlib.CategoryTheory.Action.Monoidal\n@[simp]\ntheorem rightDual_v [RightRigidCategory V] : Xᘁ.V = X.Vᘁ :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic\n/-- Extensionality lemma for morphisms from a module of the form `(M₁ ⊗ M₂) ⊗ M₃`. -/\nlemma tensor_ext₃' {f g : (M₁ ⊗ M₂) ⊗ M₃ ⟶ M₄}\n    (h : ∀ m₁ m₂ m₃, f (m₁ ⊗ₜ m₂ ⊗ₜ m₃) = g (m₁ ⊗ₜ m₂ ⊗ₜ m₃)) :\n    f = g :=\n  hom_ext <| TensorProduct.ext_threefold h",
+   "--src: Mathlib.Algebra.Category.ModuleCat.ChangeOfRings\n@[ext]\nlemma hom_ext {M : ModuleCat R} {N : ModuleCat S}\n    {α β : (extendScalars f).obj M ⟶ N}\n    (h : ∀ (m : M), α ((1 : S) ⊗ₜ m) = β ((1 : S) ⊗ₜ m)) : α = β := by\n  apply (restrictScalars f).map_injective\n  letI := f.toAlgebra\n  ext : 1\n  apply TensorProduct.ext'\n  intro (s : S) m\n  change α (s ⊗ₜ m) = β (s ⊗ₜ m)\n  have : s ⊗ₜ[R] (m : M) = s • (1 : S) ⊗ₜ[R] m := by\n    rw [ExtendScalars.smul_tmul, mul_one]\n  simp only [this, map_smul, h]",
+   "--src: Mathlib.CategoryTheory.Action.Basic\n/-- A homomorphism of `Action V G`s is a morphism between the underlying objects,\ncommuting with the action of `G`.\n-/\n@[ext]\nstructure Hom (M N : Action V G) where\n  hom : M.V ⟶ N.V\n  comm : ∀ g : G, M.ρ g ≫ hom = hom ≫ N.ρ g := by aesop_cat",
+   "--src: Mathlib.CategoryTheory.Action.Monoidal\n@[simp]\nlemma mapAction_δ_hom [F.OplaxMonoidal] (X Y : Action V G) :\n    (δ (F.mapAction G) X Y).hom = δ F X.V Y.V := rfl",
+   "--src: Mathlib.CategoryTheory.Monoidal.Functor\n@[reassoc]\nlemma counitIso_inv_app_tensor_comp_functor_map_δ_inverse (X Y : C) :\n    e.counitIso.inv.app (e.functor.obj X ⊗ e.functor.obj Y) ≫\n      e.functor.map (δ e.inverse (e.functor.obj X) (e.functor.obj Y)) =\n      μ e.functor X Y ≫ e.functor.map (e.unitIso.hom.app X ⊗ e.unitIso.hom.app Y) := by\n  rw [← cancel_epi (δ e.functor _ _), Monoidal.δ_μ_assoc]\n  apply e.inverse.map_injective\n  simp [← cancel_epi (e.unitIso.hom.app (X ⊗ Y)), Functor.map_comp,\n    unitIso_hom_app_tensor_comp_inverse_map_δ_functor_assoc]"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.pairτ_tmul",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma pairτ_tmul {c : C} (x : F.obj (Discrete.mk c))\n    (y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) (MonCat.of G)).symm.inverse.obj\n    ((Discrete.functor (Discrete.mk ∘ τ) ⋙ F).obj { as := c })).obj PUnit.unit)) (h : c = c1) :\n    ((pairτ F τ).map (Discrete.eqToHom h)).hom (x ⊗ₜ[k] y)= ((F.map (Discrete.eqToHom h)).hom x)\n    ⊗ₜ[k] ((F.map (Discrete.eqToHom (by simp [h]))).hom y) := by\n  rfl\n\n",
+   "compilationAlias":
+   "lemma pairτ_tmul {c : C} (x : F.obj (Discrete.mk c))\n    (y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) (MonCat.of G)).symm.inverse.obj\n    ((Discrete.functor (Discrete.mk ∘ τ) ⋙ F).obj { as := c })).obj PUnit.unit)) (h : c = c1) :\n    ((pairτ F τ).map (Discrete.eqToHom h)).hom (x ⊗ₜ[k] y)= ((F.map (Discrete.eqToHom h)).hom x)\n    ⊗ₜ[k] ((F.map (Discrete.eqToHom (by simp [h]))).hom y) := by\n  rfl\n\n"},
+  "goal":
+  "C k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nF : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\nτ : C → C\nc1 c : C\nx : ↑(F.obj { as := c }).V\ny : ↑(((Action.functorCategoryEquivalence (ModuleCat k) ↑(MonCat.of G)).symm.inverse.obj (((CategoryTheory.Discrete.functor (Function.comp CategoryTheory.Discrete.mk τ)).comp F).obj { as := c })).obj PUnit.unit)\nh : Eq c c1\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.Discrete.pairτ F τ).map (CategoryTheory.Discrete.eqToHom h)).hom) (TensorProduct.tmul k x y)) (TensorProduct.tmul k ((CategoryTheory.ConcreteCategory.hom (F.map (CategoryTheory.Discrete.eqToHom h)).hom) x) ((CategoryTheory.ConcreteCategory.hom (F.map (CategoryTheory.Discrete.eqToHom ⋯)).hom) y))",
+  "content_sorry":
+  "lemma pairτ_tmul {c : C} (x : F.obj (Discrete.mk c))\n    (y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) (MonCat.of G)).symm.inverse.obj\n    ((Discrete.functor (Discrete.mk ∘ τ) ⋙ F).obj { as := c })).obj PUnit.unit)) (h : c = c1) :\n    ((pairτ F τ).map (Discrete.eqToHom h)).hom (x ⊗ₜ[k] y)= ((F.map (Discrete.eqToHom h)).hom x)\n    ⊗ₜ[k] ((F.map (Discrete.eqToHom (by sorry",
+  "annotation":
+  "lemma pairτ_tmul {c : C} (x : F.obj (Discrete.mk c))\n    (y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) (MonCat.of G)).symm.inverse.obj\n    ((Discrete.functor (Discrete.mk ∘ τ) ⋙ F).obj { as := c })).obj PUnit.unit)) (h : c = c1) :\n    ((pairτ F τ).map (Discrete.eqToHom h)).hom (x ⊗ₜ[k] y)= ((F.map (Discrete.eqToHom h)).hom x)\n                                        /-\n                                          C k : Type\n                                          inst✝¹ : CommRing k\n                                          G : Type\n                                          inst✝ : Group G\n                                          F F' : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n                                          η : Quiver.Hom F F'\n                                          τ : C → C\n                                          c1 c : C\n                                          x : ↑(F.obj { as := c }).V\n                                          y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) ↑(MonCat.of G)).symm.i …\n                                          h : Eq c c1\n                                          ⊢ Eq ((CategoryTheory.Discrete.functor (Function.comp CategoryTheory.Discrete. …\n                                        -/\n    ⊗ₜ[k] ((F.map (Discrete.eqToHom (by simp [h]))).hom y) := by\n                                        /-\n                                          🎉 no goals\n                                        -/\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    τ : C → C\n    c1 c : C\n    x : ↑(F.obj { as := c }).V\n    y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) ↑(MonCat.of G)).symm.i …\n    h : Eq c c1\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.Discrete. …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "MonCat.of",
+    "module": "Mathlib.Algebra.Category.MonCat.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Construct a bundled `MonCat` from the underlying type and typeclass. -/\n@[to_additive \"Construct a bundled `AddMonCat` from the underlying type and typeclass.\"]\nabbrev of (M : Type u) [Monoid M] : MonCat := ⟨M⟩",
+    "compilationAlias":
+    "/-- Construct a bundled `MonCat` from the underlying type and typeclass. -/\n@[to_additive \"Construct a bundled `AddMonCat` from the underlying type and typeclass.\"]\nabbrev of (M : Type u) [Monoid M] : MonCat := ⟨M⟩"},
+   {"name": "Action.functorCategoryEquivalence",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The category of actions of `G` in the category `V`\nis equivalent to the functor category `singleObj G ⥤ V`.\n-/\n@[simps]\ndef functorCategoryEquivalence : Action V G ≌ SingleObj G ⥤ V where\n  functor := functor\n  inverse := inverse\n  unitIso := unitIso\n  counitIso := counitIso",
+    "compilationAlias":
+    "/-- The category of actions of `G` in the category `V`\nis equivalent to the functor category `singleObj G ⥤ V`.\n-/\n@[simps]\ndef functorCategoryEquivalence : Action V G ≌ SingleObj G ⥤ V where\n  functor := functor\n  inverse := inverse\n  unitIso := unitIso\n  counitIso := counitIso"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl",
+   "--src: Mathlib.Algebra.Category.FGModuleCat.Basic\n@[simp] lemma tensorObj_obj (M N : FGModuleCat.{u} R) : (M ⊗ N).obj = (M.obj ⊗ N.obj) := rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Presheaf.Monoidal\n@[simp]\nlemma tensorObj_map_tmul {X Y : Cᵒᵖ} (f : X ⟶ Y) (m₁ : M₁.obj X) (m₂ : M₂.obj X) :\n    DFunLike.coe (α := (M₁.obj X ⊗ M₂.obj X : _))\n      (β := fun _ ↦ (ModuleCat.restrictScalars (R.map f).hom).obj (M₁.obj Y ⊗ M₂.obj Y))\n      ((tensorObj M₁ M₂).map f).hom (m₁ ⊗ₜ[R.obj X] m₂) = M₁.map f m₁ ⊗ₜ[R.obj Y] M₂.map f m₂ := rfl",
+   "--src: Mathlib.RepresentationTheory.GroupCohomology.LowDegree\n@[simp] theorem H0LequivOfIsTrivial_eq_subtype [A.IsTrivial] :\n    H0LequivOfIsTrivial A = A.ρ.invariants.subtype := rfl",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\n@[simp]\ntheorem lift_comp_reindex_symm (e : ι ≃ ι₂) (φ : MultilinearMap R s E) :\n    lift φ ∘ₗ (reindex R s e).symm = lift (domDomCongrLinearEquiv' R R s _ e φ) := by\n  ext; simp [reindex]",
+   "--src: Mathlib.RepresentationTheory.FDRep\ntheorem forget₂_ρ (V : FDRep k G) : ((forget₂ (FDRep k G) (Rep k G)).obj V).ρ = V.ρ := by\n  ext g v; rfl\n-- Verify that the monoidal structure is available.",
+   "--src: Mathlib.Algebra.Category.Grp.EquivalenceGroupAddGroup\n/-- The functor `AddCommGrp ⥤ CommGrp` by sending `X ↦ Multiplicative Y` and `f ↦ f`.\n-/\n@[simps]\ndef toCommGrp : AddCommGrp ⥤ CommGrp where\n  obj X := CommGrp.of (Multiplicative X)\n  map {_} {_} := AddMonoidHom.toMultiplicative",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem repOfTprodIso_inv_apply (x : TensorProduct k V W) : (repOfTprodIso ρ τ).inv.hom x = x :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive (attr := simp)]\ntheorem coe_of (R : Type u) [CommGroup R] : (CommGrp.of R : Type u) = R :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Graded.External\n/-- The braiding is symmetric. -/\n@[simp]\ntheorem gradedComm_symm : (gradedComm R \u0000\u0000 ℬ).symm = gradedComm R ℬ \u0000\u0000 := by\n  rw [gradedComm, gradedComm, LinearEquiv.trans_symm, LinearEquiv.symm_symm]\n  ext\n  rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.tripleIsoSep_tmul",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma tripleIsoSep_tmul {c1 c2 c3 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2))\n    (z : F.obj (Discrete.mk c3)) :\n    (tripleIsoSep F).hom.hom (x ⊗ₜ[k] y ⊗ₜ[k] z) = PiTensorProduct.tprod k\n      (fun | (0 : Fin 3) => x | (1 : Fin 3) => y | (2 : Fin 3) => z) := by\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Action.instMonoidalCategory_tensorObj_V,\n    tripleIsoSep, Functor.mapIso_symm, Iso.trans_hom, whiskerLeftIso_hom, whiskerRightIso_hom,\n    Iso.symm_hom, Functor.mapIso_inv, Action.comp_hom,\n    Action.instMonoidalCategory_whiskerLeft_hom, Action.instMonoidalCategory_whiskerRight_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply,\n    ModuleCat.MonoidalCategory.whiskerLeft_apply, ModuleCat.MonoidalCategory.whiskerRight_apply,\n    Functor.id_obj, mk_hom]\n  simp only [Functor.Monoidal.μIso_hom, Functor.CoreMonoidal.toMonoidal_toLaxMonoidal,\n    LinearMap.coe_comp, Function.comp_apply, ModuleCat.MonoidalCategory.whiskerLeft_apply,\n    ModuleCat.MonoidalCategory.whiskerRight_apply, mk_left]\n  erw [pairIsoSep_tmul F y z]\n  erw [forgetLiftAppV_symm_apply F c1]\n  conv_lhs =>\n    enter [2]\n    erw [lift.obj_μ_tprod_tmul F _ _]\n  erw [lift.map_tprod]\n  apply congrArg\n  funext i\n  match i with\n  | (0 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left,\n      instMonoidalCategoryStruct_tensorObj_hom, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Functor.id_obj, Nat.reduceAdd,\n      Nat.succ_eq_add_one, LinearEquiv.ofLinear_apply]\n    rfl\n  | (1 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_one, Matrix.head_cons,\n      instMonoidalCategoryStruct_tensorObj_left, instMonoidalCategoryStruct_tensorObj_hom,\n      lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom,\n      Iso.refl_inv, Functor.id_obj, Nat.reduceAdd, Nat.succ_eq_add_one, LinearEquiv.ofLinear_apply]\n    rfl\n  | (2 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_two, Nat.succ_eq_add_one, Nat.reduceAdd,\n      instMonoidalCategoryStruct_tensorObj_left, instMonoidalCategoryStruct_tensorObj_hom,\n      lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom,\n      Iso.refl_inv, Functor.id_obj, LinearEquiv.ofLinear_apply]\n    rfl\n\n",
+   "compilationAlias":
+   "lemma tripleIsoSep_tmul {c1 c2 c3 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2))\n    (z : F.obj (Discrete.mk c3)) :\n    (tripleIsoSep F).hom.hom (x ⊗ₜ[k] y ⊗ₜ[k] z) = PiTensorProduct.tprod k\n      (fun | (0 : Fin 3) => x | (1 : Fin 3) => y | (2 : Fin 3) => z) := by\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Action.instMonoidalCategory_tensorObj_V,\n    tripleIsoSep, Functor.mapIso_symm, Iso.trans_hom, whiskerLeftIso_hom, whiskerRightIso_hom,\n    Iso.symm_hom, Functor.mapIso_inv, Action.comp_hom,\n    Action.instMonoidalCategory_whiskerLeft_hom, Action.instMonoidalCategory_whiskerRight_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply,\n    ModuleCat.MonoidalCategory.whiskerLeft_apply, ModuleCat.MonoidalCategory.whiskerRight_apply,\n    Functor.id_obj, mk_hom]\n  simp only [Functor.Monoidal.μIso_hom, Functor.CoreMonoidal.toMonoidal_toLaxMonoidal,\n    LinearMap.coe_comp, Function.comp_apply, ModuleCat.MonoidalCategory.whiskerLeft_apply,\n    ModuleCat.MonoidalCategory.whiskerRight_apply, mk_left]\n  erw [pairIsoSep_tmul F y z]\n  erw [forgetLiftAppV_symm_apply F c1]\n  conv_lhs =>\n    enter [2]\n    erw [lift.obj_μ_tprod_tmul F _ _]\n  erw [lift.map_tprod]\n  apply congrArg\n  funext i\n  match i with\n  | (0 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left,\n      instMonoidalCategoryStruct_tensorObj_hom, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Functor.id_obj, Nat.reduceAdd,\n      Nat.succ_eq_add_one, LinearEquiv.ofLinear_apply]\n    rfl\n  | (1 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_one, Matrix.head_cons,\n      instMonoidalCategoryStruct_tensorObj_left, instMonoidalCategoryStruct_tensorObj_hom,\n      lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom,\n      Iso.refl_inv, Functor.id_obj, Nat.reduceAdd, Nat.succ_eq_add_one, LinearEquiv.ofLinear_apply]\n    rfl\n  | (2 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_two, Nat.succ_eq_add_one, Nat.reduceAdd,\n      instMonoidalCategoryStruct_tensorObj_left, instMonoidalCategoryStruct_tensorObj_hom,\n      lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom,\n      Iso.refl_inv, Functor.id_obj, LinearEquiv.ofLinear_apply]\n    rfl\n\n"},
+  "goal":
+  "C k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nF : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\nc1 c2 c3 : C\nx : ↑(F.obj { as := c1 }).V\ny : ↑(F.obj { as := c2 }).V\nz : ↑(F.obj { as := c3 }).V\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.Discrete.tripleIsoSep F).hom.hom) (TensorProduct.tmul k x (TensorProduct.tmul k y z))) ((PiTensorProduct.tprod k) fun x_1 => IndexNotation.OverColor.Discrete.tripleIsoSep_tmul.match_1 (fun x => ↑(F.obj { as := (IndexNotation.OverColor.mk (Matrix.vecCons c1 (Matrix.vecCons c2 (Matrix.vecCons c3 Matrix.vecEmpty)))).hom x }).V) x_1 (fun _ => x) (fun _ => y) fun _ => z)",
+  "content_sorry":
+  "lemma tripleIsoSep_tmul {c1 c2 c3 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2))\n    (z : F.obj (Discrete.mk c3)) :\n    (tripleIsoSep F).hom.hom (x ⊗ₜ[k] y ⊗ₜ[k] z) = PiTensorProduct.tprod k\n      (fun | (0 : Fin 3) => x | (1 : Fin 3) => y | (2 : Fin 3) => z) := by\n  sorry",
+  "annotation":
+  "lemma tripleIsoSep_tmul {c1 c2 c3 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2))\n    (z : F.obj (Discrete.mk c3)) :\n    (tripleIsoSep F).hom.hom (x ⊗ₜ[k] y ⊗ₜ[k] z) = PiTensorProduct.tprod k\n      (fun | (0 : Fin 3) => x | (1 : Fin 3) => y | (2 : Fin 3) => z) := by\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Action.instMonoidalCategory_tensorObj_V,\n    tripleIsoSep, Functor.mapIso_symm, Iso.trans_hom, whiskerLeftIso_hom, whiskerRightIso_hom,\n    Iso.symm_hom, Functor.mapIso_inv, Action.comp_hom,\n    Action.instMonoidalCategory_whiskerLeft_hom, Action.instMonoidalCategory_whiskerRight_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply,\n    ModuleCat.MonoidalCategory.whiskerLeft_apply, ModuleCat.MonoidalCategory.whiskerRight_apply,\n    Functor.id_obj, mk_hom]\n  simp only [Functor.Monoidal.μIso_hom, Functor.CoreMonoidal.toMonoidal_toLaxMonoidal,\n    LinearMap.coe_comp, Function.comp_apply, ModuleCat.MonoidalCategory.whiskerLeft_apply,\n    ModuleCat.MonoidalCategory.whiskerRight_apply, mk_left]\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 c3 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    z : ↑(F.obj { as := c3 }).V\n    ⊢ Eq ((ModuleCat.Hom.hom ((IndexNotation.OverColor.lift.obj F).map IndexNotati …\n  -/\n  erw [pairIsoSep_tmul F y z]\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 c3 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    z : ↑(F.obj { as := c3 }).V\n    ⊢ Eq ((ModuleCat.Hom.hom ((IndexNotation.OverColor.lift.obj F).map IndexNotati …\n  -/\n  erw [forgetLiftAppV_symm_apply F c1]\n  conv_lhs =>\n    enter [2]\n    erw [lift.obj_μ_tprod_tmul F _ _]\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 c3 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    z : ↑(F.obj { as := c3 }).V\n    ⊢ Eq ((ModuleCat.Hom.hom ((IndexNotation.OverColor.lift.obj F).map IndexNotati …\n  -/\n  erw [lift.map_tprod]\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 c3 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    z : ↑(F.obj { as := c3 }).V\n    ⊢ Eq ((PiTensorProduct.tprod k) fun i => (IndexNotation.OverColor.lift.discret …\n  -/\n  apply congrArg\n  /-\n    case h\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 c3 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    z : ↑(F.obj { as := c3 }).V\n    ⊢ Eq (fun i => (IndexNotation.OverColor.lift.discreteFunctorMapEqIso F ⋯) ((In …\n  -/\n  funext i\n  match i with\n  | (0 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left,\n      instMonoidalCategoryStruct_tensorObj_hom, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Functor.id_obj, Nat.reduceAdd,\n      Nat.succ_eq_add_one, LinearEquiv.ofLinear_apply]\n    rfl\n  | (1 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_one, Matrix.head_cons,\n      instMonoidalCategoryStruct_tensorObj_left, instMonoidalCategoryStruct_tensorObj_hom,\n      lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom,\n      Iso.refl_inv, Functor.id_obj, Nat.reduceAdd, Nat.succ_eq_add_one, LinearEquiv.ofLinear_apply]\n    rfl\n  | (2 : Fin 3) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_two, Nat.succ_eq_add_one, Nat.reduceAdd,\n      instMonoidalCategoryStruct_tensorObj_left, instMonoidalCategoryStruct_tensorObj_hom,\n      lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom,\n      Iso.refl_inv, Functor.id_obj, LinearEquiv.ofLinear_apply]\n    rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Matrix.cons_val_two",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_two (x : α) (u : Fin m.succ.succ → α) : vecCons x u 2 = vecHead (vecTail u) :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_two (x : α) (u : Fin m.succ.succ → α) : vecCons x u 2 = vecHead (vecTail u) :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Matrix.head_cons",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl"},
+   {"name": "Matrix.cons_val_one",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl",
+    "compilationAlias":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Matrix.cons_val_zero",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "ModuleCat.MonoidalCategory.whiskerRight_apply",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem whiskerRight_apply {L M : ModuleCat.{u} R} (f : L ⟶ M) (N : ModuleCat.{u} R)\n    (l : L) (n : N) :\n    (f ▷ N) (l ⊗ₜ n) = f l ⊗ₜ n :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem whiskerRight_apply {L M : ModuleCat.{u} R} (f : L ⟶ M) (N : ModuleCat.{u} R)\n    (l : L) (n : N) :\n    (f ▷ N) (l ⊗ₜ n) = f l ⊗ₜ n :=\n  rfl"},
+   {"name": "ModuleCat.MonoidalCategory.whiskerLeft_apply",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem whiskerLeft_apply (L : ModuleCat.{u} R) {M N : ModuleCat.{u} R} (f : M ⟶ N)\n    (l : L) (m : M) :\n    (L ◁ f) (l ⊗ₜ m) = l ⊗ₜ f m :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem whiskerLeft_apply (L : ModuleCat.{u} R) {M N : ModuleCat.{u} R} (f : M ⟶ N)\n    (l : L) (m : M) :\n    (L ◁ f) (l ⊗ₜ m) = l ⊗ₜ f m :=\n  rfl"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "LinearMap.coe_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl"},
+   {"name": "ModuleCat.MonoidalCategory.whiskerRight_apply",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem whiskerRight_apply {L M : ModuleCat.{u} R} (f : L ⟶ M) (N : ModuleCat.{u} R)\n    (l : L) (n : N) :\n    (f ▷ N) (l ⊗ₜ n) = f l ⊗ₜ n :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem whiskerRight_apply {L M : ModuleCat.{u} R} (f : L ⟶ M) (N : ModuleCat.{u} R)\n    (l : L) (n : N) :\n    (f ▷ N) (l ⊗ₜ n) = f l ⊗ₜ n :=\n  rfl"},
+   {"name": "ModuleCat.MonoidalCategory.whiskerLeft_apply",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem whiskerLeft_apply (L : ModuleCat.{u} R) {M N : ModuleCat.{u} R} (f : M ⟶ N)\n    (l : L) (m : M) :\n    (L ◁ f) (l ⊗ₜ m) = l ⊗ₜ f m :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem whiskerLeft_apply (L : ModuleCat.{u} R) {M N : ModuleCat.{u} R} (f : M ⟶ N)\n    (l : L) (m : M) :\n    (L ◁ f) (l ⊗ₜ m) = l ⊗ₜ f m :=\n  rfl"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "ModuleCat.hom_comp",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl",
+    "compilationAlias":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_whiskerRight_hom",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Action.instMonoidalCategory_whiskerLeft_hom",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Action.comp_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "PiTensorProduct.tprod",
+    "module": "Mathlib.LinearAlgebra.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]",
+    "compilationAlias":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Rep\n/-- Porting note: if we generate this with `@[simps]` the linter complains some types in the LHS\nsimplify. -/\ntheorem homEquiv_apply_hom (f : A ⊗ B ⟶ C) :\n    (homEquiv A B C f).hom = ModuleCat.ofHom (TensorProduct.curry f.hom.hom).flip := rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Adjunctions\n@[simp]\nlemma free_ε_one : ε (free R) 1 = freeMk PUnit.unit := rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem Action_ρ_eq_ρ {A : Rep k G} :\n    Action.ρ A = (ModuleCat.endMulEquiv _).symm.toMonoidHom.comp A.ρ :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive]\nlemma comp_def {X Y Z : CommGrp} {f : X ⟶ Y} {g : Y ⟶ Z} : f ≫ g = g.comp f := rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\nlemma ρ_hom {X : Rep k G} (g : G) : (Action.ρ X g).hom = X.ρ g := rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem MonoidalCategory.braiding_inv_apply {A B : Rep k G} (x : A) (y : B) :\n    Action.Hom.hom (β_ A B).inv (TensorProduct.tmul k y x) = TensorProduct.tmul k x y :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- Allows us to apply lemmas about the underlying `ρ`, which would take an element `g : G` rather\nthan `g : MonCat.of G` as an argument. -/\ntheorem of_ρ_apply {V : Type u} [AddCommGroup V] [Module k V] (ρ : Representation k G V)\n    (g : MonCat.of G) : (Rep.of ρ).ρ g = ρ (g : G) :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Grp.Basic\n@[to_additive (attr := simp)]\ntheorem ofHom_apply {X Y : Type _} [CommGroup X] [CommGroup Y] (f : X →* Y) (x : X) :\n    @DFunLike.coe (X →* Y) X (fun _ ↦ Y) _ (ofHom f) x = f x :=\n  rfl\n-- We verify that simp lemmas apply when coercing morphisms to functions.",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- The linearization of a type `X` on which `G` acts trivially is the trivial `G`-representation\non `k[X]`. -/\n@[simps!]\nnoncomputable def linearizationTrivialIso (X : Type u) :\n    (linearization k G).obj (Action.mk X 1) ≅ trivial k G (X →₀ k) :=\n  Action.mkIso (Iso.refl _) fun _ => ModuleCat.hom_ext <| Finsupp.lhom_ext' fun _ => LinearMap.ext\n    fun _ => linearization_single ..",
+   "--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.pairIsoSep_β",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma pairIsoSep_β {c1 c2 : C} (x : ↑(F.obj { as := c1 } ⊗ F.obj { as := c2 }).V) :\n    (Discrete.pairIsoSep F).hom.hom ((β_ (F.obj (Discrete.mk c1)) _).hom.hom x) =\n    ((lift.obj F).map ((OverColor.equivToHomEq (finMapToEquiv ![1, 0] ![1, 0])\n    (pairIsoSep_β_perm_cond c1 c2)))).hom\n    ((Discrete.pairIsoSep F).hom.hom x) := by\n  have h1 : (Discrete.pairIsoSep F).hom.hom.hom ∘ₗ\n      (β_ (F.obj (Discrete.mk c1)) (F.obj (Discrete.mk c2))).hom.hom.hom\n      = ((lift.obj F).map ((OverColor.equivToHomEq\n      (finMapToEquiv ![1, 0] ![1, 0]) (pairIsoSep_β_perm_cond c1 c2)))).hom.hom ∘ₗ\n      (Discrete.pairIsoSep F).hom.hom.hom := by\n    apply TensorProduct.ext'\n    intro x y\n    simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Equivalence.symm_inverse,\n      Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n      Action.instMonoidalCategory_tensorObj_V, LinearMap.coe_comp, Function.comp_apply, Fin.isValue]\n    change (Discrete.pairIsoSep F).hom.hom (y ⊗ₜ x) = ((lift.obj F).map\n      ((OverColor.equivToHomEq _ (pairIsoSep_β_perm_cond c1 c2)))).hom\n      ((Discrete.pairIsoSep F).hom.hom (x ⊗ₜ y))\n    rw [Discrete.pairIsoSep_tmul, Discrete.pairIsoSep_tmul]\n    erw [OverColor.lift.map_tprod]\n    apply congrArg\n    funext i\n    fin_cases i\n    · simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.zero_eta, Fin.isValue, mk_hom,\n      Matrix.cons_val_zero, Fin.cases_zero, mk_left, equivToHomEq_toEquiv, finMapToEquiv_symm_apply,\n      Matrix.cons_val_one, Matrix.head_cons, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      rfl\n    · simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.mk_one, Fin.isValue, mk_hom,\n      Matrix.cons_val_one, Matrix.head_cons, mk_left, equivToHomEq_toEquiv,\n      finMapToEquiv_symm_apply, Matrix.cons_val_zero, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Fin.cases_zero,\n      LinearEquiv.ofLinear_apply]\n      rfl\n  exact congrFun (congrArg (fun f => f.toFun) h1) _\n\n",
+   "compilationAlias":
+   "lemma pairIsoSep_β {c1 c2 : C} (x : ↑(F.obj { as := c1 } ⊗ F.obj { as := c2 }).V) :\n    (Discrete.pairIsoSep F).hom.hom ((β_ (F.obj (Discrete.mk c1)) _).hom.hom x) =\n    ((lift.obj F).map ((OverColor.equivToHomEq (finMapToEquiv ![1, 0] ![1, 0])\n    (pairIsoSep_β_perm_cond c1 c2)))).hom\n    ((Discrete.pairIsoSep F).hom.hom x) := by\n  have h1 : (Discrete.pairIsoSep F).hom.hom.hom ∘ₗ\n      (β_ (F.obj (Discrete.mk c1)) (F.obj (Discrete.mk c2))).hom.hom.hom\n      = ((lift.obj F).map ((OverColor.equivToHomEq\n      (finMapToEquiv ![1, 0] ![1, 0]) (pairIsoSep_β_perm_cond c1 c2)))).hom.hom ∘ₗ\n      (Discrete.pairIsoSep F).hom.hom.hom := by\n    apply TensorProduct.ext'\n    intro x y\n    simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Equivalence.symm_inverse,\n      Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n      Action.instMonoidalCategory_tensorObj_V, LinearMap.coe_comp, Function.comp_apply, Fin.isValue]\n    change (Discrete.pairIsoSep F).hom.hom (y ⊗ₜ x) = ((lift.obj F).map\n      ((OverColor.equivToHomEq _ (pairIsoSep_β_perm_cond c1 c2)))).hom\n      ((Discrete.pairIsoSep F).hom.hom (x ⊗ₜ y))\n    rw [Discrete.pairIsoSep_tmul, Discrete.pairIsoSep_tmul]\n    erw [OverColor.lift.map_tprod]\n    apply congrArg\n    funext i\n    fin_cases i\n    · simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.zero_eta, Fin.isValue, mk_hom,\n      Matrix.cons_val_zero, Fin.cases_zero, mk_left, equivToHomEq_toEquiv, finMapToEquiv_symm_apply,\n      Matrix.cons_val_one, Matrix.head_cons, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      rfl\n    · simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.mk_one, Fin.isValue, mk_hom,\n      Matrix.cons_val_one, Matrix.head_cons, mk_left, equivToHomEq_toEquiv,\n      finMapToEquiv_symm_apply, Matrix.cons_val_zero, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Fin.cases_zero,\n      LinearEquiv.ofLinear_apply]\n      rfl\n  exact congrFun (congrArg (fun f => f.toFun) h1) _\n\n"},
+  "goal":
+  "C k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nF : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\nc1 c2 : C\nx : ↑(CategoryTheory.MonoidalCategoryStruct.tensorObj (F.obj { as := c1 }) (F.obj { as := c2 })).V\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.Discrete.pairIsoSep F).hom.hom) ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.BraidedCategory.braiding (F.obj { as := c1 }) (F.obj { as := c2 })).hom.hom) x)) ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj F).map (IndexNotation.OverColor.equivToHomEq (HepLean.Fin.finMapToEquiv (Matrix.vecCons 1 (Matrix.vecCons 0 Matrix.vecEmpty)) (Matrix.vecCons 1 (Matrix.vecCons 0 Matrix.vecEmpty)) ⋯ ⋯) ⋯)).hom) ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.Discrete.pairIsoSep F).hom.hom) x))",
+  "content_sorry":
+  "lemma pairIsoSep_β {c1 c2 : C} (x : ↑(F.obj { as := c1 } ⊗ F.obj { as := c2 }).V) :\n    (Discrete.pairIsoSep F).hom.hom ((β_ (F.obj (Discrete.mk c1)) _).hom.hom x) =\n    ((lift.obj F).map ((OverColor.equivToHomEq (finMapToEquiv ![1, 0] ![1, 0])\n    (pairIsoSep_β_perm_cond c1 c2)))).hom\n    ((Discrete.pairIsoSep F).hom.hom x) := by\n  sorry",
+  "annotation":
+  "lemma pairIsoSep_β {c1 c2 : C} (x : ↑(F.obj { as := c1 } ⊗ F.obj { as := c2 }).V) :\n    (Discrete.pairIsoSep F).hom.hom ((β_ (F.obj (Discrete.mk c1)) _).hom.hom x) =\n    ((lift.obj F).map ((OverColor.equivToHomEq (finMapToEquiv ![1, 0] ![1, 0])\n    (pairIsoSep_β_perm_cond c1 c2)))).hom\n    ((Discrete.pairIsoSep F).hom.hom x) := by\n  have h1 : (Discrete.pairIsoSep F).hom.hom.hom ∘ₗ\n      (β_ (F.obj (Discrete.mk c1)) (F.obj (Discrete.mk c2))).hom.hom.hom\n      = ((lift.obj F).map ((OverColor.equivToHomEq\n      (finMapToEquiv ![1, 0] ![1, 0]) (pairIsoSep_β_perm_cond c1 c2)))).hom.hom ∘ₗ\n      (Discrete.pairIsoSep F).hom.hom.hom := by\n    apply TensorProduct.ext'\n    intro x y\n    simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Equivalence.symm_inverse,\n      Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n      Action.instMonoidalCategory_tensorObj_V, LinearMap.coe_comp, Function.comp_apply, Fin.isValue]\n    change (Discrete.pairIsoSep F).hom.hom (y ⊗ₜ x) = ((lift.obj F).map\n      ((OverColor.equivToHomEq _ (pairIsoSep_β_perm_cond c1 c2)))).hom\n      ((Discrete.pairIsoSep F).hom.hom (x ⊗ₜ y))\n    rw [Discrete.pairIsoSep_tmul, Discrete.pairIsoSep_tmul]\n    erw [OverColor.lift.map_tprod]\n    apply congrArg\n    funext i\n    fin_cases i\n    · simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.zero_eta, Fin.isValue, mk_hom,\n      Matrix.cons_val_zero, Fin.cases_zero, mk_left, equivToHomEq_toEquiv, finMapToEquiv_symm_apply,\n      Matrix.cons_val_one, Matrix.head_cons, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      rfl\n    · simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.mk_one, Fin.isValue, mk_hom,\n      Matrix.cons_val_one, Matrix.head_cons, mk_left, equivToHomEq_toEquiv,\n      finMapToEquiv_symm_apply, Matrix.cons_val_zero, lift.discreteFunctorMapEqIso, eqToIso_refl,\n      Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Fin.cases_zero,\n      LinearEquiv.ofLinear_apply]\n      rfl\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 : C\n    x : ↑(CategoryTheory.MonoidalCategoryStruct.tensorObj (F.obj { as := c1 }) (F. …\n    h1 : Eq ((ModuleCat.Hom.hom (IndexNotation.OverColor.Discrete.pairIsoSep F).ho …\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.Discrete.p …\n  -/\n  exact congrFun (congrArg (fun f => f.toFun) h1) _\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "congrFun",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Congruence in the function part of an application: If `f = g` then `f a = g a`. -/\ntheorem congrFun {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x} (h : Eq f g) (a : α) : Eq (f a) (g a) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/-- Congruence in the function part of an application: If `f = g` then `f a = g a`. -/\ntheorem congrFun {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x} (h : Eq f g) (a : α) : Eq (f a) (g a) :=\n  h ▸ rfl"},
+   {"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "Fin.cases_zero",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem cases_zero {n} {motive : Fin (n + 1) → Sort _} {zero succ} :\n    @Fin.cases n motive zero succ 0 = zero := rfl",
+    "compilationAlias":
+    "@[simp] theorem cases_zero {n} {motive : Fin (n + 1) → Sort _} {zero succ} :\n    @Fin.cases n motive zero succ 0 = zero := rfl"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Matrix.cons_val_zero",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl"},
+   {"name": "Matrix.head_cons",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl"},
+   {"name": "Matrix.cons_val_one",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl",
+    "compilationAlias":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "Fin.mk_one",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem mk_one : (⟨1, Nat.succ_lt_succ (Nat.succ_pos n)⟩ : Fin (n + 2)) = (1 : Fin _) := rfl",
+    "compilationAlias":
+    "@[simp] theorem mk_one : (⟨1, Nat.succ_lt_succ (Nat.succ_pos n)⟩ : Fin (n + 2)) = (1 : Fin _) := rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Matrix.head_cons",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl"},
+   {"name": "Matrix.cons_val_one",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl",
+    "compilationAlias":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl"},
+   {"name": "Fin.cases_zero",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem cases_zero {n} {motive : Fin (n + 1) → Sort _} {zero succ} :\n    @Fin.cases n motive zero succ 0 = zero := rfl",
+    "compilationAlias":
+    "@[simp] theorem cases_zero {n} {motive : Fin (n + 1) → Sort _} {zero succ} :\n    @Fin.cases n motive zero succ 0 = zero := rfl"},
+   {"name": "Matrix.cons_val_zero",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "Fin.zero_eta",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem zero_eta : (⟨0, Nat.zero_lt_succ _⟩ : Fin (n + 1)) = 0 := rfl",
+    "compilationAlias":
+    "@[simp] theorem zero_eta : (⟨0, Nat.zero_lt_succ _⟩ : Fin (n + 1)) = 0 := rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "LinearMap.coe_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "TensorProduct.ext'",
+    "module": "Mathlib.LinearAlgebra.TensorProduct.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem ext' {g h : M ⊗[R] N →ₗ[R] P} (H : ∀ x y, g (x ⊗ₜ y) = h (x ⊗ₜ y)) : g = h :=\n  LinearMap.ext fun z =>\n    TensorProduct.induction_on z (by simp_rw [LinearMap.map_zero]) H fun x y ihx ihy => by\n      rw [g.map_add, h.map_add, ihx, ihy]",
+    "compilationAlias":
+    "theorem ext' {g h : M ⊗[R] N →ₗ[R] P} (H : ∀ x y, g (x ⊗ₜ y) = h (x ⊗ₜ y)) : g = h :=\n  LinearMap.ext fun z =>\n    TensorProduct.induction_on z (by simp_rw [LinearMap.map_zero]) H fun x y ihx ihy => by\n      rw [g.map_add, h.map_add, ihx, ihy]"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Matrix.Notation\ntheorem eta_fin_two (A : Matrix (Fin 2) (Fin 2) α) : A = !![A 0 0, A 0 1; A 1 0, A 1 1] := by\n  ext i j\n  fin_cases i <;> fin_cases j <;> rfl",
+   "--src: Mathlib.AlgebraicGeometry.EllipticCurve.Projective\nlemma comp_fin3 {S : Type v} (f : R → S) (X Y Z : R) : f ∘ ![X, Y, Z] = ![f X, f Y, f Z] :=\n  (FinVec.map_eq ..).symm",
+   "--src: Mathlib.Data.Matrix.Notation\ntheorem vec3_eq {a₀ a₁ a₂ b₀ b₁ b₂ : α} (h₀ : a₀ = b₀) (h₁ : a₁ = b₁) (h₂ : a₂ = b₂) :\n    ![a₀, a₁, a₂] = ![b₀, b₁, b₂] := by\n  subst_vars\n  rfl",
+   "--src: Mathlib.Data.Fin.VecNotation\n@[simp]\ntheorem cons_val_fin_one (x : α) (u : Fin 0 → α) : ∀ (i : Fin 1), vecCons x u i = x := by\n  rw [Fin.forall_fin_one]\n  rfl",
+   "--src: Mathlib.Data.Matrix.Notation\n@[simp]\ntheorem cons_transpose (v : n' → α) (A : Matrix (Fin m) n' α) :\n    (of (vecCons v A))ᵀ = of fun i => vecCons (v i) (Aᵀ i) := by\n  ext i j\n  refine Fin.cases ?_ ?_ j <;> simp",
+   "--src: Mathlib.Logic.Equiv.Fin\n/-- The space of functions `Fin 2 → α` is equivalent to `α × α`. See also `piFinTwoEquiv` and\n`prodEquivPiFinTwo`. -/\n@[simps (config := .asFn)]\ndef finTwoArrowEquiv (α : Type*) : (Fin 2 → α) ≃ α × α :=\n  { piFinTwoEquiv fun _ => α with invFun := fun x => ![x.1, x.2] }",
+   "--src: Mathlib.Data.Fin.VecNotation\n@[simp]\ntheorem cons_val_succ (x : α) (u : Fin m → α) (i : Fin m) : vecCons x u i.succ = u i := by\n  simp [vecCons]",
+   "--src: Mathlib.Data.Matrix.Notation\n@[simp]\ntheorem transpose_empty_rows (A : Matrix m' (Fin 0) α) : Aᵀ = of ![] :=\n  empty_eq _",
+   "--src: Mathlib.Data.Matrix.Notation\ntheorem vec2_add [Add α] (a₀ a₁ b₀ b₁ : α) : ![a₀, a₁] + ![b₀, b₁] = ![a₀ + b₀, a₁ + b₁] := by\n  rw [cons_add_cons, cons_add_cons, empty_add_empty]",
+   "--src: Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian\nlemma fin3_def (P : Fin 3 → R) : ![P x, P y, P z] = P := by\n  ext n; fin_cases n <;> rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.pairIsoSep_β_perm_cond",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma pairIsoSep_β_perm_cond (c1 c2 : C) : ∀ (x : Fin (Nat.succ 0).succ), ![c2, c1] x =\n    (![c1, c2] ∘ ⇑(finMapToEquiv ![1, 0] ![1, 0]).symm) x:= by\n  intro x\n  fin_cases x\n  · rfl\n  · rfl\n\n",
+   "compilationAlias":
+   "lemma pairIsoSep_β_perm_cond (c1 c2 : C) : ∀ (x : Fin (Nat.succ 0).succ), ![c2, c1] x =\n    (![c1, c2] ∘ ⇑(finMapToEquiv ![1, 0] ![1, 0]).symm) x:= by\n  intro x\n  fin_cases x\n  · rfl\n  · rfl\n\n"},
+  "goal":
+  "C : Type\nc1 c2 : C\nx : Fin (Nat.succ 0).succ\n⊢ Eq (Matrix.vecCons c2 (Matrix.vecCons c1 Matrix.vecEmpty) x) (Function.comp (Matrix.vecCons c1 (Matrix.vecCons c2 Matrix.vecEmpty)) (⇑(HepLean.Fin.finMapToEquiv (Matrix.vecCons 1 (Matrix.vecCons 0 Matrix.vecEmpty)) (Matrix.vecCons 1 (Matrix.vecCons 0 Matrix.vecEmpty)) ⋯ ⋯).symm) x)",
+  "content_sorry":
+  "lemma pairIsoSep_β_perm_cond (c1 c2 : C) : ∀ (x : Fin (Nat.succ 0).succ), ![c2, c1] x =\n    (![c1, c2] ∘ ⇑(finMapToEquiv ![1, 0] ![1, 0]).symm) x:= by\n  sorry",
+  "annotation":
+  "lemma pairIsoSep_β_perm_cond (c1 c2 : C) : ∀ (x : Fin (Nat.succ 0).succ), ![c2, c1] x =\n    (![c1, c2] ∘ ⇑(finMapToEquiv ![1, 0] ![1, 0]).symm) x:= by\n  /-\n    C : Type\n    c1 c2 : C\n    ⊢ ∀ (x : Fin (Nat.succ 0).succ), Eq (Matrix.vecCons c2 (Matrix.vecCons c1 Matr …\n  -/\n  intro x\n  /-\n    C : Type\n    c1 c2 : C\n    x : Fin (Nat.succ 0).succ\n    ⊢ Eq (Matrix.vecCons c2 (Matrix.vecCons c1 Matrix.vecEmpty) x) (Function.comp  …\n  -/\n  fin_cases x\n    /-\n      case «0»\n      C : Type\n      c1 c2 : C\n      ⊢ Eq (Matrix.vecCons c2 (Matrix.vecCons c1 Matrix.vecEmpty) ((fun i => i) ⟨0,  …\n    -/\n  · rfl\n    /-\n      🎉 no goals\n    -/\n    /-\n      case «1»\n      C : Type\n      c1 c2 : C\n      ⊢ Eq (Matrix.vecCons c2 (Matrix.vecCons c1 Matrix.vecEmpty) ((fun i => i) ⟨1,  …\n    -/\n  · rfl\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Rep\n/-- Porting note: if we generate this with `@[simps]` the linter complains some types in the LHS\nsimplify. -/\ntheorem homEquiv_apply_hom (f : A ⊗ B ⟶ C) :\n    (homEquiv A B C f).hom = ModuleCat.ofHom (TensorProduct.curry f.hom.hom).flip := rfl",
+   "--src: Mathlib.RepresentationTheory.GroupCohomology.Resolution\n/-- Given a `k`-linear `G`-representation `A`, `diagonalHomEquiv` is a `k`-linear isomorphism of\nthe set of representation morphisms `Hom(k[Gⁿ⁺¹], A)` with `Fun(Gⁿ, A)`. This lemma says that this\nsends a morphism of representations `f : k[Gⁿ⁺¹] ⟶ A` to the function\n`(g₁, ..., gₙ) ↦ f(1, g₁, g₁g₂, ..., g₁g₂...gₙ).` -/\ntheorem diagonalHomEquiv_apply (f : Rep.ofMulAction k G (Fin (n + 1) → G) ⟶ A) (x : Fin n → G) :\n    diagonalHomEquiv n A f x = f.hom (Finsupp.single (Fin.partialProd x) 1) := by\n/- Porting note (https://github.com/leanprover-community/mathlib4/issues/11039): broken proof was\n  unfold diagonalHomEquiv\n  simpa only [LinearEquiv.trans_apply, Rep.leftRegularHomEquiv_apply,\n    MonoidalClosed.linearHomEquivComm_hom, Finsupp.llift_symm_apply, TensorProduct.curry_apply,\n    Linear.homCongr_apply, Iso.refl_hom, Iso.trans_inv, Action.comp_hom, ModuleCat.comp_def,\n    LinearMap.comp_apply, Representation.repOfTprodIso_inv_apply,\n    diagonalSucc_inv_single_single (1 : G) x, one_smul, one_mul] -/\n  change f.hom ((diagonalSucc k G n).inv.hom (Finsupp.single 1 1 ⊗ₜ[k] Finsupp.single x 1)) = _\n  rw [diagonalSucc_inv_single_single, one_smul, one_mul]",
+   "--src: Mathlib.RepresentationTheory.FDRep\n@[simp]\nlemma endMulEquiv_symm_comp_ρ (V : FDRep k G) :\n    (MonoidHomClass.toMonoidHom (ModuleCat.endMulEquiv V.V.obj).symm).comp (ρ V) = Action.ρ V := rfl",
+   "--src: Mathlib.RingTheory.PiTensorProduct\n@[simp]\ntheorem constantBaseRingEquiv_tprod (x : ι → R) :\n    constantBaseRingEquiv ι R (tprod R x) = ∏ i, x i := by\n  simp [constantBaseRingEquiv]",
+   "--src: Mathlib.Algebra.Category.FGModuleCat.Basic\n@[simp] lemma tensorObj_obj (M N : FGModuleCat.{u} R) : (M ⊗ N).obj = (M.obj ⊗ N.obj) := rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Adjunctions\n@[simp]\nlemma εIso_hom_one : (εIso R).hom 1 = freeMk PUnit.unit := rfl",
+   "--src: Mathlib.RepresentationTheory.Invariants\n/-- The invariants of the representation `linHom X.ρ Y.ρ` correspond to the representation\nhomomorphisms from `X` to `Y`. -/\n@[simps]\ndef invariantsEquivRepHom (X Y : Rep k G) : (linHom X.ρ Y.ρ).invariants ≃ₗ[k] X ⟶ Y where\n  toFun f := ⟨ModuleCat.ofHom f.val, fun g =>\n    ModuleCat.hom_ext ((mem_invariants_iff_comm _ g).1 (f.property g))⟩\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := ⟨f.hom.hom, fun g =>\n    (mem_invariants_iff_comm _ g).2 (ModuleCat.hom_ext_iff.mp (f.comm g))⟩\n  left_inv _ := by ext; rfl\n  right_inv _ := by ext; rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\nlemma ρ_hom {X : Rep k G} (g : G) : (Action.ρ X g).hom = X.ρ g := rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Presheaf.Monoidal\n@[simp]\nlemma tensorObj_map_tmul {X Y : Cᵒᵖ} (f : X ⟶ Y) (m₁ : M₁.obj X) (m₂ : M₂.obj X) :\n    DFunLike.coe (α := (M₁.obj X ⊗ M₂.obj X : _))\n      (β := fun _ ↦ (ModuleCat.restrictScalars (R.map f).hom).obj (M₁.obj Y ⊗ M₂.obj Y))\n      ((tensorObj M₁ M₂).map f).hom (m₁ ⊗ₜ[R.obj X] m₂) = M₁.map f m₁ ⊗ₜ[R.obj Y] M₂.map f m₂ := rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\n@[simp]\ntheorem ihom_obj_ρ_def (A B : Rep k G) : ((ihom A).obj B).ρ = ((Rep.ihom A).obj B).ρ :=\n  rfl"],
+  "id":
+  {"name": "IndexNotation.OverColor.Discrete.pairIsoSep_tmul",
+   "module": "HepLean.Tensors.OverColor.Discrete",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma pairIsoSep_tmul {c1 c2 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2)) :\n    (pairIsoSep F).hom.hom (x ⊗ₜ[k] y) =\n    PiTensorProduct.tprod k (Fin.cases x (Fin.cases y (fun i => Fin.elim0 i))) := by\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Action.instMonoidalCategory_tensorObj_V,\n    pairIsoSep, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,\n    forgetLiftApp, Iso.trans_symm, Iso.symm_symm_eq, Iso.trans_assoc, Iso.trans_hom, Iso.symm_hom,\n    tensorIso_inv, Iso.trans_inv, Iso.symm_inv, Functor.mapIso_hom, tensor_comp,\n    Functor.Monoidal.μIso_hom, Functor.CoreMonoidal.toMonoidal_toLaxMonoidal, Functor.mapIso_inv,\n    Category.assoc, Functor.LaxMonoidal.μ_natural_assoc, Action.comp_hom,\n    Action.instMonoidalCategory_tensorHom_hom, Action.mkIso_inv_hom, ModuleCat.hom_comp,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, mk_hom, mk_left, Functor.id_obj]\n  simp only [LinearMap.coe_comp, Function.comp_apply, ModuleCat.MonoidalCategory.tensorHom_tmul,\n    LinearEquiv.coe_coe, forgetLiftAppV_symm_apply, mk_left, Functor.id_obj]\n  change ((lift.obj F).map fin2Iso.inv).hom\n    (((lift.obj F).map ((mkIso _).hom ⊗ (mkIso _).hom)).hom\n      ((Functor.LaxMonoidal.μ (lift.obj F).toFunctor (mk fun _ => c1) (mk fun _ => c2)).hom\n        (((PiTensorProduct.tprod k) fun _ => x) ⊗ₜ[k] (PiTensorProduct.tprod k) fun _ => y))) = _\n  rw [lift.obj_μ_tprod_tmul F (mk fun _ => c1) (mk fun _ => c2)]\n  change ((lift.obj F).map fin2Iso.inv).hom\n    (((lift.obj F).map ((mkIso _).hom ⊗ (mkIso _).hom)).hom\n      ((PiTensorProduct.tprod k) _)) = _\n  rw [lift.map_tprod]\n  erw [lift.map_tprod]\n  congr\n  funext i\n  match i with\n  | (0 : Fin 2) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_zero, Nat.succ_eq_add_one, Nat.reduceAdd,\n      Matrix.cons_val_one, Matrix.head_cons, instMonoidalCategoryStruct_tensorObj_left, fin2Iso,\n      Equiv.symm_symm, mkSum, mkIso, Iso.trans_inv, tensorIso_inv,\n      instMonoidalCategoryStruct_tensorObj_hom, Functor.id_obj,\n      HepLean.PiTensorProduct.elimPureTensor, Fin.cases_zero]\n    exact (LinearEquiv.eq_symm_apply _).mp rfl\n  | (1 : Fin 2) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_one, Matrix.head_cons, Nat.succ_eq_add_one,\n      Nat.reduceAdd, Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left, fin2Iso,\n      Equiv.symm_symm, mkSum, mkIso, Iso.trans_inv, tensorIso_inv,\n      instMonoidalCategoryStruct_tensorObj_hom, Functor.id_obj,\n      HepLean.PiTensorProduct.elimPureTensor]\n    exact (LinearEquiv.eq_symm_apply _).mp rfl\n\n-- lemma pairIsoSep_inv_tprod {c1 c2 : C} (fx : (i : (𝟭 Type).obj (OverColor.mk ![c1, c2]).left) →\n--     CoeSort.coe (F.obj { as := (OverColor.mk ![c1, c2]).hom i })) :\n--     (pairIsoSep F).inv.hom (PiTensorProduct.tprod k fx) = fx (0 : Fin 2) ⊗ₜ fx (1 : Fin 2) := by\n--   simp only [Action.instMonoidalCategory_tensorObj_V, Nat.succ_eq_add_one, Nat.reduceAdd,\n--     pairIsoSep, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,\n--     Iso.trans_symm, Iso.symm_symm_eq, Iso.trans_assoc, Iso.trans_inv, Iso.symm_inv,\n--     Functor.mapIso_hom, tensorIso_hom, Iso.trans_hom, Iso.symm_hom, Functor.mapIso_inv, tensor_comp,\n--     Category.assoc, Action.comp_hom, Action.instMonoidalCategory_tensorHom_hom, mk_left,\n--     Functor.id_obj, mk_hom, ModuleCat.hom_comp, Function.comp_apply, Equivalence.symm_inverse,\n--     Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj]\n--   simp_rw [LinearMap.comp_apply]\n--   erw [lift.map_tprod]\n--   erw [lift.μIso_inv_tprod]\n--   change (((forgetLiftApp F c1).hom.hom (((lift.obj F).map (mkIso _).inv).hom\n--     ((PiTensorProduct.tprod k) fun i =>\n--     (lift.discreteFunctorMapEqIso F _) (fx ((Hom.toEquiv fin2Iso.hom).symm (Sum.inl i)))))) ⊗ₜ[k]\n--     (forgetLiftApp F c2).hom.hom (((lift.obj F).map (mkIso _).inv).hom ((PiTensorProduct.tprod k)\n--     fun i =>\n--     (lift.discreteFunctorMapEqIso F _) (fx ((Hom.toEquiv fin2Iso.hom).symm (Sum.inr i)))))) = _\n--   congr 1\n--   · rw [lift.map_tprod]\n--     rw [forgetLiftApp_hom_hom_apply_eq]\n--     apply congrArg\n--     funext x\n--     match x with\n--     | (0 : Fin 1) =>\n--       simp only [mk_hom, Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.cons_val_zero,\n--         equivToIso_mkIso_inv, Equiv.refl_symm, lift.discreteFunctorMapEqIso, eqToIso_refl,\n--         Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Matrix.cons_val_one,\n--         Matrix.head_cons, instMonoidalCategoryStruct_tensorObj_left, Functor.id_obj,\n--         LinearEquiv.ofLinear_apply]\n--       rfl\n--   · rw [lift.map_tprod]\n--     rw [forgetLiftApp_hom_hom_apply_eq]\n--     apply congrArg\n--     funext x\n--     match x with\n--     | (0 : Fin 1) =>\n--       simp only [mk_hom, Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.cons_val_one,\n--         Matrix.head_cons, equivToIso_mkIso_inv, Equiv.refl_symm, lift.discreteFunctorMapEqIso,\n--         eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv,\n--         Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left, Functor.id_obj,\n--         LinearEquiv.ofLinear_apply]\n--       rfl\n\n",
+   "compilationAlias":
+   "lemma pairIsoSep_tmul {c1 c2 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2)) :\n    (pairIsoSep F).hom.hom (x ⊗ₜ[k] y) =\n    PiTensorProduct.tprod k (Fin.cases x (Fin.cases y (fun i => Fin.elim0 i))) := by\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Action.instMonoidalCategory_tensorObj_V,\n    pairIsoSep, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,\n    forgetLiftApp, Iso.trans_symm, Iso.symm_symm_eq, Iso.trans_assoc, Iso.trans_hom, Iso.symm_hom,\n    tensorIso_inv, Iso.trans_inv, Iso.symm_inv, Functor.mapIso_hom, tensor_comp,\n    Functor.Monoidal.μIso_hom, Functor.CoreMonoidal.toMonoidal_toLaxMonoidal, Functor.mapIso_inv,\n    Category.assoc, Functor.LaxMonoidal.μ_natural_assoc, Action.comp_hom,\n    Action.instMonoidalCategory_tensorHom_hom, Action.mkIso_inv_hom, ModuleCat.hom_comp,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, mk_hom, mk_left, Functor.id_obj]\n  simp only [LinearMap.coe_comp, Function.comp_apply, ModuleCat.MonoidalCategory.tensorHom_tmul,\n    LinearEquiv.coe_coe, forgetLiftAppV_symm_apply, mk_left, Functor.id_obj]\n  change ((lift.obj F).map fin2Iso.inv).hom\n    (((lift.obj F).map ((mkIso _).hom ⊗ (mkIso _).hom)).hom\n      ((Functor.LaxMonoidal.μ (lift.obj F).toFunctor (mk fun _ => c1) (mk fun _ => c2)).hom\n        (((PiTensorProduct.tprod k) fun _ => x) ⊗ₜ[k] (PiTensorProduct.tprod k) fun _ => y))) = _\n  rw [lift.obj_μ_tprod_tmul F (mk fun _ => c1) (mk fun _ => c2)]\n  change ((lift.obj F).map fin2Iso.inv).hom\n    (((lift.obj F).map ((mkIso _).hom ⊗ (mkIso _).hom)).hom\n      ((PiTensorProduct.tprod k) _)) = _\n  rw [lift.map_tprod]\n  erw [lift.map_tprod]\n  congr\n  funext i\n  match i with\n  | (0 : Fin 2) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_zero, Nat.succ_eq_add_one, Nat.reduceAdd,\n      Matrix.cons_val_one, Matrix.head_cons, instMonoidalCategoryStruct_tensorObj_left, fin2Iso,\n      Equiv.symm_symm, mkSum, mkIso, Iso.trans_inv, tensorIso_inv,\n      instMonoidalCategoryStruct_tensorObj_hom, Functor.id_obj,\n      HepLean.PiTensorProduct.elimPureTensor, Fin.cases_zero]\n    exact (LinearEquiv.eq_symm_apply _).mp rfl\n  | (1 : Fin 2) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_one, Matrix.head_cons, Nat.succ_eq_add_one,\n      Nat.reduceAdd, Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left, fin2Iso,\n      Equiv.symm_symm, mkSum, mkIso, Iso.trans_inv, tensorIso_inv,\n      instMonoidalCategoryStruct_tensorObj_hom, Functor.id_obj,\n      HepLean.PiTensorProduct.elimPureTensor]\n    exact (LinearEquiv.eq_symm_apply _).mp rfl\n\n-- lemma pairIsoSep_inv_tprod {c1 c2 : C} (fx : (i : (𝟭 Type).obj (OverColor.mk ![c1, c2]).left) →\n--     CoeSort.coe (F.obj { as := (OverColor.mk ![c1, c2]).hom i })) :\n--     (pairIsoSep F).inv.hom (PiTensorProduct.tprod k fx) = fx (0 : Fin 2) ⊗ₜ fx (1 : Fin 2) := by\n--   simp only [Action.instMonoidalCategory_tensorObj_V, Nat.succ_eq_add_one, Nat.reduceAdd,\n--     pairIsoSep, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,\n--     Iso.trans_symm, Iso.symm_symm_eq, Iso.trans_assoc, Iso.trans_inv, Iso.symm_inv,\n--     Functor.mapIso_hom, tensorIso_hom, Iso.trans_hom, Iso.symm_hom, Functor.mapIso_inv, tensor_comp,\n--     Category.assoc, Action.comp_hom, Action.instMonoidalCategory_tensorHom_hom, mk_left,\n--     Functor.id_obj, mk_hom, ModuleCat.hom_comp, Function.comp_apply, Equivalence.symm_inverse,\n--     Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj]\n--   simp_rw [LinearMap.comp_apply]\n--   erw [lift.map_tprod]\n--   erw [lift.μIso_inv_tprod]\n--   change (((forgetLiftApp F c1).hom.hom (((lift.obj F).map (mkIso _).inv).hom\n--     ((PiTensorProduct.tprod k) fun i =>\n--     (lift.discreteFunctorMapEqIso F _) (fx ((Hom.toEquiv fin2Iso.hom).symm (Sum.inl i)))))) ⊗ₜ[k]\n--     (forgetLiftApp F c2).hom.hom (((lift.obj F).map (mkIso _).inv).hom ((PiTensorProduct.tprod k)\n--     fun i =>\n--     (lift.discreteFunctorMapEqIso F _) (fx ((Hom.toEquiv fin2Iso.hom).symm (Sum.inr i)))))) = _\n--   congr 1\n--   · rw [lift.map_tprod]\n--     rw [forgetLiftApp_hom_hom_apply_eq]\n--     apply congrArg\n--     funext x\n--     match x with\n--     | (0 : Fin 1) =>\n--       simp only [mk_hom, Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.cons_val_zero,\n--         equivToIso_mkIso_inv, Equiv.refl_symm, lift.discreteFunctorMapEqIso, eqToIso_refl,\n--         Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Matrix.cons_val_one,\n--         Matrix.head_cons, instMonoidalCategoryStruct_tensorObj_left, Functor.id_obj,\n--         LinearEquiv.ofLinear_apply]\n--       rfl\n--   · rw [lift.map_tprod]\n--     rw [forgetLiftApp_hom_hom_apply_eq]\n--     apply congrArg\n--     funext x\n--     match x with\n--     | (0 : Fin 1) =>\n--       simp only [mk_hom, Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.cons_val_one,\n--         Matrix.head_cons, equivToIso_mkIso_inv, Equiv.refl_symm, lift.discreteFunctorMapEqIso,\n--         eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv,\n--         Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left, Functor.id_obj,\n--         LinearEquiv.ofLinear_apply]\n--       rfl\n\n"},
+  "goal":
+  "C k : Type\ninst✝¹ : CommRing k\nG : Type\ninst✝ : Group G\nF : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\nc1 c2 : C\nx : ↑(F.obj { as := c1 }).V\ny : ↑(F.obj { as := c2 }).V\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.Discrete.pairIsoSep F).hom.hom) (TensorProduct.tmul k x y)) ((PiTensorProduct.tprod k) fun i => Fin.cases x (fun i => Fin.cases y (fun i => i.elim0) i) i)",
+  "content_sorry":
+  "lemma pairIsoSep_tmul {c1 c2 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2)) :\n    (pairIsoSep F).hom.hom (x ⊗ₜ[k] y) =\n    PiTensorProduct.tprod k (Fin.cases x (Fin.cases y (fun i => Fin.elim0 i))) := by\n  sorry",
+  "annotation":
+  "lemma pairIsoSep_tmul {c1 c2 : C} (x : F.obj (Discrete.mk c1)) (y : F.obj (Discrete.mk c2)) :\n    (pairIsoSep F).hom.hom (x ⊗ₜ[k] y) =\n    PiTensorProduct.tprod k (Fin.cases x (Fin.cases y (fun i => Fin.elim0 i))) := by\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Action.instMonoidalCategory_tensorObj_V,\n    pairIsoSep, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,\n    forgetLiftApp, Iso.trans_symm, Iso.symm_symm_eq, Iso.trans_assoc, Iso.trans_hom, Iso.symm_hom,\n    tensorIso_inv, Iso.trans_inv, Iso.symm_inv, Functor.mapIso_hom, tensor_comp,\n    Functor.Monoidal.μIso_hom, Functor.CoreMonoidal.toMonoidal_toLaxMonoidal, Functor.mapIso_inv,\n    Category.assoc, Functor.LaxMonoidal.μ_natural_assoc, Action.comp_hom,\n    Action.instMonoidalCategory_tensorHom_hom, Action.mkIso_inv_hom, ModuleCat.hom_comp,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, mk_hom, mk_left, Functor.id_obj]\n  simp only [LinearMap.coe_comp, Function.comp_apply, ModuleCat.MonoidalCategory.tensorHom_tmul,\n    LinearEquiv.coe_coe, forgetLiftAppV_symm_apply, mk_left, Functor.id_obj]\n  change ((lift.obj F).map fin2Iso.inv).hom\n    (((lift.obj F).map ((mkIso _).hom ⊗ (mkIso _).hom)).hom\n      ((Functor.LaxMonoidal.μ (lift.obj F).toFunctor (mk fun _ => c1) (mk fun _ => c2)).hom\n        (((PiTensorProduct.tprod k) fun _ => x) ⊗ₜ[k] (PiTensorProduct.tprod k) fun _ => y))) = _\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj  …\n  -/\n  rw [lift.obj_μ_tprod_tmul F (mk fun _ => c1) (mk fun _ => c2)]\n  change ((lift.obj F).map fin2Iso.inv).hom\n    (((lift.obj F).map ((mkIso _).hom ⊗ (mkIso _).hom)).hom\n      ((PiTensorProduct.tprod k) _)) = _\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj  …\n  -/\n  rw [lift.map_tprod]\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj  …\n  -/\n  erw [lift.map_tprod]\n  /-\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    ⊢ Eq ((PiTensorProduct.tprod k) fun i => (IndexNotation.OverColor.lift.discret …\n  -/\n  congr\n  /-\n    case h.e_6.h\n    C k : Type\n    inst✝¹ : CommRing k\n    G : Type\n    inst✝ : Group G\n    F : CategoryTheory.Functor (CategoryTheory.Discrete C) (Rep k G)\n    c1 c2 : C\n    x : ↑(F.obj { as := c1 }).V\n    y : ↑(F.obj { as := c2 }).V\n    ⊢ Eq (fun i => (IndexNotation.OverColor.lift.discreteFunctorMapEqIso F ⋯) ((In …\n  -/\n  funext i\n  match i with\n  | (0 : Fin 2) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_zero, Nat.succ_eq_add_one, Nat.reduceAdd,\n      Matrix.cons_val_one, Matrix.head_cons, instMonoidalCategoryStruct_tensorObj_left, fin2Iso,\n      Equiv.symm_symm, mkSum, mkIso, Iso.trans_inv, tensorIso_inv,\n      instMonoidalCategoryStruct_tensorObj_hom, Functor.id_obj,\n      HepLean.PiTensorProduct.elimPureTensor, Fin.cases_zero]\n    exact (LinearEquiv.eq_symm_apply _).mp rfl\n  | (1 : Fin 2) =>\n    simp only [mk_hom, Fin.isValue, Matrix.cons_val_one, Matrix.head_cons, Nat.succ_eq_add_one,\n      Nat.reduceAdd, Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left, fin2Iso,\n      Equiv.symm_symm, mkSum, mkIso, Iso.trans_inv, tensorIso_inv,\n      instMonoidalCategoryStruct_tensorObj_hom, Functor.id_obj,\n      HepLean.PiTensorProduct.elimPureTensor]\n    exact (LinearEquiv.eq_symm_apply _).mp rfl\n\n-- lemma pairIsoSep_inv_tprod {c1 c2 : C} (fx : (i : (𝟭 Type).obj (OverColor.mk ![c1, c2]).left) →\n--     CoeSort.coe (F.obj { as := (OverColor.mk ![c1, c2]).hom i })) :\n--     (pairIsoSep F).inv.hom (PiTensorProduct.tprod k fx) = fx (0 : Fin 2) ⊗ₜ fx (1 : Fin 2) := by\n--   simp only [Action.instMonoidalCategory_tensorObj_V, Nat.succ_eq_add_one, Nat.reduceAdd,\n--     pairIsoSep, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,\n--     Iso.trans_symm, Iso.symm_symm_eq, Iso.trans_assoc, Iso.trans_inv, Iso.symm_inv,\n--     Functor.mapIso_hom, tensorIso_hom, Iso.trans_hom, Iso.symm_hom, Functor.mapIso_inv, tensor_comp,\n--     Category.assoc, Action.comp_hom, Action.instMonoidalCategory_tensorHom_hom, mk_left,\n--     Functor.id_obj, mk_hom, ModuleCat.hom_comp, Function.comp_apply, Equivalence.symm_inverse,\n--     Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj]\n--   simp_rw [LinearMap.comp_apply]\n--   erw [lift.map_tprod]\n--   erw [lift.μIso_inv_tprod]\n--   change (((forgetLiftApp F c1).hom.hom (((lift.obj F).map (mkIso _).inv).hom\n--     ((PiTensorProduct.tprod k) fun i =>\n--     (lift.discreteFunctorMapEqIso F _) (fx ((Hom.toEquiv fin2Iso.hom).symm (Sum.inl i)))))) ⊗ₜ[k]\n--     (forgetLiftApp F c2).hom.hom (((lift.obj F).map (mkIso _).inv).hom ((PiTensorProduct.tprod k)\n--     fun i =>\n--     (lift.discreteFunctorMapEqIso F _) (fx ((Hom.toEquiv fin2Iso.hom).symm (Sum.inr i)))))) = _\n--   congr 1\n--   · rw [lift.map_tprod]\n--     rw [forgetLiftApp_hom_hom_apply_eq]\n--     apply congrArg\n--     funext x\n--     match x with\n--     | (0 : Fin 1) =>\n--       simp only [mk_hom, Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.cons_val_zero,\n--         equivToIso_mkIso_inv, Equiv.refl_symm, lift.discreteFunctorMapEqIso, eqToIso_refl,\n--         Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv, Matrix.cons_val_one,\n--         Matrix.head_cons, instMonoidalCategoryStruct_tensorObj_left, Functor.id_obj,\n--         LinearEquiv.ofLinear_apply]\n--       rfl\n--   · rw [lift.map_tprod]\n--     rw [forgetLiftApp_hom_hom_apply_eq]\n--     apply congrArg\n--     funext x\n--     match x with\n--     | (0 : Fin 1) =>\n--       simp only [mk_hom, Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.cons_val_one,\n--         Matrix.head_cons, equivToIso_mkIso_inv, Equiv.refl_symm, lift.discreteFunctorMapEqIso,\n--         eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom, Action.id_hom, Iso.refl_inv,\n--         Matrix.cons_val_zero, instMonoidalCategoryStruct_tensorObj_left, Functor.id_obj,\n--         LinearEquiv.ofLinear_apply]\n--       rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "LinearEquiv.eq_symm_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_symm_apply {x y} : y = e.symm x ↔ e y = x :=\n  e.toEquiv.eq_symm_apply",
+    "compilationAlias":
+    "theorem eq_symm_apply {x y} : y = e.symm x ↔ e y = x :=\n  e.toEquiv.eq_symm_apply"},
+   {"name": "HepLean.PiTensorProduct.elimPureTensor",
+    "module": "HepLean.Mathematics.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x",
+    "compilationAlias":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x"},
+   {"name": "Equiv.symm_symm",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem symm_symm (e : α ≃ β) : e.symm.symm = e := rfl",
+    "compilationAlias":
+    "@[simp] theorem symm_symm (e : α ≃ β) : e.symm.symm = e := rfl"},
+   {"name": "Matrix.cons_val_zero",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Matrix.head_cons",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl"},
+   {"name": "Matrix.cons_val_one",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl",
+    "compilationAlias":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "LinearEquiv.eq_symm_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_symm_apply {x y} : y = e.symm x ↔ e y = x :=\n  e.toEquiv.eq_symm_apply",
+    "compilationAlias":
+    "theorem eq_symm_apply {x y} : y = e.symm x ↔ e y = x :=\n  e.toEquiv.eq_symm_apply"},
+   {"name": "Fin.cases_zero",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem cases_zero {n} {motive : Fin (n + 1) → Sort _} {zero succ} :\n    @Fin.cases n motive zero succ 0 = zero := rfl",
+    "compilationAlias":
+    "@[simp] theorem cases_zero {n} {motive : Fin (n + 1) → Sort _} {zero succ} :\n    @Fin.cases n motive zero succ 0 = zero := rfl"},
+   {"name": "HepLean.PiTensorProduct.elimPureTensor",
+    "module": "HepLean.Mathematics.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x",
+    "compilationAlias":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x"},
+   {"name": "Equiv.symm_symm",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem symm_symm (e : α ≃ β) : e.symm.symm = e := rfl",
+    "compilationAlias":
+    "@[simp] theorem symm_symm (e : α ≃ β) : e.symm.symm = e := rfl"},
+   {"name": "Matrix.head_cons",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl"},
+   {"name": "Matrix.cons_val_one",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl",
+    "compilationAlias":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Matrix.cons_val_zero",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "PiTensorProduct.tprod",
+    "module": "Mathlib.LinearAlgebra.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]",
+    "compilationAlias":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]"},
+   {"name": "PiTensorProduct.tprod",
+    "module": "Mathlib.LinearAlgebra.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]",
+    "compilationAlias":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]"},
+   {"name": "PiTensorProduct.tprod",
+    "module": "Mathlib.LinearAlgebra.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]",
+    "compilationAlias":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]"},
+   {"name": "LinearEquiv.coe_coe",
+    "module": "Mathlib.Algebra.Module.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_coe : ⇑(e : M →ₛₗ[σ] M₂) = e :=\n  rfl",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem coe_coe : ⇑(e : M →ₛₗ[σ] M₂) = e :=\n  rfl"},
+   {"name": "ModuleCat.MonoidalCategory.tensorHom_tmul",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem tensorHom_tmul {K L M N : ModuleCat.{u} R} (f : K ⟶ L) (g : M ⟶ N) (k : K) (m : M) :\n    (f ⊗ g) (k ⊗ₜ m) = f k ⊗ₜ g m :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem tensorHom_tmul {K L M N : ModuleCat.{u} R} (f : K ⟶ L) (g : M ⟶ N) (k : K) (m : M) :\n    (f ⊗ g) (k ⊗ₜ m) = f k ⊗ₜ g m :=\n  rfl"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "LinearMap.coe_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "ModuleCat.hom_comp",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl",
+    "compilationAlias":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl"},
+   {"name": "Action.mkIso_inv_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorHom_hom",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Action.comp_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl"},
+   {"name": "Matrix.head_cons",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem head_cons (x : α) (u : Fin m → α) : vecHead (vecCons x u) = x :=\n  rfl"},
+   {"name": "Matrix.cons_val_one",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl",
+    "compilationAlias":
+    "/-- `![a, b, ...] 1` is equal to `b`.\n\n  The simplifier needs a special lemma for length `≥ 2`, in addition to\n  `cons_val_succ`, because `1 : Fin 1 = 0 : Fin 1`.\n-/\n@[simp]\ntheorem cons_val_one (x : α) (u : Fin m.succ → α) : vecCons x u 1 = vecHead u :=\n  rfl"},
+   {"name": "Matrix.cons_val_zero",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem cons_val_zero (x : α) (u : Fin m → α) : vecCons x u 0 = x :=\n  rfl"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"},
+   {"name": "Fin.cases",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i",
+    "compilationAlias":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i"},
+   {"name": "Fin.cases",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i",
+    "compilationAlias":
+    "/-- Define `f : Π i : Fin n.succ, motive i` by separately handling the cases `i = 0` and\n`i = j.succ`, `j : Fin n`. -/\n@[elab_as_elim] def cases {motive : Fin (n + 1) → Sort _}\n    (zero : motive 0) (succ : ∀ i : Fin n, motive i.succ) :\n    ∀ i : Fin (n + 1), motive i := induction zero fun i _ => succ i"},
+   {"name": "PiTensorProduct.tprod",
+    "module": "Mathlib.LinearAlgebra.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]",
+    "compilationAlias":
+    "/-- The canonical `MultilinearMap R s (⨂[R] i, s i)`.\n\n`tprod R fun i => f i` has notation `⨂ₜ[R] i, f i`. -/\ndef tprod : MultilinearMap R s (⨂[R] i, s i) where\n  toFun := tprodCoeff R 1\n  map_update_add' {_ f} i x y := (add_tprodCoeff (1 : R) f i x y).symm\n  map_update_smul' {_ f} i r x := by\n    rw [smul_tprodCoeff', ← smul_tprodCoeff (1 : R) _ i, update_idem, update_self]"}]}]

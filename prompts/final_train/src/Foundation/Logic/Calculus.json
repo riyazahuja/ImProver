@@ -1,0 +1,467 @@
+[{"rag":
+  ["--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.Chain\n/-- Given a chain from `a` to `b`, and a predicate true at `b`, if `r x y → p y → p x` then\nthe predicate is true at `a`.\nThat is, we can propagate the predicate all the way up the chain.\n-/\n@[elab_as_elim]\ntheorem Chain.backwards_induction_head (p : α → Prop) (l : List α) (h : Chain r a l)\n    (hb : getLast (a :: l) (cons_ne_nil _ _) = b) (carries : ∀ ⦃x y : α⦄, r x y → p y → p x)\n    (final : p b) : p a :=\n  (Chain.backwards_induction p l h hb carries final) _ (mem_cons_self _ _)",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Valid'.balanceL {l} {x : α} {r o₁ o₂} (hl : Valid' o₁ l x) (hr : Valid' x r o₂)\n    (H : (∃ l', Raised l' (size l) ∧ BalancedSz l' (size r)) ∨\n        ∃ r', Raised (size r) r' ∧ BalancedSz (size l) r') :\n    Valid' o₁ (@balanceL α l x r) o₂ := by\n  rw [balanceL_eq_balance' hl.3 hr.3 hl.2 hr.2 H]\n  refine hl.balance' hr ?_\n  rcases H with (⟨l', e, H⟩ | ⟨r', e, H⟩)\n  · exact ⟨_, _, H, Or.inl ⟨e.dist_le', rfl⟩⟩\n  · exact ⟨_, _, H, Or.inr ⟨e.dist_le, rfl⟩⟩",
+   "--src: Mathlib.Data.Nat.Digits\ntheorem digits_ofDigits (b : ℕ) (h : 1 < b) (L : List ℕ) (w₁ : ∀ l ∈ L, l < b)\n    (w₂ : ∀ h : L ≠ [], L.getLast h ≠ 0) : digits b (ofDigits b L) = L := by\n  induction' L with d L ih\n  · dsimp [ofDigits]\n    simp\n  · dsimp [ofDigits]\n    replace w₂ := w₂ (by simp)\n    rw [digits_add b h]\n    · rw [ih]\n      · intro l m\n        apply w₁\n        exact List.mem_cons_of_mem _ m\n      · intro h\n        rw [List.getLast_cons h] at w₂\n        convert w₂\n    · exact w₁ d (List.mem_cons_self _ _)\n    · by_cases h' : L = []\n      · rcases h' with rfl\n        left\n        simpa using w₂\n      · right\n        contrapose! w₂\n        refine digits_zero_of_eq_zero h.ne_bot w₂ _ ?_\n        rw [List.getLast_cons h']\n        exact List.getLast_mem h'",
+   "--src: Mathlib.Computability.TuringMachine\ntheorem tr_respects_aux₂ [DecidableEq K] {k : K} {q : Stmt₂₁} {v : σ} {S : ∀ k, List (Γ k)}\n    {L : ListBlank (∀ k, Option (Γ k))}\n    (hL : ∀ k, L.map (proj k) = ListBlank.mk ((S k).map some).reverse) (o : StAct₂ k) :\n    let v' := stVar v (S k) o\n    let Sk' := stWrite v (S k) o\n    let S' := update S k Sk'\n    ∃ L' : ListBlank (∀ k, Option (Γ k)),\n      (∀ k, L'.map (proj k) = ListBlank.mk ((S' k).map some).reverse) ∧\n        TM1.stepAux (trStAct q o) v\n            ((Tape.move Dir.right)^[(S k).length] (Tape.mk' ∅ (addBottom L))) =\n          TM1.stepAux q v' ((Tape.move Dir.right)^[(S' k).length] (Tape.mk' ∅ (addBottom L'))) := by\n  simp only [Function.update_self]; cases o with simp only [stWrite, stVar, trStAct, TM1.stepAux]\n  | push f =>\n    have := Tape.write_move_right_n fun a : Γ' ↦ (a.1, update a.2 k (some (f v)))\n    refine\n      ⟨_, fun k' ↦ ?_, by\n        -- Porting note: `rw [...]` to `erw [...]; rfl`.\n        -- https://github.com/leanprover-community/mathlib4/issues/5164\n        erw [Tape.move_right_n_head, List.length, Tape.mk'_nth_nat, this,\n          addBottom_modifyNth fun a ↦ update a k (some (f v)), Nat.add_one, iterate_succ']\n        rfl⟩\n    refine ListBlank.ext fun i ↦ ?_\n    rw [ListBlank.nth_map, ListBlank.nth_modifyNth, proj, PointedMap.mk_val]\n    by_cases h' : k' = k\n    · subst k'\n      split_ifs with h\n        <;> simp only [List.reverse_cons, Function.update_self, ListBlank.nth_mk, List.map]\n      · rw [List.getI_eq_getElem _, List.getElem_append_right] <;>\n        simp only [List.length_append, List.length_reverse, List.length_map, ← h,\n          Nat.sub_self, List.length_singleton, List.getElem_singleton,\n          le_refl, Nat.lt_succ_self]\n      rw [← proj_map_nth, hL, ListBlank.nth_mk]\n      cases' lt_or_gt_of_ne h with h h\n      · rw [List.getI_append]\n        simpa only [List.length_map, List.length_reverse] using h\n      · rw [gt_iff_lt] at h\n        rw [List.getI_eq_default, List.getI_eq_default] <;>\n          simp only [Nat.add_one_le_iff, h, List.length, le_of_lt, List.length_reverse,\n            List.length_append, List.length_map]\n    · split_ifs <;> rw [Function.update_of_ne h', ← proj_map_nth, hL]\n      rw [Function.update_of_ne h']\n  | peek f =>\n    rw [Function.update_eq_self]\n    use L, hL; rw [Tape.move_left_right]; congr\n    cases e : S k; · rfl\n    rw [List.length_cons, iterate_succ', Function.comp, Tape.move_right_left,\n      Tape.move_right_n_head, Tape.mk'_nth_nat, addBottom_nth_snd, stk_nth_val _ (hL k), e,\n      List.reverse_cons, ← List.length_reverse, List.getElem?_concat_length]\n    rfl\n  | pop f =>\n    cases' e : S k with hd tl\n    · simp only [Tape.mk'_head, ListBlank.head_cons, Tape.move_left_mk', List.length,\n        Tape.write_mk', List.head?, iterate_zero_apply, List.tail_nil]\n      rw [← e, Function.update_eq_self]\n      exact ⟨L, hL, by rw [addBottom_head_fst, cond]⟩\n    · refine\n        ⟨_, fun k' ↦ ?_, by\n          erw [List.length_cons, Tape.move_right_n_head, Tape.mk'_nth_nat, addBottom_nth_succ_fst,\n            cond_false, iterate_succ', Function.comp, Tape.move_right_left, Tape.move_right_n_head,\n            Tape.mk'_nth_nat, Tape.write_move_right_n fun a : Γ' ↦ (a.1, update a.2 k none),\n            addBottom_modifyNth fun a ↦ update a k none, addBottom_nth_snd,\n            stk_nth_val _ (hL k), e,\n            show (List.cons hd tl).reverse[tl.length]? = some hd by\n              rw [List.reverse_cons, ← List.length_reverse, List.getElem?_concat_length],\n            List.head?, List.tail]⟩\n      refine ListBlank.ext fun i ↦ ?_\n      rw [ListBlank.nth_map, ListBlank.nth_modifyNth, proj, PointedMap.mk_val]\n      by_cases h' : k' = k\n      · subst k'\n        split_ifs with h <;> simp only [Function.update_self, ListBlank.nth_mk, List.tail]\n        · rw [List.getI_eq_default]\n          · rfl\n          rw [h, List.length_reverse, List.length_map]\n        rw [← proj_map_nth, hL, ListBlank.nth_mk, e, List.map, List.reverse_cons]\n        cases' lt_or_gt_of_ne h with h h\n        · rw [List.getI_append]\n          simpa only [List.length_map, List.length_reverse] using h\n        · rw [gt_iff_lt] at h\n          rw [List.getI_eq_default, List.getI_eq_default] <;>\n            simp only [Nat.add_one_le_iff, h, List.length, le_of_lt, List.length_reverse,\n              List.length_append, List.length_map]\n      · split_ifs <;> rw [Function.update_of_ne h', ← proj_map_nth, hL]\n        rw [Function.update_of_ne h']",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The canonical functor from the structured arrow category on the diagonal functor\n`T ⥤ T × T` to the structured arrow category on `Under.forget`. -/\n@[simps!]\ndef ofDiagEquivalence.functor (X : T × T) :\n    StructuredArrow X (Functor.diag _) ⥤ StructuredArrow X.2 (Under.forget X.1) :=\n  Functor.toStructuredArrow\n    (Functor.toUnder (StructuredArrow.proj X _) _\n      (fun f => by exact f.hom.1) (fun m => by have := m.w; aesop_cat)) _ _\n    (fun f => f.hom.2) (fun m => by have := m.w; aesop_cat)",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Valid'.glue {l} {x : α} {r o₁ o₂} (hl : Valid' o₁ l x) (hr : Valid' x r o₂) :\n    BalancedSz (size l) (size r) →\n      Valid' o₁ (@glue α l r) o₂ ∧ size (@glue α l r) = size l + size r :=\n  Valid'.glue_aux (hl.trans_right hr.1) (hr.trans_left hl.1) (hl.1.to_sep hr.1)",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem size_erase_of_mem [DecidableRel (α := α) (· ≤ ·)] {x : α} {t a₁ a₂} (h : Valid' a₁ t a₂)\n    (h_mem : x ∈ t) : size (erase x t) = size t - 1 := by\n  induction t generalizing a₁ a₂ with\n  | nil =>\n    contradiction\n  | node _ t_l t_x t_r t_ih_l t_ih_r =>\n    have t_ih_l' := t_ih_l h.left\n    have t_ih_r' := t_ih_r h.right\n    clear t_ih_l t_ih_r\n    dsimp only [Membership.mem, mem] at h_mem\n    unfold erase\n    revert h_mem; cases cmpLE x t_x <;> intro h_mem <;> dsimp only at h_mem ⊢\n    · have t_ih_l := t_ih_l' h_mem\n      clear t_ih_l' t_ih_r'\n      have t_l_h := Valid'.erase_aux x h.left\n      cases' t_l_h with t_l_valid t_l_size\n      rw [size_balanceR t_l_valid.bal h.right.bal t_l_valid.sz h.right.sz\n          (Or.inl (Exists.intro t_l.size (And.intro t_l_size h.bal.1)))]\n      rw [t_ih_l, h.sz.1]\n      have h_pos_t_l_size := pos_size_of_mem h.left.sz h_mem\n      revert h_pos_t_l_size; cases' t_l.size with t_l_size <;> intro h_pos_t_l_size\n      · cases h_pos_t_l_size\n      · simp [Nat.add_right_comm]\n    · rw [(Valid'.glue h.left h.right h.bal.1).2, h.sz.1]; rfl\n    · have t_ih_r := t_ih_r' h_mem\n      clear t_ih_l' t_ih_r'\n      have t_r_h := Valid'.erase_aux x h.right\n      cases' t_r_h with t_r_valid t_r_size\n      rw [size_balanceL h.left.bal t_r_valid.bal h.left.sz t_r_valid.sz\n          (Or.inr (Exists.intro t_r.size (And.intro t_r_size h.bal.1)))]\n      rw [t_ih_r, h.sz.1]\n      have h_pos_t_r_size := pos_size_of_mem h.right.sz h_mem\n      revert h_pos_t_r_size; cases' t_r.size with t_r_size <;> intro h_pos_t_r_size\n      · cases h_pos_t_r_size\n      · simp [Nat.add_assoc]"],
+  "id":
+  {"name": "LO.Tait.consistent_iff_unprovable",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma consistent_iff_unprovable [Tait.Axiomatized F K] [Tait.Cut F K] :\n    Consistent 𝓚 ↔ IsEmpty (𝓚 ⟹ []) :=\n  not_iff_not.mp <| by simp [not_consistent_iff_inconsistent, inconsistent_iff_provable]\n\n/-\nlemma provable_iff_inconsistent {φ} :\n    𝓚 ⊢! φ ↔ Inconsistent (cons (∼φ) 𝓚) := by\n  simp [inconsistent_iff_provable, deduction_iff, DeMorgan.imply]\n  constructor\n  · intro h; exact cut! (of_axiom_subset (by simp) h) (root! <| by simp)\n  · rintro ⟨b⟩\n    exact ⟨by simpa using Tait.Axiomatized.proofOfContra b⟩\n\nlemma refutable_iff_inconsistent {φ} :\n    𝓚 ⊢! ∼φ ↔ Inconsistent (cons φ 𝓚) := by simpa using provable_iff_inconsistent (𝓚 := 𝓚) (φ := ∼φ)\n\nlemma consistent_insert_iff_not_refutable {φ}  :\n    System.Consistent (cons φ 𝓚) ↔ 𝓚 ⊬ ∼φ := by\n  simp [System.Unprovable, refutable_iff_inconsistent, System.not_inconsistent_iff_consistent]\n\nlemma inconsistent_of_provable_and_refutable {φ} (bp : 𝓚 ⊢! φ) (br : 𝓚 ⊢! ∼φ) : Inconsistent 𝓚 :=\n  inconsistent_iff_provable.mpr <| cut! bp br\n-/\n\n",
+   "compilationAlias":
+   "lemma consistent_iff_unprovable [Tait.Axiomatized F K] [Tait.Cut F K] :\n    Consistent 𝓚 ↔ IsEmpty (𝓚 ⟹ []) :=\n  not_iff_not.mp <| by simp [not_consistent_iff_inconsistent, inconsistent_iff_provable]\n\n/-\nlemma provable_iff_inconsistent {φ} :\n    𝓚 ⊢! φ ↔ Inconsistent (cons (∼φ) 𝓚) := by\n  simp [inconsistent_iff_provable, deduction_iff, DeMorgan.imply]\n  constructor\n  · intro h; exact cut! (of_axiom_subset (by simp) h) (root! <| by simp)\n  · rintro ⟨b⟩\n    exact ⟨by simpa using Tait.Axiomatized.proofOfContra b⟩\n\nlemma refutable_iff_inconsistent {φ} :\n    𝓚 ⊢! ∼φ ↔ Inconsistent (cons φ 𝓚) := by simpa using provable_iff_inconsistent (𝓚 := 𝓚) (φ := ∼φ)\n\nlemma consistent_insert_iff_not_refutable {φ}  :\n    System.Consistent (cons φ 𝓚) ↔ 𝓚 ⊬ ∼φ := by\n  simp [System.Unprovable, refutable_iff_inconsistent, System.not_inconsistent_iff_consistent]\n\nlemma inconsistent_of_provable_and_refutable {φ} (bp : 𝓚 ⊢! φ) (br : 𝓚 ⊢! ∼φ) : Inconsistent 𝓚 :=\n  inconsistent_iff_provable.mpr <| cut! bp br\n-/\n\n"},
+  "goal":
+  "F : Type u_1\nS : Type u_2\ninst✝ : LO.System F S\n𝓢 : S\n⊢ Eq (Not (LO.System.Consistent 𝓢)) (LO.System.Inconsistent 𝓢)",
+  "content_sorry":
+  "lemma consistent_iff_unprovable [Tait.Axiomatized F K] [Tait.Cut F K] :\n    Consistent 𝓚 ↔ IsEmpty (𝓚 ⟹ []) :=\n  not_iff_not.mp <| by sorry",
+  "annotation":
+  "lemma consistent_iff_unprovable [Tait.Axiomatized F K] [Tait.Cut F K] :\n    Consistent 𝓚 ↔ IsEmpty (𝓚 ⟹ []) :=\n                       /-\n                         F : Type u_1\n                         K : Type u_3\n                         inst✝⁵ : LO.LogicalConnective F\n                         inst✝⁴ : Collection F K\n                         inst✝³ : LO.DeMorgan F\n                         inst✝² : LO.Tait F K\n                         𝓚 : K\n                         inst✝¹ : LO.Tait.Axiomatized F K\n                         inst✝ : LO.Tait.Cut F K\n                         ⊢ Iff (Not (LO.System.Consistent 𝓚)) (Not (IsEmpty (LO.OneSided.Derivation 𝓚 L …\n                       -/\n  not_iff_not.mp <| by simp [not_consistent_iff_inconsistent, inconsistent_iff_provable]\n                       /-\n                         🎉 no goals\n                       -/\n\n/-\nlemma provable_iff_inconsistent {φ} :\n    𝓚 ⊢! φ ↔ Inconsistent (cons (∼φ) 𝓚) := by\n  simp [inconsistent_iff_provable, deduction_iff, DeMorgan.imply]\n  constructor\n  · intro h; exact cut! (of_axiom_subset (by simp) h) (root! <| by simp)\n  · rintro ⟨b⟩\n    exact ⟨by simpa using Tait.Axiomatized.proofOfContra b⟩\n\nlemma refutable_iff_inconsistent {φ} :\n    𝓚 ⊢! ∼φ ↔ Inconsistent (cons φ 𝓚) := by simpa using provable_iff_inconsistent (𝓚 := 𝓚) (φ := ∼φ)\n\nlemma consistent_insert_iff_not_refutable {φ}  :\n    System.Consistent (cons φ 𝓚) ↔ 𝓚 ⊬ ∼φ := by\n  simp [System.Unprovable, refutable_iff_inconsistent, System.not_inconsistent_iff_consistent]\n\nlemma inconsistent_of_provable_and_refutable {φ} (bp : 𝓚 ⊢! φ) (br : 𝓚 ⊢! ∼φ) : Inconsistent 𝓚 :=\n  inconsistent_iff_provable.mpr <| cut! bp br\n-/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.List.Lattice\ntheorem bagInter_nil_iff_inter_nil : ∀ l₁ l₂ : List α, l₁.bagInter l₂ = [] ↔ l₁ ∩ l₂ = []\n  | [], l₂ => by simp\n  | b :: l₁, l₂ => by\n    by_cases h : b ∈ l₂\n    · simp [h]\n    · simpa [h] using bagInter_nil_iff_inter_nil l₁ l₂",
+   "--src: Mathlib.Data.List.MinMax\n@[simp, deprecated minimum_eq_top \"Don't mix Option and WithTop\" (since := \"2024-05-27\")]\ntheorem minimum_eq_none {l : List α} : l.minimum = none ↔ l = [] := minimum_eq_top",
+   "--src: Mathlib.Data.List.Chain\n/-- Given a chain from `a` to `b`, and a predicate true at `b`, if `r x y → p y → p x` then\nthe predicate is true at `a`.\nThat is, we can propagate the predicate all the way up the chain.\n-/\n@[elab_as_elim]\ntheorem Chain.backwards_induction_head (p : α → Prop) (l : List α) (h : Chain r a l)\n    (hb : getLast (a :: l) (cons_ne_nil _ _) = b) (carries : ∀ ⦃x y : α⦄, r x y → p y → p x)\n    (final : p b) : p a :=\n  (Chain.backwards_induction p l h hb carries final) _ (mem_cons_self _ _)",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq (z : α) (h : x ∈ x :: z :: l) :\n    prev (x :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) :=\n  prev_cons_cons_eq' l x x z h rfl",
+   "--src: Mathlib.Data.List.Cycle\n/-- `nextOr` does not depend on the default value, if the next value appears. -/\ntheorem nextOr_eq_nextOr_of_mem_of_ne (xs : List α) (x d d' : α) (x_mem : x ∈ xs)\n    (x_ne : x ≠ xs.getLast (ne_nil_of_mem x_mem)) : nextOr xs x d = nextOr xs x d' := by\n  induction' xs with y ys IH\n  · cases x_mem\n  cases' ys with z zs\n  · simp at x_mem x_ne\n    contradiction\n  by_cases h : x = y\n  · rw [h, nextOr_self_cons_cons, nextOr_self_cons_cons]\n  · rw [nextOr, nextOr, IH]\n    · simpa [h] using x_mem\n    · simpa using x_ne",
+   "--src: Mathlib.Data.List.Basic\n@[deprecated (since := \"2024-09-06\")] alias getLast?_eq_none := getLast?_eq_none_iff",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.cons_getLast_dropLast\n    (L : List α) (hL : L ≠ []) : L.getLast hL :: L.dropLast ~r L := by\n  induction L using List.reverseRecOn with\n  | nil => simp at hL\n  | append_singleton a L _ =>\n    simp only [getLast_append, dropLast_concat]\n    apply IsRotated.symm\n    apply isRotated_concat"],
+  "id":
+  {"name": "LO.Tait.inconsistent_iff_provable",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma inconsistent_iff_provable [Tait.Cut F K] :\n    Inconsistent 𝓚 ↔ 𝓚 ⟹! [] :=\n  ⟨fun b ↦ ⟨cut (inconsistent_iff_provable_bot.mp b).get (by simpa using verum _ _)⟩,\n   fun h ↦ inconsistent_iff_provable_bot.mpr (wk! h (by simp))⟩\n\n",
+   "compilationAlias":
+   "lemma inconsistent_iff_provable [Tait.Cut F K] :\n    Inconsistent 𝓚 ↔ 𝓚 ⟹! [] :=\n  ⟨fun b ↦ ⟨cut (inconsistent_iff_provable_bot.mp b).get (by simpa using verum _ _)⟩,\n   fun h ↦ inconsistent_iff_provable_bot.mpr (wk! h (by simp))⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝⁴ : LO.LogicalConnective F\ninst✝³ : Collection F K\ninst✝² : LO.DeMorgan F\ninst✝¹ : LO.Tait F K\n𝓚 : K\ninst✝ : LO.Tait.Cut F K\n⊢ Iff (LO.System.Inconsistent 𝓚) (LO.OneSided.Derivable 𝓚 List.nil)",
+  "content_sorry":
+  "lemma inconsistent_iff_provable [Tait.Cut F K] :\n    Inconsistent 𝓚 ↔ 𝓚 ⟹! [] :=\n  ⟨fun b ↦ ⟨cut (inconsistent_iff_provable_bot.mp b).get (by sorry",
+  "annotation":
+  "lemma inconsistent_iff_provable [Tait.Cut F K] :\n    Inconsistent 𝓚 ↔ 𝓚 ⟹! [] :=\n                                                             /-\n                                                               F : Type u_1\n                                                               K : Type u_3\n                                                               inst✝⁴ : LO.LogicalConnective F\n                                                               inst✝³ : Collection F K\n                                                               inst✝² : LO.DeMorgan F\n                                                               inst✝¹ : LO.Tait F K\n                                                               𝓚 : K\n                                                               inst✝ : LO.Tait.Cut F K\n                                                               b : LO.System.Inconsistent 𝓚\n                                                               ⊢ LO.OneSided.Derivation 𝓚 (List.cons (LO.Tilde.tilde Bot.bot) List.nil)\n                                                             -/\n  ⟨fun b ↦ ⟨cut (inconsistent_iff_provable_bot.mp b).get (by simpa using verum _ _)⟩,\n                                                             /-\n                                                               🎉 no goals\n                                                             -/\n                                                        /-\n                                                          F : Type u_1\n                                                          K : Type u_3\n                                                          inst✝⁴ : LO.LogicalConnective F\n                                                          inst✝³ : Collection F K\n                                                          inst✝² : LO.DeMorgan F\n                                                          inst✝¹ : LO.Tait F K\n                                                          𝓚 : K\n                                                          inst✝ : LO.Tait.Cut F K\n                                                          h : LO.OneSided.Derivable 𝓚 List.nil\n                                                          ⊢ HasSubset.Subset List.nil (List.cons Bot.bot List.nil)\n                                                        -/\n   fun h ↦ inconsistent_iff_provable_bot.mpr (wk! h (by simp))⟩\n                                                        /-\n                                                          🎉 no goals\n                                                        -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.Ordmap.Ordset\ntheorem Sized.node' {l x r} (hl : @Sized α l) (hr : Sized r) : Sized (node' l x r) :=\n  ⟨rfl, hl, hr⟩",
+   "--src: Mathlib.Data.Finset.Slice\ntheorem Sized.mono (h : A ⊆ B) (hB : B.Sized r) : A.Sized r := fun _x hx => hB <| h hx",
+   "--src: Mathlib.Order.Interval.Set.OrdConnected\nprotected theorem Icc_subset (s : Set α) [hs : OrdConnected s] {x y} (hx : x ∈ s) (hy : y ∈ s) :\n    Icc x y ⊆ s :=\n  hs.out hx hy",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- In a connected category, any two objects are related by `Zigzag`. -/\ntheorem isPreconnected_zigzag [IsPreconnected J] (j₁ j₂ : J) : Zigzag j₁ j₂ :=\n  equiv_relation _ zigzag_equivalence\n    (fun f => Relation.ReflTransGen.single (Or.inl (Nonempty.intro f))) _ _",
+   "--src: Mathlib.Order.Interval.Set.Basic\ntheorem Icc_ssubset_Icc_left (hI : a₂ ≤ b₂) (ha : a₂ < a₁) (hb : b₁ ≤ b₂) : Icc a₁ b₁ ⊂ Icc a₂ b₂ :=\n  (ssubset_iff_of_subset (Icc_subset_Icc (le_of_lt ha) hb)).mpr\n    ⟨a₂, left_mem_Icc.mpr hI, not_and.mpr fun f _ => lt_irrefl a₂ (ha.trans_le f)⟩",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Sized.balance' {l x r} (hl : @Sized α l) (hr : Sized r) : Sized (balance' l x r) := by\n  unfold Ordnode.balance'; split_ifs\n  · exact hl.node' hr\n  · exact hl.rotateL hr\n  · exact hl.rotateR hr\n  · exact hl.node' hr",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isPreconnected_of_zigzag (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsPreconnected J := by\n  apply zigzag_isPreconnected\n  intro j₁ j₂\n  rcases h j₁ j₂ with ⟨l, hl₁, hl₂⟩\n  apply List.relationReflTransGen_of_exists_chain l hl₁ hl₂",
+   "--src: Mathlib.Order.Interval.Set.Basic\ntheorem Icc_subset_Ioo (ha : a₂ < a₁) (hb : b₁ < b₂) : Icc a₁ b₁ ⊆ Ioo a₂ b₂ := fun _ hx =>\n  ⟨ha.trans_le hx.1, hx.2.trans_lt hb⟩",
+   "--src: Mathlib.Combinatorics.SetFamily.Shadow\n/-- The shadow of a family of `r`-sets is a family of `r - 1`-sets. -/\nprotected theorem _root_.Set.Sized.shadow (h\u0000\u0000 : (\u0000\u0000 : Set (Finset α)).Sized r) :\n    (∂ \u0000\u0000 : Set (Finset α)).Sized (r - 1) := by\n  intro A h\n  obtain ⟨A, hA, i, hi, rfl⟩ := mem_shadow_iff.1 h\n  rw [card_erase_of_mem hi, h\u0000\u0000 hA]",
+   "--src: Mathlib.Data.Finset.Slice\ntheorem subset_powersetCard_univ_iff : \u0000\u0000 ⊆ powersetCard r univ ↔ (\u0000\u0000 : Set (Finset α)).Sized r :=\n  forall_congr' fun A => by rw [mem_powersetCard_univ, mem_coe]"],
+  "id":
+  {"name": "LO.Tait.waekerThan_of_subset",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma waekerThan_of_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ≤ₛ 𝓛 := fun _ ↦ System.Axiomatized.weakening! h\n\n",
+   "compilationAlias":
+   "lemma waekerThan_of_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ≤ₛ 𝓛 := fun _ ↦ System.Axiomatized.weakening! h\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝⁴ : LO.LogicalConnective F\ninst✝³ : Collection F K\ninst✝² : LO.DeMorgan F\ninst✝¹ : LO.Tait F K\n𝓚 𝓛 : K\ninst✝ : LO.Tait.Axiomatized F K\nh : HasSubset.Subset 𝓚 𝓛\n⊢ LO.System.WeakerThan 𝓚 𝓛",
+  "content_sorry":
+  "lemma waekerThan_of_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ≤ₛ 𝓛 := by sorry",
+  "annotation":
+  "lemma waekerThan_of_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ≤ₛ 𝓛 := fun _ ↦ System.Axiomatized.weakening! h\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem size_erase_of_mem [DecidableRel (α := α) (· ≤ ·)] {x : α} {t a₁ a₂} (h : Valid' a₁ t a₂)\n    (h_mem : x ∈ t) : size (erase x t) = size t - 1 := by\n  induction t generalizing a₁ a₂ with\n  | nil =>\n    contradiction\n  | node _ t_l t_x t_r t_ih_l t_ih_r =>\n    have t_ih_l' := t_ih_l h.left\n    have t_ih_r' := t_ih_r h.right\n    clear t_ih_l t_ih_r\n    dsimp only [Membership.mem, mem] at h_mem\n    unfold erase\n    revert h_mem; cases cmpLE x t_x <;> intro h_mem <;> dsimp only at h_mem ⊢\n    · have t_ih_l := t_ih_l' h_mem\n      clear t_ih_l' t_ih_r'\n      have t_l_h := Valid'.erase_aux x h.left\n      cases' t_l_h with t_l_valid t_l_size\n      rw [size_balanceR t_l_valid.bal h.right.bal t_l_valid.sz h.right.sz\n          (Or.inl (Exists.intro t_l.size (And.intro t_l_size h.bal.1)))]\n      rw [t_ih_l, h.sz.1]\n      have h_pos_t_l_size := pos_size_of_mem h.left.sz h_mem\n      revert h_pos_t_l_size; cases' t_l.size with t_l_size <;> intro h_pos_t_l_size\n      · cases h_pos_t_l_size\n      · simp [Nat.add_right_comm]\n    · rw [(Valid'.glue h.left h.right h.bal.1).2, h.sz.1]; rfl\n    · have t_ih_r := t_ih_r' h_mem\n      clear t_ih_l' t_ih_r'\n      have t_r_h := Valid'.erase_aux x h.right\n      cases' t_r_h with t_r_valid t_r_size\n      rw [size_balanceL h.left.bal t_r_valid.bal h.left.sz t_r_valid.sz\n          (Or.inr (Exists.intro t_r.size (And.intro t_r_size h.bal.1)))]\n      rw [t_ih_r, h.sz.1]\n      have h_pos_t_r_size := pos_size_of_mem h.right.sz h_mem\n      revert h_pos_t_r_size; cases' t_r.size with t_r_size <;> intro h_pos_t_r_size\n      · cases h_pos_t_r_size\n      · simp [Nat.add_assoc]",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Valid'.eraseMin_aux {s l} {x : α} {r o₁ o₂} (H : Valid' o₁ (.node s l x r) o₂) :\n    Valid' ↑(findMin' l x) (@eraseMin α (.node' l x r)) o₂ ∧\n      size (.node' l x r) = size (eraseMin (.node' l x r)) + 1 := by\n  have := H.dual.eraseMax_aux\n  rwa [← dual_node', size_dual, ← dual_eraseMin, size_dual, ← Valid'.dual_iff, findMax'_dual]\n    at this",
+   "--src: Mathlib.Data.List.Chain\n/-- Given a chain from `a` to `b`, and a predicate true at `b`, if `r x y → p y → p x` then\nthe predicate is true at `a`.\nThat is, we can propagate the predicate all the way up the chain.\n-/\n@[elab_as_elim]\ntheorem Chain.backwards_induction_head (p : α → Prop) (l : List α) (h : Chain r a l)\n    (hb : getLast (a :: l) (cons_ne_nil _ _) = b) (carries : ∀ ⦃x y : α⦄, r x y → p y → p x)\n    (final : p b) : p a :=\n  (Chain.backwards_induction p l h hb carries final) _ (mem_cons_self _ _)",
+   "--src: Mathlib.Data.Nat.Digits\ntheorem digits_ofDigits (b : ℕ) (h : 1 < b) (L : List ℕ) (w₁ : ∀ l ∈ L, l < b)\n    (w₂ : ∀ h : L ≠ [], L.getLast h ≠ 0) : digits b (ofDigits b L) = L := by\n  induction' L with d L ih\n  · dsimp [ofDigits]\n    simp\n  · dsimp [ofDigits]\n    replace w₂ := w₂ (by simp)\n    rw [digits_add b h]\n    · rw [ih]\n      · intro l m\n        apply w₁\n        exact List.mem_cons_of_mem _ m\n      · intro h\n        rw [List.getLast_cons h] at w₂\n        convert w₂\n    · exact w₁ d (List.mem_cons_self _ _)\n    · by_cases h' : L = []\n      · rcases h' with rfl\n        left\n        simpa using w₂\n      · right\n        contrapose! w₂\n        refine digits_zero_of_eq_zero h.ne_bot w₂ _ ?_\n        rw [List.getLast_cons h']\n        exact List.getLast_mem h'",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem splitMin_eq :\n    ∀ (s l) (x : α) (r), splitMin' l x r = (findMin' l x, eraseMin (node s l x r))\n  | _, nil, _, _ => rfl\n  | _, node ls ll lx lr, x, r => by rw [splitMin', splitMin_eq ls ll lx lr, findMin', eraseMin]",
+   "--src: Mathlib.Order.Hom.Lattice\n@[simp]\nlemma subtypeVal_apply {P : β → Prop}\n    (Pbot : P ⊥) (Ptop : P ⊤) (Psup : ∀ ⦃x y⦄, P x → P y → P (x ⊔ y))\n    (Pinf : ∀ ⦃x y⦄, P x → P y → P (x ⊓ y)) (x : {x : β // P x}) :\n    subtypeVal Pbot Ptop Psup Pinf x = x := rfl",
+   "--src: Mathlib.Data.List.MinMax\ntheorem not_of_mem_foldl_argAux (hr₀ : Irreflexive r) (hr₁ : Transitive r) :\n    ∀ {a m : α} {o : Option α}, a ∈ l → m ∈ foldl (argAux r) o l → ¬r a m := by\n  induction' l using List.reverseRecOn with tl a ih\n  · simp\n  intro b m o hb ho\n  rw [foldl_append, foldl_cons, foldl_nil, argAux] at ho\n  cases' hf : foldl (argAux r) o tl with c\n  · rw [hf] at ho\n    rw [foldl_argAux_eq_none] at hf\n    simp_all [hf.1, hf.2, hr₀ _]\n  rw [hf, Option.mem_def] at ho\n  dsimp only at ho\n  split_ifs at ho with hac <;> cases' mem_append.1 hb with h h <;>\n    injection ho with ho <;> subst ho\n  · exact fun hba => ih h hf (hr₁ hba hac)\n  · simp_all [hr₀ _]\n  · exact ih h hf\n  · simp_all",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem insertWith.valid_aux [IsTotal α (· ≤ ·)] [DecidableRel (α := α) (· ≤ ·)] (f : α → α) (x : α)\n    (hf : ∀ y, x ≤ y ∧ y ≤ x → x ≤ f y ∧ f y ≤ x) :\n    ∀ {t o₁ o₂},\n      Valid' o₁ t o₂ →\n        Bounded nil o₁ x →\n          Bounded nil x o₂ →\n            Valid' o₁ (insertWith f x t) o₂ ∧ Raised (size t) (size (insertWith f x t))\n  | nil, _, _, _, bl, br => ⟨valid'_singleton bl br, Or.inr rfl⟩\n  | node sz l y r, o₁, o₂, h, bl, br => by\n    rw [insertWith, cmpLE]\n    split_ifs with h_1 h_2 <;> dsimp only\n    · rcases h with ⟨⟨lx, xr⟩, hs, hb⟩\n      rcases hf _ ⟨h_1, h_2⟩ with ⟨xf, fx⟩\n      refine\n        ⟨⟨⟨lx.mono_right (le_trans h_2 xf), xr.mono_left (le_trans fx h_1)⟩, hs, hb⟩, Or.inl rfl⟩\n    · rcases insertWith.valid_aux f x hf h.left bl (lt_of_le_not_le h_1 h_2) with ⟨vl, e⟩\n      suffices H : _ by\n        refine ⟨vl.balanceL h.right H, ?_⟩\n        rw [size_balanceL vl.3 h.3.2.2 vl.2 h.2.2.2 H, h.2.size_eq]\n        exact (e.add_right _).add_right _\n      exact Or.inl ⟨_, e, h.3.1⟩\n    · have : y < x := lt_of_le_not_le ((total_of (· ≤ ·) _ _).resolve_left h_1) h_1\n      rcases insertWith.valid_aux f x hf h.right this br with ⟨vr, e⟩\n      suffices H : _ by\n        refine ⟨h.left.balanceR vr H, ?_⟩\n        rw [size_balanceR h.3.2.1 vr.3 h.2.2.1 vr.2 H, h.2.size_eq]\n        exact (e.add_left _).add_right _\n      exact Or.inr ⟨_, e, h.3.1⟩",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The canonical functor from the structured arrow category on the diagonal functor\n`T ⥤ T × T` to the structured arrow category on `Under.forget`. -/\n@[simps!]\ndef ofDiagEquivalence.functor (X : T × T) :\n    StructuredArrow X (Functor.diag _) ⥤ StructuredArrow X.2 (Under.forget X.1) :=\n  Functor.toStructuredArrow\n    (Functor.toUnder (StructuredArrow.proj X _) _\n      (fun f => by exact f.hom.1) (fun m => by have := m.w; aesop_cat)) _ _\n    (fun f => f.hom.2) (fun m => by have := m.w; aesop_cat)"],
+  "id":
+  {"name": "LO.Tait.provable_bot_iff_derivable_nil",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma provable_bot_iff_derivable_nil [Tait.Cut F K] : 𝓚 ⟹! [] ↔ 𝓚 ⊢! ⊥ :=\n  ⟨fun b ↦ wk! b (by simp), fun b ↦ cut! b (by simpa using verum! _ _)⟩\n\n",
+   "compilationAlias":
+   "lemma provable_bot_iff_derivable_nil [Tait.Cut F K] : 𝓚 ⟹! [] ↔ 𝓚 ⊢! ⊥ :=\n  ⟨fun b ↦ wk! b (by simp), fun b ↦ cut! b (by simpa using verum! _ _)⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝⁴ : LO.LogicalConnective F\ninst✝³ : Collection F K\ninst✝² : LO.DeMorgan F\ninst✝¹ : LO.Tait F K\n𝓚 : K\ninst✝ : LO.Tait.Cut F K\n⊢ Iff (LO.OneSided.Derivable 𝓚 List.nil) (LO.System.Provable 𝓚 Bot.bot)",
+  "content_sorry":
+  "lemma provable_bot_iff_derivable_nil [Tait.Cut F K] : 𝓚 ⟹! [] ↔ 𝓚 ⊢! ⊥ :=\n  ⟨fun b ↦ wk! b (by sorry",
+  "annotation":
+  "lemma provable_bot_iff_derivable_nil [Tait.Cut F K] : 𝓚 ⟹! [] ↔ 𝓚 ⊢! ⊥ :=\n                     /-\n                       F : Type u_1\n                       K : Type u_3\n                       inst✝⁴ : LO.LogicalConnective F\n                       inst✝³ : Collection F K\n                       inst✝² : LO.DeMorgan F\n                       inst✝¹ : LO.Tait F K\n                       𝓚 : K\n                       inst✝ : LO.Tait.Cut F K\n                       b : LO.OneSided.Derivable 𝓚 List.nil\n                       ⊢ HasSubset.Subset List.nil (List.cons Bot.bot List.nil)\n                     -/\n                     /-\n                       🎉 no goals\n                     -/\n  ⟨fun b ↦ wk! b (by simp), fun b ↦ cut! b (by simpa using verum! _ _)⟩\n                                               /-\n                                                 🎉 no goals\n                                               -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.Ordmap.Ordset\ntheorem Sized.node' {l x r} (hl : @Sized α l) (hr : Sized r) : Sized (node' l x r) :=\n  ⟨rfl, hl, hr⟩",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Valid'.glue {l} {x : α} {r o₁ o₂} (hl : Valid' o₁ l x) (hr : Valid' x r o₂) :\n    BalancedSz (size l) (size r) →\n      Valid' o₁ (@glue α l r) o₂ ∧ size (@glue α l r) = size l + size r :=\n  Valid'.glue_aux (hl.trans_right hr.1) (hr.trans_left hl.1) (hl.1.to_sep hr.1)",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Sized.size_eq {s l x r} (H : Sized (@node α s l x r)) :\n    size (@node α s l x r) = size l + size r + 1 :=\n  H.1",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq (z : α) (h : x ∈ x :: z :: l) :\n    prev (x :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) :=\n  prev_cons_cons_eq' l x x z h rfl",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem pos_size_of_mem [LE α] [DecidableRel (α := α) (· ≤ ·)] {x : α} {t : Ordnode α} (h : Sized t)\n    (h_mem : x ∈ t) : 0 < size t := by cases t; · { contradiction }; · { simp [h.1] }",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Valid'.left {s l x r o₁ o₂} (H : Valid' o₁ (@Ordnode.node α s l x r) o₂) : Valid' o₁ l x :=\n  ⟨H.1.1, H.2.2.1, H.3.2.1⟩",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Any.imp {P Q : α → Prop} (H : ∀ a, P a → Q a) : ∀ {t}, Any P t → Any Q t\n  | nil => id\n  | node _ _ _ _ => Or.imp (Any.imp H) <| Or.imp (H _) (Any.imp H)",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem all_balanceR {P l x r} (hl : Balanced l) (hr : Balanced r) (sl : Sized l) (sr : Sized r)\n    (H :\n      (∃ l', Raised (size l) l' ∧ BalancedSz l' (size r)) ∨\n        ∃ r', Raised r' (size r) ∧ BalancedSz (size l) r') :\n    All P (@balanceR α l x r) ↔ All P l ∧ P x ∧ All P r := by\n  rw [balanceR_eq_balance' hl hr sl sr H, all_balance']",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Raised.right {l x₁ x₂ r₁ r₂} (H : Raised (size r₁) (size r₂)) :\n    Raised (size (@node' α l x₁ r₁)) (size (@node' α l x₂ r₂)) := by\n  rw [node', size_node, size_node]; generalize size r₂ = m at H ⊢\n  rcases H with (rfl | rfl)\n  · exact Or.inl rfl\n  · exact Or.inr rfl"],
+  "id":
+  {"name": "LO.Tait.of_axiom_subset",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma of_axiom_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ⟹! Γ → 𝓛 ⟹! Γ := fun b ↦ ⟨ofAxiomSubset h b.get⟩\n\n",
+   "compilationAlias":
+   "lemma of_axiom_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ⟹! Γ → 𝓛 ⟹! Γ := fun b ↦ ⟨ofAxiomSubset h b.get⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝⁴ : LO.LogicalConnective F\ninst✝³ : Collection F K\ninst✝² : LO.DeMorgan F\ninst✝¹ : LO.Tait F K\n𝓚 𝓛 : K\nΓ : List F\ninst✝ : LO.Tait.Axiomatized F K\nh : HasSubset.Subset 𝓚 𝓛\na✝ : LO.OneSided.Derivable 𝓚 Γ\n⊢ LO.OneSided.Derivable 𝓛 Γ",
+  "content_sorry":
+  "lemma of_axiom_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ⟹! Γ → 𝓛 ⟹! Γ := by sorry",
+  "annotation":
+  "lemma of_axiom_subset [Tait.Axiomatized F K] (h : 𝓚 ⊆ 𝓛) : 𝓚 ⟹! Γ → 𝓛 ⟹! Γ := fun b ↦ ⟨ofAxiomSubset h b.get⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_ne_head_ne_getLast (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x ≠ getLast (y :: l) (cons_ne_nil _ _)) :\n    next (y :: l) x h = next l x (by simpa [hy] using h) := by\n  rw [next, next, nextOr_cons_of_ne _ _ _ _ hy, nextOr_eq_nextOr_of_mem_of_ne]\n  · rwa [getLast_cons] at hx\n    exact ne_nil_of_mem (by assumption)\n  · rwa [getLast_cons] at hx",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The canonical functor from the structured arrow category on the diagonal functor\n`T ⥤ T × T` to the structured arrow category on `Under.forget`. -/\n@[simps!]\ndef ofDiagEquivalence.functor (X : T × T) :\n    StructuredArrow X (Functor.diag _) ⥤ StructuredArrow X.2 (Under.forget X.1) :=\n  Functor.toStructuredArrow\n    (Functor.toUnder (StructuredArrow.proj X _) _\n      (fun f => by exact f.hom.1) (fun m => by have := m.w; aesop_cat)) _ _\n    (fun f => f.hom.2) (fun m => by have := m.w; aesop_cat)",
+   "--src: Mathlib.Data.List.Cycle\n/-- `nextOr` does not depend on the default value, if the next value appears. -/\ntheorem nextOr_eq_nextOr_of_mem_of_ne (xs : List α) (x d d' : α) (x_mem : x ∈ xs)\n    (x_ne : x ≠ xs.getLast (ne_nil_of_mem x_mem)) : nextOr xs x d = nextOr xs x d' := by\n  induction' xs with y ys IH\n  · cases x_mem\n  cases' ys with z zs\n  · simp at x_mem x_ne\n    contradiction\n  by_cases h : x = y\n  · rw [h, nextOr_self_cons_cons, nextOr_self_cons_cons]\n  · rw [nextOr, nextOr, IH]\n    · simpa [h] using x_mem\n    · simpa using x_ne",
+   "--src: Mathlib.Data.List.Basic\ntheorem getLast_append_singleton {a : α} (l : List α) :\n    getLast (l ++ [a]) (append_ne_nil_of_right_ne_nil l (cons_ne_nil a _)) = a := by\n  simp [getLast_append]\n-- Porting note: name should be fixed upstream",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq (z : α) (h : x ∈ x :: z :: l) :\n    prev (x :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) :=\n  prev_cons_cons_eq' l x x z h rfl",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_append_of_mem_getLast? {l₁ l₂ : List α} {x : α} (h : x ∈ l₂.getLast?) :\n    x ∈ (l₁ ++ l₂).getLast? := by\n  cases l₂\n  · contradiction\n  · rw [List.getLast?_append_cons]\n    exact h"],
+  "id":
+  {"name": "LO.Tait.byAxm!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma byAxm! [Tait.Axiomatized F K] (φ) (h : φ ∈ 𝓚) (hΓ : φ ∈ Γ := by simp) : 𝓚 ⟹! Γ := ⟨byAxm φ h hΓ⟩\n\n",
+   "compilationAlias":
+   "lemma byAxm! [Tait.Axiomatized F K] (φ) (h : φ ∈ 𝓚) (hΓ : φ ∈ Γ := by simp) : 𝓚 ⟹! Γ := ⟨byAxm φ h hΓ⟩\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry":
+  "lemma byAxm! [Tait.Axiomatized F K] (φ) (h : φ ∈ 𝓚) (hΓ : φ ∈ Γ := by sorry",
+  "annotation":
+  "lemma byAxm! [Tait.Axiomatized F K] (φ) (h : φ ∈ 𝓚) (hΓ : φ ∈ Γ := by simp) : 𝓚 ⟹! Γ := ⟨byAxm φ h hΓ⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The canonical functor from the structured arrow category on the diagonal functor\n`T ⥤ T × T` to the structured arrow category on `Under.forget`. -/\n@[simps!]\ndef ofDiagEquivalence.functor (X : T × T) :\n    StructuredArrow X (Functor.diag _) ⥤ StructuredArrow X.2 (Under.forget X.1) :=\n  Functor.toStructuredArrow\n    (Functor.toUnder (StructuredArrow.proj X _) _\n      (fun f => by exact f.hom.1) (fun m => by have := m.w; aesop_cat)) _ _\n    (fun f => f.hom.2) (fun m => by have := m.w; aesop_cat)",
+   "--src: Mathlib.CategoryTheory.IsConnected\ntheorem Zigzag.of_zag_trans {j₁ j₂ j₃ : J} (h₁ : Zag j₁ j₂) (h₂ : Zag j₂ j₃) : Zigzag j₁ j₃ :=\n  trans (of_zag h₁) (of_zag h₂)",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The augmented Čech conerve construction, as a functor from `Arrow C`. -/\n@[simps]\ndef augmentedCechConerve : Arrow C ⥤ CosimplicialObject.Augmented C where\n  obj f := f.augmentedCechConerve\n  map F := Arrow.mapAugmentedCechConerve F",
+   "--src: Mathlib.CategoryTheory.IsConnected\n@[refl] theorem Zag.refl (X : J) : Zag X X := Or.inl ⟨\u0000\u0000 _⟩",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The canonical functor from the structured arrow category on the diagonal functor\n`T ⥤ T × T` to the structured arrow category on `Under.forget`. -/\n@[simps!]\ndef ofDiagEquivalence.functor (X : T × T) :\n    StructuredArrow X (Functor.diag _) ⥤ StructuredArrow X.2 (Under.forget X.1) :=\n  Functor.toStructuredArrow\n    (Functor.toUnder (StructuredArrow.proj X _) _\n      (fun f => by exact f.hom.1) (fun m => by have := m.w; aesop_cat)) _ _\n    (fun f => f.hom.2) (fun m => by have := m.w; aesop_cat)",
+   "--src: Mathlib.CategoryTheory.Limits.Shapes.SplitCoequalizer\n/--\nThe pair `f,g` is a split pair if there is an `h : Y ⟶ Z` so that `f, g, h` forms a split\ncoequalizer in `C`.\n-/\nclass HasSplitCoequalizer : Prop where\n  /-- There is some split coequalizer -/\n  splittable : ∃ (Z : C) (h : Y ⟶ Z), Nonempty (IsSplitCoequalizer f g h)",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- In a connected category, any two objects are related by `Zigzag`. -/\ntheorem isPreconnected_zigzag [IsPreconnected J] (j₁ j₂ : J) : Zigzag j₁ j₂ :=\n  equiv_relation _ zigzag_equivalence\n    (fun f => Relation.ReflTransGen.single (Or.inl (Nonempty.intro f))) _ _",
+   "--src: Mathlib.CategoryTheory.Filtered.Final\n/-- If `C` is cofiltered, then the costructured arrow category on the diagonal functor `C ⥤ C × C`\nis cofiltered as well. -/\ninstance [IsCofiltered C] (X : C × C) : IsCofiltered (CostructuredArrow (diag C) X) := by\n  haveI : ∀ Y, IsCofiltered (CostructuredArrow (Over.forget X.1) Y) := by\n    rw [← initial_iff_isCofiltered_costructuredArrow (Over.forget X.1)]\n    infer_instance\n  apply IsCofiltered.of_equivalence (CostructuredArrow.ofDiagEquivalence X).symm"],
+  "id":
+  {"name": "LO.Tait.root!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma root! [Tait.Axiomatized F K] {φ} (h : φ ∈ 𝓚) : 𝓚 ⟹!. φ := ⟨root h⟩\n\n",
+   "compilationAlias":
+   "lemma root! [Tait.Axiomatized F K] {φ} (h : φ ∈ 𝓚) : 𝓚 ⟹!. φ := ⟨root h⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝⁴ : LO.LogicalConnective F\ninst✝³ : Collection F K\ninst✝² : LO.DeMorgan F\ninst✝¹ : LO.Tait F K\n𝓚 : K\ninst✝ : LO.Tait.Axiomatized F K\nφ : F\nh : Membership.mem 𝓚 φ\n⊢ LO.OneSided.Derivable₁ 𝓚 φ",
+  "content_sorry":
+  "lemma root! [Tait.Axiomatized F K] {φ} (h : φ ∈ 𝓚) : 𝓚 ⟹!. φ := by sorry",
+  "annotation":
+  "lemma root! [Tait.Axiomatized F K] {φ} (h : φ ∈ 𝓚) : 𝓚 ⟹!. φ := ⟨root h⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.Data.List.Infix\ntheorem mem_of_mem_dropLast (h : a ∈ l.dropLast) : a ∈ l :=\n  dropLast_subset l h",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Combinatorics.SimpleGraph.Walk\ntheorem map_fst_darts {u v : V} (p : G.Walk u v) : p.darts.map (·.fst) = p.support.dropLast := by\n  simpa! using congr_arg List.dropLast (map_fst_darts_append p)",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.Sort\n/-- Inserting then erasing an element that is absent is the identity. -/\ntheorem erase_orderedInsert_of_not_mem [DecidableEq α]\n    {x : α} {xs : List α} (hx : x ∉ xs) :\n    (xs.orderedInsert r x).erase x = xs := by\n  rw [orderedInsert_eq_take_drop, erase_append_right, List.erase_cons_head,\n    takeWhile_append_dropWhile]\n  exact mt ((takeWhile_prefix _).sublist.subset ·) hx",
+   "--src: Mathlib.Data.List.Lattice\n@[simp]\ntheorem bagInter_nil (l : List α) : l.bagInter [] = [] := by cases l <;> rfl"],
+  "id":
+  {"name": "LO.Tait.cut!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma cut! [Tait.Cut F K] (hp : 𝓚 ⟹! φ :: Δ) (hn : 𝓚 ⟹! ∼φ :: Δ) : 𝓚 ⟹! Δ := ⟨cut hp.get hn.get⟩\n\n",
+   "compilationAlias":
+   "lemma cut! [Tait.Cut F K] (hp : 𝓚 ⟹! φ :: Δ) (hn : 𝓚 ⟹! ∼φ :: Δ) : 𝓚 ⟹! Δ := ⟨cut hp.get hn.get⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝⁴ : LO.LogicalConnective F\ninst✝³ : Collection F K\ninst✝² : LO.DeMorgan F\ninst✝¹ : LO.Tait F K\nΔ : List F\nφ : F\n𝓚 : K\ninst✝ : LO.Tait.Cut F K\nhp : LO.OneSided.Derivable 𝓚 (List.cons φ Δ)\nhn : LO.OneSided.Derivable 𝓚 (List.cons (LO.Tilde.tilde φ) Δ)\n⊢ LO.OneSided.Derivable 𝓚 Δ",
+  "content_sorry":
+  "lemma cut! [Tait.Cut F K] (hp : 𝓚 ⟹! φ :: Δ) (hn : 𝓚 ⟹! ∼φ :: Δ) : 𝓚 ⟹! Δ := by sorry",
+  "annotation":
+  "lemma cut! [Tait.Cut F K] (hp : 𝓚 ⟹! φ :: Δ) (hn : 𝓚 ⟹! ∼φ :: Δ) : 𝓚 ⟹! Δ := ⟨cut hp.get hn.get⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.MinMax\ntheorem maximum_mem {l : List α} {m : α} : (maximum l : WithTop α) = m → m ∈ l :=\n  argmax_mem",
+   "--src: Mathlib.Data.List.Cycle\ntheorem isRotated_prev_eq {l l' : List α} (h : l ~r l') (hn : Nodup l) {x : α} (hx : x ∈ l) :\n    l.prev x hx = l'.prev x (h.mem_iff.mp hx) := by\n  rw [← next_reverse_eq_prev _ hn, ← next_reverse_eq_prev _ (h.nodup_iff.mp hn)]\n  exact isRotated_next_eq h.reverse (nodup_reverse.mpr hn) _",
+   "--src: Mathlib.Data.List.MinMax\ntheorem not_lt_minimum_of_mem' (ha : a ∈ l) : ¬(a : WithTop α) < minimum l := by\n  cases h : l.minimum <;> simp_all [not_lt_minimum_of_mem ha]",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]",
+   "--src: Mathlib.Data.List.MinMax\ntheorem argmin_mem : ∀ {l : List α} {m : α}, m ∈ argmin f l → m ∈ l :=\n  @argmax_mem _ βᵒᵈ _ _ _",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_reverse_eq_next (l : List α) (h : Nodup l) (x : α) (hx : x ∈ l) :\n    prev l.reverse x (mem_reverse.mpr hx) = next l x hx := by\n  obtain ⟨k, hk, rfl⟩ := getElem_of_mem hx\n  have lpos : 0 < l.length := k.zero_le.trans_lt hk\n  have key : l.length - 1 - k < l.length := by omega\n  rw [← getElem_pmap l.next (fun _ h => h) (by simpa using hk)]\n  simp_rw [getElem_eq_getElem_reverse (l := l), pmap_next_eq_rotate_one _ h]\n  rw [← getElem_pmap l.reverse.prev fun _ h => h]\n  · simp_rw [pmap_prev_eq_rotate_length_sub_one _ (nodup_reverse.mpr h), rotate_reverse,\n      length_reverse, Nat.mod_eq_of_lt (Nat.sub_lt lpos Nat.succ_pos'),\n      Nat.sub_sub_self (Nat.succ_le_of_lt lpos)]\n    rw [getElem_eq_getElem_reverse]\n    · simp [Nat.sub_sub_self (Nat.le_sub_one_of_lt hk)]\n  · simpa",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Data.List.Sort\ntheorem Sorted.head!_le [Inhabited α] [Preorder α] {a : α} {l : List α} (h : Sorted (· < ·) l)\n    (ha : a ∈ l) : l.head! ≤ a := by\n  rw [← List.cons_head!_tail (List.ne_nil_of_mem ha)] at h ha\n  cases ha\n  · exact le_rfl\n  · exact le_of_lt (rel_of_sorted_cons h a (by assumption))",
+   "--src: Mathlib.Data.List.MinMax\n@[simp]\ntheorem minimum_eq_top {l : List α} : l.minimum = ⊤ ↔ l = [] :=\n  argmin_eq_none"],
+  "id":
+  {"name": "LO.Tait.close!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma close! (φ : F) (hp : φ ∈ Γ := by simp) (hn : ∼φ ∈ Γ := by simp) : 𝓚 ⟹! Γ := em! hp hn\n\n",
+   "compilationAlias":
+   "lemma close! (φ : F) (hp : φ ∈ Γ := by simp) (hn : ∼φ ∈ Γ := by simp) : 𝓚 ⟹! Γ := em! hp hn\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry": "lemma close! (φ : F) (hp : φ ∈ Γ := by sorry",
+  "annotation":
+  "lemma close! (φ : F) (hp : φ ∈ Γ := by simp) (hn : ∼φ ∈ Γ := by simp) : 𝓚 ⟹! Γ := em! hp hn\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.MinMax\ntheorem minimum_mem {l : List α} {m : α} : (minimum l : WithBot α) = m → m ∈ l :=\n  argmin_mem",
+   "--src: Mathlib.Data.List.Infix\ntheorem mem_of_mem_dropLast (h : a ∈ l.dropLast) : a ∈ l :=\n  dropLast_subset l h",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Data.List.MinMax\ntheorem maximum_mem {l : List α} {m : α} : (maximum l : WithTop α) = m → m ∈ l :=\n  argmax_mem",
+   "--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_reverse_eq_prev (l : List α) (h : Nodup l) (x : α) (hx : x ∈ l) :\n    next l.reverse x (mem_reverse.mpr hx) = prev l x hx := by\n  convert (prev_reverse_eq_next l.reverse (nodup_reverse.mpr h) x (mem_reverse.mpr hx)).symm\n  exact (reverse_reverse l).symm",
+   "--src: Mathlib.Data.List.Cycle\ntheorem isRotated_prev_eq {l l' : List α} (h : l ~r l') (hn : Nodup l) {x : α} (hx : x ∈ l) :\n    l.prev x hx = l'.prev x (h.mem_iff.mp hx) := by\n  rw [← next_reverse_eq_prev _ hn, ← next_reverse_eq_prev _ (h.nodup_iff.mp hn)]\n  exact isRotated_next_eq h.reverse (nodup_reverse.mpr hn) _",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]"],
+  "id":
+  {"name": "LO.Tait.em!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "lemma em! (hp : φ ∈ Γ) (hn : ∼φ ∈ Γ) : 𝓚 ⟹! Γ := ⟨em hp hn⟩\n\n",
+   "compilationAlias":
+   "lemma em! (hp : φ ∈ Γ) (hn : ∼φ ∈ Γ) : 𝓚 ⟹! Γ := ⟨em hp hn⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ : List F\nφ : F\nhp : Membership.mem Γ φ\nhn : Membership.mem Γ (LO.Tilde.tilde φ)\n⊢ LO.OneSided.Derivable 𝓚 Γ",
+  "content_sorry": "lemma em! (hp : φ ∈ Γ) (hn : ∼φ ∈ Γ) : 𝓚 ⟹! Γ := by sorry",
+  "annotation":
+  "lemma em! (hp : φ ∈ Γ) (hn : ∼φ ∈ Γ) : 𝓚 ⟹! Γ := ⟨em hp hn⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "em",
+    "module": "Mathlib.Logic.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias em := Classical.em",
+    "compilationAlias": "alias em := Classical.em"}]},
+ {"rag":
+  ["--src: Mathlib.Order.Interval.Set.OrdConnected\ntheorem OrdConnected.uIoc_subset (hs : OrdConnected s) ⦃x⦄ (hx : x ∈ s) ⦃y⦄ (hy : y ∈ s) :\n    Ι x y ⊆ s :=\n  Ioc_subset_Icc_self.trans <| hs.uIcc_subset hx hy",
+   "--src: Mathlib.Data.List.Infix\ntheorem mem_of_mem_dropLast (h : a ∈ l.dropLast) : a ∈ l :=\n  dropLast_subset l h",
+   "--src: Mathlib.Topology.Order.IntermediateValue\n/-- If a preconnected set contains endpoints of an interval, then it includes the whole interval. -/\ntheorem IsConnected.Icc_subset {s : Set α} (hs : IsConnected s) {a b : α} (ha : a ∈ s)\n    (hb : b ∈ s) : Icc a b ⊆ s :=\n  hs.2.Icc_subset ha hb",
+   "--src: Mathlib.Data.List.Dedup\ntheorem dedup_subset : ∀ l : List α, dedup l ⊆ l :=\n  pwFilter_subset",
+   "--src: Mathlib.Data.List.Infix\ntheorem tail_subset (l : List α) : tail l ⊆ l :=\n  (tail_sublist l).subset",
+   "--src: Mathlib.Analysis.Convex.Basic\ntheorem Set.OrdConnected.convex_of_chain [OrderedSemiring \u0000\u0000] [OrderedAddCommMonoid E] [Module \u0000\u0000 E]\n    [OrderedSMul \u0000\u0000 E] {s : Set E} (hs : s.OrdConnected) (h : IsChain (· ≤ ·) s) : Convex \u0000\u0000 s := by\n  refine convex_iff_segment_subset.mpr fun x hx y hy => ?_\n  obtain hxy | hyx := h.total hx hy\n  · exact (segment_subset_Icc hxy).trans (hs.out hx hy)\n  · rw [segment_symm]\n    exact (segment_subset_Icc hyx).trans (hs.out hy hx)",
+   "--src: Mathlib.Topology.Order.IntermediateValue\ntheorem isPreconnected_Icc_aux (x y : α) (s t : Set α) (hxy : x ≤ y) (hs : IsClosed s)\n    (ht : IsClosed t) (hab : Icc a b ⊆ s ∪ t) (hx : x ∈ Icc a b ∩ s) (hy : y ∈ Icc a b ∩ t) :\n    (Icc a b ∩ (s ∩ t)).Nonempty := by\n  have xyab : Icc x y ⊆ Icc a b := Icc_subset_Icc hx.1.1 hy.1.2\n  by_contra hst\n  suffices Icc x y ⊆ s from\n    hst ⟨y, xyab <| right_mem_Icc.2 hxy, this <| right_mem_Icc.2 hxy, hy.2⟩\n  apply (IsClosed.inter hs isClosed_Icc).Icc_subset_of_forall_mem_nhdsWithin hx.2\n  rintro z ⟨zs, hz⟩\n  have zt : z ∈ tᶜ := fun zt => hst ⟨z, xyab <| Ico_subset_Icc_self hz, zs, zt⟩\n  have : tᶜ ∩ Ioc z y ∈ \u0000\u0000[>] z := by\n    rw [← nhdsWithin_Ioc_eq_nhdsGT hz.2]\n    exact mem_nhdsWithin.2 ⟨tᶜ, ht.isOpen_compl, zt, Subset.rfl⟩\n  apply mem_of_superset this\n  have : Ioc z y ⊆ s ∪ t := fun w hw => hab (xyab ⟨le_trans hz.1 (le_of_lt hw.1), hw.2⟩)\n  exact fun w ⟨wt, wzy⟩ => (this wzy).elim id fun h => (wt h).elim",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isPreconnected_of_zigzag (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsPreconnected J := by\n  apply zigzag_isPreconnected\n  intro j₁ j₂\n  rcases h j₁ j₂ with ⟨l, hl₁, hl₂⟩\n  apply List.relationReflTransGen_of_exists_chain l hl₁ hl₂",
+   "--src: Mathlib.Data.List.MinMax\ntheorem not_lt_minimum_of_mem' (ha : a ∈ l) : ¬(a : WithTop α) < minimum l := by\n  cases h : l.minimum <;> simp_all [not_lt_minimum_of_mem ha]",
+   "--src: Mathlib.Data.Multiset.Basic\n@[simp]\ntheorem coe_subset {l₁ l₂ : List α} : (l₁ : Multiset α) ⊆ l₂ ↔ l₁ ⊆ l₂ :=\n  Iff.rfl"],
+  "id":
+  {"name": "LO.Tait.wk!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma wk! (h : 𝓚 ⟹! Γ) (ss : Γ ⊆ Δ) : 𝓚 ⟹! Δ := ⟨wk h.get ss⟩\n\n",
+   "compilationAlias":
+   "lemma wk! (h : 𝓚 ⟹! Γ) (ss : Γ ⊆ Δ) : 𝓚 ⟹! Δ := ⟨wk h.get ss⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ Δ : List F\nh : LO.OneSided.Derivable 𝓚 Γ\nss : HasSubset.Subset Γ Δ\n⊢ LO.OneSided.Derivable 𝓚 Δ",
+  "content_sorry": "lemma wk! (h : 𝓚 ⟹! Γ) (ss : Γ ⊆ Δ) : 𝓚 ⟹! Δ := by sorry",
+  "annotation":
+  "lemma wk! (h : 𝓚 ⟹! Γ) (ss : Γ ⊆ Δ) : 𝓚 ⟹! Δ := ⟨wk h.get ss⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Basic\n@[simp]\ntheorem getLast_cons_cons (a₁ a₂ : α) (l : List α) :\n    getLast (a₁ :: a₂ :: l) (cons_ne_nil _ _) = getLast (a₂ :: l) (cons_ne_nil a₂ l) :=\n  rfl",
+   "--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_ne_head_ne_getLast (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x ≠ getLast (y :: l) (cons_ne_nil _ _)) :\n    next (y :: l) x h = next l x (by simpa [hy] using h) := by\n  rw [next, next, nextOr_cons_of_ne _ _ _ _ hy, nextOr_eq_nextOr_of_mem_of_ne]\n  · rwa [getLast_cons] at hx\n    exact ne_nil_of_mem (by assumption)\n  · rwa [getLast_cons] at hx",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_append_of_mem_getLast? {l₁ l₂ : List α} {x : α} (h : x ∈ l₂.getLast?) :\n    x ∈ (l₁ ++ l₂).getLast? := by\n  cases l₂\n  · contradiction\n  · rw [List.getLast?_append_cons]\n    exact h",
+   "--src: Mathlib.Data.List.Infix\ntheorem mem_of_mem_dropLast (h : a ∈ l.dropLast) : a ∈ l :=\n  dropLast_subset l h",
+   "--src: Mathlib.Data.List.Basic\n@[deprecated (since := \"2024-09-06\")] alias getLast?_eq_none := getLast?_eq_none_iff"],
+  "id":
+  {"name": "LO.Tait.or!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma or! (h : 𝓚 ⟹! φ :: ψ :: Γ) : 𝓚 ⟹! φ ⋎ ψ :: Γ := ⟨or h.get⟩\n\n",
+   "compilationAlias":
+   "lemma or! (h : 𝓚 ⟹! φ :: ψ :: Γ) : 𝓚 ⟹! φ ⋎ ψ :: Γ := ⟨or h.get⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ : List F\nφ ψ : F\nh : LO.OneSided.Derivable 𝓚 (List.cons φ (List.cons ψ Γ))\n⊢ LO.OneSided.Derivable 𝓚 (List.cons (LO.Vee.vee φ ψ) Γ)",
+  "content_sorry":
+  "lemma or! (h : 𝓚 ⟹! φ :: ψ :: Γ) : 𝓚 ⟹! φ ⋎ ψ :: Γ := by sorry",
+  "annotation":
+  "lemma or! (h : 𝓚 ⟹! φ :: ψ :: Γ) : 𝓚 ⟹! φ ⋎ ψ :: Γ := ⟨or h.get⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.Data.List.Basic\n@[simp]\ntheorem getLast_cons_cons (a₁ a₂ : α) (l : List α) :\n    getLast (a₁ :: a₂ :: l) (cons_ne_nil _ _) = getLast (a₂ :: l) (cons_ne_nil a₂ l) :=\n  rfl",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_ne_head_ne_getLast (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x ≠ getLast (y :: l) (cons_ne_nil _ _)) :\n    next (y :: l) x h = next l x (by simpa [hy] using h) := by\n  rw [next, next, nextOr_cons_of_ne _ _ _ _ hy, nextOr_eq_nextOr_of_mem_of_ne]\n  · rwa [getLast_cons] at hx\n    exact ne_nil_of_mem (by assumption)\n  · rwa [getLast_cons] at hx",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.List.Infix\ntheorem mem_of_mem_dropLast (h : a ∈ l.dropLast) : a ∈ l :=\n  dropLast_subset l h",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.cons_getLast_dropLast\n    (L : List α) (hL : L ≠ []) : L.getLast hL :: L.dropLast ~r L := by\n  induction L using List.reverseRecOn with\n  | nil => simp at hL\n  | append_singleton a L _ =>\n    simp only [getLast_append, dropLast_concat]\n    apply IsRotated.symm\n    apply isRotated_concat",
+   "--src: Mathlib.CategoryTheory.IsConnected\ntheorem Zigzag.of_zag {j₁ j₂ : J} (h : Zag j₁ j₂) : Zigzag j₁ j₂ :=\n  Relation.ReflTransGen.single h",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk"],
+  "id":
+  {"name": "LO.Tait.and!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma and! (hp : 𝓚 ⟹! φ :: Γ) (hq : 𝓚 ⟹! ψ :: Γ) : 𝓚 ⟹! φ ⋏ ψ :: Γ := ⟨and hp.get hq.get⟩\n\n",
+   "compilationAlias":
+   "lemma and! (hp : 𝓚 ⟹! φ :: Γ) (hq : 𝓚 ⟹! ψ :: Γ) : 𝓚 ⟹! φ ⋏ ψ :: Γ := ⟨and hp.get hq.get⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ : List F\nφ ψ : F\nhp : LO.OneSided.Derivable 𝓚 (List.cons φ Γ)\nhq : LO.OneSided.Derivable 𝓚 (List.cons ψ Γ)\n⊢ LO.OneSided.Derivable 𝓚 (List.cons (LO.Wedge.wedge φ ψ) Γ)",
+  "content_sorry":
+  "lemma and! (hp : 𝓚 ⟹! φ :: Γ) (hq : 𝓚 ⟹! ψ :: Γ) : 𝓚 ⟹! φ ⋏ ψ :: Γ := by sorry",
+  "annotation":
+  "lemma and! (hp : 𝓚 ⟹! φ :: Γ) (hq : 𝓚 ⟹! ψ :: Γ) : 𝓚 ⟹! φ ⋏ ψ :: Γ := ⟨and hp.get hq.get⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.Chain\n/-- Given a chain from `a` to `b`, and a predicate true at `b`, if `r x y → p y → p x` then\nthe predicate is true at `a`.\nThat is, we can propagate the predicate all the way up the chain.\n-/\n@[elab_as_elim]\ntheorem Chain.backwards_induction_head (p : α → Prop) (l : List α) (h : Chain r a l)\n    (hb : getLast (a :: l) (cons_ne_nil _ _) = b) (carries : ∀ ⦃x y : α⦄, r x y → p y → p x)\n    (final : p b) : p a :=\n  (Chain.backwards_induction p l h hb carries final) _ (mem_cons_self _ _)",
+   "--src: Mathlib.Data.List.Chain\n/-- Given a chain from `a` to `b`, and a predicate true at `a`, if `r x y → p x → p y` then\nthe predicate is true everywhere in the chain.\nThat is, we can propagate the predicate down the chain.\n-/\ntheorem Chain.induction (p : α → Prop) (l : List α) (h : Chain r a l)\n    (carries : ∀ ⦃x y : α⦄, r x y → p x → p y) (initial : p a) : ∀ i ∈ l, p i := by\n  induction h with\n  | nil => simp\n  | @cons a b t hab _ h_ind =>\n    simp only [mem_cons, forall_eq_or_imp]\n    exact ⟨carries hab initial, h_ind (carries hab initial)⟩",
+   "--src: Mathlib.Data.List.MinMax\ntheorem maximum_mem {l : List α} {m : α} : (maximum l : WithTop α) = m → m ∈ l :=\n  argmax_mem",
+   "--src: Mathlib.Data.Nat.Digits\ntheorem digits_ofDigits (b : ℕ) (h : 1 < b) (L : List ℕ) (w₁ : ∀ l ∈ L, l < b)\n    (w₂ : ∀ h : L ≠ [], L.getLast h ≠ 0) : digits b (ofDigits b L) = L := by\n  induction' L with d L ih\n  · dsimp [ofDigits]\n    simp\n  · dsimp [ofDigits]\n    replace w₂ := w₂ (by simp)\n    rw [digits_add b h]\n    · rw [ih]\n      · intro l m\n        apply w₁\n        exact List.mem_cons_of_mem _ m\n      · intro h\n        rw [List.getLast_cons h] at w₂\n        convert w₂\n    · exact w₁ d (List.mem_cons_self _ _)\n    · by_cases h' : L = []\n      · rcases h' with rfl\n        left\n        simpa using w₂\n      · right\n        contrapose! w₂\n        refine digits_zero_of_eq_zero h.ne_bot w₂ _ ?_\n        rw [List.getLast_cons h']\n        exact List.getLast_mem h'",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The canonical functor from the structured arrow category on the diagonal functor\n`T ⥤ T × T` to the structured arrow category on `Under.forget`. -/\n@[simps!]\ndef ofDiagEquivalence.functor (X : T × T) :\n    StructuredArrow X (Functor.diag _) ⥤ StructuredArrow X.2 (Under.forget X.1) :=\n  Functor.toStructuredArrow\n    (Functor.toUnder (StructuredArrow.proj X _) _\n      (fun f => by exact f.hom.1) (fun m => by have := m.w; aesop_cat)) _ _\n    (fun f => f.hom.2) (fun m => by have := m.w; aesop_cat)",
+   "--src: Mathlib.Data.List.Chain\ntheorem chain_pmap_of_chain {S : β → β → Prop} {p : α → Prop} {f : ∀ a, p a → β}\n    (H : ∀ a b ha hb, R a b → S (f a ha) (f b hb)) {a : α} {l : List α} (hl₁ : Chain R a l)\n    (ha : p a) (hl₂ : ∀ a ∈ l, p a) : Chain S (f a ha) (List.pmap f l hl₂) := by\n  induction' l with lh lt l_ih generalizing a\n  · simp\n  · simp [H _ _ _ _ (rel_of_chain_cons hl₁), l_ih (chain_of_chain_cons hl₁)]",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.Ordmap.Ordset\ntheorem Valid'.node3L {l} {x : α} {m} {y : α} {r o₁ o₂} (hl : Valid' o₁ l x) (hm : Valid' x m y)\n    (hr : Valid' y r o₂) (H1 : BalancedSz (size l) (size m))\n    (H2 : BalancedSz (size l + size m + 1) (size r)) : Valid' o₁ (@node3L α l x m y r) o₂ :=\n  (hl.node' hm H1).node' hr H2",
+   "--src: Mathlib.Data.List.Sort\ntheorem Sorted.head!_le [Inhabited α] [Preorder α] {a : α} {l : List α} (h : Sorted (· < ·) l)\n    (ha : a ∈ l) : l.head! ≤ a := by\n  rw [← List.cons_head!_tail (List.ne_nil_of_mem ha)] at h ha\n  cases ha\n  · exact le_rfl\n  · exact le_of_lt (rel_of_sorted_cons h a (by assumption))"],
+  "id":
+  {"name": "LO.Tait.verum'!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "lemma verum'! (h : ⊤ ∈ Γ) : 𝓚 ⟹! Γ := ⟨verum' h⟩\n\n",
+   "compilationAlias": "lemma verum'! (h : ⊤ ∈ Γ) : 𝓚 ⟹! Γ := ⟨verum' h⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ : List F\nh : Membership.mem Γ Top.top\n⊢ LO.OneSided.Derivable 𝓚 Γ",
+  "content_sorry": "lemma verum'! (h : ⊤ ∈ Γ) : 𝓚 ⟹! Γ := by sorry",
+  "annotation": "lemma verum'! (h : ⊤ ∈ Γ) : 𝓚 ⟹! Γ := ⟨verum' h⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.Data.List.Basic\n@[simp]\ntheorem getLast_cons_cons (a₁ a₂ : α) (l : List α) :\n    getLast (a₁ :: a₂ :: l) (cons_ne_nil _ _) = getLast (a₂ :: l) (cons_ne_nil a₂ l) :=\n  rfl",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_ne_head_ne_getLast (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x ≠ getLast (y :: l) (cons_ne_nil _ _)) :\n    next (y :: l) x h = next l x (by simpa [hy] using h) := by\n  rw [next, next, nextOr_cons_of_ne _ _ _ _ hy, nextOr_eq_nextOr_of_mem_of_ne]\n  · rwa [getLast_cons] at hx\n    exact ne_nil_of_mem (by assumption)\n  · rwa [getLast_cons] at hx",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.cons_getLast_dropLast\n    (L : List α) (hL : L ≠ []) : L.getLast hL :: L.dropLast ~r L := by\n  induction L using List.reverseRecOn with\n  | nil => simp at hL\n  | append_singleton a L _ =>\n    simp only [getLast_append, dropLast_concat]\n    apply IsRotated.symm\n    apply isRotated_concat",
+   "--src: Mathlib.Data.List.Basic\n@[deprecated (since := \"2024-09-06\")] alias getLast?_eq_none := getLast?_eq_none_iff",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_append_of_mem_getLast? {l₁ l₂ : List α} {x : α} (h : x ∈ l₂.getLast?) :\n    x ∈ (l₁ ++ l₂).getLast? := by\n  cases l₂\n  · contradiction\n  · rw [List.getLast?_append_cons]\n    exact h",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]"],
+  "id":
+  {"name": "LO.Tait.verum!",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma verum! (𝓚 : K) (Γ : List F) : 𝓚 ⟹! ⊤ :: Γ := ⟨verum _ _⟩\n\n",
+   "compilationAlias":
+   "lemma verum! (𝓚 : K) (Γ : List F) : 𝓚 ⟹! ⊤ :: Γ := ⟨verum _ _⟩\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ : List F\n⊢ LO.OneSided.Derivable 𝓚 (List.cons Top.top Γ)",
+  "content_sorry":
+  "lemma verum! (𝓚 : K) (Γ : List F) : 𝓚 ⟹! ⊤ :: Γ := by sorry",
+  "annotation":
+  "lemma verum! (𝓚 : K) (Γ : List F) : 𝓚 ⟹! ⊤ :: Γ := ⟨verum _ _⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.List.Basic\ntheorem dropLast_append_getLast? : ∀ {l : List α}, ∀ a ∈ l.getLast?, dropLast l ++ [a] = l\n  | [], a, ha => (Option.not_mem_none a ha).elim\n  | [a], _, rfl => rfl\n  | a :: b :: l, c, hc => by\n    rw [getLast?_cons_cons] at hc\n    rw [dropLast_cons₂, cons_append, dropLast_append_getLast? _ hc]",
+   "--src: Mathlib.Data.List.Cycle\ntheorem next_getLast_cons (h : x ∈ l) (y : α) (h : x ∈ y :: l) (hy : x ≠ y)\n    (hx : x = getLast (y :: l) (cons_ne_nil _ _)) (hl : Nodup l) : next (y :: l) x h = y := by\n  rw [next, get, ← dropLast_append_getLast (cons_ne_nil y l), hx, nextOr_concat]\n  subst hx\n  intro H\n  obtain ⟨⟨_ | k, hk⟩, hk'⟩ := get_of_mem H\n  · rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_zero,\n      Option.some_inj] at hk'\n    · exact hy (Eq.symm hk')\n    rw [length_cons]\n    exact length_pos_of_mem (by assumption)\n  suffices k + 1 = l.length by simp [this] at hk\n  cases' l with hd tl\n  · simp at hk\n  · rw [nodup_iff_injective_get] at hl\n    rw [length, Nat.succ_inj']\n    refine Fin.val_eq_of_eq <| @hl ⟨k, Nat.lt_of_succ_lt <| by simpa using hk⟩\n      ⟨tl.length, by simp⟩ ?_\n    rw [← Option.some_inj] at hk'\n    rw [← get?_eq_get, dropLast_eq_take, get?_eq_getElem?, getElem?_take_of_lt, getElem?_cons_succ,\n      getElem?_eq_getElem, Option.some_inj] at hk'\n    · rw [get_eq_getElem, hk']\n      simp only [getLast_eq_getElem, length_cons, Nat.succ_eq_add_one, Nat.succ_sub_succ_eq_sub,\n        Nat.sub_zero, get_eq_getElem, getElem_cons_succ]\n    simpa using hk",
+   "--src: Mathlib.Data.List.Basic\ntheorem mem_getLast?_cons {x y : α} : ∀ {l : List α}, x ∈ l.getLast? → x ∈ (y :: l).getLast?\n  | [], _ => by contradiction\n  | _ :: _, h => h",
+   "--src: Mathlib.Data.List.Rotate\ntheorem IsRotated.dropLast_tail {α}\n    {L : List α} (hL : L ≠ []) (hL' : L.head hL = L.getLast hL) : L.dropLast ~r L.tail :=\n  match L with\n  | [] => by simp\n  | [_] => by simp\n  | a :: b :: L => by\n    simp only [head_cons, ne_eq, reduceCtorEq, not_false_eq_true, getLast_cons] at hL'\n    simp [hL', IsRotated.cons_getLast_dropLast]",
+   "--src: Mathlib.Data.List.Cycle\ntheorem prev_cons_cons_eq' (y z : α) (h : x ∈ y :: z :: l) (hx : x = y) :\n    prev (y :: z :: l) x h = getLast (z :: l) (cons_ne_nil _ _) := by rw [prev, dif_pos hx]",
+   "--src: Mathlib.CategoryTheory.IsConnected\n/-- If any two objects in a nonempty category are linked by a sequence of (potentially reversed)\nmorphisms, then J is connected.\nThe converse of `exists_zigzag'`.\n-/\ntheorem isConnected_of_zigzag [Nonempty J] (h : ∀ j₁ j₂ : J, ∃ l,\n    List.Chain Zag j₁ l ∧ List.getLast (j₁ :: l) (List.cons_ne_nil _ _) = j₂) :\n    IsConnected J :=\n  { isPreconnected_of_zigzag h with }",
+   "--src: Mathlib.Data.List.Chain\n/-- Given a chain from `a` to `b`, and a predicate true at `b`, if `r x y → p y → p x` then\nthe predicate is true everywhere in the chain and at `a`.\nThat is, we can propagate the predicate up the chain.\n-/\ntheorem Chain.backwards_induction (p : α → Prop) (l : List α) (h : Chain r a l)\n    (hb : getLast (a :: l) (cons_ne_nil _ _) = b) (carries : ∀ ⦃x y : α⦄, r x y → p y → p x)\n    (final : p b) : ∀ i ∈ a :: l, p i := by\n  have : Chain' (flip (flip r)) (a :: l) := by simpa [Chain']\n  replace this := chain'_reverse.mpr this\n  simp_rw (config := {singlePass := true}) [← List.mem_reverse]\n  apply this.induction _ _ (fun _ _ h ↦ carries h)\n  simpa only [ne_eq, reverse_eq_nil_iff, not_false_eq_true, head_reverse, forall_true_left, hb,\n    reduceCtorEq]",
+   "--src: Mathlib.Data.List.Cycle\n/-- `nextOr` does not depend on the default value, if the next value appears. -/\ntheorem nextOr_eq_nextOr_of_mem_of_ne (xs : List α) (x d d' : α) (x_mem : x ∈ xs)\n    (x_ne : x ≠ xs.getLast (ne_nil_of_mem x_mem)) : nextOr xs x d = nextOr xs x d' := by\n  induction' xs with y ys IH\n  · cases x_mem\n  cases' ys with z zs\n  · simp at x_mem x_ne\n    contradiction\n  by_cases h : x = y\n  · rw [h, nextOr_self_cons_cons, nextOr_self_cons_cons]\n  · rw [nextOr, nextOr, IH]\n    · simpa [h] using x_mem\n    · simpa using x_ne",
+   "--src: Mathlib.Data.List.MinMax\n@[simp, deprecated maximum_eq_bot \"Don't mix Option and WithBot\" (since := \"2024-05-27\")]\ntheorem maximum_eq_none {l : List α} : l.maximum = none ↔ l = [] := maximum_eq_bot",
+   "--src: Mathlib.CategoryTheory.Monoidal.CommMon_\n/-- Implementation of `CommMon_.equivLaxBraidedFunctorPUnit`. -/\n@[simps]\ndef laxBraidedToCommMon : LaxBraidedFunctor (Discrete PUnit.{u + 1}) C ⥤ CommMon_ C where\n  obj F := (F.mapCommMon : CommMon_ _ ⥤ CommMon_ C).obj (trivial (Discrete PUnit.{u+1}))\n  map α := ((Functor.mapCommMonFunctor (Discrete PUnit) C).map α).app _"],
+  "id":
+  {"name": "LO.Tait.of_eq",
+   "module": "Foundation.Logic.Calculus",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "lemma of_eq (b : 𝓚 ⟹! Γ) (h : Γ = Δ) : 𝓚 ⟹! Δ := h ▸ b\n\n",
+   "compilationAlias":
+   "lemma of_eq (b : 𝓚 ⟹! Γ) (h : Γ = Δ) : 𝓚 ⟹! Δ := h ▸ b\n\n"},
+  "goal":
+  "F : Type u_1\nK : Type u_3\ninst✝³ : LO.LogicalConnective F\ninst✝² : Collection F K\ninst✝¹ : LO.DeMorgan F\ninst✝ : LO.Tait F K\n𝓚 : K\nΓ Δ : List F\nb : LO.OneSided.Derivable 𝓚 Γ\nh : Eq Γ Δ\n⊢ LO.OneSided.Derivable 𝓚 Δ",
+  "content_sorry": "lemma of_eq (b : 𝓚 ⟹! Γ) (h : Γ = Δ) : 𝓚 ⟹! Δ := by sorry",
+  "annotation": "lemma of_eq (b : 𝓚 ⟹! Γ) (h : Γ = Δ) : 𝓚 ⟹! Δ := h ▸ b\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "of_eq",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem of_eq [IsRefl α r] : ∀ {a b}, a = b → r a b\n  | _, _, .refl _ => refl _",
+    "compilationAlias":
+    "theorem of_eq [IsRefl α r] : ∀ {a b}, a = b → r a b\n  | _, _, .refl _ => refl _"}]}]

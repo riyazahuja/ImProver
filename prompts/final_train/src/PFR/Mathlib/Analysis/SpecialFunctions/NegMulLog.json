@@ -1,0 +1,723 @@
+[{"rag":
+  ["--src: Mathlib.Analysis.MeanInequalities\ntheorem arith_mean_weighted_of_constant (w z : ι → ℝ) (x : ℝ) (hw' : ∑ i ∈ s, w i = 1)\n    (hx : ∀ i ∈ s, w i ≠ 0 → z i = x) : ∑ i ∈ s, w i * z i = x :=\n  calc\n    ∑ i ∈ s, w i * z i = ∑ i ∈ s, w i * x := by\n      refine sum_congr rfl fun i hi => ?_\n      rcases eq_or_ne (w i) 0 with hwi | hwi\n      · rw [hwi, zero_mul, zero_mul]\n      · rw [hx i hi hwi]\n    _ = x := by rw [← sum_mul, hw', one_mul]",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem arith_mean_le_rpow_mean (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i) (hw' : ∑ i ∈ s, w i = 1)\n    (hz : ∀ i ∈ s, 0 ≤ z i) {p : ℝ} (hp : 1 ≤ p) :\n    ∑ i ∈ s, w i * z i ≤ (∑ i ∈ s, w i * z i ^ p) ^ (1 / p) := by\n  have : 0 < p := by positivity\n  rw [← rpow_le_rpow_iff _ _ this, ← rpow_mul, one_div_mul_cancel (ne_of_gt this), rpow_one]\n  · exact rpow_arith_mean_le_arith_mean_rpow s w z hw hw' hz hp\n  all_goals\n    apply_rules [sum_nonneg, rpow_nonneg]\n    intro i hi\n    apply_rules [mul_nonneg, rpow_nonneg, hw i hi, hz i hi]",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **AM-GM inequality**: The geometric mean is less than or equal to the arithmetic mean, weighted\nversion for real-valued nonnegative functions. -/\ntheorem geom_mean_le_arith_mean_weighted (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) :\n    ∏ i ∈ s, z i ^ w i ≤ ∑ i ∈ s, w i * z i := by\n  -- If some number `z i` equals zero and has non-zero weight, then LHS is 0 and RHS is nonnegative.\n  by_cases A : ∃ i ∈ s, z i = 0 ∧ w i ≠ 0\n  · rcases A with ⟨i, his, hzi, hwi⟩\n    rw [prod_eq_zero his]\n    · exact sum_nonneg fun j hj => mul_nonneg (hw j hj) (hz j hj)\n    · rw [hzi]\n      exact zero_rpow hwi\n  -- If all numbers `z i` with non-zero weight are positive, then we apply Jensen's inequality\n  -- for `exp` and numbers `log (z i)` with weights `w i`.\n  · simp only [not_exists, not_and, Ne, Classical.not_not] at A\n    have := convexOn_exp.map_sum_le hw hw' fun i _ => Set.mem_univ <| log (z i)\n    simp only [exp_sum, smul_eq_mul, mul_comm (w _) (log _)] at this\n    convert this using 1 <;> [apply prod_congr rfl;apply sum_congr rfl] <;> intro i hi\n    · cases' eq_or_lt_of_le (hz i hi) with hz hz\n      · simp [A i hi hz.symm]\n      · exact rpow_def_of_pos hz _\n    · cases' eq_or_lt_of_le (hz i hi) with hz hz\n      · simp [A i hi hz.symm]\n      · rw [exp_log hz]",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **AM-GM inequality - strict inequality condition**: This theorem provides the strict inequality\ncondition for the *positive* weighted version of the AM-GM inequality for real-valued nonnegative\nfunctions. -/\ntheorem geom_mean_lt_arith_mean_weighted_iff_of_pos (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) :\n    ∏ i ∈ s, z i ^ w i < ∑ i ∈ s, w i * z i ↔ ∃ j ∈ s, ∃ k ∈ s, z j ≠ z k:= by\n  constructor\n  · intro h\n    by_contra! h_contra\n    rw [(geom_mean_eq_arith_mean_weighted_iff' s w z hw hw' hz).mpr ?_] at h\n    · exact (lt_self_iff_false _).mp h\n    · intro j hjs\n      rw [← arith_mean_weighted_of_constant s w (fun _ => z j) (z j) hw' fun _ _ => congrFun rfl]\n      apply sum_congr rfl (fun x a => congrArg (HMul.hMul (w x)) (h_contra j hjs x a))\n  · rintro ⟨j, hjs, k, hks, hzjk⟩\n    have := geom_mean_le_arith_mean_weighted s w z (fun i a => le_of_lt (hw i a)) hw' hz\n    by_contra! h\n    apply le_antisymm this at h\n    apply (geom_mean_eq_arith_mean_weighted_iff' s w z hw hw' hz).mp at h\n    simp only [h j hjs, h k hks, ne_eq, not_true_eq_false] at hzjk",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem zpow_arith_mean_le_arith_mean_zpow (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 < z i) (m : ℤ) :\n    (∑ i ∈ s, w i * z i) ^ m ≤ ∑ i ∈ s, w i * z i ^ m :=\n  (convexOn_zpow m).map_sum_le hw hw' hz",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Base\ntheorem logb_prod {α : Type*} (s : Finset α) (f : α → ℝ) (hf : ∀ x ∈ s, f x ≠ 0) :\n    logb b (∏ i ∈ s, f i) = ∑ i ∈ s, logb b (f i) := by\n  classical\n    induction' s using Finset.induction_on with a s ha ih\n    · simp\n    simp only [Finset.mem_insert, forall_eq_or_imp] at hf\n    simp [ha, ih hf.2, logb_mul hf.1 (Finset.prod_ne_zero_iff.2 hf.2)]",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\n/-- Weighted generalized mean inequality, version for sums over finite sets, with `ℝ≥0∞`-valued\nfunctions and real exponents. -/\ntheorem rpow_arith_mean_le_arith_mean_rpow (w z : ι → ℝ≥0∞) (hw' : ∑ i ∈ s, w i = 1) {p : ℝ}\n    (hp : 1 ≤ p) : (∑ i ∈ s, w i * z i) ^ p ≤ ∑ i ∈ s, w i * z i ^ p := by\n  have hp_pos : 0 < p := by positivity\n  have hp_nonneg : 0 ≤ p := by positivity\n  have hp_not_neg : ¬p < 0 := by simp [hp_nonneg]\n  have h_top_iff_rpow_top : ∀ (i : ι), i ∈ s → (w i * z i = ⊤ ↔ w i * z i ^ p = ⊤) := by\n    simp [ENNReal.mul_eq_top, hp_pos, hp_nonneg, hp_not_neg]\n  refine le_of_top_imp_top_of_toNNReal_le ?_ ?_\n  · -- first, prove `(∑ i ∈ s, w i * z i) ^ p = ⊤ → ∑ i ∈ s, (w i * z i ^ p) = ⊤`\n    rw [rpow_eq_top_iff, sum_eq_top, sum_eq_top]\n    intro h\n    simp only [and_false, hp_not_neg, false_or] at h\n    rcases h.left with ⟨a, H, ha⟩\n    use a, H\n    rwa [← h_top_iff_rpow_top a H]\n  · -- second, suppose both `(∑ i ∈ s, w i * z i) ^ p ≠ ⊤` and `∑ i ∈ s, (w i * z i ^ p) ≠ ⊤`,\n    -- and prove `((∑ i ∈ s, w i * z i) ^ p).toNNReal ≤ (∑ i ∈ s, (w i * z i ^ p)).toNNReal`,\n    -- by using `NNReal.rpow_arith_mean_le_arith_mean_rpow`.\n    intro h_top_rpow_sum _\n    -- show hypotheses needed to put the `.toNNReal` inside the sums.\n    have h_top : ∀ a : ι, a ∈ s → w a * z a ≠ ⊤ :=\n      haveI h_top_sum : ∑ i ∈ s, w i * z i ≠ ⊤ := by\n        intro h\n        rw [h, top_rpow_of_pos hp_pos] at h_top_rpow_sum\n        exact h_top_rpow_sum rfl\n      fun a ha => (lt_top_of_sum_ne_top h_top_sum ha).ne\n    have h_top_rpow : ∀ a : ι, a ∈ s → w a * z a ^ p ≠ ⊤ := by\n      intro i hi\n      specialize h_top i hi\n      rwa [Ne, ← h_top_iff_rpow_top i hi]\n    -- put the `.toNNReal` inside the sums.\n    simp_rw [toNNReal_sum h_top_rpow, toNNReal_rpow, toNNReal_sum h_top, toNNReal_mul,\n      toNNReal_rpow]\n    -- use corresponding nnreal result\n    refine\n      NNReal.rpow_arith_mean_le_arith_mean_rpow s (fun i => (w i).toNNReal)\n        (fun i => (z i).toNNReal) ?_ hp\n    -- verify the hypothesis `∑ i ∈ s, (w i).toNNReal = 1`, using `∑ i ∈ s, w i = 1` .\n    have h_sum_nnreal : ∑ i ∈ s, w i = ↑(∑ i ∈ s, (w i).toNNReal) := by\n      rw [coe_finset_sum]\n      refine sum_congr rfl fun i hi => (coe_toNNReal ?_).symm\n      refine (lt_top_of_sum_ne_top ?_ hi).ne\n      exact hw'.symm ▸ ENNReal.one_ne_top\n    rwa [← coe_inj, ← h_sum_nnreal]",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Base\nprotected theorem _root_.Finsupp.logb_prod {α β : Type*} [Zero β] (f : α →₀ β) (g : α → β → ℝ)\n    (hg : ∀ a, g a (f a) = 0 → f a = 0) : logb b (f.prod g) = f.sum fun a c ↦ logb b (g a c) :=\n  logb_prod _ _ fun _x hx h₀ ↦ Finsupp.mem_support_iff.1 hx <| hg _ h₀",
+   "--src: Mathlib.Analysis.Convex.Jensen\n/-- Concave **Jensen's inequality**, `Finset.sum` version. -/\ntheorem ConcaveOn.le_map_sum (hf : ConcaveOn \u0000\u0000 s f) (h₀ : ∀ i ∈ t, 0 ≤ w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) :\n    (∑ i ∈ t, w i • f (p i)) ≤ f (∑ i ∈ t, w i • p i) :=\n  ConvexOn.map_sum_le (β := βᵒᵈ) hf h₀ h₁ hmem",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **HM-GM inequality**: The **harmonic mean is less than or equal to the geometric mean. -/\ntheorem harm_mean_le_geom_mean {ι : Type*} (s : Finset ι) (hs : s.Nonempty) (w : ι → ℝ)\n    (z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i) (hw' : 0 < ∑ i in s, w i) (hz : ∀ i ∈ s, 0 < z i) :\n    (∑ i in s, w i) / (∑ i in s, w i / z i) ≤ (∏ i in s, z i ^ w i) ^ (∑ i in s, w i)⁻¹ := by\n  have := harm_mean_le_geom_mean_weighted s (fun i => (w i) / ∑ i in s, w i) z hs ?_ ?_ hz\n  · simp only at this\n    set n := ∑ i in s, w i\n    nth_rw 1 [div_eq_mul_inv, (show n = (n⁻¹)⁻¹ by norm_num), ← mul_inv, Finset.mul_sum _ _ n⁻¹]\n    simp_rw [inv_mul_eq_div n ((w _)/(z _)), div_right_comm _ _ n]\n    convert this\n    rw [← Real.finset_prod_rpow s _ (fun i hi ↦ Real.rpow_nonneg (le_of_lt <| hz i hi) _)]\n    refine Finset.prod_congr rfl (fun i hi => ?_)\n    rw [← Real.rpow_mul (le_of_lt <| hz i hi) (w _) n⁻¹, div_eq_mul_inv (w _) n]\n  · exact fun i hi ↦ div_pos (hw i hi) hw'\n  · simp_rw [div_eq_mul_inv (w _) (∑ i in s, w i), ← Finset.sum_mul _ _ (∑ i in s, w i)⁻¹]\n    exact mul_inv_cancel₀ hw'.ne'"],
+  "id":
+  {"name": "Real.sum_mul_log_div_eq_iff",
+   "module": "PFR.Mathlib.Analysis.SpecialFunctions.NegMulLog",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. -/\nlemma sum_mul_log_div_eq_iff {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0)\n    (heq : ∑ i ∈ s, a i * log (a i / b i)\n      = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  let s' : Finset ι := s.filter (fun i ↦ 0 < b i)\n  have A : ∑ i ∈ s', a i = ∑ i ∈ s, a i := by\n    apply Finset.sum_subset (Finset.filter_subset _ _)\n    intro i hi h'i\n    simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n    exact habs i hi (le_antisymm h'i (hb i hi))\n  have B : ∑ i ∈ s', b i = ∑ i ∈ s, b i := by\n    apply Finset.sum_subset (Finset.filter_subset _ _)\n    intro i hi h'i\n    simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n    exact le_antisymm h'i (hb i hi)\n  have C : ∑ i ∈ s', a i * log (a i / b i) =\n      (∑ i ∈ s', a i) * log ((∑ i ∈ s', a i) / (∑ i ∈ s', b i)) := by\n    convert heq using 1\n    · apply Finset.sum_subset (Finset.filter_subset _ _)\n      intro i hi h'i\n      simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n      have : b i = 0 := le_antisymm h'i (hb i hi)\n      simp [this]\n    · simp [A, B]\n  obtain ⟨r, hr⟩ : ∃ r, ∀ i ∈ s', a i = r * (b i) := by\n    apply sum_mul_log_div_eq_iff_aux (fun i hi ↦ ha i ?_) (fun i hi ↦ ?_) C\n    · simp only [Finset.mem_filter, s'] at hi\n      exact hi.1\n    · simp only [Finset.mem_filter, s'] at hi\n      exact hi.2\n  refine ⟨r, fun i hi ↦ ?_⟩\n  rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n  · simp [← h'i, habs i hi h'i.symm]\n  · apply hr\n    simp [s', hi, h'i]\n\n",
+   "compilationAlias":
+   "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. -/\nlemma sum_mul_log_div_eq_iff {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0)\n    (heq : ∑ i ∈ s, a i * log (a i / b i)\n      = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  let s' : Finset ι := s.filter (fun i ↦ 0 < b i)\n  have A : ∑ i ∈ s', a i = ∑ i ∈ s, a i := by\n    apply Finset.sum_subset (Finset.filter_subset _ _)\n    intro i hi h'i\n    simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n    exact habs i hi (le_antisymm h'i (hb i hi))\n  have B : ∑ i ∈ s', b i = ∑ i ∈ s, b i := by\n    apply Finset.sum_subset (Finset.filter_subset _ _)\n    intro i hi h'i\n    simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n    exact le_antisymm h'i (hb i hi)\n  have C : ∑ i ∈ s', a i * log (a i / b i) =\n      (∑ i ∈ s', a i) * log ((∑ i ∈ s', a i) / (∑ i ∈ s', b i)) := by\n    convert heq using 1\n    · apply Finset.sum_subset (Finset.filter_subset _ _)\n      intro i hi h'i\n      simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n      have : b i = 0 := le_antisymm h'i (hb i hi)\n      simp [this]\n    · simp [A, B]\n  obtain ⟨r, hr⟩ : ∃ r, ∀ i ∈ s', a i = r * (b i) := by\n    apply sum_mul_log_div_eq_iff_aux (fun i hi ↦ ha i ?_) (fun i hi ↦ ?_) C\n    · simp only [Finset.mem_filter, s'] at hi\n      exact hi.1\n    · simp only [Finset.mem_filter, s'] at hi\n      exact hi.2\n  refine ⟨r, fun i hi ↦ ?_⟩\n  rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n  · simp [← h'i, habs i hi h'i.symm]\n  · apply hr\n    simp [s', hi, h'i]\n\n"},
+  "goal":
+  "α : Type u_1\np : α → Prop\ninst✝ : DecidablePred p\ns : Finset α\na : α\n⊢ Eq (Membership.mem (Finset.filter p s) a) (And (Membership.mem s a) (p a))",
+  "content_sorry":
+  "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. -/\nlemma sum_mul_log_div_eq_iff {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0)\n    (heq : ∑ i ∈ s, a i * log (a i / b i)\n      = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  sorry",
+  "annotation":
+  "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. -/\nlemma sum_mul_log_div_eq_iff {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0)\n    (heq : ∑ i ∈ s, a i * log (a i / b i)\n      = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  /-\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    ⊢ Exists fun r => ∀ (i : ι), Membership.mem s i → Eq (a i) (HMul.hMul r (b i))\n  -/\n  let s' : Finset ι := s.filter (fun i ↦ 0 < b i)\n  have A : ∑ i ∈ s', a i = ∑ i ∈ s, a i := by\n    apply Finset.sum_subset (Finset.filter_subset _ _)\n    intro i hi h'i\n    simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n    exact habs i hi (le_antisymm h'i (hb i hi))\n  have B : ∑ i ∈ s', b i = ∑ i ∈ s, b i := by\n    apply Finset.sum_subset (Finset.filter_subset _ _)\n    intro i hi h'i\n    simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n    exact le_antisymm h'i (hb i hi)\n  have C : ∑ i ∈ s', a i * log (a i / b i) =\n      (∑ i ∈ s', a i) * log ((∑ i ∈ s', a i) / (∑ i ∈ s', b i)) := by\n    convert heq using 1\n    · apply Finset.sum_subset (Finset.filter_subset _ _)\n      intro i hi h'i\n      simp only [Finset.mem_filter, hi, true_and, not_lt] at h'i\n      have : b i = 0 := le_antisymm h'i (hb i hi)\n      simp [this]\n    · simp [A, B]\n  obtain ⟨r, hr⟩ : ∃ r, ∀ i ∈ s', a i = r * (b i) := by\n    apply sum_mul_log_div_eq_iff_aux (fun i hi ↦ ha i ?_) (fun i hi ↦ ?_) C\n    · simp only [Finset.mem_filter, s'] at hi\n      exact hi.1\n    · simp only [Finset.mem_filter, s'] at hi\n      exact hi.2\n  /-\n    case intro\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    s' : Finset ι := Finset.filter (fun i => LT.lt 0 (b i)) s\n    A : Eq (s'.sum fun i => a i) (s.sum fun i => a i)\n    B : Eq (s'.sum fun i => b i) (s.sum fun i => b i)\n    C : Eq (s'.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (H …\n    r : Real\n    hr : ∀ (i : ι), Membership.mem s' i → Eq (a i) (HMul.hMul r (b i))\n    ⊢ Exists fun r => ∀ (i : ι), Membership.mem s i → Eq (a i) (HMul.hMul r (b i))\n  -/\n  refine ⟨r, fun i hi ↦ ?_⟩\n  /-\n    case intro\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    s' : Finset ι := Finset.filter (fun i => LT.lt 0 (b i)) s\n    A : Eq (s'.sum fun i => a i) (s.sum fun i => a i)\n    B : Eq (s'.sum fun i => b i) (s.sum fun i => b i)\n    C : Eq (s'.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (H …\n    r : Real\n    hr : ∀ (i : ι), Membership.mem s' i → Eq (a i) (HMul.hMul r (b i))\n    i : ι\n    hi : Membership.mem s i\n    ⊢ Eq (a i) (HMul.hMul r (b i))\n  -/\n  rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n    /-\n      case intro.inl\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n      s' : Finset ι := Finset.filter (fun i => LT.lt 0 (b i)) s\n      A : Eq (s'.sum fun i => a i) (s.sum fun i => a i)\n      B : Eq (s'.sum fun i => b i) (s.sum fun i => b i)\n      C : Eq (s'.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (H …\n      r : Real\n      hr : ∀ (i : ι), Membership.mem s' i → Eq (a i) (HMul.hMul r (b i))\n      i : ι\n      hi : Membership.mem s i\n      h'i : Eq 0 (b i)\n      ⊢ Eq (a i) (HMul.hMul r (b i))\n    -/\n  · simp [← h'i, habs i hi h'i.symm]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case intro.inr\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n      s' : Finset ι := Finset.filter (fun i => LT.lt 0 (b i)) s\n      A : Eq (s'.sum fun i => a i) (s.sum fun i => a i)\n      B : Eq (s'.sum fun i => b i) (s.sum fun i => b i)\n      C : Eq (s'.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (H …\n      r : Real\n      hr : ∀ (i : ι), Membership.mem s' i → Eq (a i) (HMul.hMul r (b i))\n      i : ι\n      hi : Membership.mem s i\n      h'i : LT.lt 0 (b i)\n      ⊢ Eq (a i) (HMul.hMul r (b i))\n    -/\n  · apply hr\n    /-\n      case intro.inr.a\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n      s' : Finset ι := Finset.filter (fun i => LT.lt 0 (b i)) s\n      A : Eq (s'.sum fun i => a i) (s.sum fun i => a i)\n      B : Eq (s'.sum fun i => b i) (s.sum fun i => b i)\n      C : Eq (s'.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (H …\n      r : Real\n      hr : ∀ (i : ι), Membership.mem s' i → Eq (a i) (HMul.hMul r (b i))\n      i : ι\n      hi : Membership.mem s i\n      h'i : LT.lt 0 (b i)\n      ⊢ Membership.mem s' i\n    -/\n    simp [s', hi, h'i]\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "eq_or_lt_of_le",
+    "module": "Mathlib.Order.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_or_lt_of_le (h : a ≤ b) : a = b ∨ a < b := h.lt_or_eq.symm",
+    "compilationAlias":
+    "theorem eq_or_lt_of_le (h : a ≤ b) : a = b ∨ a < b := h.lt_or_eq.symm"},
+   {"name": "Finset.mem_filter",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter"},
+   {"name": "Finset.mem_filter",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter"},
+   {"name": "le_antisymm",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _",
+    "compilationAlias":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _"},
+   {"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"},
+   {"name": "true_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩",
+    "compilationAlias":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩"},
+   {"name": "Finset.mem_filter",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter"},
+   {"name": "Finset.filter_subset",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem filter_subset (s : Finset α) : s.filter p ⊆ s :=\n  Multiset.filter_subset _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem filter_subset (s : Finset α) : s.filter p ⊆ s :=\n  Multiset.filter_subset _ _"},
+   {"name": "Finset.sum_subset",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "le_antisymm",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _",
+    "compilationAlias":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _"},
+   {"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"},
+   {"name": "true_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩",
+    "compilationAlias":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩"},
+   {"name": "Finset.mem_filter",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter"},
+   {"name": "Finset.filter_subset",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem filter_subset (s : Finset α) : s.filter p ⊆ s :=\n  Multiset.filter_subset _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem filter_subset (s : Finset α) : s.filter p ⊆ s :=\n  Multiset.filter_subset _ _"},
+   {"name": "Finset.sum_subset",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "le_antisymm",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _",
+    "compilationAlias":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _"},
+   {"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"},
+   {"name": "true_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩",
+    "compilationAlias":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩"},
+   {"name": "Finset.mem_filter",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_filter {s : Finset α} {a : α} : a ∈ s.filter p ↔ a ∈ s ∧ p a :=\n  Multiset.mem_filter"},
+   {"name": "Finset.filter_subset",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem filter_subset (s : Finset α) : s.filter p ⊆ s :=\n  Multiset.filter_subset _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem filter_subset (s : Finset α) : s.filter p ⊆ s :=\n  Multiset.filter_subset _ _"},
+   {"name": "Finset.sum_subset",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.MeanInequalities\ntheorem arith_mean_weighted_of_constant (w z : ι → ℝ) (x : ℝ) (hw' : ∑ i ∈ s, w i = 1)\n    (hx : ∀ i ∈ s, w i ≠ 0 → z i = x) : ∑ i ∈ s, w i * z i = x :=\n  calc\n    ∑ i ∈ s, w i * z i = ∑ i ∈ s, w i * x := by\n      refine sum_congr rfl fun i hi => ?_\n      rcases eq_or_ne (w i) 0 with hwi | hwi\n      · rw [hwi, zero_mul, zero_mul]\n      · rw [hx i hi hwi]\n    _ = x := by rw [← sum_mul, hw', one_mul]",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **AM-GM inequality - equality condition**: This theorem provides the equality condition for the\n*positive* weighted version of the AM-GM inequality for real-valued nonnegative functions. -/\ntheorem geom_mean_eq_arith_mean_weighted_iff' (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) :\n    ∏ i ∈ s, z i ^ w i = ∑ i ∈ s, w i * z i ↔ ∀ j ∈ s, z j = ∑ i ∈ s, w i * z i := by\n  by_cases A : ∃ i ∈ s, z i = 0 ∧ w i ≠ 0\n  · rcases A with ⟨i, his, hzi, hwi⟩\n    rw [prod_eq_zero his]\n    · constructor\n      · intro h\n        rw [← h]\n        intro j hj\n        apply eq_zero_of_ne_zero_of_mul_left_eq_zero (ne_of_lt (hw j hj)).symm\n        apply (sum_eq_zero_iff_of_nonneg ?_).mp h.symm j hj\n        exact fun i hi => (mul_nonneg_iff_of_pos_left (hw i hi)).mpr (hz i hi)\n      · intro h\n        convert h i his\n        exact hzi.symm\n    · rw [hzi]\n      exact zero_rpow hwi\n  · simp only [not_exists, not_and] at A\n    have hz' := fun i h => lt_of_le_of_ne (hz i h) (fun a => (A i h a.symm) (ne_of_gt (hw i h)))\n    have := strictConvexOn_exp.map_sum_eq_iff hw hw' fun i _ => Set.mem_univ <| log (z i)\n    simp only [exp_sum, smul_eq_mul, mul_comm (w _) (log _)] at this\n    convert this using 1\n    · apply Eq.congr <;>\n      [apply prod_congr rfl; apply sum_congr rfl] <;>\n      intro i hi <;>\n      simp only [exp_mul, exp_log (hz' i hi)]\n    · constructor <;> intro h j hj\n      · rw [← arith_mean_weighted_of_constant s w _ (log (z j)) hw' fun i _ => congrFun rfl]\n        apply sum_congr rfl\n        intro x hx\n        simp only [mul_comm, h j hj, h x hx]\n      · rw [← arith_mean_weighted_of_constant s w _ (z j) hw' fun i _ => congrFun rfl]\n        apply sum_congr rfl\n        intro x hx\n        simp only [log_injOn_pos (hz' j hj) (hz' x hx), h j hj, h x hx]",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **AM-GM inequality - strict inequality condition**: This theorem provides the strict inequality\ncondition for the *positive* weighted version of the AM-GM inequality for real-valued nonnegative\nfunctions. -/\ntheorem geom_mean_lt_arith_mean_weighted_iff_of_pos (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) :\n    ∏ i ∈ s, z i ^ w i < ∑ i ∈ s, w i * z i ↔ ∃ j ∈ s, ∃ k ∈ s, z j ≠ z k:= by\n  constructor\n  · intro h\n    by_contra! h_contra\n    rw [(geom_mean_eq_arith_mean_weighted_iff' s w z hw hw' hz).mpr ?_] at h\n    · exact (lt_self_iff_false _).mp h\n    · intro j hjs\n      rw [← arith_mean_weighted_of_constant s w (fun _ => z j) (z j) hw' fun _ _ => congrFun rfl]\n      apply sum_congr rfl (fun x a => congrArg (HMul.hMul (w x)) (h_contra j hjs x a))\n  · rintro ⟨j, hjs, k, hks, hzjk⟩\n    have := geom_mean_le_arith_mean_weighted s w z (fun i a => le_of_lt (hw i a)) hw' hz\n    by_contra! h\n    apply le_antisymm this at h\n    apply (geom_mean_eq_arith_mean_weighted_iff' s w z hw hw' hz).mp at h\n    simp only [h j hjs, h k hks, ne_eq, not_true_eq_false] at hzjk",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Basic\ntheorem log_prod {α : Type*} (s : Finset α) (f : α → ℝ) (hf : ∀ x ∈ s, f x ≠ 0) :\n    log (∏ i ∈ s, f i) = ∑ i ∈ s, log (f i) := by\n  induction' s using Finset.cons_induction_on with a s ha ih\n  · simp\n  · rw [Finset.forall_mem_cons] at hf\n    simp [ih hf.2, log_mul hf.1 (Finset.prod_ne_zero_iff.2 hf.2)]",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem arith_mean_le_rpow_mean (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i) (hw' : ∑ i ∈ s, w i = 1)\n    (hz : ∀ i ∈ s, 0 ≤ z i) {p : ℝ} (hp : 1 ≤ p) :\n    ∑ i ∈ s, w i * z i ≤ (∑ i ∈ s, w i * z i ^ p) ^ (1 / p) := by\n  have : 0 < p := by positivity\n  rw [← rpow_le_rpow_iff _ _ this, ← rpow_mul, one_div_mul_cancel (ne_of_gt this), rpow_one]\n  · exact rpow_arith_mean_le_arith_mean_rpow s w z hw hw' hz hp\n  all_goals\n    apply_rules [sum_nonneg, rpow_nonneg]\n    intro i hi\n    apply_rules [mul_nonneg, rpow_nonneg, hw i hi, hz i hi]",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem pow_arith_mean_le_arith_mean_pow (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) (n : ℕ) :\n    (∑ i ∈ s, w i * z i) ^ n ≤ ∑ i ∈ s, w i * z i ^ n :=\n  (convexOn_pow n).map_sum_le hw hw' hz",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **HM-GM inequality**: The **harmonic mean is less than or equal to the geometric mean. -/\ntheorem harm_mean_le_geom_mean {ι : Type*} (s : Finset ι) (hs : s.Nonempty) (w : ι → ℝ)\n    (z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i) (hw' : 0 < ∑ i in s, w i) (hz : ∀ i ∈ s, 0 < z i) :\n    (∑ i in s, w i) / (∑ i in s, w i / z i) ≤ (∏ i in s, z i ^ w i) ^ (∑ i in s, w i)⁻¹ := by\n  have := harm_mean_le_geom_mean_weighted s (fun i => (w i) / ∑ i in s, w i) z hs ?_ ?_ hz\n  · simp only at this\n    set n := ∑ i in s, w i\n    nth_rw 1 [div_eq_mul_inv, (show n = (n⁻¹)⁻¹ by norm_num), ← mul_inv, Finset.mul_sum _ _ n⁻¹]\n    simp_rw [inv_mul_eq_div n ((w _)/(z _)), div_right_comm _ _ n]\n    convert this\n    rw [← Real.finset_prod_rpow s _ (fun i hi ↦ Real.rpow_nonneg (le_of_lt <| hz i hi) _)]\n    refine Finset.prod_congr rfl (fun i hi => ?_)\n    rw [← Real.rpow_mul (le_of_lt <| hz i hi) (w _) n⁻¹, div_eq_mul_inv (w _) n]\n  · exact fun i hi ↦ div_pos (hw i hi) hw'\n  · simp_rw [div_eq_mul_inv (w _) (∑ i in s, w i), ← Finset.sum_mul _ _ (∑ i in s, w i)⁻¹]\n    exact mul_inv_cancel₀ hw'.ne'",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem zpow_arith_mean_le_arith_mean_zpow (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 < z i) (m : ℤ) :\n    (∑ i ∈ s, w i * z i) ^ m ≤ ∑ i ∈ s, w i * z i ^ m :=\n  (convexOn_zpow m).map_sum_le hw hw' hz",
+   "--src: Mathlib.Analysis.Convex.Jensen\n/-- Concave **strict Jensen inequality**.\nIf the function is strictly concave, the weights are strictly positive and the indexed family of\npoints is non-constant, then Jensen's inequality is strict.\nSee also `StrictConcaveOn.map_sum_eq_iff`. -/\nlemma StrictConcaveOn.lt_map_sum (hf : StrictConcaveOn \u0000\u0000 s f) (h₀ : ∀ i ∈ t, 0 < w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) (hp : ∃ j ∈ t, ∃ k ∈ t, p j ≠ p k) :\n    ∑ i ∈ t, w i • f (p i) < f (∑ i ∈ t, w i • p i) := hf.dual.map_sum_lt h₀ h₁ hmem hp",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Basic\nprotected theorem _root_.Finsupp.log_prod {α β : Type*} [Zero β] (f : α →₀ β) (g : α → β → ℝ)\n    (hg : ∀ a, g a (f a) = 0 → f a = 0) : log (f.prod g) = f.sum fun a b ↦ log (g a b) :=\n  log_prod _ _ fun _x hx h₀ ↦ Finsupp.mem_support_iff.1 hx <| hg _ h₀"],
+  "id":
+  {"name": "Real.sum_mul_log_div_eq_iff_aux",
+   "module": "PFR.Mathlib.Analysis.SpecialFunctions.NegMulLog",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. Auxiliary version assuming the `b i` are positive. -/\nlemma sum_mul_log_div_eq_iff_aux {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 < b i)\n    (heq : ∑ i ∈ s, a i * log (a i / b i) = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  rcases Finset.eq_empty_or_nonempty s with rfl | h's\n  · simp\n  let B := ∑ i ∈ s, b i\n  have B_pos : 0 < B := Finset.sum_pos hb h's\n  suffices ∀ j ∈ s, a j / b j = ∑ i ∈ s, (b i / B) * (a i / b i) by\n    refine ⟨∑ i ∈ s, (b i / B) * (a i / b i), fun j hj ↦ ?_⟩\n    specialize this j hj\n    rwa [div_eq_iff (hb j hj).ne'] at this\n  have A : ∑ i ∈ s, b i / B = 1 := by\n    simpa [← Finset.sum_div] using div_self B_pos.ne'\n  have A' : ∀ i ∈ s, 0 < b i / B := fun i hi ↦ div_pos (hb i hi) B_pos\n  have A'' : ∀ i ∈ s, 0 ≤ a i / b i := fun i hi ↦ div_nonneg (ha i hi) (hb i hi).le\n  apply (StrictConcaveOn.map_sum_eq_iff Real.strictConcaveOn_negMulLog A' A A'').1\n  have : ∑ x ∈ s, b x / B * (a x / b x) = (∑ x ∈ s, a x) / B := by\n    rw [Finset.sum_div]\n    apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n    have : 0 < b i := hb i hi\n    field_simp\n    ring\n  simp only [negMulLog, smul_eq_mul, this, neg_mul, mul_neg, Finset.sum_neg_distrib, neg_inj]\n  rw [← mul_div_right_comm, ← heq, Finset.sum_div]\n  apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n  have : 0 < b i := hb i hi\n  field_simp\n  ring\n\n",
+   "compilationAlias":
+   "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. Auxiliary version assuming the `b i` are positive. -/\nlemma sum_mul_log_div_eq_iff_aux {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 < b i)\n    (heq : ∑ i ∈ s, a i * log (a i / b i) = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  rcases Finset.eq_empty_or_nonempty s with rfl | h's\n  · simp\n  let B := ∑ i ∈ s, b i\n  have B_pos : 0 < B := Finset.sum_pos hb h's\n  suffices ∀ j ∈ s, a j / b j = ∑ i ∈ s, (b i / B) * (a i / b i) by\n    refine ⟨∑ i ∈ s, (b i / B) * (a i / b i), fun j hj ↦ ?_⟩\n    specialize this j hj\n    rwa [div_eq_iff (hb j hj).ne'] at this\n  have A : ∑ i ∈ s, b i / B = 1 := by\n    simpa [← Finset.sum_div] using div_self B_pos.ne'\n  have A' : ∀ i ∈ s, 0 < b i / B := fun i hi ↦ div_pos (hb i hi) B_pos\n  have A'' : ∀ i ∈ s, 0 ≤ a i / b i := fun i hi ↦ div_nonneg (ha i hi) (hb i hi).le\n  apply (StrictConcaveOn.map_sum_eq_iff Real.strictConcaveOn_negMulLog A' A A'').1\n  have : ∑ x ∈ s, b x / B * (a x / b x) = (∑ x ∈ s, a x) / B := by\n    rw [Finset.sum_div]\n    apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n    have : 0 < b i := hb i hi\n    field_simp\n    ring\n  simp only [negMulLog, smul_eq_mul, this, neg_mul, mul_neg, Finset.sum_neg_distrib, neg_inj]\n  rw [← mul_div_right_comm, ← heq, Finset.sum_div]\n  apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n  have : 0 < b i := hb i hi\n  field_simp\n  ring\n\n"},
+  "goal":
+  "ι : Type u_1\ns : Finset ι\na b : ι → Real\nha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\nhb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\nheq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv (s.sum fun i => a i) (s.sum fun i => b i))))\n⊢ Exists fun r => ∀ (i : ι), Membership.mem s i → Eq (a i) (HMul.hMul r (b i))",
+  "content_sorry":
+  "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. Auxiliary version assuming the `b i` are positive. -/\nlemma sum_mul_log_div_eq_iff_aux {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 < b i)\n    (heq : ∑ i ∈ s, a i * log (a i / b i) = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  sorry",
+  "annotation":
+  "/-- If equality holds in the previous bound, then $a_s=r\\cdot b_s$ for every $s\\in S$, for some\nconstant $r\\in \\mathbb{R}$. Auxiliary version assuming the `b i` are positive. -/\nlemma sum_mul_log_div_eq_iff_aux {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 < b i)\n    (heq : ∑ i ∈ s, a i * log (a i / b i) = (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) :\n    ∃ r, ∀ i ∈ s, a i = r * (b i) := by\n  /-\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    ⊢ Exists fun r => ∀ (i : ι), Membership.mem s i → Eq (a i) (HMul.hMul r (b i))\n  -/\n  rcases Finset.eq_empty_or_nonempty s with rfl | h's\n    /-\n      case inl\n      ι : Type u_1\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem EmptyCollection.emptyCollection i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem EmptyCollection.emptyCollection i → LT.lt 0 (b i)\n      heq : Eq (EmptyCollection.emptyCollection.sum fun i => HMul.hMul (a i) (Real.l …\n      ⊢ Exists fun r => ∀ (i : ι), Membership.mem EmptyCollection.emptyCollection i  …\n    -/\n  · simp\n    /-\n      🎉 no goals\n    -/\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    ⊢ Exists fun r => ∀ (i : ι), Membership.mem s i → Eq (a i) (HMul.hMul r (b i))\n  -/\n  let B := ∑ i ∈ s, b i\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    ⊢ Exists fun r => ∀ (i : ι), Membership.mem s i → Eq (a i) (HMul.hMul r (b i))\n  -/\n  have B_pos : 0 < B := Finset.sum_pos hb h's\n  suffices ∀ j ∈ s, a j / b j = ∑ i ∈ s, (b i / B) * (a i / b i) by\n    refine ⟨∑ i ∈ s, (b i / B) * (a i / b i), fun j hj ↦ ?_⟩\n    specialize this j hj\n    rwa [div_eq_iff (hb j hj).ne'] at this\n  have A : ∑ i ∈ s, b i / B = 1 := by\n    simpa [← Finset.sum_div] using div_self B_pos.ne'\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    ⊢ ∀ (j : ι), Membership.mem s j → Eq (HDiv.hDiv (a j) (b j)) (s.sum fun i => H …\n  -/\n  have A' : ∀ i ∈ s, 0 < b i / B := fun i hi ↦ div_pos (hb i hi) B_pos\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    ⊢ ∀ (j : ι), Membership.mem s j → Eq (HDiv.hDiv (a j) (b j)) (s.sum fun i => H …\n  -/\n  have A'' : ∀ i ∈ s, 0 ≤ a i / b i := fun i hi ↦ div_nonneg (ha i hi) (hb i hi).le\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    ⊢ ∀ (j : ι), Membership.mem s j → Eq (HDiv.hDiv (a j) (b j)) (s.sum fun i => H …\n  -/\n  apply (StrictConcaveOn.map_sum_eq_iff Real.strictConcaveOn_negMulLog A' A A'').1\n  have : ∑ x ∈ s, b x / B * (a x / b x) = (∑ x ∈ s, a x) / B := by\n    rw [Finset.sum_div]\n    apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n    have : 0 < b i := hb i hi\n    field_simp\n    ring\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    this : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x) …\n    ⊢ Eq (s.sum fun i => HSMul.hSMul (HDiv.hDiv (b i) B) (HDiv.hDiv (a i) (b i))). …\n  -/\n  simp only [negMulLog, smul_eq_mul, this, neg_mul, mul_neg, Finset.sum_neg_distrib, neg_inj]\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    this : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x) …\n    ⊢ Eq (HMul.hMul (HDiv.hDiv (s.sum fun x => a x) B) (Real.log (HDiv.hDiv (s.sum …\n  -/\n  rw [← mul_div_right_comm, ← heq, Finset.sum_div]\n  /-\n    case inr\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    this : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x) …\n    ⊢ Eq (s.sum fun i => HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b  …\n  -/\n  apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n  /-\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    this : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x) …\n    i : ι\n    hi : Membership.mem s i\n    ⊢ Eq (HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) B) (HMul. …\n  -/\n  have : 0 < b i := hb i hi\n  /-\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    this✝ : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x …\n    i : ι\n    hi : Membership.mem s i\n    this : LT.lt 0 (b i)\n    ⊢ Eq (HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) B) (HMul. …\n  -/\n  field_simp\n  /-\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LT.lt 0 (b i)\n    heq : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) ( …\n    h's : s.Nonempty\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LT.lt 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    this✝ : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x …\n    i : ι\n    hi : Membership.mem s i\n    this : LT.lt 0 (b i)\n    ⊢ Eq (HMul.hMul (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (HMul.hMu …\n  -/\n  ring\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.sum_congr",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := congr)]",
+    "compilationAlias": "@[to_additive (attr := congr)]"},
+   {"name": "Finset.sum_div",
+    "module": "Mathlib.Algebra.BigOperators.Field",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]",
+    "compilationAlias":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]"},
+   {"name": "mul_div_right_comm",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_div_right_comm : a * b / c = a / c * b := by simp",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_div_right_comm : a * b / c = a / c * b := by simp"},
+   {"name": "neg_inj",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Finset.sum_neg_distrib",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_neg",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "smul_eq_mul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.sum_congr",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := congr)]",
+    "compilationAlias": "@[to_additive (attr := congr)]"},
+   {"name": "Finset.sum_div",
+    "module": "Mathlib.Algebra.BigOperators.Field",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]",
+    "compilationAlias":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]"},
+   {"name": "Real.strictConcaveOn_negMulLog",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.NegMulLog",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma strictConcaveOn_negMulLog : StrictConcaveOn ℝ (Set.Ici (0 : ℝ)) negMulLog := by\n  simpa only [negMulLog_eq_neg] using strictConvexOn_mul_log.neg",
+    "compilationAlias":
+    "lemma strictConcaveOn_negMulLog : StrictConcaveOn ℝ (Set.Ici (0 : ℝ)) negMulLog := by\n  simpa only [negMulLog_eq_neg] using strictConvexOn_mul_log.neg"},
+   {"name": "StrictConcaveOn.map_sum_eq_iff",
+    "module": "Mathlib.Analysis.Convex.Jensen",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Canonical form of the **equality case of Jensen's equality**.\n\nFor a strictly concave function `f` and positive weights `w`, we have\n`f (∑ i ∈ t, w i • p i) = ∑ i ∈ t, w i • f (p i)` if and only if the points `p` are all equal\n(and in fact all equal to their center of mass wrt `w`). -/\nlemma StrictConcaveOn.map_sum_eq_iff (hf : StrictConcaveOn 𝕜 s f) (h₀ : ∀ i ∈ t, 0 < w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) :\n    f (∑ i ∈ t, w i • p i) = ∑ i ∈ t, w i • f (p i) ↔ ∀ j ∈ t, p j = ∑ i ∈ t, w i • p i := by\n  simpa using hf.neg.map_sum_eq_iff h₀ h₁ hmem",
+    "compilationAlias":
+    "/-- Canonical form of the **equality case of Jensen's equality**.\n\nFor a strictly concave function `f` and positive weights `w`, we have\n`f (∑ i ∈ t, w i • p i) = ∑ i ∈ t, w i • f (p i)` if and only if the points `p` are all equal\n(and in fact all equal to their center of mass wrt `w`). -/\nlemma StrictConcaveOn.map_sum_eq_iff (hf : StrictConcaveOn 𝕜 s f) (h₀ : ∀ i ∈ t, 0 < w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) :\n    f (∑ i ∈ t, w i • p i) = ∑ i ∈ t, w i • f (p i) ↔ ∀ j ∈ t, p j = ∑ i ∈ t, w i • p i := by\n  simpa using hf.neg.map_sum_eq_iff h₀ h₁ hmem"},
+   {"name": "div_nonneg",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma div_nonneg [PosMulMono G₀] (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a / b := by\n  rw [div_eq_mul_inv]; exact mul_nonneg ha (inv_nonneg.2 hb)",
+    "compilationAlias":
+    "lemma div_nonneg [PosMulMono G₀] (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a / b := by\n  rw [div_eq_mul_inv]; exact mul_nonneg ha (inv_nonneg.2 hb)"},
+   {"name": "div_pos",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma div_pos [PosMulStrictMono G₀] (ha : 0 < a) (hb : 0 < b) : 0 < a / b := by\n  rw [div_eq_mul_inv]; exact mul_pos ha (inv_pos.2 hb)",
+    "compilationAlias":
+    "lemma div_pos [PosMulStrictMono G₀] (ha : 0 < a) (hb : 0 < b) : 0 < a / b := by\n  rw [div_eq_mul_inv]; exact mul_pos ha (inv_pos.2 hb)"},
+   {"name": "div_self",
+    "module": "Mathlib.Algebra.GroupWithZero.Units.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma div_self (h : a ≠ 0) : a / a = 1 := h.isUnit.div_self",
+    "compilationAlias":
+    "@[simp] lemma div_self (h : a ≠ 0) : a / a = 1 := h.isUnit.div_self"},
+   {"name": "Finset.sum_div",
+    "module": "Mathlib.Algebra.BigOperators.Field",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]",
+    "compilationAlias":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]"},
+   {"name": "div_eq_iff",
+    "module": "Mathlib.Algebra.GroupWithZero.Units.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[field_simps] lemma div_eq_iff (hb : b ≠ 0) : a / b = c ↔ a = c * b := hb.isUnit.div_eq_iff",
+    "compilationAlias":
+    "@[field_simps] lemma div_eq_iff (hb : b ≠ 0) : a / b = c ↔ a = c * b := hb.isUnit.div_eq_iff"},
+   {"name": "Finset.sum_pos",
+    "module": "Mathlib.Algebra.Order.BigOperators.Group.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive sum_pos]",
+    "compilationAlias": "@[to_additive sum_pos]"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.eq_empty_or_nonempty",
+    "module": "Mathlib.Data.Finset.Empty",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_empty_or_nonempty (s : Finset α) : s = ∅ ∨ s.Nonempty :=\n  by_cases Or.inl fun h => Or.inr (nonempty_of_ne_empty h)",
+    "compilationAlias":
+    "theorem eq_empty_or_nonempty (s : Finset α) : s = ∅ ∨ s.Nonempty :=\n  by_cases Or.inl fun h => Or.inr (nonempty_of_ne_empty h)"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.MeanInequalities\ntheorem arith_mean_weighted_of_constant (w z : ι → ℝ) (x : ℝ) (hw' : ∑ i ∈ s, w i = 1)\n    (hx : ∀ i ∈ s, w i ≠ 0 → z i = x) : ∑ i ∈ s, w i * z i = x :=\n  calc\n    ∑ i ∈ s, w i * z i = ∑ i ∈ s, w i * x := by\n      refine sum_congr rfl fun i hi => ?_\n      rcases eq_or_ne (w i) 0 with hwi | hwi\n      · rw [hwi, zero_mul, zero_mul]\n      · rw [hx i hi hwi]\n    _ = x := by rw [← sum_mul, hw', one_mul]",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem pow_arith_mean_le_arith_mean_pow (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) (n : ℕ) :\n    (∑ i ∈ s, w i * z i) ^ n ≤ ∑ i ∈ s, w i * z i ^ n :=\n  (convexOn_pow n).map_sum_le hw hw' hz",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Basic\ntheorem log_prod {α : Type*} (s : Finset α) (f : α → ℝ) (hf : ∀ x ∈ s, f x ≠ 0) :\n    log (∏ i ∈ s, f i) = ∑ i ∈ s, log (f i) := by\n  induction' s using Finset.cons_induction_on with a s ha ih\n  · simp\n  · rw [Finset.forall_mem_cons] at hf\n    simp [ih hf.2, log_mul hf.1 (Finset.prod_ne_zero_iff.2 hf.2)]",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Base\ntheorem logb_prod {α : Type*} (s : Finset α) (f : α → ℝ) (hf : ∀ x ∈ s, f x ≠ 0) :\n    logb b (∏ i ∈ s, f i) = ∑ i ∈ s, logb b (f i) := by\n  classical\n    induction' s using Finset.induction_on with a s ha ih\n    · simp\n    simp only [Finset.mem_insert, forall_eq_or_imp] at hf\n    simp [ha, ih hf.2, logb_mul hf.1 (Finset.prod_ne_zero_iff.2 hf.2)]",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **AM-GM inequality - strict inequality condition**: This theorem provides the strict inequality\ncondition for the *positive* weighted version of the AM-GM inequality for real-valued nonnegative\nfunctions. -/\ntheorem geom_mean_lt_arith_mean_weighted_iff_of_pos (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 ≤ z i) :\n    ∏ i ∈ s, z i ^ w i < ∑ i ∈ s, w i * z i ↔ ∃ j ∈ s, ∃ k ∈ s, z j ≠ z k:= by\n  constructor\n  · intro h\n    by_contra! h_contra\n    rw [(geom_mean_eq_arith_mean_weighted_iff' s w z hw hw' hz).mpr ?_] at h\n    · exact (lt_self_iff_false _).mp h\n    · intro j hjs\n      rw [← arith_mean_weighted_of_constant s w (fun _ => z j) (z j) hw' fun _ _ => congrFun rfl]\n      apply sum_congr rfl (fun x a => congrArg (HMul.hMul (w x)) (h_contra j hjs x a))\n  · rintro ⟨j, hjs, k, hks, hzjk⟩\n    have := geom_mean_le_arith_mean_weighted s w z (fun i a => le_of_lt (hw i a)) hw' hz\n    by_contra! h\n    apply le_antisymm this at h\n    apply (geom_mean_eq_arith_mean_weighted_iff' s w z hw hw' hz).mp at h\n    simp only [h j hjs, h k hks, ne_eq, not_true_eq_false] at hzjk",
+   "--src: Mathlib.Analysis.MeanInequalities\n/-- **HM-GM inequality**: The **harmonic mean is less than or equal to the geometric mean. -/\ntheorem harm_mean_le_geom_mean {ι : Type*} (s : Finset ι) (hs : s.Nonempty) (w : ι → ℝ)\n    (z : ι → ℝ) (hw : ∀ i ∈ s, 0 < w i) (hw' : 0 < ∑ i in s, w i) (hz : ∀ i ∈ s, 0 < z i) :\n    (∑ i in s, w i) / (∑ i in s, w i / z i) ≤ (∏ i in s, z i ^ w i) ^ (∑ i in s, w i)⁻¹ := by\n  have := harm_mean_le_geom_mean_weighted s (fun i => (w i) / ∑ i in s, w i) z hs ?_ ?_ hz\n  · simp only at this\n    set n := ∑ i in s, w i\n    nth_rw 1 [div_eq_mul_inv, (show n = (n⁻¹)⁻¹ by norm_num), ← mul_inv, Finset.mul_sum _ _ n⁻¹]\n    simp_rw [inv_mul_eq_div n ((w _)/(z _)), div_right_comm _ _ n]\n    convert this\n    rw [← Real.finset_prod_rpow s _ (fun i hi ↦ Real.rpow_nonneg (le_of_lt <| hz i hi) _)]\n    refine Finset.prod_congr rfl (fun i hi => ?_)\n    rw [← Real.rpow_mul (le_of_lt <| hz i hi) (w _) n⁻¹, div_eq_mul_inv (w _) n]\n  · exact fun i hi ↦ div_pos (hw i hi) hw'\n  · simp_rw [div_eq_mul_inv (w _) (∑ i in s, w i), ← Finset.sum_mul _ _ (∑ i in s, w i)⁻¹]\n    exact mul_inv_cancel₀ hw'.ne'",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Basic\nprotected theorem _root_.Finsupp.log_prod {α β : Type*} [Zero β] (f : α →₀ β) (g : α → β → ℝ)\n    (hg : ∀ a, g a (f a) = 0 → f a = 0) : log (f.prod g) = f.sum fun a b ↦ log (g a b) :=\n  log_prod _ _ fun _x hx h₀ ↦ Finsupp.mem_support_iff.1 hx <| hg _ h₀",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem zpow_arith_mean_le_arith_mean_zpow (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) (hz : ∀ i ∈ s, 0 < z i) (m : ℤ) :\n    (∑ i ∈ s, w i * z i) ^ m ≤ ∑ i ∈ s, w i * z i ^ m :=\n  (convexOn_zpow m).map_sum_le hw hw' hz",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\n/-- Weighted generalized mean inequality, version for sums over finite sets, with `ℝ≥0∞`-valued\nfunctions and real exponents. -/\ntheorem rpow_arith_mean_le_arith_mean_rpow (w z : ι → ℝ≥0∞) (hw' : ∑ i ∈ s, w i = 1) {p : ℝ}\n    (hp : 1 ≤ p) : (∑ i ∈ s, w i * z i) ^ p ≤ ∑ i ∈ s, w i * z i ^ p := by\n  have hp_pos : 0 < p := by positivity\n  have hp_nonneg : 0 ≤ p := by positivity\n  have hp_not_neg : ¬p < 0 := by simp [hp_nonneg]\n  have h_top_iff_rpow_top : ∀ (i : ι), i ∈ s → (w i * z i = ⊤ ↔ w i * z i ^ p = ⊤) := by\n    simp [ENNReal.mul_eq_top, hp_pos, hp_nonneg, hp_not_neg]\n  refine le_of_top_imp_top_of_toNNReal_le ?_ ?_\n  · -- first, prove `(∑ i ∈ s, w i * z i) ^ p = ⊤ → ∑ i ∈ s, (w i * z i ^ p) = ⊤`\n    rw [rpow_eq_top_iff, sum_eq_top, sum_eq_top]\n    intro h\n    simp only [and_false, hp_not_neg, false_or] at h\n    rcases h.left with ⟨a, H, ha⟩\n    use a, H\n    rwa [← h_top_iff_rpow_top a H]\n  · -- second, suppose both `(∑ i ∈ s, w i * z i) ^ p ≠ ⊤` and `∑ i ∈ s, (w i * z i ^ p) ≠ ⊤`,\n    -- and prove `((∑ i ∈ s, w i * z i) ^ p).toNNReal ≤ (∑ i ∈ s, (w i * z i ^ p)).toNNReal`,\n    -- by using `NNReal.rpow_arith_mean_le_arith_mean_rpow`.\n    intro h_top_rpow_sum _\n    -- show hypotheses needed to put the `.toNNReal` inside the sums.\n    have h_top : ∀ a : ι, a ∈ s → w a * z a ≠ ⊤ :=\n      haveI h_top_sum : ∑ i ∈ s, w i * z i ≠ ⊤ := by\n        intro h\n        rw [h, top_rpow_of_pos hp_pos] at h_top_rpow_sum\n        exact h_top_rpow_sum rfl\n      fun a ha => (lt_top_of_sum_ne_top h_top_sum ha).ne\n    have h_top_rpow : ∀ a : ι, a ∈ s → w a * z a ^ p ≠ ⊤ := by\n      intro i hi\n      specialize h_top i hi\n      rwa [Ne, ← h_top_iff_rpow_top i hi]\n    -- put the `.toNNReal` inside the sums.\n    simp_rw [toNNReal_sum h_top_rpow, toNNReal_rpow, toNNReal_sum h_top, toNNReal_mul,\n      toNNReal_rpow]\n    -- use corresponding nnreal result\n    refine\n      NNReal.rpow_arith_mean_le_arith_mean_rpow s (fun i => (w i).toNNReal)\n        (fun i => (z i).toNNReal) ?_ hp\n    -- verify the hypothesis `∑ i ∈ s, (w i).toNNReal = 1`, using `∑ i ∈ s, w i = 1` .\n    have h_sum_nnreal : ∑ i ∈ s, w i = ↑(∑ i ∈ s, (w i).toNNReal) := by\n      rw [coe_finset_sum]\n      refine sum_congr rfl fun i hi => (coe_toNNReal ?_).symm\n      refine (lt_top_of_sum_ne_top ?_ hi).ne\n      exact hw'.symm ▸ ENNReal.one_ne_top\n    rwa [← coe_inj, ← h_sum_nnreal]",
+   "--src: Mathlib.Analysis.Convex.Jensen\n/-- Concave **Jensen's inequality**, `Finset.sum` version. -/\ntheorem ConcaveOn.le_map_sum (hf : ConcaveOn \u0000\u0000 s f) (h₀ : ∀ i ∈ t, 0 ≤ w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) :\n    (∑ i ∈ t, w i • f (p i)) ≤ f (∑ i ∈ t, w i • p i) :=\n  ConvexOn.map_sum_le (β := βᵒᵈ) hf h₀ h₁ hmem"],
+  "id":
+  {"name": "Real.sum_mul_log_div_leq",
+   "module": "PFR.Mathlib.Analysis.SpecialFunctions.NegMulLog",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If $S$ is a finite set, and $a_s$, $b_s$ are non-negative for $s\\in S$, then\n  $$\\sum_{s\\in S} a_s \\log\\frac{a_s}{b_s}\\ge\n    \\left(\\sum_{s\\in S}a_s\\right)\\log\\frac{\\sum_{s\\in S} a_s}{\\sum_{s\\in S} b_s}$$.\n  We require additionally that, if $b_s=0$, then $s_s=0$ as otherwise the right hand side should\n  morally be infinite, which it can't be in the formalization using real numbers. -/\nlemma sum_mul_log_div_leq {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0) :\n    (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i)) ≤ ∑ i ∈ s, a i * log (a i / b i) := by\n  by_cases h : ∀ i ∈ s, b i = 0\n  · have A : ∑ i ∈ s, b i = ∑ i ∈ s, 0 := Finset.sum_congr rfl (fun i hi ↦ h i hi)\n    have B : ∑ i ∈ s, a i * log (a i / b i) = ∑ i ∈ s, a i * log (a i / 0) := by\n      apply Finset.sum_congr rfl (fun i hi ↦ by simp [h i hi])\n    simp [A, B]\n  let B := ∑ i ∈ s, b i\n  have B_pos : 0 < B := by\n    apply Finset.sum_pos' hb\n    simp only [not_forall, Classical.not_imp] at h\n    rcases h with ⟨i, hi, h'i⟩\n    exact ⟨i, hi, lt_of_le_of_ne (hb i hi) (Ne.symm h'i)⟩\n  suffices - (∑ i ∈ s, a i * log (a i / b i)) / B ≤\n        - ((∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) / B by\n    rwa [div_le_div_iff_of_pos_right B_pos, neg_le_neg_iff] at this\n  have A : ∑ i ∈ s, b i / B = 1 := by\n    simpa [← Finset.sum_div] using div_self B_pos.ne'\n  have A' : ∀ i ∈ s, 0 ≤ b i / B := fun i hi ↦ div_nonneg (hb i hi) B_pos.le\n  have A'' : ∀ i ∈ s, 0 ≤ a i / b i := fun i hi ↦ div_nonneg (ha i hi) (hb i hi)\n  convert ConcaveOn.le_map_sum Real.concaveOn_negMulLog A' A (p := fun i ↦ a i / b i) A'' using 1\n  · simp only [negMulLog, neg_mul, smul_eq_mul, mul_neg, Finset.sum_neg_distrib]\n    rw [neg_div, Finset.sum_div]\n    congr 1\n    apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n    rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n    · simp [← h'i, habs i hi h'i.symm]\n    · field_simp\n      ring\n  · have : ∑ x ∈ s, b x / B * (a x / b x) = (∑ x ∈ s, a x) / B := by\n      rw [Finset.sum_div]\n      apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n      rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n      · simp [← h'i, habs i hi h'i.symm]\n      · field_simp\n        ring\n    simp only [negMulLog, smul_eq_mul, neg_mul, this]\n    ring\n\n",
+   "compilationAlias":
+   "/-- If $S$ is a finite set, and $a_s$, $b_s$ are non-negative for $s\\in S$, then\n  $$\\sum_{s\\in S} a_s \\log\\frac{a_s}{b_s}\\ge\n    \\left(\\sum_{s\\in S}a_s\\right)\\log\\frac{\\sum_{s\\in S} a_s}{\\sum_{s\\in S} b_s}$$.\n  We require additionally that, if $b_s=0$, then $s_s=0$ as otherwise the right hand side should\n  morally be infinite, which it can't be in the formalization using real numbers. -/\nlemma sum_mul_log_div_leq {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0) :\n    (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i)) ≤ ∑ i ∈ s, a i * log (a i / b i) := by\n  by_cases h : ∀ i ∈ s, b i = 0\n  · have A : ∑ i ∈ s, b i = ∑ i ∈ s, 0 := Finset.sum_congr rfl (fun i hi ↦ h i hi)\n    have B : ∑ i ∈ s, a i * log (a i / b i) = ∑ i ∈ s, a i * log (a i / 0) := by\n      apply Finset.sum_congr rfl (fun i hi ↦ by simp [h i hi])\n    simp [A, B]\n  let B := ∑ i ∈ s, b i\n  have B_pos : 0 < B := by\n    apply Finset.sum_pos' hb\n    simp only [not_forall, Classical.not_imp] at h\n    rcases h with ⟨i, hi, h'i⟩\n    exact ⟨i, hi, lt_of_le_of_ne (hb i hi) (Ne.symm h'i)⟩\n  suffices - (∑ i ∈ s, a i * log (a i / b i)) / B ≤\n        - ((∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) / B by\n    rwa [div_le_div_iff_of_pos_right B_pos, neg_le_neg_iff] at this\n  have A : ∑ i ∈ s, b i / B = 1 := by\n    simpa [← Finset.sum_div] using div_self B_pos.ne'\n  have A' : ∀ i ∈ s, 0 ≤ b i / B := fun i hi ↦ div_nonneg (hb i hi) B_pos.le\n  have A'' : ∀ i ∈ s, 0 ≤ a i / b i := fun i hi ↦ div_nonneg (ha i hi) (hb i hi)\n  convert ConcaveOn.le_map_sum Real.concaveOn_negMulLog A' A (p := fun i ↦ a i / b i) A'' using 1\n  · simp only [negMulLog, neg_mul, smul_eq_mul, mul_neg, Finset.sum_neg_distrib]\n    rw [neg_div, Finset.sum_div]\n    congr 1\n    apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n    rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n    · simp [← h'i, habs i hi h'i.symm]\n    · field_simp\n      ring\n  · have : ∑ x ∈ s, b x / B * (a x / b x) = (∑ x ∈ s, a x) / B := by\n      rw [Finset.sum_div]\n      apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n      rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n      · simp [← h'i, habs i hi h'i.symm]\n      · field_simp\n        ring\n    simp only [negMulLog, smul_eq_mul, neg_mul, this]\n    ring\n\n"},
+  "goal":
+  "α : Sort u_1\np : α → Prop\n⊢ Eq (Not (∀ (x : α), p x)) (Exists fun x => Not (p x))",
+  "content_sorry":
+  "/-- If $S$ is a finite set, and $a_s$, $b_s$ are non-negative for $s\\in S$, then\n  $$\\sum_{s\\in S} a_s \\log\\frac{a_s}{b_s}\\ge\n    \\left(\\sum_{s\\in S}a_s\\right)\\log\\frac{\\sum_{s\\in S} a_s}{\\sum_{s\\in S} b_s}$$.\n  We require additionally that, if $b_s=0$, then $s_s=0$ as otherwise the right hand side should\n  morally be infinite, which it can't be in the formalization using real numbers. -/\nlemma sum_mul_log_div_leq {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0) :\n    (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i)) ≤ ∑ i ∈ s, a i * log (a i / b i) := by\n  sorry",
+  "annotation":
+  "/-- If $S$ is a finite set, and $a_s$, $b_s$ are non-negative for $s\\in S$, then\n  $$\\sum_{s\\in S} a_s \\log\\frac{a_s}{b_s}\\ge\n    \\left(\\sum_{s\\in S}a_s\\right)\\log\\frac{\\sum_{s\\in S} a_s}{\\sum_{s\\in S} b_s}$$.\n  We require additionally that, if $b_s=0$, then $s_s=0$ as otherwise the right hand side should\n  morally be infinite, which it can't be in the formalization using real numbers. -/\nlemma sum_mul_log_div_leq {a b : ι → ℝ} (ha : ∀ i ∈ s, 0 ≤ a i) (hb : ∀ i ∈ s, 0 ≤ b i)\n    (habs : ∀ i ∈ s, b i = 0 → a i = 0) :\n    (∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i)) ≤ ∑ i ∈ s, a i * log (a i / b i) := by\n  /-\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    ⊢ LE.le (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv (s.sum fun i => a …\n  -/\n  by_cases h : ∀ i ∈ s, b i = 0\n    /-\n      case pos\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : ∀ (i : ι), Membership.mem s i → Eq (b i) 0\n      ⊢ LE.le (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv (s.sum fun i => a …\n    -/\n  · have A : ∑ i ∈ s, b i = ∑ i ∈ s, 0 := Finset.sum_congr rfl (fun i hi ↦ h i hi)\n    have B : ∑ i ∈ s, a i * log (a i / b i) = ∑ i ∈ s, a i * log (a i / 0) := by\n      apply Finset.sum_congr rfl (fun i hi ↦ by simp [h i hi])\n    /-\n      case pos\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : ∀ (i : ι), Membership.mem s i → Eq (b i) 0\n      A : Eq (s.sum fun i => b i) (s.sum fun i => 0)\n      B : Eq (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (s. …\n      ⊢ LE.le (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv (s.sum fun i => a …\n    -/\n    simp [A, B]\n    /-\n      🎉 no goals\n    -/\n  /-\n    case neg\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n    ⊢ LE.le (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv (s.sum fun i => a …\n  -/\n  let B := ∑ i ∈ s, b i\n  have B_pos : 0 < B := by\n    apply Finset.sum_pos' hb\n    simp only [not_forall, Classical.not_imp] at h\n    rcases h with ⟨i, hi, h'i⟩\n    exact ⟨i, hi, lt_of_le_of_ne (hb i hi) (Ne.symm h'i)⟩\n  suffices - (∑ i ∈ s, a i * log (a i / b i)) / B ≤\n        - ((∑ i ∈ s, a i) * log ((∑ i ∈ s, a i) / (∑ i ∈ s, b i))) / B by\n    rwa [div_le_div_iff_of_pos_right B_pos, neg_le_neg_iff] at this\n  have A : ∑ i ∈ s, b i / B = 1 := by\n    simpa [← Finset.sum_div] using div_self B_pos.ne'\n  /-\n    case neg\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    ⊢ LE.le (HDiv.hDiv (Neg.neg (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hD …\n  -/\n  have A' : ∀ i ∈ s, 0 ≤ b i / B := fun i hi ↦ div_nonneg (hb i hi) B_pos.le\n  /-\n    case neg\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n    ⊢ LE.le (HDiv.hDiv (Neg.neg (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hD …\n  -/\n  have A'' : ∀ i ∈ s, 0 ≤ a i / b i := fun i hi ↦ div_nonneg (ha i hi) (hb i hi)\n  /-\n    case neg\n    ι : Type u_1\n    s : Finset ι\n    a b : ι → Real\n    ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n    hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n    habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n    h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n    B : Real := s.sum fun i => b i\n    B_pos : LT.lt 0 B\n    A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n    A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n    A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n    ⊢ LE.le (HDiv.hDiv (Neg.neg (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hD …\n  -/\n  convert ConcaveOn.le_map_sum Real.concaveOn_negMulLog A' A (p := fun i ↦ a i / b i) A'' using 1\n    /-\n      case h.e'_3\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      ⊢ Eq (HDiv.hDiv (Neg.neg (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv  …\n    -/\n  · simp only [negMulLog, neg_mul, smul_eq_mul, mul_neg, Finset.sum_neg_distrib]\n    /-\n      case h.e'_3\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      ⊢ Eq (HDiv.hDiv (Neg.neg (s.sum fun i => HMul.hMul (a i) (Real.log (HDiv.hDiv  …\n    -/\n    rw [neg_div, Finset.sum_div]\n    /-\n      case h.e'_3\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      ⊢ Eq (Neg.neg (s.sum fun i => HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv  …\n    -/\n    congr 1\n    /-\n      case h.e'_3.e_a\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      ⊢ Eq (s.sum fun i => HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b  …\n    -/\n    apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n    /-\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      i : ι\n      hi : Membership.mem s i\n      ⊢ Eq (HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) B) (HMul. …\n    -/\n    rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n      /-\n        case inl\n        ι : Type u_1\n        s : Finset ι\n        a b : ι → Real\n        ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n        hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n        habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n        h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n        B : Real := s.sum fun i => b i\n        B_pos : LT.lt 0 B\n        A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n        A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n        A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n        i : ι\n        hi : Membership.mem s i\n        h'i : Eq 0 (b i)\n        ⊢ Eq (HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) B) (HMul. …\n      -/\n    · simp [← h'i, habs i hi h'i.symm]\n      /-\n        🎉 no goals\n      -/\n      /-\n        case inr\n        ι : Type u_1\n        s : Finset ι\n        a b : ι → Real\n        ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n        hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n        habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n        h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n        B : Real := s.sum fun i => b i\n        B_pos : LT.lt 0 B\n        A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n        A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n        A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n        i : ι\n        hi : Membership.mem s i\n        h'i : LT.lt 0 (b i)\n        ⊢ Eq (HDiv.hDiv (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) B) (HMul. …\n      -/\n    · field_simp\n      /-\n        case inr\n        ι : Type u_1\n        s : Finset ι\n        a b : ι → Real\n        ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n        hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n        habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n        h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n        B : Real := s.sum fun i => b i\n        B_pos : LT.lt 0 B\n        A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n        A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n        A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n        i : ι\n        hi : Membership.mem s i\n        h'i : LT.lt 0 (b i)\n        ⊢ Eq (HMul.hMul (HMul.hMul (a i) (Real.log (HDiv.hDiv (a i) (b i)))) (HMul.hMu …\n      -/\n      ring\n      /-\n        🎉 no goals\n      -/\n  · have : ∑ x ∈ s, b x / B * (a x / b x) = (∑ x ∈ s, a x) / B := by\n      rw [Finset.sum_div]\n      apply Finset.sum_congr rfl (fun i hi ↦ ?_)\n      rcases eq_or_lt_of_le (hb i hi) with h'i | h'i\n      · simp [← h'i, habs i hi h'i.symm]\n      · field_simp\n        ring\n    /-\n      case h.e'_4\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      this : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x) …\n      ⊢ Eq (HDiv.hDiv (Neg.neg (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv  …\n    -/\n    simp only [negMulLog, smul_eq_mul, neg_mul, this]\n    /-\n      case h.e'_4\n      ι : Type u_1\n      s : Finset ι\n      a b : ι → Real\n      ha : ∀ (i : ι), Membership.mem s i → LE.le 0 (a i)\n      hb : ∀ (i : ι), Membership.mem s i → LE.le 0 (b i)\n      habs : ∀ (i : ι), Membership.mem s i → Eq (b i) 0 → Eq (a i) 0\n      h : Not (∀ (i : ι), Membership.mem s i → Eq (b i) 0)\n      B : Real := s.sum fun i => b i\n      B_pos : LT.lt 0 B\n      A : Eq (s.sum fun i => HDiv.hDiv (b i) B) 1\n      A' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (b i) B)\n      A'' : ∀ (i : ι), Membership.mem s i → LE.le 0 (HDiv.hDiv (a i) (b i))\n      this : Eq (s.sum fun x => HMul.hMul (HDiv.hDiv (b x) B) (HDiv.hDiv (a x) (b x) …\n      ⊢ Eq (HDiv.hDiv (Neg.neg (HMul.hMul (s.sum fun i => a i) (Real.log (HDiv.hDiv  …\n    -/\n    ring\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "smul_eq_mul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl"},
+   {"name": "eq_or_lt_of_le",
+    "module": "Mathlib.Order.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_or_lt_of_le (h : a ≤ b) : a = b ∨ a < b := h.lt_or_eq.symm",
+    "compilationAlias":
+    "theorem eq_or_lt_of_le (h : a ≤ b) : a = b ∨ a < b := h.lt_or_eq.symm"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.sum_congr",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := congr)]",
+    "compilationAlias": "@[to_additive (attr := congr)]"},
+   {"name": "Finset.sum_div",
+    "module": "Mathlib.Algebra.BigOperators.Field",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]",
+    "compilationAlias":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]"},
+   {"name": "eq_or_lt_of_le",
+    "module": "Mathlib.Order.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_or_lt_of_le (h : a ≤ b) : a = b ∨ a < b := h.lt_or_eq.symm",
+    "compilationAlias":
+    "theorem eq_or_lt_of_le (h : a ≤ b) : a = b ∨ a < b := h.lt_or_eq.symm"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.sum_congr",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := congr)]",
+    "compilationAlias": "@[to_additive (attr := congr)]"},
+   {"name": "Finset.sum_div",
+    "module": "Mathlib.Algebra.BigOperators.Field",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]",
+    "compilationAlias":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]"},
+   {"name": "neg_div",
+    "module": "Mathlib.Algebra.Ring.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma neg_div (a b : R) : -b / a = -(b / a) := by\n  rw [neg_eq_neg_one_mul, mul_div_assoc, ← neg_eq_neg_one_mul]",
+    "compilationAlias":
+    "lemma neg_div (a b : R) : -b / a = -(b / a) := by\n  rw [neg_eq_neg_one_mul, mul_div_assoc, ← neg_eq_neg_one_mul]"},
+   {"name": "Finset.sum_neg_distrib",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_neg",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _"},
+   {"name": "smul_eq_mul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "Real.concaveOn_negMulLog",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.NegMulLog",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma concaveOn_negMulLog : ConcaveOn ℝ (Set.Ici (0 : ℝ)) negMulLog :=\n  strictConcaveOn_negMulLog.concaveOn",
+    "compilationAlias":
+    "lemma concaveOn_negMulLog : ConcaveOn ℝ (Set.Ici (0 : ℝ)) negMulLog :=\n  strictConcaveOn_negMulLog.concaveOn"},
+   {"name": "ConcaveOn.le_map_sum",
+    "module": "Mathlib.Analysis.Convex.Jensen",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Concave **Jensen's inequality**, `Finset.sum` version. -/\ntheorem ConcaveOn.le_map_sum (hf : ConcaveOn 𝕜 s f) (h₀ : ∀ i ∈ t, 0 ≤ w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) :\n    (∑ i ∈ t, w i • f (p i)) ≤ f (∑ i ∈ t, w i • p i) :=\n  ConvexOn.map_sum_le (β := βᵒᵈ) hf h₀ h₁ hmem",
+    "compilationAlias":
+    "/-- Concave **Jensen's inequality**, `Finset.sum` version. -/\ntheorem ConcaveOn.le_map_sum (hf : ConcaveOn 𝕜 s f) (h₀ : ∀ i ∈ t, 0 ≤ w i)\n    (h₁ : ∑ i ∈ t, w i = 1) (hmem : ∀ i ∈ t, p i ∈ s) :\n    (∑ i ∈ t, w i • f (p i)) ≤ f (∑ i ∈ t, w i • p i) :=\n  ConvexOn.map_sum_le (β := βᵒᵈ) hf h₀ h₁ hmem"},
+   {"name": "div_nonneg",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma div_nonneg [PosMulMono G₀] (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a / b := by\n  rw [div_eq_mul_inv]; exact mul_nonneg ha (inv_nonneg.2 hb)",
+    "compilationAlias":
+    "lemma div_nonneg [PosMulMono G₀] (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a / b := by\n  rw [div_eq_mul_inv]; exact mul_nonneg ha (inv_nonneg.2 hb)"},
+   {"name": "div_nonneg",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma div_nonneg [PosMulMono G₀] (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a / b := by\n  rw [div_eq_mul_inv]; exact mul_nonneg ha (inv_nonneg.2 hb)",
+    "compilationAlias":
+    "lemma div_nonneg [PosMulMono G₀] (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a / b := by\n  rw [div_eq_mul_inv]; exact mul_nonneg ha (inv_nonneg.2 hb)"},
+   {"name": "div_self",
+    "module": "Mathlib.Algebra.GroupWithZero.Units.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma div_self (h : a ≠ 0) : a / a = 1 := h.isUnit.div_self",
+    "compilationAlias":
+    "@[simp] lemma div_self (h : a ≠ 0) : a / a = 1 := h.isUnit.div_self"},
+   {"name": "Finset.sum_div",
+    "module": "Mathlib.Algebra.BigOperators.Field",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]",
+    "compilationAlias":
+    "lemma Finset.sum_div (s : Finset ι) (f : ι → K) (a : K) :\n    (∑ i ∈ s, f i) / a = ∑ i ∈ s, f i / a := by simp only [div_eq_mul_inv, sum_mul]"},
+   {"name": "neg_le_neg_iff",
+    "module": "Mathlib.Algebra.Order.Group.Unbundled.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "div_le_div_iff_of_pos_right",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma div_le_div_iff_of_pos_right (hc : 0 < c) : a / c ≤ b / c ↔ a ≤ b where\n  mp := le_imp_le_of_lt_imp_lt fun hab ↦ div_lt_div_of_pos_right hab hc\n  mpr hab := div_le_div_of_nonneg_right hab hc.le",
+    "compilationAlias":
+    "lemma div_le_div_iff_of_pos_right (hc : 0 < c) : a / c ≤ b / c ↔ a ≤ b where\n  mp := le_imp_le_of_lt_imp_lt fun hab ↦ div_lt_div_of_pos_right hab hc\n  mpr hab := div_le_div_of_nonneg_right hab hc.le"},
+   {"name": "Ne.symm",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[symm] theorem Ne.symm (h : a ≠ b) : b ≠ a := fun h₁ => h (h₁.symm)",
+    "compilationAlias":
+    "@[symm] theorem Ne.symm (h : a ≠ b) : b ≠ a := fun h₁ => h (h₁.symm)"},
+   {"name": "lt_of_le_of_ne",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma lt_of_le_of_ne : a ≤ b → a ≠ b → a < b := fun h₁ h₂ =>\n  lt_of_le_not_le h₁ <| mt (le_antisymm h₁) h₂",
+    "compilationAlias":
+    "lemma lt_of_le_of_ne : a ≤ b → a ≠ b → a < b := fun h₁ h₂ =>\n  lt_of_le_not_le h₁ <| mt (le_antisymm h₁) h₂"},
+   {"name": "Classical.not_imp",
+    "module": "Init.Classical",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem not_imp : ¬(a → b) ↔ a ∧ ¬b := Decidable.not_imp_iff_and_not",
+    "compilationAlias":
+    "@[simp] theorem not_imp : ¬(a → b) ↔ a ∧ ¬b := Decidable.not_imp_iff_and_not"},
+   {"name": "Finset.sum_pos'",
+    "module": "Mathlib.Algebra.Order.BigOperators.Group.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive sum_pos']",
+    "compilationAlias": "@[to_additive sum_pos']"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.sum_congr",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := congr)]",
+    "compilationAlias": "@[to_additive (attr := congr)]"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Finset.sum_congr",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := congr)]",
+    "compilationAlias": "@[to_additive (attr := congr)]"}]}]

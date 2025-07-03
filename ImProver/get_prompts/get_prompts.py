@@ -13,7 +13,7 @@ from datetime import datetime
 import argparse
 from multiprocessing import cpu_count
 import torch
-from informalize import main as informalizer_main
+from .informalize import main as informalizer_main
 
 SYSTEM_PROMPTS = {
     "length" : "You are an expert Lean4 theorem rewriting assistant. Shorten the current Lean4 theorem (wrapped in <CURRENT>...</CURRENT>) to be as short as possible in length - measured in the number of tactics in the proof - while also ensuring that the output is still a correct proof of the theorem. Be sure to output your final response as a Lean4 theorem wrapped in <IMPROVED>...</IMPROVED> tags, as shown in the example. Namely, only return the statment and proof of the current theorem in Lean4 code, wrapped in <IMPROVED>...</IMPROVED> tags. Do not include any other text or comments.\n\n",
@@ -54,7 +54,7 @@ def make_config(args):
         # "example_prompt": EXAMPLE_PROMPT,
     }
 
-    config_file = os.path.join("local", "prompts", args.prompts_id, "config.json")
+    config_file = os.path.join("prompts", args.prompts_id, "config.json")
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     with open(config_file, "w") as f:
         json.dump(config, f, indent=4)
@@ -144,10 +144,6 @@ async def main_async(args):
     progress_bar.close()
     
     
-    if args.informalize:
-        print("Informalizing theorems...")
-        informalizer_main(args)
-
 
 if __name__ == "__main__":
 
@@ -200,6 +196,11 @@ if __name__ == "__main__":
     
     asyncio.run(main_async(args))
 
+    print(f"[IMPROVER: Prompts saved to prompts/{args.prompts_id}/src]")
+    print(f"[IMPROVER: Starting inference with prompts {args.prompts_id}...]")
+    if args.informalize:
+        print("[IMPROVER: Informalizing theorems...]")
+        informalizer_main(args)
 
 
 

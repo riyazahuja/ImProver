@@ -1,0 +1,238 @@
+[{"rag":
+  ["--src: Mathlib.ModelTheory.Complexity\n/-- An existential formula is a formula defined by applying only existential quantifiers to a\nquantifier-free formula. -/\ninductive IsExistential : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsExistential φ\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsExistential φ) : IsExistential φ.ex",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_mapTermRel_add_castLe [L'.Structure M] {k : ℕ}\n    {ft : ∀ n, L.Term (α ⊕ (Fin n)) → L'.Term (β ⊕ (Fin (k + n)))}\n    {fr : ∀ n, L.Relations n → L'.Relations n} {n} {φ : L.BoundedFormula α n}\n    (v : ∀ {n}, (Fin (k + n) → M) → α → M) {v' : β → M} (xs : Fin (k + n) → M)\n    (h1 :\n      ∀ (n) (t : L.Term (α ⊕ (Fin n))) (xs' : Fin (k + n) → M),\n        (ft n t).realize (Sum.elim v' xs') = t.realize (Sum.elim (v xs') (xs' ∘ Fin.natAdd _)))\n    (h2 : ∀ (n) (R : L.Relations n) (x : Fin n → M), RelMap (fr n R) x = RelMap R x)\n    (hv : ∀ (n) (xs : Fin (k + n) → M) (x : M), @v (n + 1) (snoc xs x : Fin _ → M) = v xs) :\n    (φ.mapTermRel ft fr fun _ => castLE (add_assoc _ _ _).symm.le).Realize v' xs ↔\n      φ.Realize (v xs) (xs ∘ Fin.natAdd _) := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [mapTermRel, Realize, h1]\n  | rel => simp [mapTermRel, Realize, h1, h2]\n  | imp _ _ ih1 ih2 => simp [mapTermRel, Realize, ih1, ih2]\n  | all _ ih => simp [mapTermRel, Realize, ih, hv]",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language homomorphism maps the symbols of one language to symbols of another. -/\nstructure LHom where\n  onFunction : ∀ ⦃n⦄, L.Functions n → L'.Functions n := by\n    exact fun {n} => isEmptyElim\n  onRelation : ∀ ⦃n⦄, L.Relations n → L'.Relations n :=by\n    exact fun {n} => isEmptyElim",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- Indicates that a bounded formula is in prenex normal form - that is, it consists of quantifiers\n  applied to a quantifier-free formula. -/\ninductive IsPrenex : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsPrenex φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsPrenex φ) : IsPrenex φ.all\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsPrenex φ) : IsPrenex φ.ex",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- A quantifier-free formula is a formula defined without quantifiers. These are all equivalent\nto boolean combinations of atomic formulas. -/\ninductive IsQF : L.BoundedFormula α n → Prop\n  | falsum : IsQF falsum\n  | of_isAtomic {φ} (h : IsAtomic φ) : IsQF φ\n  | imp {φ₁ φ₂} (h₁ : IsQF φ₁) (h₂ : IsQF φ₂) : IsQF (φ₁.imp φ₂)",
+   "--src: Mathlib.ModelTheory.Basic\n/-- An equivalence of first-order structures is an equivalence that commutes with the\n  interpretations of functions and relations. -/\nstructure Equiv extends M ≃ N where\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r (toFun ∘ x) ↔ RelMap r x := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Syntax\n/-- An equivalence of bounded formulas given by an equivalence of terms and an equivalence of\nrelations. -/\n@[simps]\ndef mapTermRelEquiv (ft : ∀ n, L.Term (α ⊕ (Fin n)) ≃ L'.Term (β ⊕ (Fin n)))\n    (fr : ∀ n, L.Relations n ≃ L'.Relations n) {n} : L.BoundedFormula α n ≃ L'.BoundedFormula β n :=\n  ⟨mapTermRel (fun n => ft n) (fun n => fr n) fun _ => id,\n    mapTermRel (fun n => (ft n).symm) (fun n => (fr n).symm) fun _ => id, fun φ => by simp, fun φ =>\n    by simp⟩",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- A universal formula is a formula defined by applying only universal quantifiers to a\nquantifier-free formula. -/\ninductive IsUniversal : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsUniversal φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsUniversal φ) : IsUniversal φ.all",
+   "--src: Mathlib.ModelTheory.Basic\n/-- A homomorphism between first-order structures is a function that commutes with the\n  interpretations of functions and maps tuples in one structure where a given relation is true to\n  tuples in the second structure where that relation is still true. -/\nstructure Hom where\n  /-- The underlying function of a homomorphism of structures -/\n  toFun : M → N\n  /-- The homomorphism commutes with the interpretations of the function symbols -/\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    intros; trivial\n  /-- The homomorphism sends related elements to related elements -/\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r x → RelMap r (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.ElementaryMaps\n/-- An elementary embedding of first-order structures is an embedding that commutes with the\n  realizations of formulas. -/\nstructure ElementaryEmbedding where\n  toFun : M → N\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_formula' :\n    ∀ ⦃n⦄ (φ : L.Formula (Fin n)) (x : Fin n → M), φ.Realize (toFun ∘ x) ↔ φ.Realize x := by\n    intros; trivial"],
+  "id":
+  {"name": "LO.FirstOrder.Semiformula.ofNat_toNat",
+   "module": "Foundation.FirstOrder.Basic.Coding",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma ofNat_toNat : {n : ℕ} → ∀ φ : Semiformula L ξ n, ofNat n (toNat φ) = some φ\n  | _, rel R v  => by\n    simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n    rw [Nat.unpair_pair, Nat.unpair_pair]\n    simp [Matrix.getM_pure]\n  | _, nrel R v => by\n    simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n    rw [Nat.unpair_pair, Nat.unpair_pair]\n    simp [Matrix.getM_pure]\n  | _, ⊤        => by simp [toNat, ofNat]\n  | _, ⊥        => by simp [toNat, ofNat]\n  | _, φ ⋎ ψ    => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]\n  | _, φ ⋏ ψ    => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]\n  | _, ∀' φ     => by simp [toNat, ofNat, ofNat_toNat φ]\n  | _, ∃' φ     => by simp [toNat, ofNat, ofNat_toNat φ]\n\n",
+   "compilationAlias":
+   "lemma ofNat_toNat : {n : ℕ} → ∀ φ : Semiformula L ξ n, ofNat n (toNat φ) = some φ\n  | _, rel R v  => by\n    simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n    rw [Nat.unpair_pair, Nat.unpair_pair]\n    simp [Matrix.getM_pure]\n  | _, nrel R v => by\n    simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n    rw [Nat.unpair_pair, Nat.unpair_pair]\n    simp [Matrix.getM_pure]\n  | _, ⊤        => by simp [toNat, ofNat]\n  | _, ⊥        => by simp [toNat, ofNat]\n  | _, φ ⋎ ψ    => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]\n  | _, φ ⋏ ψ    => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]\n  | _, ∀' φ     => by simp [toNat, ofNat, ofNat_toNat φ]\n  | _, ∃' φ     => by simp [toNat, ofNat, ofNat_toNat φ]\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\ninst✝² : (k : Nat) → Encodable (L.Func k)\nξ : Type u_1\ninst✝¹ : Encodable ξ\ninst✝ : (k : Nat) → Encodable (L.Rel k)\nx✝ : Nat\nφ ψ : LO.FirstOrder.Semiformula L ξ x✝\n⊢ Eq (φ.or ψ).toNat (HAdd.hAdd (Nat.pair 5 (Nat.pair φ.toNat ψ.toNat)) 1)",
+  "content_sorry":
+  "lemma ofNat_toNat : {n : ℕ} → ∀ φ : Semiformula L ξ n, ofNat n (toNat φ) = some φ\n  | _, rel R v  => by\n    sorry",
+  "annotation":
+  "lemma ofNat_toNat : {n : ℕ} → ∀ φ : Semiformula L ξ n, ofNat n (toNat φ) = some φ\n  | _, rel R v  => by\n    /-\n      L : LO.FirstOrder.Language\n      inst✝² : (k : Nat) → Encodable (L.Func k)\n      ξ : Type u_1\n      inst✝¹ : Encodable ξ\n      inst✝ : (k : Nat) → Encodable (L.Rel k)\n      x✝ arity✝ : Nat\n      R : L.Rel arity✝\n      v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ x✝\n      ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ (LO.FirstOrder.Semiformula.rel R v).t …\n    -/\n    simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n    /-\n      L : LO.FirstOrder.Language\n      inst✝² : (k : Nat) → Encodable (L.Func k)\n      ξ : Type u_1\n      inst✝¹ : Encodable ξ\n      inst✝ : (k : Nat) → Encodable (L.Rel k)\n      x✝ arity✝ : Nat\n      R : L.Rel arity✝\n      v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ x✝\n      ⊢ Eq (LO.FirstOrder.Semiformula.ofNat.match_1 (Nat.unpair (Nat.unpair (Nat.pai …\n    -/\n    rw [Nat.unpair_pair, Nat.unpair_pair]\n    /-\n      L : LO.FirstOrder.Language\n      inst✝² : (k : Nat) → Encodable (L.Func k)\n      ξ : Type u_1\n      inst✝¹ : Encodable ξ\n      inst✝ : (k : Nat) → Encodable (L.Rel k)\n      x✝ arity✝ : Nat\n      R : L.Rel arity✝\n      v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ x✝\n      ⊢ Eq (LO.FirstOrder.Semiformula.ofNat.match_1 { fst := arity✝, snd := Nat.pair …\n    -/\n    simp [Matrix.getM_pure]\n    /-\n      🎉 no goals\n    -/\n  | _, nrel R v => by\n    /-\n      L : LO.FirstOrder.Language\n      inst✝² : (k : Nat) → Encodable (L.Func k)\n      ξ : Type u_1\n      inst✝¹ : Encodable ξ\n      inst✝ : (k : Nat) → Encodable (L.Rel k)\n      x✝ arity✝ : Nat\n      R : L.Rel arity✝\n      v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ x✝\n      ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ (LO.FirstOrder.Semiformula.nrel R v). …\n    -/\n    simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n    /-\n      L : LO.FirstOrder.Language\n      inst✝² : (k : Nat) → Encodable (L.Func k)\n      ξ : Type u_1\n      inst✝¹ : Encodable ξ\n      inst✝ : (k : Nat) → Encodable (L.Rel k)\n      x✝ arity✝ : Nat\n      R : L.Rel arity✝\n      v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ x✝\n      ⊢ Eq (LO.FirstOrder.Semiformula.ofNat.match_1 (Nat.unpair (Nat.unpair (Nat.pai …\n    -/\n    rw [Nat.unpair_pair, Nat.unpair_pair]\n    /-\n      L : LO.FirstOrder.Language\n      inst✝² : (k : Nat) → Encodable (L.Func k)\n      ξ : Type u_1\n      inst✝¹ : Encodable ξ\n      inst✝ : (k : Nat) → Encodable (L.Rel k)\n      x✝ arity✝ : Nat\n      R : L.Rel arity✝\n      v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ x✝\n      ⊢ Eq (LO.FirstOrder.Semiformula.ofNat.match_1 { fst := arity✝, snd := Nat.pair …\n    -/\n    simp [Matrix.getM_pure]\n    /-\n      🎉 no goals\n    -/\n                      /-\n                        L : LO.FirstOrder.Language\n                        inst✝² : (k : Nat) → Encodable (L.Func k)\n                        ξ : Type u_1\n                        inst✝¹ : Encodable ξ\n                        inst✝ : (k : Nat) → Encodable (L.Rel k)\n                        x✝ : Nat\n                        ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ Top.top.toNat) (Option.some Top.top)\n                      -/\n  | _, ⊤        => by simp [toNat, ofNat]\n                      /-\n                        🎉 no goals\n                      -/\n                      /-\n                        L : LO.FirstOrder.Language\n                        inst✝² : (k : Nat) → Encodable (L.Func k)\n                        ξ : Type u_1\n                        inst✝¹ : Encodable ξ\n                        inst✝ : (k : Nat) → Encodable (L.Rel k)\n                        x✝ : Nat\n                        ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ Bot.bot.toNat) (Option.some Bot.bot)\n                      -/\n  | _, ⊥        => by simp [toNat, ofNat]\n                      /-\n                        🎉 no goals\n                      -/\n                      /-\n                        L : LO.FirstOrder.Language\n                        inst✝² : (k : Nat) → Encodable (L.Func k)\n                        ξ : Type u_1\n                        inst✝¹ : Encodable ξ\n                        inst✝ : (k : Nat) → Encodable (L.Rel k)\n                        x✝ : Nat\n                        φ ψ : LO.FirstOrder.Semiformula L ξ x✝\n                        ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ (LO.Vee.vee φ ψ).toNat) (Option.some  …\n                      -/\n  | _, φ ⋎ ψ    => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]\n                      /-\n                        🎉 no goals\n                      -/\n                      /-\n                        L : LO.FirstOrder.Language\n                        inst✝² : (k : Nat) → Encodable (L.Func k)\n                        ξ : Type u_1\n                        inst✝¹ : Encodable ξ\n                        inst✝ : (k : Nat) → Encodable (L.Rel k)\n                        x✝ : Nat\n                        φ ψ : LO.FirstOrder.Semiformula L ξ x✝\n                        ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ (LO.Wedge.wedge φ ψ).toNat) (Option.s …\n                      -/\n  | _, φ ⋏ ψ    => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]\n                      /-\n                        🎉 no goals\n                      -/\n                      /-\n                        L : LO.FirstOrder.Language\n                        inst✝² : (k : Nat) → Encodable (L.Func k)\n                        ξ : Type u_1\n                        inst✝¹ : Encodable ξ\n                        inst✝ : (k : Nat) → Encodable (L.Rel k)\n                        x✝ : Nat\n                        φ : LO.FirstOrder.Semiformula L ξ (HAdd.hAdd x✝ 1)\n                        ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ (LO.UnivQuantifier.univ φ).toNat) (Op …\n                      -/\n  | _, ∀' φ     => by simp [toNat, ofNat, ofNat_toNat φ]\n                      /-\n                        🎉 no goals\n                      -/\n                      /-\n                        L : LO.FirstOrder.Language\n                        inst✝² : (k : Nat) → Encodable (L.Func k)\n                        ξ : Type u_1\n                        inst✝¹ : Encodable ξ\n                        inst✝ : (k : Nat) → Encodable (L.Rel k)\n                        x✝ : Nat\n                        φ : LO.FirstOrder.Semiformula L ξ (HAdd.hAdd x✝ 1)\n                        ⊢ Eq (LO.FirstOrder.Semiformula.ofNat x✝ (LO.ExQuantifier.ex φ).toNat) (Option …\n                      -/\n  | _, ∃' φ     => by simp [toNat, ofNat, ofNat_toNat φ]\n                      /-\n                        🎉 no goals\n                      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Matrix.getM_pure",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma getM_pure [LawfulMonad m] {n} {β : Fin n → Type u} (v : (i : Fin n) → β i) :\n    getM (fun i => (pure (v i) : m (β i))) = pure v := by\n  induction' n with n ih\n  · unfold getM; congr; funext x; exact x.elim0\n  · simp only [getM, map_pure, ih, seq_pure]\n    exact congr_arg _ (funext <| Fin.cases rfl fun i ↦ rfl)",
+    "compilationAlias":
+    "lemma getM_pure [LawfulMonad m] {n} {β : Fin n → Type u} (v : (i : Fin n) → β i) :\n    getM (fun i => (pure (v i) : m (β i))) = pure v := by\n  induction' n with n ih\n  · unfold getM; congr; funext x; exact x.elim0\n  · simp only [getM, map_pure, ih, seq_pure]\n    exact congr_arg _ (funext <| Fin.cases rfl fun i ↦ rfl)"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Option.bind_eq_bind",
+    "module": "Init.Data.Option.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl",
+    "compilationAlias":
+    "@[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl"},
+   {"name": "Option.pure_def",
+    "module": "Init.Data.Option.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem pure_def : pure = @some α := rfl",
+    "compilationAlias": "@[simp] theorem pure_def : pure = @some α := rfl"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Matrix.getM_pure",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma getM_pure [LawfulMonad m] {n} {β : Fin n → Type u} (v : (i : Fin n) → β i) :\n    getM (fun i => (pure (v i) : m (β i))) = pure v := by\n  induction' n with n ih\n  · unfold getM; congr; funext x; exact x.elim0\n  · simp only [getM, map_pure, ih, seq_pure]\n    exact congr_arg _ (funext <| Fin.cases rfl fun i ↦ rfl)",
+    "compilationAlias":
+    "lemma getM_pure [LawfulMonad m] {n} {β : Fin n → Type u} (v : (i : Fin n) → β i) :\n    getM (fun i => (pure (v i) : m (β i))) = pure v := by\n  induction' n with n ih\n  · unfold getM; congr; funext x; exact x.elim0\n  · simp only [getM, map_pure, ih, seq_pure]\n    exact congr_arg _ (funext <| Fin.cases rfl fun i ↦ rfl)"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Option.bind_eq_bind",
+    "module": "Init.Data.Option.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl",
+    "compilationAlias":
+    "@[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl"},
+   {"name": "Option.pure_def",
+    "module": "Init.Data.Option.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem pure_def : pure = @some α := rfl",
+    "compilationAlias": "@[simp] theorem pure_def : pure = @some α := rfl"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Encoding\n/-- An encoding of terms as lists. -/\n@[simps]\nprotected def encoding : Encoding (L.Term α) where\n  Γ := α ⊕ (Σi, L.Functions i)\n  encode := listEncode\n  decode l := (listDecode l).head?.join\n  decode_encode t := by\n    have h := listDecode_encode_list [t]\n    rw [flatMap_singleton] at h\n    simp only [Option.join, h, head?_cons, Option.pure_def, Option.bind_eq_bind, Option.some_bind,\n      id_eq]",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem relabel_bot (g : α → β ⊕ (Fin n)) {k} : (⊥ : L.BoundedFormula α k).relabel g = ⊥ :=\n  rfl",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language map defined on two factors of a sum. -/\n@[simps]\nprotected def sumElim : L.sum L'' →ᴸ L' where\n  onFunction _n := Sum.elim (fun f => ϕ.onFunction f) fun f => ψ.onFunction f\n  onRelation _n := Sum.elim (fun f => ϕ.onRelation f) fun f => ψ.onRelation f",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem Term.realize_lt {t₁ t₂ : L.Term (α ⊕ (Fin n))}\n    {v : α → M} {xs : Fin n → M} :\n    (t₁.lt t₂).Realize v xs ↔ t₁.realize (Sum.elim v xs) < t₂.realize (Sum.elim v xs) := by\n  simp [Term.lt, lt_iff_le_not_le]",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem castLE_rfl {n} (h : n ≤ n) (φ : L.BoundedFormula α n) : φ.castLE h = φ := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [Fin.castLE_of_eq]\n  | rel => simp [Fin.castLE_of_eq]\n  | imp _ _ ih1 ih2 => simp [Fin.castLE_of_eq, ih1, ih2]\n  | all _ ih3 => simp [Fin.castLE_of_eq, ih3]",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language with constants indexed by a type. -/\n@[simps]\ndef constantsOn : Language.{u', 0} := ⟨constantsOnFunc α, fun _ => Empty⟩",
+   "--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-categorical. -/\ntheorem aleph0_categorical_dlo : (ℵ₀).Categorical Language.order.dlo := fun M₁ M₂ h₁ h₂ => by\n  obtain ⟨_⟩ := denumerable_iff.2 h₁\n  obtain ⟨_⟩ := denumerable_iff.2 h₂\n  exact (isFraisseLimit_of_countable_nonempty_dlo M₁).nonempty_equiv\n    (isFraisseLimit_of_countable_nonempty_dlo M₂)",
+   "--src: Mathlib.ModelTheory.Syntax\n/-- Maps a term's symbols along a language equivalence. -/\n@[simps]\ndef Lequiv.onTerm (φ : L ≃ᴸ L') : L.Term α ≃ L'.Term α where\n  toFun := φ.toLHom.onTerm\n  invFun := φ.invLHom.onTerm\n  left_inv := by\n    rw [Function.leftInverse_iff_comp, ← LHom.comp_onTerm, φ.left_inv, LHom.id_onTerm]\n  right_inv := by\n    rw [Function.rightInverse_iff_comp, ← LHom.comp_onTerm, φ.right_inv, LHom.id_onTerm]",
+   "--src: Mathlib.ModelTheory.Substructures\n@[simp]\ntheorem realize_boundedFormula_top {α : Type*} {n : ℕ} {φ : L.BoundedFormula α n}\n    {v : α → (⊤ : L.Substructure M)} {xs : Fin n → (⊤ : L.Substructure M)} :\n    φ.Realize v xs ↔ φ.Realize (((↑) : _ → M) ∘ v) ((↑) ∘ xs) := by\n  rw [← StrongHomClass.realize_boundedFormula Substructure.topEquiv φ]\n  simp",
+   "--src: Mathlib.ModelTheory.Order\nlemma dlo_isExtensionPair\n    (M : Type w) [Language.order.Structure M] [M ⊨ Language.order.linearOrderTheory]\n    (N : Type w') [Language.order.Structure N] [N ⊨ Language.order.dlo] [Nonempty N] :\n    Language.order.IsExtensionPair M N := by\n  classical\n  rw [isExtensionPair_iff_exists_embedding_closure_singleton_sup]\n  intro S S_fg f m\n  letI := Language.order.linearOrderOfModels M\n  letI := Language.order.linearOrderOfModels N\n  have := Language.order.denselyOrdered_of_dlo N\n  have := Language.order.noBotOrder_of_dlo N\n  have := Language.order.noTopOrder_of_dlo N\n  have := NoBotOrder.to_noMinOrder N\n  have := NoTopOrder.to_noMaxOrder N\n  have hS : Set.Finite (S : Set M) := (S.fg_iff_structure_fg.1 S_fg).finite\n  obtain ⟨g, hg⟩ := Order.exists_orderEmbedding_insert hS.toFinset\n    ((OrderIso.setCongr hS.toFinset (S : Set M) hS.coe_toFinset).toOrderEmbedding.trans\n      (OrderEmbedding.ofStrictMono f (HomClass.strictMono f))) m\n  let g' :\n    ((Substructure.closure Language.order).toFun {m} ⊔ S : Language.order.Substructure M) ↪o N :=\n    ((OrderIso.setCongr _ _ (by\n      convert LowerAdjoint.closure_eq_self_of_mem_closed _\n        (Substructure.mem_closed_of_isRelational Language.order\n        ((insert m hS.toFinset : Finset M) : Set M))\n      simp only [Finset.coe_insert, Set.Finite.coe_toFinset, Substructure.closure_insert,\n        Substructure.closure_eq])).toOrderEmbedding.trans g)\n  use StrongHomClass.toEmbedding g'\n  ext ⟨x, xS⟩\n  refine congr_fun hg.symm ⟨x, (?_ : x ∈ hS.toFinset)⟩\n  simp only [Set.Finite.mem_toFinset, SetLike.mem_coe, xS]"],
+  "id":
+  {"name": "LO.FirstOrder.Semiterm.ofNat_toNat",
+   "module": "Foundation.FirstOrder.Basic.Coding",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma ofNat_toNat {n : ℕ} : ∀ t : Semiterm L ξ n, ofNat n (toNat t) = some t\n  | #z => by simp [toNat, ofNat]\n  | &x => by simp [toNat, ofNat]\n  | func f v => by\n      simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n      rw [Nat.unpair_pair, Nat.unpair_pair, Nat.unpair_pair, Nat.natToVec_vecToNat]\n      simp\n      have : (fun i ↦ ofNat n (toNat (v i))) = (fun i ↦ pure (v i)) := funext <| fun i ↦ ofNat_toNat (v i)\n      rw [this, Matrix.getM_pure]\n      simp\n\n",
+   "compilationAlias":
+   "lemma ofNat_toNat {n : ℕ} : ∀ t : Semiterm L ξ n, ofNat n (toNat t) = some t\n  | #z => by simp [toNat, ofNat]\n  | &x => by simp [toNat, ofNat]\n  | func f v => by\n      simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n      rw [Nat.unpair_pair, Nat.unpair_pair, Nat.unpair_pair, Nat.natToVec_vecToNat]\n      simp\n      have : (fun i ↦ ofNat n (toNat (v i))) = (fun i ↦ pure (v i)) := funext <| fun i ↦ ofNat_toNat (v i)\n      rw [this, Matrix.getM_pure]\n      simp\n\n"},
+  "goal":
+  "motive : Nat → Sort u_1\ne : Nat\nh_1 : Unit → motive 0\nh_2 : (e : Nat) → motive e.succ\n⊢ Eq (LO.FirstOrder.Semiterm.ofNat.match_3 motive e.succ h_1 h_2) (h_2 e)",
+  "content_sorry":
+  "lemma ofNat_toNat {n : ℕ} : ∀ t : Semiterm L ξ n, ofNat n (toNat t) = some t\n  | #z => by sorry",
+  "annotation":
+  "lemma ofNat_toNat {n : ℕ} : ∀ t : Semiterm L ξ n, ofNat n (toNat t) = some t\n             /-\n               L : LO.FirstOrder.Language\n               inst✝¹ : (k : Nat) → Encodable (L.Func k)\n               ξ : Type u_1\n               inst✝ : Encodable ξ\n               n : Nat\n               z : Fin n\n               ⊢ Eq (LO.FirstOrder.Semiterm.ofNat n (LO.FirstOrder.Semiterm.bvar z).toNat) (O …\n             -/\n  | #z => by simp [toNat, ofNat]\n             /-\n               🎉 no goals\n             -/\n             /-\n               L : LO.FirstOrder.Language\n               inst✝¹ : (k : Nat) → Encodable (L.Func k)\n               ξ : Type u_1\n               inst✝ : Encodable ξ\n               n : Nat\n               x : ξ\n               ⊢ Eq (LO.FirstOrder.Semiterm.ofNat n (LO.FirstOrder.Semiterm.fvar x).toNat) (O …\n             -/\n  | &x => by simp [toNat, ofNat]\n             /-\n               🎉 no goals\n             -/\n  | func f v => by\n      /-\n        L : LO.FirstOrder.Language\n        inst✝¹ : (k : Nat) → Encodable (L.Func k)\n        ξ : Type u_1\n        inst✝ : Encodable ξ\n        n arity✝ : Nat\n        f : L.Func arity✝\n        v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ n\n        ⊢ Eq (LO.FirstOrder.Semiterm.ofNat n (LO.FirstOrder.Semiterm.func f v).toNat)  …\n      -/\n      simp only [toNat, ofNat, Nat.unpair_pair, Option.pure_def, Option.bind_eq_bind]\n      /-\n        L : LO.FirstOrder.Language\n        inst✝¹ : (k : Nat) → Encodable (L.Func k)\n        ξ : Type u_1\n        inst✝ : Encodable ξ\n        n arity✝ : Nat\n        f : L.Func arity✝\n        v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ n\n        ⊢ Eq (LO.FirstOrder.Semiterm.ofNat.match_1 (Nat.unpair (Nat.unpair (Nat.pair 2 …\n      -/\n      rw [Nat.unpair_pair, Nat.unpair_pair, Nat.unpair_pair, Nat.natToVec_vecToNat]\n      /-\n        L : LO.FirstOrder.Language\n        inst✝¹ : (k : Nat) → Encodable (L.Func k)\n        ξ : Type u_1\n        inst✝ : Encodable ξ\n        n arity✝ : Nat\n        f : L.Func arity✝\n        v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ n\n        ⊢ Eq (LO.FirstOrder.Semiterm.ofNat.match_1 { fst := arity✝, snd := Nat.pair (E …\n      -/\n      simp\n      /-\n        L : LO.FirstOrder.Language\n        inst✝¹ : (k : Nat) → Encodable (L.Func k)\n        ξ : Type u_1\n        inst✝ : Encodable ξ\n        n arity✝ : Nat\n        f : L.Func arity✝\n        v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ n\n        ⊢ Eq (Matrix.getM fun i => LO.FirstOrder.Semiterm.ofNat n (v i).toNat) (Option …\n      -/\n      have : (fun i ↦ ofNat n (toNat (v i))) = (fun i ↦ pure (v i)) := funext <| fun i ↦ ofNat_toNat (v i)\n      /-\n        L : LO.FirstOrder.Language\n        inst✝¹ : (k : Nat) → Encodable (L.Func k)\n        ξ : Type u_1\n        inst✝ : Encodable ξ\n        n arity✝ : Nat\n        f : L.Func arity✝\n        v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ n\n        this : Eq (fun i => LO.FirstOrder.Semiterm.ofNat n (v i).toNat) fun i => Pure. …\n        ⊢ Eq (Matrix.getM fun i => LO.FirstOrder.Semiterm.ofNat n (v i).toNat) (Option …\n      -/\n      rw [this, Matrix.getM_pure]\n      /-\n        L : LO.FirstOrder.Language\n        inst✝¹ : (k : Nat) → Encodable (L.Func k)\n        ξ : Type u_1\n        inst✝ : Encodable ξ\n        n arity✝ : Nat\n        f : L.Func arity✝\n        v : Fin arity✝ → LO.FirstOrder.Semiterm L ξ n\n        this : Eq (fun i => LO.FirstOrder.Semiterm.ofNat n (v i).toNat) fun i => Pure. …\n        ⊢ Eq (Pure.pure v) (Option.some v)\n      -/\n      simp\n      /-\n        🎉 no goals\n      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Matrix.getM_pure",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma getM_pure [LawfulMonad m] {n} {β : Fin n → Type u} (v : (i : Fin n) → β i) :\n    getM (fun i => (pure (v i) : m (β i))) = pure v := by\n  induction' n with n ih\n  · unfold getM; congr; funext x; exact x.elim0\n  · simp only [getM, map_pure, ih, seq_pure]\n    exact congr_arg _ (funext <| Fin.cases rfl fun i ↦ rfl)",
+    "compilationAlias":
+    "lemma getM_pure [LawfulMonad m] {n} {β : Fin n → Type u} (v : (i : Fin n) → β i) :\n    getM (fun i => (pure (v i) : m (β i))) = pure v := by\n  induction' n with n ih\n  · unfold getM; congr; funext x; exact x.elim0\n  · simp only [getM, map_pure, ih, seq_pure]\n    exact congr_arg _ (funext <| Fin.cases rfl fun i ↦ rfl)"},
+   {"name": "funext",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n**Function extensionality** is the statement that if two functions take equal values\nevery point, then the functions themselves are equal: `(∀ x, f x = g x) → f = g`.\nIt is called \"extensionality\" because it talks about how to prove two objects are equal\nbased on the properties of the object (compare with set extensionality,\nwhich is `(∀ x, x ∈ s ↔ x ∈ t) → s = t`).\n\nThis is often an axiom in dependent type theory systems, because it cannot be proved\nfrom the core logic alone. However in lean's type theory this follows from the existence\nof quotient types (note the `Quot.sound` in the proof, as well as the `show` line\nwhich makes use of the definitional equality `Quot.lift f h (Quot.mk x) = f x`).\n-/\ntheorem funext {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x}\n    (h : ∀ x, f x = g x) : f = g := by\n  let eqv (f g : (x : α) → β x) := ∀ x, f x = g x\n  let extfunApp (f : Quot eqv) (x : α) : β x :=\n    Quot.liftOn f\n      (fun (f : ∀ (x : α), β x) => f x)\n      (fun _ _ h => h x)\n  show extfunApp (Quot.mk eqv f) = extfunApp (Quot.mk eqv g)\n  exact congrArg extfunApp (Quot.sound h)",
+    "compilationAlias":
+    "/--\n**Function extensionality** is the statement that if two functions take equal values\nevery point, then the functions themselves are equal: `(∀ x, f x = g x) → f = g`.\nIt is called \"extensionality\" because it talks about how to prove two objects are equal\nbased on the properties of the object (compare with set extensionality,\nwhich is `(∀ x, x ∈ s ↔ x ∈ t) → s = t`).\n\nThis is often an axiom in dependent type theory systems, because it cannot be proved\nfrom the core logic alone. However in lean's type theory this follows from the existence\nof quotient types (note the `Quot.sound` in the proof, as well as the `show` line\nwhich makes use of the definitional equality `Quot.lift f h (Quot.mk x) = f x`).\n-/\ntheorem funext {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x}\n    (h : ∀ x, f x = g x) : f = g := by\n  let eqv (f g : (x : α) → β x) := ∀ x, f x = g x\n  let extfunApp (f : Quot eqv) (x : α) : β x :=\n    Quot.liftOn f\n      (fun (f : ∀ (x : α), β x) => f x)\n      (fun _ _ h => h x)\n  show extfunApp (Quot.mk eqv f) = extfunApp (Quot.mk eqv g)\n  exact congrArg extfunApp (Quot.sound h)"},
+   {"name": "Nat.natToVec_vecToNat",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma natToVec_vecToNat (v : Fin n → ℕ) : (vecToNat v).natToVec n = some v := by\n  induction n\n  · simp [*, Nat.natToVec, vecToNat, Matrix.empty_eq]\n  · suffices v 0 :> v ∘ Fin.succ = v by simp [*, Nat.natToVec, vecToNat]\n    exact funext (fun i ↦ i.cases (by simp [Matrix.empty_eq]) (by simp [Matrix.empty_eq]))",
+    "compilationAlias":
+    "@[simp] lemma natToVec_vecToNat (v : Fin n → ℕ) : (vecToNat v).natToVec n = some v := by\n  induction n\n  · simp [*, Nat.natToVec, vecToNat, Matrix.empty_eq]\n  · suffices v 0 :> v ∘ Fin.succ = v by simp [*, Nat.natToVec, vecToNat]\n    exact funext (fun i ↦ i.cases (by simp [Matrix.empty_eq]) (by simp [Matrix.empty_eq]))"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"},
+   {"name": "Option.bind_eq_bind",
+    "module": "Init.Data.Option.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl",
+    "compilationAlias":
+    "@[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl"},
+   {"name": "Option.pure_def",
+    "module": "Init.Data.Option.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem pure_def : pure = @some α := rfl",
+    "compilationAlias": "@[simp] theorem pure_def : pure = @some α := rfl"},
+   {"name": "Nat.unpair_pair",
+    "module": "Mathlib.Data.Nat.Pairing",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem unpair_pair (a b : ℕ) : unpair (pair a b) = (a, b) := by\n  dsimp only [pair]; split_ifs with h\n  · show unpair (b * b + a) = (a, b)\n    have be : sqrt (b * b + a) = b := sqrt_add_eq _ (le_trans (le_of_lt h) (Nat.le_add_left _ _))\n    simp [unpair, be, Nat.add_sub_cancel_left, h]\n  · show unpair (a * a + a + b) = (a, b)\n    have ae : sqrt (a * a + (a + b)) = a := by\n      rw [sqrt_add_eq]\n      exact Nat.add_le_add_left (le_of_not_gt h) _\n    simp [unpair, ae, Nat.not_lt_zero, Nat.add_assoc, Nat.add_sub_cancel_left]"}]}]

@@ -271,6 +271,7 @@ structure TheoremData where
   content_sorry : String := ""
   goal : String := ""
   rag : Json := Json.arr #[]
+  C0_dependencies : Array TheoremID := #[]
   C1_dependencies : Array TheoremID := #[]
   C2_dependencies : Array TheoremID := #[]
 

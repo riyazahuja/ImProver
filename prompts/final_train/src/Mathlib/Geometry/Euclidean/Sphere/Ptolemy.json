@@ -1,0 +1,136 @@
+[{"rag":
+  ["--src: Mathlib.Geometry.Euclidean.Sphere.Ptolemy\n/-- **Ptolemy’s Theorem**. -/\ntheorem mul_dist_add_mul_dist_eq_mul_dist_of_cospherical {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hapc : ∠ a p c = π) (hbpd : ∠ b p d = π) :\n    dist a b * dist c d + dist b c * dist d a = dist a c * dist b d := by\n  have h' : Cospherical ({a, c, b, d} : Set P) := by rwa [Set.insert_comm c b {d}]\n  have hmul := mul_dist_eq_mul_dist_of_cospherical_of_angle_eq_pi h' hapc hbpd\n  have hbp := left_dist_ne_zero_of_angle_eq_pi hbpd\n  have h₁ : dist c d = dist c p / dist b p * dist a b := by\n    rw [dist_mul_of_eq_angle_of_dist_mul b p a c p d, dist_comm a b]\n    · rw [angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi hbpd hapc, angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₂ : dist d a = dist a p / dist b p * dist b c := by\n    rw [dist_mul_of_eq_angle_of_dist_mul c p b d p a, dist_comm c b]\n    · rwa [angle_comm, angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi]; rwa [angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₃ : dist d p = dist a p * dist c p / dist b p := by field_simp [mul_comm, hmul]\n  have h₄ : ∀ x y : ℝ, x * (y * x) = x * x * y := fun x y => by rw [mul_left_comm, mul_comm]\n  -- takes 450ms, but the \"equivalent\" simp call leaves some remaining goals\n  field_simp [h₁, h₂, dist_eq_add_dist_of_angle_eq_pi hbpd, h₃, hbp, dist_comm a b, h₄, ← sq,\n    dist_sq_mul_dist_add_dist_sq_mul_dist b, hapc]",
+   "--src: Mathlib.Geometry.Euclidean.Sphere.Power\n/-- **Intersecting Chords Theorem**. -/\ntheorem mul_dist_eq_mul_dist_of_cospherical_of_angle_eq_pi {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hapb : ∠ a p b = π) (hcpd : ∠ c p d = π) :\n    dist a p * dist b p = dist c p * dist d p := by\n  obtain ⟨-, k₁, _, hab⟩ := angle_eq_pi_iff.mp hapb\n  obtain ⟨-, k₂, _, hcd⟩ := angle_eq_pi_iff.mp hcpd\n  exact mul_dist_eq_mul_dist_of_cospherical h ⟨k₁, by linarith, hab⟩ ⟨k₂, by linarith, hcd⟩",
+   "--src: Mathlib.Geometry.Euclidean.Sphere.Power\n/-- **Intersecting Secants Theorem**. -/\ntheorem mul_dist_eq_mul_dist_of_cospherical_of_angle_eq_zero {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hab : a ≠ b) (hcd : c ≠ d) (hapb : ∠ a p b = 0)\n    (hcpd : ∠ c p d = 0) : dist a p * dist b p = dist c p * dist d p := by\n  obtain ⟨-, k₁, -, hab₁⟩ := angle_eq_zero_iff.mp hapb\n  obtain ⟨-, k₂, -, hcd₁⟩ := angle_eq_zero_iff.mp hcpd\n  refine mul_dist_eq_mul_dist_of_cospherical h ⟨k₁, ?_, hab₁⟩ ⟨k₂, ?_, hcd₁⟩ <;> by_contra hnot <;>\n    simp_all only [Classical.not_not, one_smul]\n  exacts [hab (vsub_left_cancel hab₁).symm, hcd (vsub_left_cancel hcd₁).symm]",
+   "--src: Mathlib.Geometry.Euclidean.Triangle\n/-- **Stewart's Theorem**. -/\ntheorem dist_sq_mul_dist_add_dist_sq_mul_dist (a b c p : P) (h : ∠ b p c = π) :\n    dist a b ^ 2 * dist c p + dist a c ^ 2 * dist b p =\n    dist b c * (dist a p ^ 2 + dist b p * dist c p) := by\n  rw [pow_two, pow_two, law_cos a p b, law_cos a p c,\n    eq_sub_of_add_eq (angle_add_angle_eq_pi_of_angle_eq_pi a h), Real.cos_pi_sub,\n    dist_eq_add_dist_of_angle_eq_pi h]\n  ring",
+   "--src: Mathlib.Geometry.Euclidean.Sphere.Basic\ninclude V in\n/-- Two points are cospherical. -/\ntheorem cospherical_pair (p₁ p₂ : P) : Cospherical ({p₁, p₂} : Set P) :=\n  ⟨midpoint ℝ p₁ p₂, ‖(2 : ℝ)‖⁻¹ * dist p₁ p₂, by\n    rintro p (rfl | rfl | _)\n    · rw [dist_comm, dist_midpoint_left (\u0000\u0000 := ℝ)]\n    · rw [dist_comm, dist_midpoint_right (\u0000\u0000 := ℝ)]⟩",
+   "--src: Mathlib.Geometry.Euclidean.Angle.Unoriented.Affine\n/-- If the angle between three points is π, they are collinear. -/\ntheorem collinear_of_angle_eq_pi {p₁ p₂ p₃ : P} (h : ∠ p₁ p₂ p₃ = π) :\n    Collinear ℝ ({p₁, p₂, p₃} : Set P) :=\n  collinear_iff_eq_or_eq_or_angle_eq_zero_or_angle_eq_pi.2 <| Or.inr <| Or.inr <| Or.inr h",
+   "--src: Mathlib.Geometry.Euclidean.Angle.Unoriented.Affine\n/-- **Vertical Angles Theorem**: angles opposite each other, formed by two intersecting straight\nlines, are equal. -/\ntheorem angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi {p1 p2 p3 p4 p5 : P} (hapc : ∠ p1 p5 p3 = π)\n    (hbpd : ∠ p2 p5 p4 = π) : ∠ p1 p5 p2 = ∠ p3 p5 p4 := by\n  linarith [angle_add_angle_eq_pi_of_angle_eq_pi p1 hbpd, angle_comm p4 p5 p1,\n    angle_add_angle_eq_pi_of_angle_eq_pi p4 hapc, angle_comm p4 p5 p3]",
+   "--src: Mathlib.Geometry.Euclidean.Sphere.Basic\n/-- A subset of a cospherical set is cospherical. -/\ntheorem Cospherical.subset {ps₁ ps₂ : Set P} (hs : ps₁ ⊆ ps₂) (hc : Cospherical ps₂) :\n    Cospherical ps₁ := by\n  rcases hc with ⟨c, r, hcr⟩\n  exact ⟨c, r, fun p hp => hcr p (hs hp)⟩",
+   "--src: Mathlib.Geometry.Euclidean.Inversion.Basic\ntheorem dist_inversion_mul_dist_center_eq (hx : x ≠ c) (hy : y ≠ c) :\n    dist (inversion c R x) y * dist x c = dist x (inversion c R y) * dist y c := by\n  rcases eq_or_ne R 0 with rfl | hR; · simp [dist_comm, mul_comm]\n  have hy' : inversion c R y ≠ c := by simp [*]\n  conv in dist _ y => rw [← inversion_inversion c hR y]\n  rw [dist_inversion_inversion hx hy', dist_inversion_center]\n  have : dist x c ≠ 0 := dist_ne_zero.2 hx\n  -- used to be `field_simp`, but was really slow; replaced by `simp only ...` to speed up\n  -- TODO(https://github.com/leanprover-community/mathlib4/issues/15486): reinstate `field_simp` once it is faster.\n  simp (disch := field_simp_discharge) only [mul_div_assoc', div_div_eq_mul_div, div_mul_eq_mul_div,\n    div_eq_iff]\n  ring",
+   "--src: Mathlib.Geometry.Euclidean.Triangle\n/-- **Law of cosines** (cosine rule), angle-at-point form. -/\ntheorem dist_sq_eq_dist_sq_add_dist_sq_sub_two_mul_dist_mul_dist_mul_cos_angle (p1 p2 p3 : P) :\n    dist p1 p3 * dist p1 p3 = dist p1 p2 * dist p1 p2 + dist p3 p2 * dist p3 p2 -\n      2 * dist p1 p2 * dist p3 p2 * Real.cos (∠ p1 p2 p3) := by\n  rw [dist_eq_norm_vsub V p1 p3, dist_eq_norm_vsub V p1 p2, dist_eq_norm_vsub V p3 p2]\n  unfold angle\n  convert norm_sub_sq_eq_norm_sq_add_norm_sq_sub_two_mul_norm_mul_norm_mul_cos_angle\n    (p1 -ᵥ p2 : V) (p3 -ᵥ p2 : V)\n  · exact (vsub_sub_vsub_cancel_right p1 p3 p2).symm\n  · exact (vsub_sub_vsub_cancel_right p1 p3 p2).symm"],
+  "id":
+  {"name": "EuclideanGeometry.mul_dist_add_mul_dist_eq_mul_dist_of_cospherical",
+   "module": "Mathlib.Geometry.Euclidean.Sphere.Ptolemy",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- **Ptolemy’s Theorem**. -/\ntheorem mul_dist_add_mul_dist_eq_mul_dist_of_cospherical {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hapc : ∠ a p c = π) (hbpd : ∠ b p d = π) :\n    dist a b * dist c d + dist b c * dist d a = dist a c * dist b d := by\n  have h' : Cospherical ({a, c, b, d} : Set P) := by rwa [Set.insert_comm c b {d}]\n  have hmul := mul_dist_eq_mul_dist_of_cospherical_of_angle_eq_pi h' hapc hbpd\n  have hbp := left_dist_ne_zero_of_angle_eq_pi hbpd\n  have h₁ : dist c d = dist c p / dist b p * dist a b := by\n    rw [dist_mul_of_eq_angle_of_dist_mul b p a c p d, dist_comm a b]\n    · rw [angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi hbpd hapc, angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₂ : dist d a = dist a p / dist b p * dist b c := by\n    rw [dist_mul_of_eq_angle_of_dist_mul c p b d p a, dist_comm c b]\n    · rwa [angle_comm, angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi]; rwa [angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₃ : dist d p = dist a p * dist c p / dist b p := by field_simp [mul_comm, hmul]\n  have h₄ : ∀ x y : ℝ, x * (y * x) = x * x * y := fun x y => by rw [mul_left_comm, mul_comm]\n  -- takes 450ms, but the \"equivalent\" simp call leaves some remaining goals\n  field_simp [h₁, h₂, dist_eq_add_dist_of_angle_eq_pi hbpd, h₃, hbp, dist_comm a b, h₄, ← sq,\n    dist_sq_mul_dist_add_dist_sq_mul_dist b, hapc]\n\n",
+   "compilationAlias":
+   "/-- **Ptolemy’s Theorem**. -/\ntheorem mul_dist_add_mul_dist_eq_mul_dist_of_cospherical {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hapc : ∠ a p c = π) (hbpd : ∠ b p d = π) :\n    dist a b * dist c d + dist b c * dist d a = dist a c * dist b d := by\n  have h' : Cospherical ({a, c, b, d} : Set P) := by rwa [Set.insert_comm c b {d}]\n  have hmul := mul_dist_eq_mul_dist_of_cospherical_of_angle_eq_pi h' hapc hbpd\n  have hbp := left_dist_ne_zero_of_angle_eq_pi hbpd\n  have h₁ : dist c d = dist c p / dist b p * dist a b := by\n    rw [dist_mul_of_eq_angle_of_dist_mul b p a c p d, dist_comm a b]\n    · rw [angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi hbpd hapc, angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₂ : dist d a = dist a p / dist b p * dist b c := by\n    rw [dist_mul_of_eq_angle_of_dist_mul c p b d p a, dist_comm c b]\n    · rwa [angle_comm, angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi]; rwa [angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₃ : dist d p = dist a p * dist c p / dist b p := by field_simp [mul_comm, hmul]\n  have h₄ : ∀ x y : ℝ, x * (y * x) = x * x * y := fun x y => by rw [mul_left_comm, mul_comm]\n  -- takes 450ms, but the \"equivalent\" simp call leaves some remaining goals\n  field_simp [h₁, h₂, dist_eq_add_dist_of_angle_eq_pi hbpd, h₃, hbp, dist_comm a b, h₄, ← sq,\n    dist_sq_mul_dist_add_dist_sq_mul_dist b, hapc]\n\n"},
+  "goal":
+  "M : Type u_2\ninst✝ : Monoid M\na : M\n⊢ Eq (HMul.hMul a a) (HPow.hPow a 2)",
+  "content_sorry":
+  "/-- **Ptolemy’s Theorem**. -/\ntheorem mul_dist_add_mul_dist_eq_mul_dist_of_cospherical {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hapc : ∠ a p c = π) (hbpd : ∠ b p d = π) :\n    dist a b * dist c d + dist b c * dist d a = dist a c * dist b d := by\n  sorry",
+  "annotation":
+  "/-- **Ptolemy’s Theorem**. -/\ntheorem mul_dist_add_mul_dist_eq_mul_dist_of_cospherical {a b c d p : P}\n    (h : Cospherical ({a, b, c, d} : Set P)) (hapc : ∠ a p c = π) (hbpd : ∠ b p d = π) :\n    dist a b * dist c d + dist b c * dist d a = dist a c * dist b d := by\n  /-\n    V : Type u_1\n    inst✝³ : NormedAddCommGroup V\n    inst✝² : InnerProductSpace Real V\n    P : Type u_2\n    inst✝¹ : MetricSpace P\n    inst✝ : NormedAddTorsor V P\n    a b c d p : P\n    h : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert b (Insert.in …\n    hapc : Eq (EuclideanGeometry.angle a p c) Real.pi\n    hbpd : Eq (EuclideanGeometry.angle b p d) Real.pi\n    ⊢ Eq (HAdd.hAdd (HMul.hMul (Dist.dist a b) (Dist.dist c d)) (HMul.hMul (Dist.d …\n  -/\n  have h' : Cospherical ({a, c, b, d} : Set P) := by rwa [Set.insert_comm c b {d}]\n  /-\n    V : Type u_1\n    inst✝³ : NormedAddCommGroup V\n    inst✝² : InnerProductSpace Real V\n    P : Type u_2\n    inst✝¹ : MetricSpace P\n    inst✝ : NormedAddTorsor V P\n    a b c d p : P\n    h : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert b (Insert.in …\n    hapc : Eq (EuclideanGeometry.angle a p c) Real.pi\n    hbpd : Eq (EuclideanGeometry.angle b p d) Real.pi\n    h' : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert c (Insert.i …\n    ⊢ Eq (HAdd.hAdd (HMul.hMul (Dist.dist a b) (Dist.dist c d)) (HMul.hMul (Dist.d …\n  -/\n  have hmul := mul_dist_eq_mul_dist_of_cospherical_of_angle_eq_pi h' hapc hbpd\n  /-\n    V : Type u_1\n    inst✝³ : NormedAddCommGroup V\n    inst✝² : InnerProductSpace Real V\n    P : Type u_2\n    inst✝¹ : MetricSpace P\n    inst✝ : NormedAddTorsor V P\n    a b c d p : P\n    h : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert b (Insert.in …\n    hapc : Eq (EuclideanGeometry.angle a p c) Real.pi\n    hbpd : Eq (EuclideanGeometry.angle b p d) Real.pi\n    h' : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert c (Insert.i …\n    hmul : Eq (HMul.hMul (Dist.dist a p) (Dist.dist c p)) (HMul.hMul (Dist.dist b  …\n    ⊢ Eq (HAdd.hAdd (HMul.hMul (Dist.dist a b) (Dist.dist c d)) (HMul.hMul (Dist.d …\n  -/\n  have hbp := left_dist_ne_zero_of_angle_eq_pi hbpd\n  have h₁ : dist c d = dist c p / dist b p * dist a b := by\n    rw [dist_mul_of_eq_angle_of_dist_mul b p a c p d, dist_comm a b]\n    · rw [angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi hbpd hapc, angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  have h₂ : dist d a = dist a p / dist b p * dist b c := by\n    rw [dist_mul_of_eq_angle_of_dist_mul c p b d p a, dist_comm c b]\n    · rwa [angle_comm, angle_eq_angle_of_angle_eq_pi_of_angle_eq_pi]; rwa [angle_comm]\n    all_goals field_simp [mul_comm, hmul]\n  /-\n    V : Type u_1\n    inst✝³ : NormedAddCommGroup V\n    inst✝² : InnerProductSpace Real V\n    P : Type u_2\n    inst✝¹ : MetricSpace P\n    inst✝ : NormedAddTorsor V P\n    a b c d p : P\n    h : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert b (Insert.in …\n    hapc : Eq (EuclideanGeometry.angle a p c) Real.pi\n    hbpd : Eq (EuclideanGeometry.angle b p d) Real.pi\n    h' : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert c (Insert.i …\n    hmul : Eq (HMul.hMul (Dist.dist a p) (Dist.dist c p)) (HMul.hMul (Dist.dist b  …\n    hbp : Ne (Dist.dist b p) 0\n    h₁ : Eq (Dist.dist c d) (HMul.hMul (HDiv.hDiv (Dist.dist c p) (Dist.dist b p)) …\n    h₂ : Eq (Dist.dist d a) (HMul.hMul (HDiv.hDiv (Dist.dist a p) (Dist.dist b p)) …\n    ⊢ Eq (HAdd.hAdd (HMul.hMul (Dist.dist a b) (Dist.dist c d)) (HMul.hMul (Dist.d …\n  -/\n  have h₃ : dist d p = dist a p * dist c p / dist b p := by field_simp [mul_comm, hmul]\n  /-\n    V : Type u_1\n    inst✝³ : NormedAddCommGroup V\n    inst✝² : InnerProductSpace Real V\n    P : Type u_2\n    inst✝¹ : MetricSpace P\n    inst✝ : NormedAddTorsor V P\n    a b c d p : P\n    h : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert b (Insert.in …\n    hapc : Eq (EuclideanGeometry.angle a p c) Real.pi\n    hbpd : Eq (EuclideanGeometry.angle b p d) Real.pi\n    h' : EuclideanGeometry.Cospherical (Insert.insert a (Insert.insert c (Insert.i …\n    hmul : Eq (HMul.hMul (Dist.dist a p) (Dist.dist c p)) (HMul.hMul (Dist.dist b  …\n    hbp : Ne (Dist.dist b p) 0\n    h₁ : Eq (Dist.dist c d) (HMul.hMul (HDiv.hDiv (Dist.dist c p) (Dist.dist b p)) …\n    h₂ : Eq (Dist.dist d a) (HMul.hMul (HDiv.hDiv (Dist.dist a p) (Dist.dist b p)) …\n    h₃ : Eq (Dist.dist d p) (HDiv.hDiv (HMul.hMul (Dist.dist a p) (Dist.dist c p)) …\n    ⊢ Eq (HAdd.hAdd (HMul.hMul (Dist.dist a b) (Dist.dist c d)) (HMul.hMul (Dist.d …\n  -/\n  have h₄ : ∀ x y : ℝ, x * (y * x) = x * x * y := fun x y => by rw [mul_left_comm, mul_comm]\n  -- takes 450ms, but the \"equivalent\" simp call leaves some remaining goals\n  field_simp [h₁, h₂, dist_eq_add_dist_of_angle_eq_pi hbpd, h₃, hbp, dist_comm a b, h₄, ← sq,\n    dist_sq_mul_dist_add_dist_sq_mul_dist b, hapc]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "sq",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive existing two_nsmul] alias sq := pow_two",
+    "compilationAlias":
+    "@[to_additive existing two_nsmul] alias sq := pow_two"},
+   {"name": "dist_comm",
+    "module": "Mathlib.Topology.MetricSpace.Pseudo.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem dist_comm (x y : α) : dist x y = dist y x :=\n  PseudoMetricSpace.dist_comm x y",
+    "compilationAlias":
+    "theorem dist_comm (x y : α) : dist x y = dist y x :=\n  PseudoMetricSpace.dist_comm x y"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "mul_left_comm",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_left_comm (a b c : G) : a * (b * c) = b * (a * c) := by\n  rw [← mul_assoc, mul_comm a, mul_assoc]",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_left_comm (a b c : G) : a * (b * c) = b * (a * c) := by\n  rw [← mul_assoc, mul_comm a, mul_assoc]"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "dist_comm",
+    "module": "Mathlib.Topology.MetricSpace.Pseudo.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem dist_comm (x y : α) : dist x y = dist y x :=\n  PseudoMetricSpace.dist_comm x y",
+    "compilationAlias":
+    "theorem dist_comm (x y : α) : dist x y = dist y x :=\n  PseudoMetricSpace.dist_comm x y"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "dist_comm",
+    "module": "Mathlib.Topology.MetricSpace.Pseudo.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem dist_comm (x y : α) : dist x y = dist y x :=\n  PseudoMetricSpace.dist_comm x y",
+    "compilationAlias":
+    "theorem dist_comm (x y : α) : dist x y = dist y x :=\n  PseudoMetricSpace.dist_comm x y"},
+   {"name": "Set.insert_comm",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem insert_comm (a b : α) (s : Set α) : insert a (insert b s) = insert b (insert a s) :=\n  ext fun _ => or_left_comm",
+    "compilationAlias":
+    "theorem insert_comm (a b : α) (s : Set α) : insert a (insert b s) = insert b (insert a s) :=\n  ext fun _ => or_left_comm"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]}]

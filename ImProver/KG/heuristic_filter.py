@@ -112,7 +112,7 @@ def run_inference(df, args):
     ds = vllm_processor(ds).materialize()
 
     # id = f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    run_output_dir = os.path.join("knowledge_graphs", args.KG_id)
+    run_output_dir = os.path.join("knowledge_graphs", args.kg_id)
     os.makedirs(run_output_dir, exist_ok=True)
 
     output_path = os.path.join(run_output_dir, "filtered_data")
@@ -143,9 +143,10 @@ def get_thm_prompt(thm):
         return None
 
     # Dependencies (be forgiving about NULL / malformed JSON)
+    c0 = _parse_json(thm.get("C0Dependencies"))
     c1 = _parse_json(thm.get("C1Dependencies"))
     c2 = _parse_json(thm.get("C2Dependencies"))
-    all_deps = c1 + c2
+    all_deps = c0 + c1 + c2
     
     dependencies_raw = [t["content"].strip() for t in all_deps]
 
@@ -422,7 +423,7 @@ Note that this is a heuristic, and so your output should be given by reasoning a
 
 def construct_KG_data(con, args):
 
-  output_path = os.path.join("knowledge_graphs", args.KG_id, "filter_data")
+  output_path = os.path.join("knowledge_graphs", args.kg_id, "filter_data")
       #safe mode
     # con.execute(
     #     f"""
@@ -522,7 +523,7 @@ def get_training_dataset(con, args):
     })
   
   # Write the JSONL file
-  output_path = os.path.join("knowledge_graphs", args.KG_id, "training.jsonl")
+  output_path = os.path.join("knowledge_graphs", args.kg_id, "training.jsonl")
   with open(output_path, "w") as f:
     for entry in jsonl_entries:
       f.write(json.dumps(entry) + "\n")
@@ -538,7 +539,7 @@ def main(args):
 
     if args.run_inference:
       
-      combined_dataset_path = os.path.join("knowledge_graphs", args.KG_id, "combined.duckdb")
+      combined_dataset_path = os.path.join("knowledge_graphs", args.kg_id, "combined.duckdb")
       con = duckdb.connect(combined_dataset_path)
       
       df_raw = con.execute("SELECT * FROM theorems").df()
@@ -575,9 +576,9 @@ def main(args):
       output_path = run_inference(df, args)
       print(f"Run inference complete. Output saved to {output_path}")
     
-    database_path = os.path.join("knowledge_graphs", args.KG_id, "filtered_data.duckdb")
+    database_path = os.path.join("knowledge_graphs", args.kg_id, "filtered_data.duckdb")
     con = duckdb.connect(database_path)
-    if args.augment_DB:
+    if args.augment_db:
       construct_KG_data(con, args)
       print("Constructed KG data and updated run_data table.")
     if args.training_data:
@@ -594,7 +595,7 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Filter KG for ImProver")
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
 
     # parser.add_argument(
     #     "--KG_dir",
@@ -633,7 +634,7 @@ if __name__ == "__main__":
         "--run_inference", type=bool, action=argparse.BooleanOptionalAction , default=True, help="Whether to run inference (default: True)"
     )
     parser.add_argument(
-        "--augment_DB",  action=argparse.BooleanOptionalAction , type=bool, default=True, help="Whether to augment filteredDB (default: True)"
+        "--augment_db",  action=argparse.BooleanOptionalAction , type=bool, default=True, help="Whether to augment filteredDB (default: True)"
     )
     parser.add_argument(
         "--training_data", action=argparse.BooleanOptionalAction , type=bool, default=True, help="Whether to generate training data (default: True)"

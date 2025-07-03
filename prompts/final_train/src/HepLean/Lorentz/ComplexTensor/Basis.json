@@ -1,0 +1,945 @@
+[{"rag":
+  ["--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The space of constant maps is equivalent to the space of maps that are multilinear with respect\nto an empty family. -/\n@[simps]\ndef constLinearEquivOfIsEmpty [IsEmpty ι] : M₂ ≃ₗ[S] MultilinearMap R M₁ M₂ where\n  toFun := MultilinearMap.constOfIsEmpty R _\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := f 0\n  left_inv _ := rfl\n  right_inv f := ext fun _ => MultilinearMap.congr_arg f <| Subsingleton.elim _ _",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a polynomial time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInPolyTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a polynomial time function -/\n  time : Polynomial ℕ\n  /-- proof that this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time.eval (ea.encode a).length)",
+   "--src: Mathlib.Data.Vector.Basic\n@[simp]\ntheorem inductionOn_nil {C : ∀ {n : ℕ}, Vector α n → Sort*}\n    (nil : C nil) (cons : ∀ {n : ℕ} {x : α} {w : Vector α n}, C w → C (x ::ᵥ w)) :\n    Vector.nil.inductionOn nil cons = nil :=\n  rfl",
+   "--src: Mathlib.Computability.TuringMachine\nvariable {enc0} in\ntheorem tr_respects :\n    Respects (step M) (step (tr enc dec M)) fun c₁ c₂ ↦ trCfg enc enc0 c₁ = c₂ :=\n  fun_respects.2 fun ⟨l₁, v, T⟩ ↦ by\n    obtain ⟨L, R, rfl⟩ := T.exists_mk'\n    cases' l₁ with l₁\n    · exact rfl\n    suffices ∀ q R, Reaches (step (tr enc dec M)) (stepAux (trNormal dec q) v (trTape' enc0 L R))\n        (trCfg enc enc0 (stepAux q v (Tape.mk' L R))) by\n      refine TransGen.head' rfl ?_\n      rw [trTape_mk']\n      exact this _ R\n    clear R l₁\n    intro q R\n    induction q generalizing v L R with\n    | move d q IH =>\n      cases d <;>\n          simp only [trNormal, iterate, stepAux_move, stepAux, ListBlank.head_cons,\n            Tape.move_left_mk', ListBlank.cons_head_tail, ListBlank.tail_cons,\n            trTape'_move_left enc0, trTape'_move_right enc0] <;>\n        apply IH\n    | write f q IH =>\n      simp only [trNormal, stepAux_read dec enc0 encdec, stepAux]\n      refine ReflTransGen.head rfl ?_\n      obtain ⟨a, R, rfl⟩ := R.exists_cons\n      rw [tr, Tape.mk'_head, stepAux_write, ListBlank.head_cons, stepAux_move,\n        trTape'_move_left enc0, ListBlank.head_cons, ListBlank.tail_cons, Tape.write_mk']\n      apply IH\n    | load a q IH =>\n      simp only [trNormal, stepAux_read dec enc0 encdec]\n      apply IH\n    | branch p q₁ q₂ IH₁ IH₂ =>\n      simp only [trNormal, stepAux_read dec enc0 encdec, stepAux, Tape.mk'_head]\n      cases p R.head v <;> [apply IH₂; apply IH₁]\n    | goto l =>\n      simp only [trNormal, stepAux_read dec enc0 encdec, stepAux, trCfg, trTape_mk']\n      apply ReflTransGen.refl\n    | halt =>\n      simp only [trNormal, stepAux, trCfg, stepAux_move, trTape'_move_left enc0,\n        trTape'_move_right enc0, trTape_mk']\n      apply ReflTransGen.refl",
+   "--src: Mathlib.LinearAlgebra.FreeModule.PID\n/-- A Smith normal form basis for a submodule `N` of a module `M` consists of\nbases for `M` and `N` such that the inclusion map `N → M` can be written as a\n(rectangular) matrix with `a` along the diagonal: in Smith normal form. -/\n-- Porting note (https://github.com/leanprover-community/mathlib4/issues/5171): @[nolint has_nonempty_instance]\nstructure Basis.SmithNormalForm (N : Submodule R M) (ι : Type*) (n : ℕ) where\n  /-- The basis of M. -/\n  bM : Basis ι R M\n  /-- The basis of N. -/\n  bN : Basis (Fin n) R N\n  /-- The mapping between the vectors of the bases. -/\n  f : Fin n ↪ ι\n  /-- The (diagonal) entries of the matrix. -/\n  a : Fin n → R\n  /-- The SNF relation between the vectors of the bases. -/\n  snf : ∀ i, (bN i : M) = a i • bM (f i)",
+   "--src: Mathlib.RingTheory.WittVector.Isocrystal\n/-- An isomorphism between isocrystals respects the Frobenius map. -/\n-- Porting note (https://github.com/leanprover-community/mathlib4/issues/5171): this linter isn't ported yet. @[nolint has_nonempty_instance]\nstructure IsocrystalEquiv extends V ≃ₗ[K(p, k)] V₂ where\n  frob_equivariant : ∀ x : V, Φ(p, k) (toLinearEquiv x) = toLinearEquiv (Φ(p, k) x)",
+   "--src: Mathlib.LinearAlgebra.Coevaluation\ntheorem coevaluation_apply_one :\n    (coevaluation K V) (1 : K) =\n      let bV := Basis.ofVectorSpace K V\n      ∑ i : Basis.ofVectorSpaceIndex K V, bV i ⊗ₜ[K] bV.coord i := by\n  simp only [coevaluation, id]\n  rw [(Basis.singleton Unit K).constr_apply_fintype K]\n  simp only [Fintype.univ_punit, Finset.sum_const, one_smul, Basis.singleton_repr,\n    Basis.equivFun_apply, Basis.coe_ofVectorSpace, one_nsmul, Finset.card_singleton]",
+   "--src: Mathlib.Data.Vector3\n@[simp]\ntheorem recOn_nil {C H0 Hs} : @Vector3.recOn α (@C) 0 [] H0 @Hs = H0 :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\n@[simp] theorem rTensor_trans_congr (f : M ≃ₗ[R] P) (g : N ≃ₗ[R] Q) (f' : S ≃ₗ[R] M) :\n    f'.rTensor _ ≪≫ₗ TensorProduct.congr f g = TensorProduct.congr (f' ≪≫ₗ f) g :=\n  toLinearMap_injective <| LinearMap.map_comp_rTensor M _ _ _"],
+  "id":
+  {"name": "complexLorentzTensor.eval_basisVector",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The `eval` node acting on basis vectors corresponds to a basis vector. -/\nlemma eval_basisVector {n : ℕ} {c : Fin n.succ → complexLorentzTensor.C}\n    {i : Fin n.succ} (j : Fin (complexLorentzTensor.repDim (c i)))\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (eval i j (tensorNode (basisVector c b))).tensor = (if j = b i then (1 : ℂ) else 0) •\n    basisVector (c ∘ Fin.succAbove i) (fun k => b (i.succAbove k)) := by\n  rw [eval_tensor, basisVector, basisVector]\n  simp only [Nat.succ_eq_add_one, Functor.id_obj, OverColor.mk_hom, tensorNode_tensor,\n    Function.comp_apply, one_smul, _root_.zero_smul]\n  erw [TensorSpecies.evalMap_tprod]\n  congr 1\n  have h1 : Fin.ofNat' _ ↑j = j := by\n    simp [Fin.ext_iff]\n  rw [Basis.repr_self, Finsupp.single_apply, h1]\n  exact ite_congr (Eq.propIntro (fun a => id (Eq.symm a)) fun a => id (Eq.symm a))\n    (congrFun rfl) (congrFun rfl)\n\n",
+   "compilationAlias":
+   "/-- The `eval` node acting on basis vectors corresponds to a basis vector. -/\nlemma eval_basisVector {n : ℕ} {c : Fin n.succ → complexLorentzTensor.C}\n    {i : Fin n.succ} (j : Fin (complexLorentzTensor.repDim (c i)))\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (eval i j (tensorNode (basisVector c b))).tensor = (if j = b i then (1 : ℂ) else 0) •\n    basisVector (c ∘ Fin.succAbove i) (fun k => b (i.succAbove k)) := by\n  rw [eval_tensor, basisVector, basisVector]\n  simp only [Nat.succ_eq_add_one, Functor.id_obj, OverColor.mk_hom, tensorNode_tensor,\n    Function.comp_apply, one_smul, _root_.zero_smul]\n  erw [TensorSpecies.evalMap_tprod]\n  congr 1\n  have h1 : Fin.ofNat' _ ↑j = j := by\n    simp [Fin.ext_iff]\n  rw [Basis.repr_self, Finsupp.single_apply, h1]\n  exact ite_congr (Eq.propIntro (fun a => id (Eq.symm a)) fun a => id (Eq.symm a))\n    (congrFun rfl) (congrFun rfl)\n\n"},
+  "goal": "n : Nat\na b : Fin n\n⊢ Eq (Eq a b) (Eq ↑a ↑b)",
+  "content_sorry":
+  "/-- The `eval` node acting on basis vectors corresponds to a basis vector. -/\nlemma eval_basisVector {n : ℕ} {c : Fin n.succ → complexLorentzTensor.C}\n    {i : Fin n.succ} (j : Fin (complexLorentzTensor.repDim (c i)))\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (eval i j (tensorNode (basisVector c b))).tensor = (if j = b i then (1 : ℂ) else 0) •\n    basisVector (c ∘ Fin.succAbove i) (fun k => b (i.succAbove k)) := by\n  sorry",
+  "annotation":
+  "/-- The `eval` node acting on basis vectors corresponds to a basis vector. -/\nlemma eval_basisVector {n : ℕ} {c : Fin n.succ → complexLorentzTensor.C}\n    {i : Fin n.succ} (j : Fin (complexLorentzTensor.repDim (c i)))\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (eval i j (tensorNode (basisVector c b))).tensor = (if j = b i then (1 : ℂ) else 0) •\n    basisVector (c ∘ Fin.succAbove i) (fun k => b (i.succAbove k)) := by\n  /-\n    n : Nat\n    c : Fin n.succ → complexLorentzTensor.C\n    i : Fin n.succ\n    j : Fin (complexLorentzTensor.repDim (c i))\n    b : (k : Fin n.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (TensorTree.eval i (↑j) (TensorTree.tensorNode (complexLorentzTensor.basi …\n  -/\n  rw [eval_tensor, basisVector, basisVector]\n  simp only [Nat.succ_eq_add_one, Functor.id_obj, OverColor.mk_hom, tensorNode_tensor,\n    Function.comp_apply, one_smul, _root_.zero_smul]\n  /-\n    n : Nat\n    c : Fin n.succ → complexLorentzTensor.C\n    i : Fin n.succ\n    j : Fin (complexLorentzTensor.repDim (c i))\n    b : (k : Fin n.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.evalMap i (Fi …\n  -/\n  erw [TensorSpecies.evalMap_tprod]\n  /-\n    n : Nat\n    c : Fin n.succ → complexLorentzTensor.C\n    i : Fin n.succ\n    j : Fin (complexLorentzTensor.repDim (c i))\n    b : (k : Fin n.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (HSMul.hSMul (((complexLorentzTensor.basis (c i)).repr ((complexLorentzTe …\n  -/\n  congr 1\n  have h1 : Fin.ofNat' _ ↑j = j := by\n    simp [Fin.ext_iff]\n  /-\n    case e_a\n    n : Nat\n    c : Fin n.succ → complexLorentzTensor.C\n    i : Fin n.succ\n    j : Fin (complexLorentzTensor.repDim (c i))\n    b : (k : Fin n.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h1 : Eq (Fin.ofNat' (complexLorentzTensor.repDim (c i)) ↑j) j\n    ⊢ Eq (((complexLorentzTensor.basis (c i)).repr ((complexLorentzTensor.basis (c …\n  -/\n  rw [Basis.repr_self, Finsupp.single_apply, h1]\n  exact ite_congr (Eq.propIntro (fun a => id (Eq.symm a)) fun a => id (Eq.symm a))\n    (congrFun rfl) (congrFun rfl)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "congrFun",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Congruence in the function part of an application: If `f = g` then `f a = g a`. -/\ntheorem congrFun {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x} (h : Eq f g) (a : α) : Eq (f a) (g a) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/-- Congruence in the function part of an application: If `f = g` then `f a = g a`. -/\ntheorem congrFun {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x} (h : Eq f g) (a : α) : Eq (f a) (g a) :=\n  h ▸ rfl"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "congrFun",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Congruence in the function part of an application: If `f = g` then `f a = g a`. -/\ntheorem congrFun {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x} (h : Eq f g) (a : α) : Eq (f a) (g a) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/-- Congruence in the function part of an application: If `f = g` then `f a = g a`. -/\ntheorem congrFun {α : Sort u} {β : α → Sort v} {f g : (x : α) → β x} (h : Eq f g) (a : α) : Eq (f a) (g a) :=\n  h ▸ rfl"},
+   {"name": "Eq.symm",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nEquality is symmetric: if `a = b` then `b = a`.\n\nBecause this is in the `Eq` namespace, if you have a variable `h : a = b`,\n`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nEquality is symmetric: if `a = b` then `b = a`.\n\nBecause this is in the `Eq` namespace, if you have a variable `h : a = b`,\n`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=\n  h ▸ rfl"},
+   {"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"},
+   {"name": "Eq.symm",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nEquality is symmetric: if `a = b` then `b = a`.\n\nBecause this is in the `Eq` namespace, if you have a variable `h : a = b`,\n`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nEquality is symmetric: if `a = b` then `b = a`.\n\nBecause this is in the `Eq` namespace, if you have a variable `h : a = b`,\n`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=\n  h ▸ rfl"},
+   {"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"},
+   {"name": "Eq.propIntro",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Eq.propIntro {a b : Prop} (h₁ : a → b) (h₂ : b → a) : a = b :=\n  propext <| Iff.intro h₁ h₂",
+    "compilationAlias":
+    "theorem Eq.propIntro {a b : Prop} (h₁ : a → b) (h₂ : b → a) : a = b :=\n  propext <| Iff.intro h₁ h₂"},
+   {"name": "ite_congr",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[congr]\ntheorem ite_congr {x y u v : α} {s : Decidable b} [Decidable c]\n    (h₁ : b = c) (h₂ : c → x = u) (h₃ : ¬ c → y = v) : ite b x y = ite c u v := by\n  cases Decidable.em c with\n  | inl h => rw [if_pos h]; subst b; rw [if_pos h]; exact h₂ h\n  | inr h => rw [if_neg h]; subst b; rw [if_neg h]; exact h₃ h",
+    "compilationAlias":
+    "@[congr]\ntheorem ite_congr {x y u v : α} {s : Decidable b} [Decidable c]\n    (h₁ : b = c) (h₂ : c → x = u) (h₃ : ¬ c → y = v) : ite b x y = ite c u v := by\n  cases Decidable.em c with\n  | inl h => rw [if_pos h]; subst b; rw [if_pos h]; exact h₂ h\n  | inr h => rw [if_neg h]; subst b; rw [if_neg h]; exact h₃ h"},
+   {"name": "Finsupp.single_apply",
+    "module": "Mathlib.Data.Finsupp.Single",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem single_apply [Decidable (a = a')] : single a b a' = if a = a' then b else 0 := by\n  classical\n  simp_rw [@eq_comm _ a a']\n  convert Pi.single_apply a b a'",
+    "compilationAlias":
+    "theorem single_apply [Decidable (a = a')] : single a b a' = if a = a' then b else 0 := by\n  classical\n  simp_rw [@eq_comm _ a a']\n  convert Pi.single_apply a b a'"},
+   {"name": "Basis.repr_self",
+    "module": "Mathlib.LinearAlgebra.Basis.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem repr_self : b.repr (b i) = Finsupp.single i 1 :=\n  LinearEquiv.apply_symm_apply _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem repr_self : b.repr (b i) = Finsupp.single i 1 :=\n  LinearEquiv.apply_symm_apply _ _"},
+   {"name": "Fin.ext_iff",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "",
+    "compilationAlias": ""},
+   {"name": "Fin.ofNat'",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nReturns `a` modulo `n` as a `Fin n`.\n\nThe assumption `NeZero n` ensures that `Fin n` is nonempty.\n-/\nprotected def ofNat' (n : Nat) [NeZero n] (a : Nat) : Fin n :=\n  ⟨a % n, Nat.mod_lt _ (pos_of_neZero n)⟩",
+    "compilationAlias":
+    "/--\nReturns `a` modulo `n` as a `Fin n`.\n\nThe assumption `NeZero n` ensures that `Fin n` is nonempty.\n-/\nprotected def ofNat' (n : Nat) [NeZero n] (a : Nat) : Fin n :=\n  ⟨a % n, Nat.mod_lt _ (pos_of_neZero n)⟩"},
+   {"name": "TensorSpecies.evalMap_tprod",
+    "module": "HepLean.Tensors.TensorSpecies.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma evalMap_tprod {n : ℕ} {c : Fin n.succ → S.C} (i : Fin n.succ) (e : Fin (S.repDim (c i)))\n    (x : (i : Fin n.succ) → S.FD.obj (Discrete.mk (c i))) :\n    (S.evalMap i e) (PiTensorProduct.tprod S.k x) =\n    (((S.basis (c i)).repr (x i) e) : S.k) •\n    (PiTensorProduct.tprod S.k\n    (fun k => x (i.succAbove k)) : S.F.obj (OverColor.mk (c ∘ i.succAbove))) := by\n  rw [evalMap]\n  simp only [Nat.succ_eq_add_one, Action.instMonoidalCategory_tensorObj_V, Action.forget_obj,\n    Functor.Monoidal.μIso_inv, Functor.CoreMonoidal.toMonoidal_toOplaxMonoidal, Action.forget_δ,\n    mk_left, Functor.id_obj, mk_hom, Function.comp_apply, Category.id_comp, ModuleCat.hom_comp]\n  simp_rw [LinearMap.comp_apply]\n  erw [evalIso_tprod]\n  change ((TensorProduct.lid S.k ↑((lift.obj S.FD).obj (OverColor.mk (c ∘ i.succAbove))).V))\n    (((TensorProduct.map (S.evalLinearMap i e) LinearMap.id))\n    ((Functor.Monoidal.μIso (Action.forget (ModuleCat S.k) (MonCat.of S.G)) (S.FD.obj { as := c i })\n    ((lift.obj S.FD).obj (OverColor.mk (c ∘ i.succAbove)))).inv\n    (x i ⊗ₜ[S.k] (PiTensorProduct.tprod S.k) fun k => x (i.succAbove k)))) = _\n  simp only [Nat.succ_eq_add_one, Action.forget_obj, Action.instMonoidalCategory_tensorObj_V,\n    Functor.Monoidal.μIso_inv, Functor.CoreMonoidal.toMonoidal_toOplaxMonoidal, Action.forget_δ,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, mk_left, Functor.id_obj, mk_hom,\n    Function.comp_apply, ModuleCat.id_apply, TensorProduct.map_tmul, LinearMap.id_coe, id_eq,\n    TensorProduct.lid_tmul]\n  rfl",
+    "compilationAlias":
+    "lemma evalMap_tprod {n : ℕ} {c : Fin n.succ → S.C} (i : Fin n.succ) (e : Fin (S.repDim (c i)))\n    (x : (i : Fin n.succ) → S.FD.obj (Discrete.mk (c i))) :\n    (S.evalMap i e) (PiTensorProduct.tprod S.k x) =\n    (((S.basis (c i)).repr (x i) e) : S.k) •\n    (PiTensorProduct.tprod S.k\n    (fun k => x (i.succAbove k)) : S.F.obj (OverColor.mk (c ∘ i.succAbove))) := by\n  rw [evalMap]\n  simp only [Nat.succ_eq_add_one, Action.instMonoidalCategory_tensorObj_V, Action.forget_obj,\n    Functor.Monoidal.μIso_inv, Functor.CoreMonoidal.toMonoidal_toOplaxMonoidal, Action.forget_δ,\n    mk_left, Functor.id_obj, mk_hom, Function.comp_apply, Category.id_comp, ModuleCat.hom_comp]\n  simp_rw [LinearMap.comp_apply]\n  erw [evalIso_tprod]\n  change ((TensorProduct.lid S.k ↑((lift.obj S.FD).obj (OverColor.mk (c ∘ i.succAbove))).V))\n    (((TensorProduct.map (S.evalLinearMap i e) LinearMap.id))\n    ((Functor.Monoidal.μIso (Action.forget (ModuleCat S.k) (MonCat.of S.G)) (S.FD.obj { as := c i })\n    ((lift.obj S.FD).obj (OverColor.mk (c ∘ i.succAbove)))).inv\n    (x i ⊗ₜ[S.k] (PiTensorProduct.tprod S.k) fun k => x (i.succAbove k)))) = _\n  simp only [Nat.succ_eq_add_one, Action.forget_obj, Action.instMonoidalCategory_tensorObj_V,\n    Functor.Monoidal.μIso_inv, Functor.CoreMonoidal.toMonoidal_toOplaxMonoidal, Action.forget_δ,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, mk_left, Functor.id_obj, mk_hom,\n    Function.comp_apply, ModuleCat.id_apply, TensorProduct.map_tmul, LinearMap.id_coe, id_eq,\n    TensorProduct.lid_tmul]\n  rfl"},
+   {"name": "one_smul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\nlemma one_smul (b : α) : (1 : M) • b = b := MulAction.one_smul _",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\nlemma one_smul (b : α) : (1 : M) • b = b := MulAction.one_smul _"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.PiTensorProduct\ntheorem map_comp_reindex_symm (f : Π i, s i →ₗ[R] t i) (e : ι ≃ ι₂) :\n    map f ∘ₗ (reindex R s e).symm = (reindex R t e).symm ∘ₗ map (fun i => f (e.symm i)) := by\n  ext m\n  apply LinearEquiv.injective (reindex R t e)\n  simp only [LinearMap.compMultilinearMap_apply, LinearMap.coe_comp, LinearEquiv.coe_coe,\n    comp_apply, ← map_reindex, LinearEquiv.apply_symm_apply, map_tprod]",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.AffineEquiv\n/-- An affine equivalence, denoted `P₁ ≃ᵃ[k] P₂`, is an equivalence between affine spaces\nsuch that both forward and inverse maps are affine.\nWe define it using an `Equiv` for the map and a `LinearEquiv` for the linear part in order\nto allow affine equivalences with good definitional equalities. -/\n-- Porting note (https://github.com/leanprover-community/mathlib4/issues/5171): this linter isn't ported yet.\n-- @[nolint has_nonempty_instance]\nstructure AffineEquiv (k P₁ P₂ : Type*) {V₁ V₂ : Type*} [Ring k] [AddCommGroup V₁] [Module k V₁]\n  [AddTorsor V₁ P₁] [AddCommGroup V₂] [Module k V₂] [AddTorsor V₂ P₂] extends P₁ ≃ P₂ where\n  linear : V₁ ≃ₗ[k] V₂\n  map_vadd' : ∀ (p : P₁) (v : V₁), toEquiv (v +ᵥ p) = linear v +ᵥ toEquiv p",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a polynomial time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInPolyTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a polynomial time function -/\n  time : Polynomial ℕ\n  /-- proof that this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time.eval (ea.encode a).length)",
+   "--src: Mathlib.Algebra.Group.Equiv.Basic\n@[to_additive (attr := simp)]\ntheorem piCongrRight_trans {η : Type*} {Ms Ns Ps : η → Type*} [∀ j, Mul (Ms j)]\n    [∀ j, Mul (Ns j)] [∀ j, Mul (Ps j)] (es : ∀ j, Ms j ≃* Ns j) (fs : ∀ j, Ns j ≃* Ps j) :\n    (piCongrRight es).trans (piCongrRight fs) = piCongrRight fun i => (es i).trans (fs i) := rfl",
+   "--src: Mathlib.Analysis.InnerProductSpace.PiL2\n/-- Exhibit a bijection between `Fin n` and the index set of a certain basis of an `n`-dimensional\ninner product space `E`.  This should not be accessed directly, but only via the subsequent API. -/\nirreducible_def DirectSum.IsInternal.sigmaOrthonormalBasisIndexEquiv\n    (hV' : OrthogonalFamily \u0000\u0000 (fun i => V i) fun i => (V i).subtypeₗᵢ) :\n    (Σi, Fin (finrank \u0000\u0000 (V i))) ≃ Fin n :=\n  let b := hV.collectedOrthonormalBasis hV' fun i => stdOrthonormalBasis \u0000\u0000 (V i)\n  Fintype.equivFinOfCardEq <| (Module.finrank_eq_card_basis b.toBasis).symm.trans hn",
+   "--src: Mathlib.Data.Fin.FlagRange\n@[simp] theorem Flag.mem_rangeFin {x h0 hlast hcovBy} :\n    x ∈ rangeFin f h0 hlast hcovBy ↔ ∃ k, f k = x :=\n  Iff.rfl",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- A `Simplex k P n` is a collection of `n + 1` affinely\nindependent points. -/\nstructure Simplex (n : ℕ) where\n  points : Fin (n + 1) → P\n  independent : AffineIndependent k points",
+   "--src: Mathlib.Topology.CWComplex\n/-- A CW-complex is a relative CW-complex whose `sk 0` (i.e., $(-1)$-skeleton) is empty. -/\nstructure CWComplex extends RelativeCWComplex.{u} where\n  /-- `sk 0` (i.e., the $(-1)$-skeleton) is empty. -/\n  isEmpty_sk_zero : IsEmpty (sk 0)",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The space of constant maps is equivalent to the space of maps that are multilinear with respect\nto an empty family. -/\n@[simps]\ndef constLinearEquivOfIsEmpty [IsEmpty ι] : M₂ ≃ₗ[S] MultilinearMap R M₁ M₂ where\n  toFun := MultilinearMap.constOfIsEmpty R _\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := f 0\n  left_inv _ := rfl\n  right_inv f := ext fun _ => MultilinearMap.congr_arg f <| Subsingleton.elim _ _",
+   "--src: Mathlib.Data.List.Basic\ntheorem get?_succ_scanl {i : ℕ} : (scanl f b l).get? (i + 1) =\n    ((scanl f b l).get? i).bind fun x => (l.get? i).map fun y => f x y := by\n  induction' l with hd tl hl generalizing b i\n  · symm\n    simp only [Option.bind_eq_none', get?, forall₂_true_iff, not_false_iff, Option.map_none',\n      scanl_nil, Option.not_mem_none, forall_true_iff]\n  · simp only [scanl_cons, singleton_append]\n    cases i\n    · simp\n    · simp only [hl, get?]"],
+  "id":
+  {"name": "complexLorentzTensor.prod_basisVector_tree",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The prod node acting on a basis vectors is a basis vector, as a tensor tree structure. -/\nlemma prod_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    (tensorNode (basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))))).tensor := by\n  exact prod_basisVector _ _\n\n",
+   "compilationAlias":
+   "/-- The prod node acting on a basis vectors is a basis vector, as a tensor tree structure. -/\nlemma prod_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    (tensorNode (basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))))).tensor := by\n  exact prod_basisVector _ _\n\n"},
+  "goal":
+  "n m : Nat\nc : Fin n → complexLorentzTensor.C\nc1 : Fin m → complexLorentzTensor.C\nb : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\nb1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n⊢ Eq ((TensorTree.tensorNode (complexLorentzTensor.basisVector c b)).prod (TensorTree.tensorNode (complexLorentzTensor.basisVector c1 b1))).tensor (TensorTree.tensorNode (complexLorentzTensor.basisVector (Function.comp (Sum.elim c c1) ⇑finSumFinEquiv.symm) fun i => (complexLorentzTensor.prodBasisVecEquiv (finSumFinEquiv.symm i)) (HepLean.PiTensorProduct.elimPureTensor b b1 (finSumFinEquiv.symm i)))).tensor",
+  "content_sorry":
+  "/-- The prod node acting on a basis vectors is a basis vector, as a tensor tree structure. -/\nlemma prod_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    (tensorNode (basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))))).tensor := by\n  sorry",
+  "annotation":
+  "/-- The prod node acting on a basis vectors is a basis vector, as a tensor tree structure. -/\nlemma prod_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    (tensorNode (basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))))).tensor := by\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    ⊢ Eq ((TensorTree.tensorNode (complexLorentzTensor.basisVector c b)).prod (Ten …\n  -/\n  exact prod_basisVector _ _\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "HepLean.PiTensorProduct.elimPureTensor",
+    "module": "HepLean.Mathematics.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x",
+    "compilationAlias":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x"},
+   {"name": "Sum.elim",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g",
+    "compilationAlias":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.AffineSpace.AffineEquiv\n/-- An affine equivalence, denoted `P₁ ≃ᵃ[k] P₂`, is an equivalence between affine spaces\nsuch that both forward and inverse maps are affine.\nWe define it using an `Equiv` for the map and a `LinearEquiv` for the linear part in order\nto allow affine equivalences with good definitional equalities. -/\n-- Porting note (https://github.com/leanprover-community/mathlib4/issues/5171): this linter isn't ported yet.\n-- @[nolint has_nonempty_instance]\nstructure AffineEquiv (k P₁ P₂ : Type*) {V₁ V₂ : Type*} [Ring k] [AddCommGroup V₁] [Module k V₁]\n  [AddTorsor V₁ P₁] [AddCommGroup V₂] [Module k V₂] [AddTorsor V₂ P₂] extends P₁ ≃ P₂ where\n  linear : V₁ ≃ₗ[k] V₂\n  map_vadd' : ∀ (p : P₁) (v : V₁), toEquiv (v +ᵥ p) = linear v +ᵥ toEquiv p",
+   "--src: Mathlib.Algebra.Group.Equiv.Basic\n@[to_additive (attr := simp)]\ntheorem piCongrRight_trans {η : Type*} {Ms Ns Ps : η → Type*} [∀ j, Mul (Ms j)]\n    [∀ j, Mul (Ns j)] [∀ j, Mul (Ps j)] (es : ∀ j, Ms j ≃* Ns j) (fs : ∀ j, Ns j ≃* Ps j) :\n    (piCongrRight es).trans (piCongrRight fs) = piCongrRight fun i => (es i).trans (fs i) := rfl",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- A `Simplex k P n` is a collection of `n + 1` affinely\nindependent points. -/\nstructure Simplex (n : ℕ) where\n  points : Fin (n + 1) → P\n  independent : AffineIndependent k points",
+   "--src: Mathlib.Analysis.InnerProductSpace.PiL2\n/-- Exhibit a bijection between `Fin n` and the index set of a certain basis of an `n`-dimensional\ninner product space `E`.  This should not be accessed directly, but only via the subsequent API. -/\nirreducible_def DirectSum.IsInternal.sigmaOrthonormalBasisIndexEquiv\n    (hV' : OrthogonalFamily \u0000\u0000 (fun i => V i) fun i => (V i).subtypeₗᵢ) :\n    (Σi, Fin (finrank \u0000\u0000 (V i))) ≃ Fin n :=\n  let b := hV.collectedOrthonormalBasis hV' fun i => stdOrthonormalBasis \u0000\u0000 (V i)\n  Fintype.equivFinOfCardEq <| (Module.finrank_eq_card_basis b.toBasis).symm.trans hn",
+   "--src: Mathlib.Data.List.Basic\ntheorem get?_succ_scanl {i : ℕ} : (scanl f b l).get? (i + 1) =\n    ((scanl f b l).get? i).bind fun x => (l.get? i).map fun y => f x y := by\n  induction' l with hd tl hl generalizing b i\n  · symm\n    simp only [Option.bind_eq_none', get?, forall₂_true_iff, not_false_iff, Option.map_none',\n      scanl_nil, Option.not_mem_none, forall_true_iff]\n  · simp only [scanl_cons, singleton_append]\n    cases i\n    · simp\n    · simp only [hl, get?]",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\ntheorem map_reindex_symm (f : Π i, s i →ₗ[R] t i) (e : ι ≃ ι₂) (x : ⨂[R] i, s (e.symm i)) :\n    map f ((reindex R s e).symm x) = (reindex R t e).symm (map (fun i ↦ f (e.symm i)) x) :=\n  DFunLike.congr_fun (map_comp_reindex_symm _ _) _",
+   "--src: Mathlib.RingTheory.Localization.FractionRing\nvariable (A B) in\n@[simp]\nlemma fieldEquivOfAlgEquiv_refl :\n    fieldEquivOfAlgEquiv FA FB FB (AlgEquiv.refl : B ≃ₐ[A] B) = AlgEquiv.refl := by\n  ext x\n  obtain ⟨x, y, -, rfl⟩ := IsFractionRing.div_surjective (A := B) x\n  simp",
+   "--src: Mathlib.Data.Fin.FlagRange\n@[simp] theorem Flag.mem_rangeFin {x h0 hlast hcovBy} :\n    x ∈ rangeFin f h0 hlast hcovBy ↔ ∃ k, f k = x :=\n  Iff.rfl",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\n@[simp] theorem lTensor_trans_congr (f : M ≃ₗ[R] P) (g : N ≃ₗ[R] Q) (g' : S ≃ₗ[R] N) :\n    g'.lTensor _ ≪≫ₗ TensorProduct.congr f g = TensorProduct.congr f (g' ≪≫ₗ g) :=\n  toLinearMap_injective <| LinearMap.map_comp_lTensor M _ _ _"],
+  "id":
+  {"name": "complexLorentzTensor.prod_basisVector",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The `prod` node acting on basis vectors corresponds to a basis vector. -/\nlemma prod_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))) := by\n  rw [prod_tensor, basisVector, basisVector]\n  simp only [TensorSpecies.F_def, Functor.id_obj, OverColor.mk_hom,\n    Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    tensorNode_tensor]\n  have h1 := OverColor.lift.μ_tmul_tprod_mk complexLorentzTensor.FD\n    (fun i => (complexLorentzTensor.basis (c i)) (b i))\n    (fun i => (complexLorentzTensor.basis (c1 i)) (b1 i))\n  erw [h1, OverColor.lift.map_tprod]\n  apply congrArg\n  funext i\n  obtain ⟨k, hk⟩ := finSumFinEquiv.surjective i\n  subst hk\n  simp only [Functor.id_obj, OverColor.mk_hom, Function.comp_apply,\n    OverColor.lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom,\n    Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n  erw [← (Equiv.apply_eq_iff_eq_symm_apply finSumFinEquiv).mp rfl]\n  match k with\n  | Sum.inl k => rfl\n  | Sum.inr k => rfl\n\n",
+   "compilationAlias":
+   "/-- The `prod` node acting on basis vectors corresponds to a basis vector. -/\nlemma prod_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))) := by\n  rw [prod_tensor, basisVector, basisVector]\n  simp only [TensorSpecies.F_def, Functor.id_obj, OverColor.mk_hom,\n    Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    tensorNode_tensor]\n  have h1 := OverColor.lift.μ_tmul_tprod_mk complexLorentzTensor.FD\n    (fun i => (complexLorentzTensor.basis (c i)) (b i))\n    (fun i => (complexLorentzTensor.basis (c1 i)) (b1 i))\n  erw [h1, OverColor.lift.map_tprod]\n  apply congrArg\n  funext i\n  obtain ⟨k, hk⟩ := finSumFinEquiv.surjective i\n  subst hk\n  simp only [Functor.id_obj, OverColor.mk_hom, Function.comp_apply,\n    OverColor.lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom,\n    Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n  erw [← (Equiv.apply_eq_iff_eq_symm_apply finSumFinEquiv).mp rfl]\n  match k with\n  | Sum.inl k => rfl\n  | Sum.inr k => rfl\n\n"},
+  "goal":
+  "n m : Nat\nmotive : Sum (Fin n) (Fin m) → Prop\nk✝ : Sum (Fin n) (Fin m)\nh_1 : ∀ (k : Fin n), motive (Sum.inl k)\nh_2 : ∀ (k : Fin m), motive (Sum.inr k)\n⊢ motive k✝",
+  "content_sorry":
+  "/-- The `prod` node acting on basis vectors corresponds to a basis vector. -/\nlemma prod_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))) := by\n  sorry",
+  "annotation":
+  "/-- The `prod` node acting on basis vectors corresponds to a basis vector. -/\nlemma prod_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (b1 : Π k, Fin (complexLorentzTensor.repDim (c1 k))) :\n    (prod (tensorNode (basisVector c b)) (tensorNode (basisVector c1 b1))).tensor =\n    basisVector (Sum.elim c c1 ∘ finSumFinEquiv.symm) (fun i =>\n    prodBasisVecEquiv (finSumFinEquiv.symm i)\n    ((HepLean.PiTensorProduct.elimPureTensor b b1) (finSumFinEquiv.symm i))) := by\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    ⊢ Eq ((TensorTree.tensorNode (complexLorentzTensor.basisVector c b)).prod (Ten …\n  -/\n  rw [prod_tensor, basisVector, basisVector]\n  simp only [TensorSpecies.F_def, Functor.id_obj, OverColor.mk_hom,\n    Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    tensorNode_tensor]\n  have h1 := OverColor.lift.μ_tmul_tprod_mk complexLorentzTensor.FD\n    (fun i => (complexLorentzTensor.basis (c i)) (b i))\n    (fun i => (complexLorentzTensor.basis (c1 i)) (b1 i))\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    h1 : Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.lift.μ  …\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj  …\n  -/\n  erw [h1, OverColor.lift.map_tprod]\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    h1 : Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.lift.μ  …\n    ⊢ Eq ((PiTensorProduct.tprod complexLorentzTensor.k) fun i => (IndexNotation.O …\n  -/\n  apply congrArg\n  /-\n    case h\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    h1 : Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.lift.μ  …\n    ⊢ Eq (fun i => (IndexNotation.OverColor.lift.discreteFunctorMapEqIso complexLo …\n  -/\n  funext i\n  /-\n    case h.h\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    h1 : Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.lift.μ  …\n    i : (IndexNotation.OverColor.mk (Function.comp (Sum.elim c c1) ⇑finSumFinEquiv …\n    ⊢ Eq ((IndexNotation.OverColor.lift.discreteFunctorMapEqIso complexLorentzTens …\n  -/\n  obtain ⟨k, hk⟩ := finSumFinEquiv.surjective i\n  /-\n    case h.h.intro\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    h1 : Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.lift.μ  …\n    i : (IndexNotation.OverColor.mk (Function.comp (Sum.elim c c1) ⇑finSumFinEquiv …\n    k : Sum (Fin n) (Fin m)\n    hk : Eq (finSumFinEquiv k) i\n    ⊢ Eq ((IndexNotation.OverColor.lift.discreteFunctorMapEqIso complexLorentzTens …\n  -/\n  subst hk\n  simp only [Functor.id_obj, OverColor.mk_hom, Function.comp_apply,\n    OverColor.lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom,\n    Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n  /-\n    case h.h.intro\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    b : (k : Fin n) → Fin (complexLorentzTensor.repDim (c k))\n    b1 : (k : Fin m) → Fin (complexLorentzTensor.repDim (c1 k))\n    h1 : Eq ((CategoryTheory.ConcreteCategory.hom (IndexNotation.OverColor.lift.μ  …\n    k : Sum (Fin n) (Fin m)\n    ⊢ Eq ((ModuleCat.Hom.hom (CategoryTheory.CategoryStruct.id (complexLorentzTens …\n  -/\n  erw [← (Equiv.apply_eq_iff_eq_symm_apply finSumFinEquiv).mp rfl]\n  match k with\n  | Sum.inl k => rfl\n  | Sum.inr k => rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "Equiv.apply_eq_iff_eq_symm_apply",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem apply_eq_iff_eq_symm_apply {x : α} {y : β} (f : α ≃ β) : f x = y ↔ x = f.symm y := by\n  conv_lhs => rw [← apply_symm_apply f y]\n  rw [apply_eq_iff_eq]",
+    "compilationAlias":
+    "theorem apply_eq_iff_eq_symm_apply {x : α} {y : β} (f : α ≃ β) : f x = y ↔ x = f.symm y := by\n  conv_lhs => rw [← apply_symm_apply f y]\n  rw [apply_eq_iff_eq]"},
+   {"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "TensorSpecies.F_def",
+    "module": "HepLean.Tensors.TensorSpecies.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma F_def : F S = ((OverColor.lift).obj S.FD).toFunctor := rfl",
+    "compilationAlias":
+    "lemma F_def : F S = ((OverColor.lift).obj S.FD).toFunctor := rfl"},
+   {"name": "HepLean.PiTensorProduct.elimPureTensor",
+    "module": "HepLean.Mathematics.PiTensorProduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x",
+    "compilationAlias":
+    "/-- Produces a map `(i : ι1 ⊕ ι2) → Sum.elim s1 s2 i` from a map `(i : ι1) → s1 i` and a\n  map `q : (i : ι2) → s2 i`. -/\ndef elimPureTensor (p : (i : ι1) → s1 i) (q : (i : ι2) → s2 i) : (i : ι1 ⊕ ι2) → Sum.elim s1 s2 i :=\n  fun x =>\n    match x with\n    | Sum.inl x => p x\n    | Sum.inr x => q x"},
+   {"name": "Sum.elim",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g",
+    "compilationAlias":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g"}]},
+ {"rag":
+  ["--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.Data.Vector3\n@[simp]\ntheorem recOn_nil {C H0 Hs} : @Vector3.recOn α (@C) 0 [] H0 @Hs = H0 :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n@[simp]\ntheorem LinearMap.curry_uncurryLeft (f : M 0 →ₗ[R] MultilinearMap R (fun i :\n    Fin n => M i.succ) M₂) : f.uncurryLeft.curryLeft = f := by\n  ext m x\n  simp only [tail_cons, LinearMap.uncurryLeft_apply, MultilinearMap.curryLeft_apply]\n  rw [cons_zero]",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The augmented Čech nerve construction, as a functor from `Arrow C`. -/\n@[simps!]\ndef augmentedCechNerve : Arrow C ⥤ SimplicialObject.Augmented C where\n  obj f := f.augmentedCechNerve\n  map F := Arrow.mapAugmentedCechNerve F",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a time function -/\n  time : ℕ → ℕ\n  /-- proof this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time (ea.encode a).length)",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- A `Simplex k P n` is a collection of `n + 1` affinely\nindependent points. -/\nstructure Simplex (n : ℕ) where\n  points : Fin (n + 1) → P\n  independent : AffineIndependent k points",
+   "--src: Mathlib.Data.Vector.Basic\n@[simp]\ntheorem inductionOn_nil {C : ∀ {n : ℕ}, Vector α n → Sort*}\n    (nil : C nil) (cons : ∀ {n : ℕ} {x : α} {w : Vector α n}, C w → C (x ::ᵥ w)) :\n    Vector.nil.inductionOn nil cons = nil :=\n  rfl",
+   "--src: Mathlib.Data.Vector.Basic\n/-- For an index `i : Fin n`, the nth element of `scanl` of a\nvector `v : Vector α n` at `i.succ`, is equal to the application\nfunction `f : β → α → β` of the `castSucc i` element of\n`scanl f b v` and `get v i`.\nThis lemma is the `get` version of `scanl_cons`.\n-/\n@[simp]\ntheorem scanl_get (i : Fin n) :\n    (scanl f b v).get i.succ = f ((scanl f b v).get (Fin.castSucc i)) (v.get i) := by\n  cases' n with n\n  · exact i.elim0\n  induction' n with n hn generalizing b\n  · have i0 : i = 0 := Fin.eq_zero _\n    simp [scanl_singleton, i0, get_zero]; simp [get_eq_get_toList, List.get]\n  · rw [← cons_head_tail v, scanl_cons, get_cons_succ]\n    refine Fin.cases ?_ ?_ i\n    · simp only [get_zero, scanl_head, Fin.castSucc_zero, head_cons]\n    · intro i'\n      simp only [hn, Fin.castSucc_fin_succ, get_cons_succ]",
+   "--src: Mathlib.Data.Vector.Basic\n/-- The recursive step of `scanl` splits a vector made up of a single element\n`x ::ᵥ nil : Vector α 1` into a `Vector` of the provided starting value `b : β`\nand the mapped `f b x : β` as the last value.\n-/\n@[simp]\ntheorem scanl_singleton (v : Vector α 1) : scanl f b v = b ::ᵥ f b v.head ::ᵥ nil := by\n  rw [← cons_head_tail v]\n  simp only [scanl_cons, scanl_nil, head_cons, singleton_tail]"],
+  "id":
+  {"name": "complexLorentzTensor.contr_basisVector_tree_neg",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma contr_basisVector_tree_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : ¬ (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (tensorNode 0).tensor := by\n  rw [contr_basisVector_tree, contrBasisVectorMul]\n  rw [if_neg hn]\n  simp only [Nat.succ_eq_add_one, smul_tensor, tensorNode_tensor, _root_.zero_smul]\n\n",
+   "compilationAlias":
+   "lemma contr_basisVector_tree_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : ¬ (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (tensorNode 0).tensor := by\n  rw [contr_basisVector_tree, contrBasisVectorMul]\n  rw [if_neg hn]\n  simp only [Nat.succ_eq_add_one, smul_tensor, tensorNode_tensor, _root_.zero_smul]\n\n"},
+  "goal":
+  "n : Nat\nc : Fin n.succ.succ → complexLorentzTensor.C\ni : Fin n.succ.succ\nj : Fin n.succ\nh : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\nb : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\nhn : autoParam (Not (Eq ↑(b i) ↑(b (i.succAbove j)))) _auto✝\n⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basisVector c b))).tensor (TensorTree.tensorNode 0).tensor",
+  "content_sorry":
+  "lemma contr_basisVector_tree_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : ¬ (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (tensorNode 0).tensor := by\n  sorry",
+  "annotation":
+  "lemma contr_basisVector_tree_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : ¬ (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (tensorNode 0).tensor := by\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    hn : autoParam (Not (Eq ↑(b i) ↑(b (i.succAbove j)))) _auto✝\n    ⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basi …\n  -/\n  rw [contr_basisVector_tree, contrBasisVectorMul]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    hn : autoParam (Not (Eq ↑(b i) ↑(b (i.succAbove j)))) _auto✝\n    ⊢ Eq (TensorTree.smul (ite (Eq ↑(b i) ↑(b (i.succAbove j))) 1 0) (TensorTree.t …\n  -/\n  rw [if_neg hn]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    hn : autoParam (Not (Eq ↑(b i) ↑(b (i.succAbove j)))) _auto✝\n    ⊢ Eq (TensorTree.smul 0 (TensorTree.tensorNode (complexLorentzTensor.basisVect …\n  -/\n  simp only [Nat.succ_eq_add_one, smul_tensor, tensorNode_tensor, _root_.zero_smul]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "if_neg",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem if_neg {c : Prop} {h : Decidable c} (hnc : ¬c) {α : Sort u} {t e : α} : (ite c t e) = e :=\n  match h with\n  | isTrue hc   => absurd hc hnc\n  | isFalse _   => rfl",
+    "compilationAlias":
+    "theorem if_neg {c : Prop} {h : Decidable c} (hnc : ¬c) {α : Sort u} {t e : α} : (ite c t e) = e :=\n  match h with\n  | isTrue hc   => absurd hc hnc\n  | isFalse _   => rfl"}]},
+ {"rag":
+  ["--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a time function -/\n  time : ℕ → ℕ\n  /-- proof this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time (ea.encode a).length)",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a polynomial time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInPolyTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a polynomial time function -/\n  time : Polynomial ℕ\n  /-- proof that this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time.eval (ea.encode a).length)",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a polynomial time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInPolyTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a polynomial time function -/\n  time : Polynomial ℕ\n  /-- proof that this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time.eval (ea.encode a).length)",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- A `Simplex k P n` is a collection of `n + 1` affinely\nindependent points. -/\nstructure Simplex (n : ℕ) where\n  points : Fin (n + 1) → P\n  independent : AffineIndependent k points",
+   "--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.Topology.CWComplex\n/-- A CW-complex is a relative CW-complex whose `sk 0` (i.e., $(-1)$-skeleton) is empty. -/\nstructure CWComplex extends RelativeCWComplex.{u} where\n  /-- `sk 0` (i.e., the $(-1)$-skeleton) is empty. -/\n  isEmpty_sk_zero : IsEmpty (sk 0)",
+   "--src: Mathlib.Data.List.Basic\nlemma find?_eq_head_dropWhile_not (h : ∃ x ∈ l, p x) :\n    l.find? p = some ((l.dropWhile (fun x ↦ ! (p x))).head (by simpa using h)) := by\n  rw [l.find?_eq_head?_dropWhile_not p, ← head_eq_iff_head?_eq_some]",
+   "--src: Mathlib.Data.Vector.Basic\n/-- For an index `i : Fin n`, the nth element of `scanl` of a\nvector `v : Vector α n` at `i.succ`, is equal to the application\nfunction `f : β → α → β` of the `castSucc i` element of\n`scanl f b v` and `get v i`.\nThis lemma is the `get` version of `scanl_cons`.\n-/\n@[simp]\ntheorem scanl_get (i : Fin n) :\n    (scanl f b v).get i.succ = f ((scanl f b v).get (Fin.castSucc i)) (v.get i) := by\n  cases' n with n\n  · exact i.elim0\n  induction' n with n hn generalizing b\n  · have i0 : i = 0 := Fin.eq_zero _\n    simp [scanl_singleton, i0, get_zero]; simp [get_eq_get_toList, List.get]\n  · rw [← cons_head_tail v, scanl_cons, get_cons_succ]\n    refine Fin.cases ?_ ?_ i\n    · simp only [get_zero, scanl_head, Fin.castSucc_zero, head_cons]\n    · intro i'\n      simp only [hn, Fin.castSucc_fin_succ, get_cons_succ]"],
+  "id":
+  {"name": "complexLorentzTensor.contr_basisVector_tree_pos",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma contr_basisVector_tree_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    ((tensorNode (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  rw [contr_basisVector_tree, contrBasisVectorMul]\n  rw [if_pos hn]\n  simp [smul_tensor]\n\n",
+   "compilationAlias":
+   "lemma contr_basisVector_tree_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    ((tensorNode (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  rw [contr_basisVector_tree, contrBasisVectorMul]\n  rw [if_pos hn]\n  simp [smul_tensor]\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry":
+  "lemma contr_basisVector_tree_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    ((tensorNode (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  sorry",
+  "annotation":
+  "lemma contr_basisVector_tree_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k)))\n    (hn : (b i).val = (b (i.succAbove j)).val := by decide) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    ((tensorNode (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    hn : autoParam (Eq ↑(b i) ↑(b (i.succAbove j))) _auto✝\n    ⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basi …\n  -/\n  rw [contr_basisVector_tree, contrBasisVectorMul]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    hn : autoParam (Eq ↑(b i) ↑(b (i.succAbove j))) _auto✝\n    ⊢ Eq (TensorTree.smul (ite (Eq ↑(b i) ↑(b (i.succAbove j))) 1 0) (TensorTree.t …\n  -/\n  rw [if_pos hn]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    hn : autoParam (Eq ↑(b i) ↑(b (i.succAbove j))) _auto✝\n    ⊢ Eq (TensorTree.smul 1 (TensorTree.tensorNode (complexLorentzTensor.basisVect …\n  -/\n  simp [smul_tensor]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "if_pos",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem if_pos {c : Prop} {h : Decidable c} (hc : c) {α : Sort u} {t e : α} : (ite c t e) = t :=\n  match h with\n  | isTrue  _   => rfl\n  | isFalse hnc => absurd hc hnc",
+    "compilationAlias":
+    "theorem if_pos {c : Prop} {h : Decidable c} (hc : c) {α : Sort u} {t e : α} : (ite c t e) = t :=\n  match h with\n  | isTrue  _   => rfl\n  | isFalse hnc => absurd hc hnc"},
+   {"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"},
+   {"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"}]},
+ {"rag":
+  ["--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n@[simp]\ntheorem LinearMap.curry_uncurryLeft (f : M 0 →ₗ[R] MultilinearMap R (fun i :\n    Fin n => M i.succ) M₂) : f.uncurryLeft.curryLeft = f := by\n  ext m x\n  simp only [tail_cons, LinearMap.uncurryLeft_apply, MultilinearMap.curryLeft_apply]\n  rw [cons_zero]",
+   "--src: Mathlib.Computability.Primrec\ntheorem vector_ofFn {n} {f : Fin n → α → σ} (hf : ∀ i, Primrec (f i)) :\n    Primrec fun a => List.Vector.ofFn fun i => f i a :=\n  vector_toList_iff.1 <| by simp [list_ofFn hf]",
+   "--src: Mathlib.Data.Vector3\n@[simp]\ntheorem recOn_nil {C H0 Hs} : @Vector3.recOn α (@C) 0 [] H0 @Hs = H0 :=\n  rfl",
+   "--src: Mathlib.Data.Vector.Basic\n@[simp]\ntheorem inductionOn_nil {C : ∀ {n : ℕ}, Vector α n → Sort*}\n    (nil : C nil) (cons : ∀ {n : ℕ} {x : α} {w : Vector α n}, C w → C (x ::ᵥ w)) :\n    Vector.nil.inductionOn nil cons = nil :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- If `f` is a collection of linear maps, then the construction `MultilinearMap.compLinearMap`\nsending a multilinear map `g` to `g (f₁ ⬝ , ..., fₙ ⬝ )` is linear in `g` and multilinear in\n`f₁, ..., fₙ`. -/\n@[simps] def compLinearMapMultilinear :\n  @MultilinearMap R ι (fun i ↦ M₁ i →ₗ[R] M₁' i)\n    ((MultilinearMap R M₁' M₂) →ₗ[R] MultilinearMap R M₁ M₂) _ _ _\n      (fun _ ↦ LinearMap.module) _ where\n  toFun := MultilinearMap.compLinearMapₗ\n  map_update_add' := by\n    intro _ f i f₁ f₂\n    ext g x\n    change (g fun j ↦ update f i (f₁ + f₂) j <| x j) =\n        (g fun j ↦ update f i f₁ j <|x j) + g fun j ↦ update f i f₂ j (x j)\n    let c : Π (i : ι), (M₁ i →ₗ[R] M₁' i) → M₁' i := fun i f ↦ f (x i)\n    convert g.map_update_add (fun j ↦ f j (x j)) i (f₁ (x i)) (f₂ (x i)) with j j j\n    · exact Function.apply_update c f i (f₁ + f₂) j\n    · exact Function.apply_update c f i f₁ j\n    · exact Function.apply_update c f i f₂ j\n  map_update_smul' := by\n    intro _ f i a f₀\n    ext g x\n    change (g fun j ↦ update f i (a • f₀) j <| x j) = a • g fun j ↦ update f i f₀ j (x j)\n    let c : Π (i : ι), (M₁ i →ₗ[R] M₁' i) → M₁' i := fun i f ↦ f (x i)\n    convert g.map_update_smul (fun j ↦ f j (x j)) i a (f₀ (x i)) with j j j\n    · exact Function.apply_update c f i (a • f₀) j\n    · exact Function.apply_update c f i f₀ j",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Graded.External\n@[simp]\ntheorem gradedCommAux_comp_gradedCommAux :\n    gradedCommAux R \u0000\u0000 ℬ ∘ₗ gradedCommAux R ℬ \u0000\u0000 = LinearMap.id := by\n  ext i a b\n  dsimp\n  rw [gradedCommAux_lof_tmul, LinearMap.map_smul_of_tower, gradedCommAux_lof_tmul, smul_smul,\n    mul_comm i.2 i.1, Int.units_mul_self, one_smul]",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The space of constant maps is equivalent to the space of maps that are multilinear with respect\nto an empty family. -/\n@[simps]\ndef constLinearEquivOfIsEmpty [IsEmpty ι] : M₂ ≃ₗ[S] MultilinearMap R M₁ M₂ where\n  toFun := MultilinearMap.constOfIsEmpty R _\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := f 0\n  left_inv _ := rfl\n  right_inv f := ext fun _ => MultilinearMap.congr_arg f <| Subsingleton.elim _ _",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\n@[simp] theorem lTensor_trans_congr (f : M ≃ₗ[R] P) (g : N ≃ₗ[R] Q) (g' : S ≃ₗ[R] N) :\n    g'.lTensor _ ≪≫ₗ TensorProduct.congr f g = TensorProduct.congr f (g' ≪≫ₗ g) :=\n  toLinearMap_injective <| LinearMap.map_comp_lTensor M _ _ _",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basis\n/-- Two multilinear maps indexed by `Fin n` are equal if they are equal when all arguments are\nbasis vectors. -/\ntheorem Basis.ext_multilinear_fin {f g : MultilinearMap R M M₂} {ι₁ : Fin n → Type*}\n    (e : ∀ i, Basis (ι₁ i) R (M i))\n    (h : ∀ v : ∀ i, ι₁ i, (f fun i => e i (v i)) = g fun i => e i (v i)) : f = g := by\n  induction' n with m hm\n  · ext x\n    convert h finZeroElim\n  · apply Function.LeftInverse.injective uncurry_curryLeft\n    refine Basis.ext (e 0) ?_\n    intro i\n    apply hm (Fin.tail e)\n    intro j\n    convert h (Fin.cons i j)\n    iterate 2\n      rw [curryLeft_apply]\n      congr 1 with x\n      refine Fin.cases rfl (fun x => ?_) x\n      dsimp [Fin.tail]\n      rw [Fin.cons_succ, Fin.cons_succ]"],
+  "id":
+  {"name": "complexLorentzTensor.contr_basisVector_tree",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma contr_basisVector_tree {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (smul (contrBasisVectorMul i j b) (tensorNode\n    (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  exact contr_basisVector _\n\n",
+   "compilationAlias":
+   "lemma contr_basisVector_tree {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (smul (contrBasisVectorMul i j b) (tensorNode\n    (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  exact contr_basisVector _\n\n"},
+  "goal":
+  "n : Nat\nc : Fin n.succ.succ → complexLorentzTensor.C\ni : Fin n.succ.succ\nj : Fin n.succ\nh : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\nb : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basisVector c b))).tensor (TensorTree.smul (complexLorentzTensor.contrBasisVectorMul i j b) (TensorTree.tensorNode (complexLorentzTensor.basisVector (Function.comp c (Function.comp i.succAbove j.succAbove)) fun k => b (i.succAbove (j.succAbove k))))).tensor",
+  "content_sorry":
+  "lemma contr_basisVector_tree {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (smul (contrBasisVectorMul i j b) (tensorNode\n    (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  sorry",
+  "annotation":
+  "lemma contr_basisVector_tree {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor =\n    (smul (contrBasisVectorMul i j b) (tensorNode\n    (basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k)))))).tensor := by\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basi …\n  -/\n  exact contr_basisVector _\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"},
+   {"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"}]},
+ {"rag":
+  ["--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n@[simp]\ntheorem LinearMap.curry_uncurryLeft (f : M 0 →ₗ[R] MultilinearMap R (fun i :\n    Fin n => M i.succ) M₂) : f.uncurryLeft.curryLeft = f := by\n  ext m x\n  simp only [tail_cons, LinearMap.uncurryLeft_apply, MultilinearMap.curryLeft_apply]\n  rw [cons_zero]",
+   "--src: Mathlib.Data.Vector3\n@[simp]\ntheorem recOn_nil {C H0 Hs} : @Vector3.recOn α (@C) 0 [] H0 @Hs = H0 :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basis\n/-- Two multilinear maps indexed by `Fin n` are equal if they are equal when all arguments are\nbasis vectors. -/\ntheorem Basis.ext_multilinear_fin {f g : MultilinearMap R M M₂} {ι₁ : Fin n → Type*}\n    (e : ∀ i, Basis (ι₁ i) R (M i))\n    (h : ∀ v : ∀ i, ι₁ i, (f fun i => e i (v i)) = g fun i => e i (v i)) : f = g := by\n  induction' n with m hm\n  · ext x\n    convert h finZeroElim\n  · apply Function.LeftInverse.injective uncurry_curryLeft\n    refine Basis.ext (e 0) ?_\n    intro i\n    apply hm (Fin.tail e)\n    intro j\n    convert h (Fin.cons i j)\n    iterate 2\n      rw [curryLeft_apply]\n      congr 1 with x\n      refine Fin.cases rfl (fun x => ?_) x\n      dsimp [Fin.tail]\n      rw [Fin.cons_succ, Fin.cons_succ]",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The space of constant maps is equivalent to the space of maps that are multilinear with respect\nto an empty family. -/\n@[simps]\ndef constLinearEquivOfIsEmpty [IsEmpty ι] : M₂ ≃ₗ[S] MultilinearMap R M₁ M₂ where\n  toFun := MultilinearMap.constOfIsEmpty R _\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := f 0\n  left_inv _ := rfl\n  right_inv f := ext fun _ => MultilinearMap.congr_arg f <| Subsingleton.elim _ _",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef cechNerveEquiv (X : SimplicialObject.Augmented C) (F : Arrow C) :\n    (Augmented.toArrow.obj X ⟶ F) ≃ (X ⟶ F.augmentedCechNerve) where\n  toFun := equivalenceLeftToRight _ _\n  invFun := equivalenceRightToLeft _ _\n  left_inv := by\n    intro A\n    ext\n    · dsimp\n      rw [WidePullback.lift_π]\n      nth_rw 2 [← Category.id_comp A.left]\n      congr 1\n      convert X.left.map_id _\n      rw [← op_id]\n      congr 1\n      ext ⟨a, ha⟩\n      change a < 1 at ha\n      change 0 = a\n      omega\n    · rfl\n  right_inv := by\n    intro A\n    ext x : 2\n    · refine WidePullback.hom_ext _ _ _ (fun j => ?_) ?_\n      · dsimp\n        simp\n        rfl\n      · simpa using congr_app A.w.symm x\n    · rfl",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- Composing a multilinear map twice with a linear map in each argument is\nthe same as composing with their composition. -/\ntheorem compLinearMap_assoc (g : MultilinearMap R M₁'' M₂) (f₁ : ∀ i, M₁' i →ₗ[R] M₁'' i)\n    (f₂ : ∀ i, M₁ i →ₗ[R] M₁' i) :\n    (g.compLinearMap f₁).compLinearMap f₂ = g.compLinearMap fun i => f₁ i ∘ₗ f₂ i :=\n  rfl",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The augmented Čech nerve construction, as a functor from `Arrow C`. -/\n@[simps!]\ndef augmentedCechNerve : Arrow C ⥤ SimplicialObject.Augmented C where\n  obj f := f.augmentedCechNerve\n  map F := Arrow.mapAugmentedCechNerve F",
+   "--src: Mathlib.Data.Vector.Basic\n@[simp]\ntheorem inductionOn_nil {C : ∀ {n : ℕ}, Vector α n → Sort*}\n    (nil : C nil) (cons : ∀ {n : ℕ} {x : α} {w : Vector α n}, C w → C (x ::ᵥ w)) :\n    Vector.nil.inductionOn nil cons = nil :=\n  rfl"],
+  "id":
+  {"name": "complexLorentzTensor.contr_basisVector",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma contr_basisVector {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor = (contrBasisVectorMul i j b) •\n    basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k))) := by\n  rw [contr_tensor]\n  simp only [Nat.succ_eq_add_one, tensorNode_tensor]\n  rw [basisVector]\n  erw [TensorSpecies.contrMap_tprod]\n  congr 1\n  rw [basis_eq_FD]\n  simp only [Monoidal.tensorUnit_obj, Action.instMonoidalCategory_tensorUnit_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, Functor.comp_obj, Discrete.functor_obj_eq_as,\n    Function.comp_apply]\n  erw [basis_contr]\n  rfl\n\n",
+   "compilationAlias":
+   "lemma contr_basisVector {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor = (contrBasisVectorMul i j b) •\n    basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k))) := by\n  rw [contr_tensor]\n  simp only [Nat.succ_eq_add_one, tensorNode_tensor]\n  rw [basisVector]\n  erw [TensorSpecies.contrMap_tprod]\n  congr 1\n  rw [basis_eq_FD]\n  simp only [Monoidal.tensorUnit_obj, Action.instMonoidalCategory_tensorUnit_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, Functor.comp_obj, Discrete.functor_obj_eq_as,\n    Function.comp_apply]\n  erw [basis_contr]\n  rfl\n\n"},
+  "goal":
+  "n : Nat\nc : Fin n.succ.succ → complexLorentzTensor.C\ni : Fin n.succ.succ\nj : Fin n.succ\nh : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\nb : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basisVector c b))).tensor (HSMul.hSMul (complexLorentzTensor.contrBasisVectorMul i j b) (complexLorentzTensor.basisVector (Function.comp c (Function.comp i.succAbove j.succAbove)) fun k => b (i.succAbove (j.succAbove k))))",
+  "content_sorry":
+  "lemma contr_basisVector {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor = (contrBasisVectorMul i j b) •\n    basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k))) := by\n  sorry",
+  "annotation":
+  "lemma contr_basisVector {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {h : c (i.succAbove j) = complexLorentzTensor.τ (c i)}\n    (b : Π k, Fin (complexLorentzTensor.repDim (c k))) :\n    (contr i j h (tensorNode (basisVector c b))).tensor = (contrBasisVectorMul i j b) •\n    basisVector (c ∘ Fin.succAbove i ∘ Fin.succAbove j)\n    (fun k => b (i.succAbove (j.succAbove k))) := by\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (TensorTree.contr i j h (TensorTree.tensorNode (complexLorentzTensor.basi …\n  -/\n  rw [contr_tensor]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.contrMap c i  …\n  -/\n  simp only [Nat.succ_eq_add_one, tensorNode_tensor]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.contrMap c i  …\n  -/\n  rw [basisVector]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.contrMap c i  …\n  -/\n  erw [TensorSpecies.contrMap_tprod]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (HSMul.hSMul (complexLorentzTensor.castToField ((CategoryTheory.ConcreteC …\n  -/\n  congr 1\n  /-\n    case e_a\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (complexLorentzTensor.castToField ((CategoryTheory.ConcreteCategory.hom ( …\n  -/\n  rw [basis_eq_FD]\n  simp only [Monoidal.tensorUnit_obj, Action.instMonoidalCategory_tensorUnit_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, Functor.comp_obj, Discrete.functor_obj_eq_as,\n    Function.comp_apply]\n  /-\n    case e_a\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (complexLorentzTensor.castToField ((CategoryTheory.ConcreteCategory.hom ( …\n  -/\n  erw [basis_contr]\n  /-\n    case e_a\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    h : Eq (c (i.succAbove j)) (complexLorentzTensor.τ (c i))\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    ⊢ Eq (ite (Eq ↑(b i) ↑(Fin.cast ⋯ (b (i.succAbove j)))) 1 0) (complexLorentzTe …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorUnit_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "TensorSpecies.contrMap_tprod",
+    "module": "HepLean.Tensors.TensorSpecies.Contractions.ContrMap",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Acting with `contrMap` on a `tprod` gives a `tprod` multiplied by a scalar. -/\nlemma contrMap_tprod {n : ℕ} (c : Fin n.succ.succ → S.C)\n    (i : Fin n.succ.succ) (j : Fin n.succ) (h : c (i.succAbove j) = S.τ (c i))\n    (x : (i : Fin n.succ.succ) → S.FD.obj (Discrete.mk (c i))) :\n    (S.contrMap c i j h).hom (PiTensorProduct.tprod S.k x) =\n    (S.castToField ((S.contr.app (Discrete.mk (c i))).hom ((x i) ⊗ₜ[S.k]\n    (S.FD.map (Discrete.eqToHom h)).hom (x (i.succAbove j)))) : S.k)\n    • (PiTensorProduct.tprod S.k (fun k => x (i.succAbove (j.succAbove k))) :\n    S.F.obj (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove))) := by\n  rw [contrMap, contrIso]\n  simp only [Nat.succ_eq_add_one, S.F_def, Iso.trans_hom, Functor.mapIso_hom, Iso.symm_hom,\n    tensorIso_hom, Monoidal.tensorUnit_obj, tensorHom_id,\n    Category.assoc, Action.comp_hom, Action.instMonoidalCategory_tensorObj_V,\n    Action.instMonoidalCategory_tensorHom_hom, Action.instMonoidalCategory_tensorUnit_V,\n    Action.instMonoidalCategory_whiskerRight_hom, Functor.id_obj, mk_hom, ModuleCat.hom_comp,\n    Function.comp_apply, Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, Functor.comp_obj, Discrete.functor_obj_eq_as]\n  change (λ_ ((lift.obj S.FD).obj _)).hom.hom\n    (((S.contr.app { as := c i }).hom ▷ ((lift.obj S.FD).obj\n    (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove))).V)\n    (((S.contrFin1Fin1 c i j h).hom.hom ⊗ ((lift.obj S.FD).map (mkIso _).hom).hom)\n    ((Functor.Monoidal.μIso (lift.obj S.FD).toFunctor\n    (OverColor.mk ((c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm) ∘ Sum.inl))\n    (OverColor.mk ((c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm) ∘ Sum.inr))).inv.hom\n    (((lift.obj S.FD).map (mkSum (c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm)).hom).hom\n    (((lift.obj S.FD).map (equivToIso (HepLean.Fin.finExtractTwo i j)).hom).hom\n    ((PiTensorProduct.tprod S.k) x)))))) = _\n  rw [lift.map_tprod]\n  conv_lhs =>\n    enter [2, 2, 2, 2]\n    rw (transparency := .instances)  [lift.map_tprod]\n  conv_lhs =>\n    enter [2, 2, 2]\n    rw (transparency := .instances) [lift.μIso_inv_tprod]\n  change (λ_ ((lift.obj S.FD).obj (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove)))).hom.hom\n    (((S.contr.app { as := c i }).hom ▷ ((lift.obj S.FD).obj\n    (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove))).V)\n    ((TensorProduct.map (S.contrFin1Fin1 c i j h).hom.hom.hom\n    ((lift.obj S.FD).map (mkIso _).hom).hom.hom)\n    (((PiTensorProduct.tprod S.k) fun i_1 =>\n    (lift.discreteFunctorMapEqIso S.FD _)\n    ((lift.discreteFunctorMapEqIso S.FD _) (x\n    ((Hom.toEquiv (equivToIso (HepLean.Fin.finExtractTwo i j)).hom).symm\n    ((Hom.toEquiv (mkSum (c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm)).hom).symm\n    (Sum.inl i_1)))))) ⊗ₜ[S.k] (PiTensorProduct.tprod S.k) fun i_1 =>\n    (lift.discreteFunctorMapEqIso S.FD _) ((lift.discreteFunctorMapEqIso S.FD _)\n    (x ((Hom.toEquiv (equivToIso (HepLean.Fin.finExtractTwo i j)).hom).symm\n    ((Hom.toEquiv\n    (mkSum (c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm)).hom).symm (Sum.inr i_1)))))))) = _\n  rw [TensorProduct.map_tmul]\n  rw [contrFin1Fin1_hom_hom_tprod]\n  simp only [Nat.succ_eq_add_one, Action.instMonoidalCategory_tensorObj_V,\n    Action.instMonoidalCategory_tensorUnit_V, Fin.isValue, mk_hom, Function.comp_apply,\n    Discrete.functor_obj_eq_as, instMonoidalCategoryStruct_tensorObj_left, mkSum_homToEquiv,\n    Equiv.refl_symm, Functor.id_obj, ModuleCat.MonoidalCategory.whiskerRight_apply]\n  rw [Action.instMonoidalCategory_leftUnitor_hom_hom]\n  simp only [Monoidal.tensorUnit_obj, Action.instMonoidalCategory_tensorUnit_V, Fin.isValue,\n    ModuleCat.MonoidalCategory.leftUnitor_hom_apply]\n  congr 1\n  /- The contraction. -/\n  · simp only [Fin.isValue, castToField]\n    congr 2\n    · simp only [Fin.isValue, lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl,\n      Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      rfl\n    · simp only [Fin.isValue, lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl,\n      Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      change (S.FD.map (eqToHom _)).hom\n        (x (((HepLean.Fin.finExtractTwo i j)).symm ((Sum.inl (Sum.inr 0))))) = _\n      simp only [Nat.succ_eq_add_one, Fin.isValue]\n      have h1' {a b d: Fin n.succ.succ} (hbd : b =d) (h : c d = S.τ (c a)) (h' : c b = S.τ (c a)) :\n          (S.FD.map (Discrete.eqToHom (h))).hom (x d) =\n          (S.FD.map (Discrete.eqToHom h')).hom (x b) := by\n        subst hbd\n        rfl\n      refine h1' ?_ ?_ ?_\n      simp only [Nat.succ_eq_add_one, Fin.isValue, HepLean.Fin.finExtractTwo_symm_inl_inr_apply]\n      simp [h]\n  /- The tensor. -/\n  · conv_lhs => erw [lift.map_tprod]\n    apply congrArg\n    funext d\n    simp only [mk_hom, Function.comp_apply, lift.discreteFunctorMapEqIso, Functor.mapIso_hom,\n      eqToIso.hom, Functor.mapIso_inv, eqToIso.inv, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom,\n      Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply, ]\n    change (S.FD.map (eqToHom _)).hom\n        ((x ((HepLean.Fin.finExtractTwo i j).symm (Sum.inr (d))))) = _\n    simp only [Nat.succ_eq_add_one]\n    have h1 : ((HepLean.Fin.finExtractTwo i j).symm (Sum.inr d))\n      = (i.succAbove (j.succAbove d)) := HepLean.Fin.finExtractTwo_symm_inr_apply i j d\n    have h1' {a b : Fin n.succ.succ} (h : a = b) :\n      (S.FD.map (eqToHom (by rw [h]))).hom (x a) = x b := by\n      subst h\n      simp\n    exact h1' h1",
+    "compilationAlias":
+    "/-- Acting with `contrMap` on a `tprod` gives a `tprod` multiplied by a scalar. -/\nlemma contrMap_tprod {n : ℕ} (c : Fin n.succ.succ → S.C)\n    (i : Fin n.succ.succ) (j : Fin n.succ) (h : c (i.succAbove j) = S.τ (c i))\n    (x : (i : Fin n.succ.succ) → S.FD.obj (Discrete.mk (c i))) :\n    (S.contrMap c i j h).hom (PiTensorProduct.tprod S.k x) =\n    (S.castToField ((S.contr.app (Discrete.mk (c i))).hom ((x i) ⊗ₜ[S.k]\n    (S.FD.map (Discrete.eqToHom h)).hom (x (i.succAbove j)))) : S.k)\n    • (PiTensorProduct.tprod S.k (fun k => x (i.succAbove (j.succAbove k))) :\n    S.F.obj (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove))) := by\n  rw [contrMap, contrIso]\n  simp only [Nat.succ_eq_add_one, S.F_def, Iso.trans_hom, Functor.mapIso_hom, Iso.symm_hom,\n    tensorIso_hom, Monoidal.tensorUnit_obj, tensorHom_id,\n    Category.assoc, Action.comp_hom, Action.instMonoidalCategory_tensorObj_V,\n    Action.instMonoidalCategory_tensorHom_hom, Action.instMonoidalCategory_tensorUnit_V,\n    Action.instMonoidalCategory_whiskerRight_hom, Functor.id_obj, mk_hom, ModuleCat.hom_comp,\n    Function.comp_apply, Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, Functor.comp_obj, Discrete.functor_obj_eq_as]\n  change (λ_ ((lift.obj S.FD).obj _)).hom.hom\n    (((S.contr.app { as := c i }).hom ▷ ((lift.obj S.FD).obj\n    (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove))).V)\n    (((S.contrFin1Fin1 c i j h).hom.hom ⊗ ((lift.obj S.FD).map (mkIso _).hom).hom)\n    ((Functor.Monoidal.μIso (lift.obj S.FD).toFunctor\n    (OverColor.mk ((c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm) ∘ Sum.inl))\n    (OverColor.mk ((c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm) ∘ Sum.inr))).inv.hom\n    (((lift.obj S.FD).map (mkSum (c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm)).hom).hom\n    (((lift.obj S.FD).map (equivToIso (HepLean.Fin.finExtractTwo i j)).hom).hom\n    ((PiTensorProduct.tprod S.k) x)))))) = _\n  rw [lift.map_tprod]\n  conv_lhs =>\n    enter [2, 2, 2, 2]\n    rw (transparency := .instances)  [lift.map_tprod]\n  conv_lhs =>\n    enter [2, 2, 2]\n    rw (transparency := .instances) [lift.μIso_inv_tprod]\n  change (λ_ ((lift.obj S.FD).obj (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove)))).hom.hom\n    (((S.contr.app { as := c i }).hom ▷ ((lift.obj S.FD).obj\n    (OverColor.mk (c ∘ i.succAbove ∘ j.succAbove))).V)\n    ((TensorProduct.map (S.contrFin1Fin1 c i j h).hom.hom.hom\n    ((lift.obj S.FD).map (mkIso _).hom).hom.hom)\n    (((PiTensorProduct.tprod S.k) fun i_1 =>\n    (lift.discreteFunctorMapEqIso S.FD _)\n    ((lift.discreteFunctorMapEqIso S.FD _) (x\n    ((Hom.toEquiv (equivToIso (HepLean.Fin.finExtractTwo i j)).hom).symm\n    ((Hom.toEquiv (mkSum (c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm)).hom).symm\n    (Sum.inl i_1)))))) ⊗ₜ[S.k] (PiTensorProduct.tprod S.k) fun i_1 =>\n    (lift.discreteFunctorMapEqIso S.FD _) ((lift.discreteFunctorMapEqIso S.FD _)\n    (x ((Hom.toEquiv (equivToIso (HepLean.Fin.finExtractTwo i j)).hom).symm\n    ((Hom.toEquiv\n    (mkSum (c ∘ ⇑(HepLean.Fin.finExtractTwo i j).symm)).hom).symm (Sum.inr i_1)))))))) = _\n  rw [TensorProduct.map_tmul]\n  rw [contrFin1Fin1_hom_hom_tprod]\n  simp only [Nat.succ_eq_add_one, Action.instMonoidalCategory_tensorObj_V,\n    Action.instMonoidalCategory_tensorUnit_V, Fin.isValue, mk_hom, Function.comp_apply,\n    Discrete.functor_obj_eq_as, instMonoidalCategoryStruct_tensorObj_left, mkSum_homToEquiv,\n    Equiv.refl_symm, Functor.id_obj, ModuleCat.MonoidalCategory.whiskerRight_apply]\n  rw [Action.instMonoidalCategory_leftUnitor_hom_hom]\n  simp only [Monoidal.tensorUnit_obj, Action.instMonoidalCategory_tensorUnit_V, Fin.isValue,\n    ModuleCat.MonoidalCategory.leftUnitor_hom_apply]\n  congr 1\n  /- The contraction. -/\n  · simp only [Fin.isValue, castToField]\n    congr 2\n    · simp only [Fin.isValue, lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl,\n      Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      rfl\n    · simp only [Fin.isValue, lift.discreteFunctorMapEqIso, eqToIso_refl, Functor.mapIso_refl,\n      Iso.refl_hom, Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply]\n      change (S.FD.map (eqToHom _)).hom\n        (x (((HepLean.Fin.finExtractTwo i j)).symm ((Sum.inl (Sum.inr 0))))) = _\n      simp only [Nat.succ_eq_add_one, Fin.isValue]\n      have h1' {a b d: Fin n.succ.succ} (hbd : b =d) (h : c d = S.τ (c a)) (h' : c b = S.τ (c a)) :\n          (S.FD.map (Discrete.eqToHom (h))).hom (x d) =\n          (S.FD.map (Discrete.eqToHom h')).hom (x b) := by\n        subst hbd\n        rfl\n      refine h1' ?_ ?_ ?_\n      simp only [Nat.succ_eq_add_one, Fin.isValue, HepLean.Fin.finExtractTwo_symm_inl_inr_apply]\n      simp [h]\n  /- The tensor. -/\n  · conv_lhs => erw [lift.map_tprod]\n    apply congrArg\n    funext d\n    simp only [mk_hom, Function.comp_apply, lift.discreteFunctorMapEqIso, Functor.mapIso_hom,\n      eqToIso.hom, Functor.mapIso_inv, eqToIso.inv, eqToIso_refl, Functor.mapIso_refl, Iso.refl_hom,\n      Action.id_hom, Iso.refl_inv, LinearEquiv.ofLinear_apply, ]\n    change (S.FD.map (eqToHom _)).hom\n        ((x ((HepLean.Fin.finExtractTwo i j).symm (Sum.inr (d))))) = _\n    simp only [Nat.succ_eq_add_one]\n    have h1 : ((HepLean.Fin.finExtractTwo i j).symm (Sum.inr d))\n      = (i.succAbove (j.succAbove d)) := HepLean.Fin.finExtractTwo_symm_inr_apply i j d\n    have h1' {a b : Fin n.succ.succ} (h : a = b) :\n      (S.FD.map (eqToHom (by rw [h]))).hom (x a) = x b := by\n      subst h\n      simp\n    exact h1' h1"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"},
+   {"name": "Fin.succAbove",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ",
+    "compilationAlias":
+    "/-- `succAbove p i` embeds `Fin n` into `Fin (n + 1)` with a hole around `p`. -/\ndef succAbove (p : Fin (n + 1)) (i : Fin n) : Fin (n + 1) :=\n  if castSucc i < p then i.castSucc else i.succ"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.Coevaluation\ntheorem coevaluation_apply_one :\n    (coevaluation K V) (1 : K) =\n      let bV := Basis.ofVectorSpace K V\n      ∑ i : Basis.ofVectorSpaceIndex K V, bV i ⊗ₜ[K] bV.coord i := by\n  simp only [coevaluation, id]\n  rw [(Basis.singleton Unit K).constr_apply_fintype K]\n  simp only [Fintype.univ_punit, Finset.sum_const, one_smul, Basis.singleton_repr,\n    Basis.equivFun_apply, Basis.coe_ofVectorSpace, one_nsmul, Finset.card_singleton]",
+   "--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.NumberTheory.Modular\n/-- Linear map sending the matrix [a, b; c, d] to the matrix [ac₀ + bd₀, - ad₀ + bc₀; c, d], for\nsome fixed `(c₀, d₀)`. -/\n@[simps!]\ndef lcRow0Extend {cd : Fin 2 → ℤ} (hcd : IsCoprime (cd 0) (cd 1)) :\n    Matrix (Fin 2) (Fin 2) ℝ ≃ₗ[ℝ] Matrix (Fin 2) (Fin 2) ℝ :=\n  LinearEquiv.piCongrRight\n    ![by\n      refine\n        LinearMap.GeneralLinearGroup.generalLinearEquiv ℝ (Fin 2 → ℝ)\n          (GeneralLinearGroup.toLin (planeConformalMatrix (cd 0 : ℝ) (-(cd 1 : ℝ)) ?_))\n      norm_cast\n      rw [neg_sq]\n      exact hcd.sq_add_sq_ne_zero, LinearEquiv.refl ℝ (Fin 2 → ℝ)]",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef cechNerveEquiv (X : SimplicialObject.Augmented C) (F : Arrow C) :\n    (Augmented.toArrow.obj X ⟶ F) ≃ (X ⟶ F.augmentedCechNerve) where\n  toFun := equivalenceLeftToRight _ _\n  invFun := equivalenceRightToLeft _ _\n  left_inv := by\n    intro A\n    ext\n    · dsimp\n      rw [WidePullback.lift_π]\n      nth_rw 2 [← Category.id_comp A.left]\n      congr 1\n      convert X.left.map_id _\n      rw [← op_id]\n      congr 1\n      ext ⟨a, ha⟩\n      change a < 1 at ha\n      change 0 = a\n      omega\n    · rfl\n  right_inv := by\n    intro A\n    ext x : 2\n    · refine WidePullback.hom_ext _ _ _ (fun j => ?_) ?_\n      · dsimp\n        simp\n        rfl\n      · simpa using congr_app A.w.symm x\n    · rfl",
+   "--src: Mathlib.AlgebraicTopology.SimplicialSet.Path\n/-- A path in a simplicial set `X` of length `n` is a directed path of `n` edges.-/\n@[ext]\nstructure Path (n : ℕ) where\n  /-- A path includes the data of `n+1` 0-simplices in `X`.-/\n  vertex (i : Fin (n + 1)) : X _[0]\n  /-- A path includes the data of `n` 1-simplices in `X`.-/\n  arrow (i : Fin n) : X _[1]\n  /-- The sources of the 1-simplices in a path are identified with appropriate 0-simplices.-/\n  arrow_src (i : Fin n) : X.δ 1 (arrow i) = vertex i.castSucc\n  /-- The targets of the 1-simplices in a path are identified with appropriate 0-simplices.-/\n  arrow_tgt (i : Fin n) : X.δ 0 (arrow i) = vertex i.succ",
+   "--src: Mathlib.LinearAlgebra.FiniteDimensional\n/-- A linear independent finset of `finrank K V` vectors forms a basis. -/\n@[simps! repr_apply]\nnoncomputable def finsetBasisOfLinearIndependentOfCardEqFinrank {s : Finset V} (hs : s.Nonempty)\n    (lin_ind : LinearIndependent K ((↑) : s → V)) (card_eq : s.card = finrank K V) : Basis s K V :=\n  @basisOfLinearIndependentOfCardEqFinrank _ _ _ _ _ _\n    ⟨(⟨hs.choose, hs.choose_spec⟩ : s)⟩ _ _ lin_ind (_root_.trans (Fintype.card_coe _) card_eq)",
+   "--src: Mathlib.LinearAlgebra.Determinant\n@[simp]\ntheorem Basis.det_comp_basis [Module A M'] (b : Basis ι A M) (b' : Basis ι A M') (f : M →ₗ[A] M') :\n    b'.det (f ∘ b) = LinearMap.det (f ∘ₗ (b'.equiv b (Equiv.refl ι) : M' →ₗ[A] M)) := by\n  rw [Basis.det_apply, ← LinearMap.det_toMatrix b', LinearMap.toMatrix_comp _ b, Matrix.det_mul,\n    LinearMap.toMatrix_basis_equiv, Matrix.det_one, mul_one]\n  congr 1; ext i j\n  rw [Basis.toMatrix_apply, LinearMap.toMatrix_apply, Function.comp_apply]",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The multilinear version of `LinearMap.comp_codRestrict` -/\n@[simp]\ntheorem compMultilinearMap_codRestrict (g : M₂ →ₗ[R] M₃) (f : MultilinearMap R M₁ M₂)\n    (p : Submodule R M₃) (h) :\n    (g.codRestrict p h).compMultilinearMap f =\n      (g.compMultilinearMap f).codRestrict p fun v => h (f v) :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Matrix.ToLin\n/-- If `M` and `M` are each other's inverse matrices, `Matrix.toLin M` and `Matrix.toLin M'`\nform a linear equivalence. -/\n@[simps]\ndef Matrix.toLinOfInv [DecidableEq m] {M : Matrix m n R} {M' : Matrix n m R} (hMM' : M * M' = 1)\n    (hM'M : M' * M = 1) : M₁ ≃ₗ[R] M₂ :=\n  { Matrix.toLin v₁ v₂ M with\n    toFun := Matrix.toLin v₁ v₂ M\n    invFun := Matrix.toLin v₂ v₁ M'\n    left_inv := fun x ↦ by rw [← Matrix.toLin_mul_apply, hM'M, Matrix.toLin_one, id_apply]\n    right_inv := fun x ↦ by\n      simp only\n      rw [← Matrix.toLin_mul_apply, hMM', Matrix.toLin_one, id_apply] }",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The space of constant maps is equivalent to the space of maps that are multilinear with respect\nto an empty family. -/\n@[simps]\ndef constLinearEquivOfIsEmpty [IsEmpty ι] : M₂ ≃ₗ[S] MultilinearMap R M₁ M₂ where\n  toFun := MultilinearMap.constOfIsEmpty R _\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := f 0\n  left_inv _ := rfl\n  right_inv f := ext fun _ => MultilinearMap.congr_arg f <| Subsingleton.elim _ _"],
+  "id":
+  {"name": "complexLorentzTensor.contrBasisVectorMul_pos",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma contrBasisVectorMul_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 1 := by\n  rw [contrBasisVectorMul]\n  simp only [ite_eq_left_iff, zero_ne_one, imp_false, Decidable.not_not]\n  exact h\n\n",
+   "compilationAlias":
+   "lemma contrBasisVectorMul_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 1 := by\n  rw [contrBasisVectorMul]\n  simp only [ite_eq_left_iff, zero_ne_one, imp_false, Decidable.not_not]\n  exact h\n\n"},
+  "goal":
+  "α : Type u_2\ninst✝² : Zero α\ninst✝¹ : One α\ninst✝ : NeZero 1\n⊢ Eq (Eq 0 1) False",
+  "content_sorry":
+  "lemma contrBasisVectorMul_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 1 := by\n  sorry",
+  "annotation":
+  "lemma contrBasisVectorMul_pos {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 1 := by\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h : Eq ↑(b i) ↑(b (i.succAbove j))\n    ⊢ Eq (complexLorentzTensor.contrBasisVectorMul i j b) 1\n  -/\n  rw [contrBasisVectorMul]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h : Eq ↑(b i) ↑(b (i.succAbove j))\n    ⊢ Eq (ite (Eq ↑(b i) ↑(b (i.succAbove j))) 1 0) 1\n  -/\n  simp only [ite_eq_left_iff, zero_ne_one, imp_false, Decidable.not_not]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h : Eq ↑(b i) ↑(b (i.succAbove j))\n    ⊢ Eq ↑(b i) ↑(b (i.succAbove j))\n  -/\n  exact h\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Decidable.not_not",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Decidable.not_not [Decidable p] : ¬¬p ↔ p := ⟨of_not_not, not_not_intro⟩",
+    "compilationAlias":
+    "@[simp] theorem Decidable.not_not [Decidable p] : ¬¬p ↔ p := ⟨of_not_not, not_not_intro⟩"},
+   {"name": "imp_false",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem imp_false : (a → False) ↔ ¬a := Iff.rfl",
+    "compilationAlias":
+    "@[simp] theorem imp_false : (a → False) ↔ ¬a := Iff.rfl"},
+   {"name": "zero_ne_one",
+    "module": "Mathlib.Algebra.NeZero",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma zero_ne_one [One α] [NeZero (1 : α)] : (0 : α) ≠ 1 := NeZero.ne' (1 : α)",
+    "compilationAlias":
+    "@[simp] lemma zero_ne_one [One α] [NeZero (1 : α)] : (0 : α) ≠ 1 := NeZero.ne' (1 : α)"},
+   {"name": "ite_eq_left_iff",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem ite_eq_left_iff {p : Prop} [Decidable p] {x y : α} : (if p then x else y) = x ↔ ¬ p → y = x := by\n  split <;> simp_all",
+    "compilationAlias":
+    "@[simp] theorem ite_eq_left_iff {p : Prop} [Decidable p] {x y : α} : (if p then x else y) = x ↔ ¬ p → y = x := by\n  split <;> simp_all"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.Coevaluation\ntheorem coevaluation_apply_one :\n    (coevaluation K V) (1 : K) =\n      let bV := Basis.ofVectorSpace K V\n      ∑ i : Basis.ofVectorSpaceIndex K V, bV i ⊗ₜ[K] bV.coord i := by\n  simp only [coevaluation, id]\n  rw [(Basis.singleton Unit K).constr_apply_fintype K]\n  simp only [Fintype.univ_punit, Finset.sum_const, one_smul, Basis.singleton_repr,\n    Basis.equivFun_apply, Basis.coe_ofVectorSpace, one_nsmul, Finset.card_singleton]",
+   "--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.NumberTheory.Modular\n/-- Linear map sending the matrix [a, b; c, d] to the matrix [ac₀ + bd₀, - ad₀ + bc₀; c, d], for\nsome fixed `(c₀, d₀)`. -/\n@[simps!]\ndef lcRow0Extend {cd : Fin 2 → ℤ} (hcd : IsCoprime (cd 0) (cd 1)) :\n    Matrix (Fin 2) (Fin 2) ℝ ≃ₗ[ℝ] Matrix (Fin 2) (Fin 2) ℝ :=\n  LinearEquiv.piCongrRight\n    ![by\n      refine\n        LinearMap.GeneralLinearGroup.generalLinearEquiv ℝ (Fin 2 → ℝ)\n          (GeneralLinearGroup.toLin (planeConformalMatrix (cd 0 : ℝ) (-(cd 1 : ℝ)) ?_))\n      norm_cast\n      rw [neg_sq]\n      exact hcd.sq_add_sq_ne_zero, LinearEquiv.refl ℝ (Fin 2 → ℝ)]",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef cechNerveEquiv (X : SimplicialObject.Augmented C) (F : Arrow C) :\n    (Augmented.toArrow.obj X ⟶ F) ≃ (X ⟶ F.augmentedCechNerve) where\n  toFun := equivalenceLeftToRight _ _\n  invFun := equivalenceRightToLeft _ _\n  left_inv := by\n    intro A\n    ext\n    · dsimp\n      rw [WidePullback.lift_π]\n      nth_rw 2 [← Category.id_comp A.left]\n      congr 1\n      convert X.left.map_id _\n      rw [← op_id]\n      congr 1\n      ext ⟨a, ha⟩\n      change a < 1 at ha\n      change 0 = a\n      omega\n    · rfl\n  right_inv := by\n    intro A\n    ext x : 2\n    · refine WidePullback.hom_ext _ _ _ (fun j => ?_) ?_\n      · dsimp\n        simp\n        rfl\n      · simpa using congr_app A.w.symm x\n    · rfl",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The multilinear version of `LinearMap.comp_codRestrict` -/\n@[simp]\ntheorem compMultilinearMap_codRestrict (g : M₂ →ₗ[R] M₃) (f : MultilinearMap R M₁ M₂)\n    (p : Submodule R M₃) (h) :\n    (g.codRestrict p h).compMultilinearMap f =\n      (g.compMultilinearMap f).codRestrict p fun v => h (f v) :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Basis.Basic\ntheorem Basis.eq_bot_of_rank_eq_zero [NoZeroDivisors R] (b : Basis ι R M) (N : Submodule R M)\n    (rank_eq : ∀ {m : ℕ} (v : Fin m → N), LinearIndependent R ((↑) ∘ v : Fin m → M) → m = 0) :\n    N = ⊥ := by\n  rw [Submodule.eq_bot_iff]\n  intro x hx\n  contrapose! rank_eq with x_ne\n  refine ⟨1, fun _ => ⟨x, hx⟩, ?_, one_ne_zero⟩\n  rw [Fintype.linearIndependent_iff]\n  rintro g sum_eq i\n  cases' i with _ hi\n  simp only [Function.const_apply, Fin.default_eq_zero, Submodule.coe_mk, Finset.univ_unique,\n    Function.comp_const, Finset.sum_singleton] at sum_eq\n  convert (b.smul_eq_zero.mp sum_eq).resolve_right x_ne",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basis\n/-- Two multilinear maps indexed by `Fin n` are equal if they are equal when all arguments are\nbasis vectors. -/\ntheorem Basis.ext_multilinear_fin {f g : MultilinearMap R M M₂} {ι₁ : Fin n → Type*}\n    (e : ∀ i, Basis (ι₁ i) R (M i))\n    (h : ∀ v : ∀ i, ι₁ i, (f fun i => e i (v i)) = g fun i => e i (v i)) : f = g := by\n  induction' n with m hm\n  · ext x\n    convert h finZeroElim\n  · apply Function.LeftInverse.injective uncurry_curryLeft\n    refine Basis.ext (e 0) ?_\n    intro i\n    apply hm (Fin.tail e)\n    intro j\n    convert h (Fin.cons i j)\n    iterate 2\n      rw [curryLeft_apply]\n      congr 1 with x\n      refine Fin.cases rfl (fun x => ?_) x\n      dsimp [Fin.tail]\n      rw [Fin.cons_succ, Fin.cons_succ]",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The space of constant maps is equivalent to the space of maps that are multilinear with respect\nto an empty family. -/\n@[simps]\ndef constLinearEquivOfIsEmpty [IsEmpty ι] : M₂ ≃ₗ[S] MultilinearMap R M₁ M₂ where\n  toFun := MultilinearMap.constOfIsEmpty R _\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n  invFun f := f 0\n  left_inv _ := rfl\n  right_inv f := ext fun _ => MultilinearMap.congr_arg f <| Subsingleton.elim _ _",
+   "--src: Mathlib.Data.Fin.Basic\n/-- `pred` commutes with `succAbove`. -/\nlemma pred_succAbove_pred {a : Fin (n + 2)} {b : Fin (n + 1)} (ha : a ≠ 0) (hb : b ≠ 0)\n    (hk := succAbove_ne_zero ha hb) :\n    (a.pred ha).succAbove (b.pred hb) = (a.succAbove b).pred hk := by\n  simp_rw [← succ_inj (b := pred (succAbove a b) hk), ← succ_succAbove_succ, succ_pred]",
+   "--src: Mathlib.LinearAlgebra.FiniteDimensional.Defs\n/-- In a vector space with dimension 1, each set {v} is a basis for `v ≠ 0`. -/\n@[simps repr_apply]\nnoncomputable def basisSingleton (ι : Type*) [Unique ι] (h : finrank K V = 1) (v : V)\n    (hv : v ≠ 0) : Basis ι K V :=\n  let b := Module.basisUnique ι h\n  let h : b.repr v default ≠ 0 := mt Module.basisUnique_repr_eq_zero_iff.mp hv\n  Basis.ofRepr\n    { toFun := fun w => Finsupp.single default (b.repr w default / b.repr v default)\n      invFun := fun f => f default • v\n      map_add' := by simp [add_div]\n      map_smul' := by simp [mul_div]\n      left_inv := fun w => by\n        apply_fun b.repr using b.repr.toEquiv.injective\n        apply_fun Equiv.finsuppUnique\n        simp only [LinearEquiv.map_smulₛₗ, Finsupp.coe_smul, Finsupp.single_eq_same,\n          smul_eq_mul, Pi.smul_apply, Equiv.finsuppUnique_apply]\n        exact div_mul_cancel₀ _ h\n      right_inv := fun f => by\n        ext\n        simp only [LinearEquiv.map_smulₛₗ, Finsupp.coe_smul, Finsupp.single_eq_same,\n          RingHom.id_apply, smul_eq_mul, Pi.smul_apply]\n        exact mul_div_cancel_right₀ _ h }"],
+  "id":
+  {"name": "complexLorentzTensor.contrBasisVectorMul_neg",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma contrBasisVectorMul_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : ¬ (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 0 := by\n  rw [contrBasisVectorMul]\n  simp only [ite_eq_right_iff, one_ne_zero, imp_false]\n  exact h\n\n",
+   "compilationAlias":
+   "lemma contrBasisVectorMul_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : ¬ (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 0 := by\n  rw [contrBasisVectorMul]\n  simp only [ite_eq_right_iff, one_ne_zero, imp_false]\n  exact h\n\n"},
+  "goal":
+  "α : Sort u_1\np : Prop\ninst✝ : Decidable p\nx y : α\n⊢ Eq (Eq (ite p x y) y) (p → Eq x y)",
+  "content_sorry":
+  "lemma contrBasisVectorMul_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : ¬ (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 0 := by\n  sorry",
+  "annotation":
+  "lemma contrBasisVectorMul_neg {n : ℕ} {c : Fin n.succ.succ → complexLorentzTensor.C}\n    {i : Fin n.succ.succ} {j : Fin n.succ} {b : Π k, Fin (complexLorentzTensor.repDim (c k))}\n    (h : ¬ (b i).val = (b (i.succAbove j)).val) :\n    contrBasisVectorMul i j b = 0 := by\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h : Not (Eq ↑(b i) ↑(b (i.succAbove j)))\n    ⊢ Eq (complexLorentzTensor.contrBasisVectorMul i j b) 0\n  -/\n  rw [contrBasisVectorMul]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h : Not (Eq ↑(b i) ↑(b (i.succAbove j)))\n    ⊢ Eq (ite (Eq ↑(b i) ↑(b (i.succAbove j))) 1 0) 0\n  -/\n  simp only [ite_eq_right_iff, one_ne_zero, imp_false]\n  /-\n    n : Nat\n    c : Fin n.succ.succ → complexLorentzTensor.C\n    i : Fin n.succ.succ\n    j : Fin n.succ\n    b : (k : Fin n.succ.succ) → Fin (complexLorentzTensor.repDim (c k))\n    h : Not (Eq ↑(b i) ↑(b (i.succAbove j)))\n    ⊢ Not (Eq ↑(b i) ↑(b (i.succAbove j)))\n  -/\n  exact h\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "imp_false",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem imp_false : (a → False) ↔ ¬a := Iff.rfl",
+    "compilationAlias":
+    "@[simp] theorem imp_false : (a → False) ↔ ¬a := Iff.rfl"},
+   {"name": "one_ne_zero",
+    "module": "Mathlib.Algebra.NeZero",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma one_ne_zero [One α] [NeZero (1 : α)] : (1 : α) ≠ 0 := NeZero.ne (1 : α)",
+    "compilationAlias":
+    "@[simp] lemma one_ne_zero [One α] [NeZero (1 : α)] : (1 : α) ≠ 0 := NeZero.ne (1 : α)"},
+   {"name": "ite_eq_right_iff",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem ite_eq_right_iff {p : Prop} [Decidable p] {x y : α} : (if p then x else y) = y ↔ p → x = y := by\n  split <;> simp_all",
+    "compilationAlias":
+    "@[simp] theorem ite_eq_right_iff {p : Prop} [Decidable p] {x y : α} : (if p then x else y) = y ↔ p → x = y := by\n  split <;> simp_all"}]},
+ {"rag":
+  ["--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The augmented Čech nerve construction, as a functor from `Arrow C`. -/\n@[simps!]\ndef augmentedCechNerve : Arrow C ⥤ SimplicialObject.Augmented C where\n  obj f := f.augmentedCechNerve\n  map F := Arrow.mapAugmentedCechNerve F",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef equivalenceRightToLeft (X : SimplicialObject.Augmented C) (F : Arrow C)\n    (G : X ⟶ F.augmentedCechNerve) : Augmented.toArrow.obj X ⟶ F where\n  left := G.left.app _ ≫ WidePullback.π _ 0\n  right := G.right\n  w := by\n    have := G.w\n    apply_fun fun e => e.app (Opposite.op <| SimplexCategory.mk 0) at this\n    simpa using this",
+   "--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef cechNerveEquiv (X : SimplicialObject.Augmented C) (F : Arrow C) :\n    (Augmented.toArrow.obj X ⟶ F) ≃ (X ⟶ F.augmentedCechNerve) where\n  toFun := equivalenceLeftToRight _ _\n  invFun := equivalenceRightToLeft _ _\n  left_inv := by\n    intro A\n    ext\n    · dsimp\n      rw [WidePullback.lift_π]\n      nth_rw 2 [← Category.id_comp A.left]\n      congr 1\n      convert X.left.map_id _\n      rw [← op_id]\n      congr 1\n      ext ⟨a, ha⟩\n      change a < 1 at ha\n      change 0 = a\n      omega\n    · rfl\n  right_inv := by\n    intro A\n    ext x : 2\n    · refine WidePullback.hom_ext _ _ _ (fun j => ?_) ?_\n      · dsimp\n        simp\n        rfl\n      · simpa using congr_app A.w.symm x\n    · rfl",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a time function -/\n  time : ℕ → ℕ\n  /-- proof this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time (ea.encode a).length)",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a polynomial time function +\na proof it outputs `f` in at most `time(input.length)` steps. -/\nstructure TM2ComputableInPolyTime {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β)\n  (f : α → β) extends TM2ComputableAux ea.Γ eb.Γ where\n  /-- a polynomial time function -/\n  time : Polynomial ℕ\n  /-- proof that this machine outputs `f` in at most `time(input.length)` steps -/\n  outputsFun :\n    ∀ a,\n      TM2OutputsInTime tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))\n        (time.eval (ea.encode a).length)",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.AffineEquiv\n/-- An affine equivalence, denoted `P₁ ≃ᵃ[k] P₂`, is an equivalence between affine spaces\nsuch that both forward and inverse maps are affine.\nWe define it using an `Equiv` for the map and a `LinearEquiv` for the linear part in order\nto allow affine equivalences with good definitional equalities. -/\n-- Porting note (https://github.com/leanprover-community/mathlib4/issues/5171): this linter isn't ported yet.\n-- @[nolint has_nonempty_instance]\nstructure AffineEquiv (k P₁ P₂ : Type*) {V₁ V₂ : Type*} [Ring k] [AddCommGroup V₁] [Module k V₁]\n  [AddTorsor V₁ P₁] [AddCommGroup V₂] [Module k V₂] [AddTorsor V₂ P₂] extends P₁ ≃ P₂ where\n  linear : V₁ ≃ₗ[k] V₂\n  map_vadd' : ∀ (p : P₁) (v : V₁), toEquiv (v +ᵥ p) = linear v +ᵥ toEquiv p",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\ntheorem map_reindex_symm (f : Π i, s i →ₗ[R] t i) (e : ι ≃ ι₂) (x : ⨂[R] i, s (e.symm i)) :\n    map f ((reindex R s e).symm x) = (reindex R t e).symm (map (fun i ↦ f (e.symm i)) x) :=\n  DFunLike.congr_fun (map_comp_reindex_symm _ _) _",
+   "--src: Mathlib.Data.Vector.Basic\n/-- The first element of `scanl` of a vector `v : Vector α n`,\nretrieved via `head`, is the starting value `b : β`.\n-/\n@[simp]\ntheorem scanl_head : (scanl f b v).head = b := by\n  cases n\n  · have : v = nil := by simp only [eq_iff_true_of_subsingleton]\n    simp only [this, scanl_nil, head_cons]\n  · rw [← cons_head_tail v]\n    simp only [← get_zero, get_eq_get_toList, toList_scanl, toList_cons, List.scanl, Fin.val_zero,\n      List.get]"],
+  "id":
+  {"name": "complexLorentzTensor.perm_basisVector_tree",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The `perm` node acting on basis vectors corresponds to a basis vector, as a tensor tree\n  structure. -/\nlemma perm_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (tensorNode (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i))))).tensor := by\n  exact perm_basisVector _ _\n\n",
+   "compilationAlias":
+   "/-- The `perm` node acting on basis vectors corresponds to a basis vector, as a tensor tree\n  structure. -/\nlemma perm_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (tensorNode (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i))))).tensor := by\n  exact perm_basisVector _ _\n\n"},
+  "goal":
+  "n m : Nat\nc : Fin n → complexLorentzTensor.C\nc1 : Fin m → complexLorentzTensor.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\nb : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n⊢ Eq (TensorTree.perm σ (TensorTree.tensorNode (complexLorentzTensor.basisVector c b))).tensor (TensorTree.tensorNode (complexLorentzTensor.basisVector c1 fun i => Fin.cast ⋯ (b ((IndexNotation.OverColor.Hom.toEquiv σ).symm i)))).tensor",
+  "content_sorry":
+  "/-- The `perm` node acting on basis vectors corresponds to a basis vector, as a tensor tree\n  structure. -/\nlemma perm_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (tensorNode (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i))))).tensor := by\n  sorry",
+  "annotation":
+  "/-- The `perm` node acting on basis vectors corresponds to a basis vector, as a tensor tree\n  structure. -/\nlemma perm_basisVector_tree {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (tensorNode (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i))))).tensor := by\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq (TensorTree.perm σ (TensorTree.tensorNode (complexLorentzTensor.basisVect …\n  -/\n  exact perm_basisVector _ _\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "Fin.cast",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `cast eq i` embeds `i` into an equal `Fin` type. -/\n@[inline] protected def cast (eq : n = m) (i : Fin n) : Fin m := ⟨i, eq ▸ i.2⟩",
+    "compilationAlias":
+    "/-- `cast eq i` embeds `i` into an equal `Fin` type. -/\n@[inline] protected def cast (eq : n = m) (i : Fin n) : Fin m := ⟨i, eq ▸ i.2⟩"}]},
+ {"rag":
+  ["--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The augmented Čech nerve construction, as a functor from `Arrow C`. -/\n@[simps!]\ndef augmentedCechNerve : Arrow C ⥤ SimplicialObject.Augmented C where\n  obj f := f.augmentedCechNerve\n  map F := Arrow.mapAugmentedCechNerve F",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef cechNerveEquiv (X : SimplicialObject.Augmented C) (F : Arrow C) :\n    (Augmented.toArrow.obj X ⟶ F) ≃ (X ⟶ F.augmentedCechNerve) where\n  toFun := equivalenceLeftToRight _ _\n  invFun := equivalenceRightToLeft _ _\n  left_inv := by\n    intro A\n    ext\n    · dsimp\n      rw [WidePullback.lift_π]\n      nth_rw 2 [← Category.id_comp A.left]\n      congr 1\n      convert X.left.map_id _\n      rw [← op_id]\n      congr 1\n      ext ⟨a, ha⟩\n      change a < 1 at ha\n      change 0 = a\n      omega\n    · rfl\n  right_inv := by\n    intro A\n    ext x : 2\n    · refine WidePullback.hom_ext _ _ _ (fun j => ?_) ?_\n      · dsimp\n        simp\n        rfl\n      · simpa using congr_app A.w.symm x\n    · rfl",
+   "--src: Mathlib.AlgebraicTopology.ExtraDegeneracy\n/-- The datum of an extra degeneracy is a technical condition on\naugmented simplicial objects. The morphisms `s'` and `s n` of the\nstructure formally behave like extra degeneracies `σ (-1)`. -/\n@[ext]\nstructure ExtraDegeneracy (X : SimplicialObject.Augmented C) where\n  s' : point.obj X ⟶ drop.obj X _[0]\n  s : ∀ n : ℕ, drop.obj X _[n] ⟶ drop.obj X _[n + 1]\n  s'_comp_ε : s' ≫ X.hom.app (op [0]) = \u0000\u0000 _\n  s₀_comp_δ₁ : s 0 ≫ X.left.δ 1 = X.hom.app (op [0]) ≫ s'\n  s_comp_δ₀ : ∀ n : ℕ, s n ≫ X.left.δ 0 = \u0000\u0000 _\n  s_comp_δ :\n    ∀ (n : ℕ) (i : Fin (n + 2)), s (n + 1) ≫ X.left.δ i.succ = X.left.δ i ≫ s n\n  s_comp_σ :\n    ∀ (n : ℕ) (i : Fin (n + 1)), s n ≫ X.left.σ i.succ = X.left.σ i ≫ s (n + 1)",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The augmented Čech nerve construction, as a functor from `Arrow C`. -/\n@[simps!]\ndef augmentedCechNerve : Arrow C ⥤ SimplicialObject.Augmented C where\n  obj f := f.augmentedCechNerve\n  map F := Arrow.mapAugmentedCechNerve F",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- If `f` is a collection of linear maps, then the construction `MultilinearMap.compLinearMap`\nsending a multilinear map `g` to `g (f₁ ⬝ , ..., fₙ ⬝ )` is linear in `g` and multilinear in\n`f₁, ..., fₙ`. -/\n@[simps] def compLinearMapMultilinear :\n  @MultilinearMap R ι (fun i ↦ M₁ i →ₗ[R] M₁' i)\n    ((MultilinearMap R M₁' M₂) →ₗ[R] MultilinearMap R M₁ M₂) _ _ _\n      (fun _ ↦ LinearMap.module) _ where\n  toFun := MultilinearMap.compLinearMapₗ\n  map_update_add' := by\n    intro _ f i f₁ f₂\n    ext g x\n    change (g fun j ↦ update f i (f₁ + f₂) j <| x j) =\n        (g fun j ↦ update f i f₁ j <|x j) + g fun j ↦ update f i f₂ j (x j)\n    let c : Π (i : ι), (M₁ i →ₗ[R] M₁' i) → M₁' i := fun i f ↦ f (x i)\n    convert g.map_update_add (fun j ↦ f j (x j)) i (f₁ (x i)) (f₂ (x i)) with j j j\n    · exact Function.apply_update c f i (f₁ + f₂) j\n    · exact Function.apply_update c f i f₁ j\n    · exact Function.apply_update c f i f₂ j\n  map_update_smul' := by\n    intro _ f i a f₀\n    ext g x\n    change (g fun j ↦ update f i (a • f₀) j <| x j) = a • g fun j ↦ update f i f₀ j (x j)\n    let c : Π (i : ι), (M₁ i →ₗ[R] M₁' i) → M₁' i := fun i f ↦ f (x i)\n    convert g.map_update_smul (fun j ↦ f j (x j)) i a (f₀ (x i)) with j j j\n    · exact Function.apply_update c f i (a • f₀) j\n    · exact Function.apply_update c f i f₀ j",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The morphism between augmented Čech conerves associated to a morphism of arrows. -/\n@[simps]\ndef mapAugmentedCechConerve {f g : Arrow C}\n    [∀ n : ℕ, HasWidePushout f.left (fun _ : Fin (n + 1) => f.right) fun _ => f.hom]\n    [∀ n : ℕ, HasWidePushout g.left (fun _ : Fin (n + 1) => g.right) fun _ => g.hom] (F : f ⟶ g) :\n    f.augmentedCechConerve ⟶ g.augmentedCechConerve where\n  left := F.left\n  right := mapCechConerve F",
+   "--src: Mathlib.AlgebraicTopology.SimplicialSet.Path\n/-- A path in a simplicial set `X` of length `n` is a directed path of `n` edges.-/\n@[ext]\nstructure Path (n : ℕ) where\n  /-- A path includes the data of `n+1` 0-simplices in `X`.-/\n  vertex (i : Fin (n + 1)) : X _[0]\n  /-- A path includes the data of `n` 1-simplices in `X`.-/\n  arrow (i : Fin n) : X _[1]\n  /-- The sources of the 1-simplices in a path are identified with appropriate 0-simplices.-/\n  arrow_src (i : Fin n) : X.δ 1 (arrow i) = vertex i.castSucc\n  /-- The targets of the 1-simplices in a path are identified with appropriate 0-simplices.-/\n  arrow_tgt (i : Fin n) : X.δ 0 (arrow i) = vertex i.succ",
+   "--src: Mathlib.CategoryTheory.Limits.Shapes.WidePullbacks\n/-- Construct a functor out of the wide pushout shape given a J-indexed collection of arrows from a\nfixed object.\n-/\n@[simps]\ndef wideSpan (B : C) (objs : J → C) (arrows : ∀ j : J, B ⟶ objs j) : WidePushoutShape J ⥤ C where\n  obj j := Option.casesOn j B objs\n  map f := by\n    cases' f with _ j\n    · apply \u0000\u0000 _\n    · exact arrows j\n  map_comp := fun f g => by\n    cases f\n    · simp only [Eq.ndrec, hom_id, eq_rec_constant, Category.id_comp]; congr\n    · cases g\n      simp only [Eq.ndrec, hom_id, eq_rec_constant, Category.comp_id]; congr",
+   "--src: Mathlib.Computability.TMComputable\n/-- A Turing machine + a proof it outputs `f`. -/\nstructure TM2Computable {α β : Type} (ea : FinEncoding α) (eb : FinEncoding β) (f : α → β) extends\n  TM2ComputableAux ea.Γ eb.Γ where\n  /-- a proof this machine outputs `f` -/\n  outputsFun :\n    ∀ a,\n      TM2Outputs tm (List.map inputAlphabet.invFun (ea.encode a))\n        (Option.some ((List.map outputAlphabet.invFun) (eb.encode (f a))))",
+   "--src: Mathlib.CategoryTheory.Limits.Shapes.WidePullbacks\ntheorem eq_desc_of_comp_eq (g : widePushout _ _ arrows ⟶ X) :\n    (∀ j : J, ι arrows j ≫ g = fs j) → head arrows ≫ g = f → g = desc f fs w := by\n  intro h1 h2\n  apply\n    (colimit.isColimit (WidePushoutShape.wideSpan B objs arrows)).uniq\n      (WidePushoutShape.mkCocone f fs <| w)\n  rintro (_ | _)\n  · apply h2\n  · apply h1"],
+  "id":
+  {"name": "complexLorentzTensor.perm_basisVector",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The `perm` node acting on basis vectors corresponds to a basis vector. -/\nlemma perm_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i)))) := by\n  rw [perm_tensor]\n  simp only [TensorSpecies.F_def, tensorNode_tensor]\n  rw [basisVector, basisVector]\n  erw [OverColor.lift.map_tprod]\n  apply congrArg\n  funext i\n  simp only [OverColor.mk_hom, OverColor.lift.discreteFunctorMapEqIso, Functor.mapIso_hom,\n    eqToIso.hom, Functor.mapIso_inv, eqToIso.inv, LinearEquiv.ofLinear_apply]\n  rw [basis_eq_FD]\n\n",
+   "compilationAlias":
+   "/-- The `perm` node acting on basis vectors corresponds to a basis vector. -/\nlemma perm_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i)))) := by\n  rw [perm_tensor]\n  simp only [TensorSpecies.F_def, tensorNode_tensor]\n  rw [basisVector, basisVector]\n  erw [OverColor.lift.map_tprod]\n  apply congrArg\n  funext i\n  simp only [OverColor.mk_hom, OverColor.lift.discreteFunctorMapEqIso, Functor.mapIso_hom,\n    eqToIso.hom, Functor.mapIso_inv, eqToIso.inv, LinearEquiv.ofLinear_apply]\n  rw [basis_eq_FD]\n\n"},
+  "goal":
+  "n : Nat\nc : Fin n → complexLorentzTensor.C\nb : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n⊢ Eq (complexLorentzTensor.basisVector c b) ((PiTensorProduct.tprod Complex) fun i => (complexLorentzTensor.basis (c i)) (b i))",
+  "content_sorry":
+  "/-- The `perm` node acting on basis vectors corresponds to a basis vector. -/\nlemma perm_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i)))) := by\n  sorry",
+  "annotation":
+  "/-- The `perm` node acting on basis vectors corresponds to a basis vector. -/\nlemma perm_basisVector {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C} (σ : OverColor.mk c ⟶ OverColor.mk c1)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) :\n    (perm σ (tensorNode (basisVector c b))).tensor =\n    (basisVector c1 (fun i => Fin.cast (perm_basisVector_cast σ i)\n    (b ((OverColor.Hom.toEquiv σ).symm i)))) := by\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq (TensorTree.perm σ (TensorTree.tensorNode (complexLorentzTensor.basisVect …\n  -/\n  rw [perm_tensor]\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.F.map σ).hom) …\n  -/\n  simp only [TensorSpecies.F_def, tensorNode_tensor]\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj  …\n  -/\n  rw [basisVector, basisVector]\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom ((IndexNotation.OverColor.lift.obj  …\n  -/\n  erw [OverColor.lift.map_tprod]\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq ((PiTensorProduct.tprod complexLorentzTensor.k) fun i => (IndexNotation.O …\n  -/\n  apply congrArg\n  /-\n    case h\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    ⊢ Eq (fun i => (IndexNotation.OverColor.lift.discreteFunctorMapEqIso complexLo …\n  -/\n  funext i\n  simp only [OverColor.mk_hom, OverColor.lift.discreteFunctorMapEqIso, Functor.mapIso_hom,\n    eqToIso.hom, Functor.mapIso_inv, eqToIso.inv, LinearEquiv.ofLinear_apply]\n  /-\n    case h.h\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    i : (IndexNotation.OverColor.mk c1).left\n    ⊢ Eq ((ModuleCat.Hom.hom (complexLorentzTensor.FD.map (CategoryTheory.eqToHom  …\n  -/\n  rw [basis_eq_FD]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LinearEquiv.ofLinear_apply",
+    "module": "Mathlib.Algebra.Module.Equiv.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem ofLinear_apply {h₁ h₂} (x : M) : (ofLinear f g h₁ h₂ : M ≃ₛₗ[σ₁₂] M₂) x = f x :=\n  rfl"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "TensorSpecies.F_def",
+    "module": "HepLean.Tensors.TensorSpecies.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma F_def : F S = ((OverColor.lift).obj S.FD).toFunctor := rfl",
+    "compilationAlias":
+    "lemma F_def : F S = ((OverColor.lift).obj S.FD).toFunctor := rfl"},
+   {"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "Fin.cast",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `cast eq i` embeds `i` into an equal `Fin` type. -/\n@[inline] protected def cast (eq : n = m) (i : Fin n) : Fin m := ⟨i, eq ▸ i.2⟩",
+    "compilationAlias":
+    "/-- `cast eq i` embeds `i` into an equal `Fin` type. -/\n@[inline] protected def cast (eq : n = m) (i : Fin n) : Fin m := ⟨i, eq ▸ i.2⟩"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.FiniteDimensional\n/-- A linear independent family of `finrank K V` vectors forms a basis. -/\n@[simps! repr_apply]\nnoncomputable def basisOfLinearIndependentOfCardEqFinrank {ι : Type*} [Nonempty ι] [Fintype ι]\n    {b : ι → V} (lin_ind : LinearIndependent K b) (card_eq : Fintype.card ι = finrank K V) :\n    Basis ι K V :=\n  Basis.mk lin_ind <| (lin_ind.span_eq_top_of_card_eq_finrank card_eq).ge",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- A helper function used in defining the Čech adjunction. -/\n@[simps]\ndef equivalenceRightToLeft (X : SimplicialObject.Augmented C) (F : Arrow C)\n    (G : X ⟶ F.augmentedCechNerve) : Augmented.toArrow.obj X ⟶ F where\n  left := G.left.app _ ≫ WidePullback.π _ 0\n  right := G.right\n  w := by\n    have := G.w\n    apply_fun fun e => e.app (Opposite.op <| SimplexCategory.mk 0) at this\n    simpa using this",
+   "--src: Mathlib.AlgebraicTopology.SimplicialSet.Path\n/-- A path in a simplicial set `X` of length `n` is a directed path of `n` edges.-/\n@[ext]\nstructure Path (n : ℕ) where\n  /-- A path includes the data of `n+1` 0-simplices in `X`.-/\n  vertex (i : Fin (n + 1)) : X _[0]\n  /-- A path includes the data of `n` 1-simplices in `X`.-/\n  arrow (i : Fin n) : X _[1]\n  /-- The sources of the 1-simplices in a path are identified with appropriate 0-simplices.-/\n  arrow_src (i : Fin n) : X.δ 1 (arrow i) = vertex i.castSucc\n  /-- The targets of the 1-simplices in a path are identified with appropriate 0-simplices.-/\n  arrow_tgt (i : Fin n) : X.δ 0 (arrow i) = vertex i.succ",
+   "--src: Mathlib.ModelTheory.Basic\n/-- A first-order language consists of a type of functions of every natural-number arity and a\n  type of relations of every natural-number arity. -/\n@[nolint checkUnivs]\nstructure Language where\n  /-- For every arity, a `Type*` of functions of that arity -/\n  Functions : ℕ → Type u\n  /-- For every arity, a `Type*` of relations of that arity -/\n  Relations : ℕ → Type v",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- The multilinear version of `LinearMap.comp_codRestrict` -/\n@[simp]\ntheorem compMultilinearMap_codRestrict (g : M₂ →ₗ[R] M₃) (f : MultilinearMap R M₁ M₂)\n    (p : Submodule R M₃) (h) :\n    (g.codRestrict p h).compMultilinearMap f =\n      (g.compMultilinearMap f).codRestrict p fun v => h (f v) :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Multilinear.DFinsupp\ntheorem dfinsuppFamily_single_left [∀ i, DecidableEq (κ i)]\n    (p : Π i, κ i) (f : MultilinearMap R (fun i ↦ M i (p i)) (N p)) :\n    dfinsuppFamily (Pi.single p f) =\n      (DFinsupp.lsingle p).compMultilinearMap (f.compLinearMap fun i => DFinsupp.lapply (p i)) :=\n  ext <| dfinsuppFamily_single_left_apply _ _",
+   "--src: Mathlib.LinearAlgebra.Matrix.ToLin\ntheorem LinearMap.toMatrix_smulBasis_left {G} [Group G] [DistribMulAction G M₁]\n    [SMulCommClass G R M₁] (g : G) (f : M₁ →ₗ[R] M₂) :\n    LinearMap.toMatrix (g • v₁) v₂ f =\n      LinearMap.toMatrix v₁ v₂ (f ∘ₗ DistribMulAction.toLinearMap _ _ g) := by\n  ext\n  rw [LinearMap.toMatrix_apply, LinearMap.toMatrix_apply]\n  dsimp",
+   "--src: Mathlib.Algebra.Module.Presentation.Basic\n/-- Helper structure in order to prove `Module.Relations.Solutions.IsPresentation`\nby showing the universal property of the module defined by generators and relations.\nThe universal property is restricted to modules that are in `Type w'` for\nan auxiliary universe `w'`. See `IsPresentationCore.isPresentation`. -/\nstructure IsPresentationCore (solution : relations.Solution M) where\n  /-- any solution in a module `N : Type w'` is obtained in a unique way\n  by postcomposing `solution : relations.Solution M` by a linear map `M →ₗ[A] N`. -/\n  desc {N : Type w'} [AddCommGroup N] [Module A N] (s : relations.Solution N) : M →ₗ[A] N\n  postcomp_desc {N : Type w'} [AddCommGroup N] [Module A N] (s : relations.Solution N) :\n    solution.postcomp (desc s) = s\n  postcomp_injective {N : Type w'} [AddCommGroup N] [Module A N] {f f' : M →ₗ[A] N}\n      (h : solution.postcomp f = solution.postcomp f') : f = f'",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Presheaf\nvariable (R) in\n/-- A presheaf of modules over `R : Cᵒᵖ ⥤ RingCat` consists of family of\nobjects `obj X : ModuleCat (R.obj X)` for all `X : Cᵒᵖ` together with\nfunctorial maps `obj X ⟶ (ModuleCat.restrictScalars (R.map f)).obj (obj Y)`\nfor all `f : X ⟶ Y` in `Cᵒᵖ`. -/\nstructure PresheafOfModules where\n  /-- a family of modules over `R.obj X` for all `X` -/\n  obj (X : Cᵒᵖ) : ModuleCat.{v} (R.obj X)\n  /-- the restriction maps of a presheaf of modules -/\n  map {X Y : Cᵒᵖ} (f : X ⟶ Y) : obj X ⟶ (ModuleCat.restrictScalars (R.map f).hom).obj (obj Y)\n  map_id (X : Cᵒᵖ) :\n    map (\u0000\u0000 X) =\n      (ModuleCat.restrictScalarsId' _ (congrArg RingCat.Hom.hom (R.map_id X))).inv.app _ := by\n        aesop_cat\n  map_comp {X Y Z : Cᵒᵖ} (f : X ⟶ Y) (g : Y ⟶ Z) :\n    map (f ≫ g) = map f ≫ (ModuleCat.restrictScalars _).map (map g) ≫\n      (ModuleCat.restrictScalarsComp' _ _ _\n        (congrArg RingCat.Hom.hom <| R.map_comp f g)).inv.app _ := by aesop_cat",
+   "--src: Mathlib.Algebra.Module.Presentation.Cokernel\n/-- Given a linear map `f : M₁ →ₗ[A] M₂`, a presentation of `M₂` and a choice\nof generators of `M₁`, this structure specifies a lifting of the image by `f`\nof each generator of `M₁` as a linear combination of the generators of `M₂`. -/\nstructure CokernelData where\n  /-- a lifting of `f (g₁ i)` in `pres₂.G →₀ A` -/\n  lift (i : ι) : pres₂.G →₀ A\n  π_lift (i : ι) : pres₂.π (lift i) = f (g₁ i)"],
+  "id":
+  {"name": "complexLorentzTensor.basis_eq_FD",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma basis_eq_FD {n : ℕ} (c : Fin n → complexLorentzTensor.C)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) (i : Fin n)\n    (h : { as := c i } = { as := c1 }) :\n    (complexLorentzTensor.FD.map (eqToHom h)).hom\n    (complexLorentzTensor.basis (c i) (b i)) =\n    (complexLorentzTensor.basis c1 (Fin.cast (by simp_all) (b i))) := by\n  have h' : c i = c1 := by\n    simp_all only [Discrete.mk.injEq]\n  subst h'\n  rfl\n\n",
+   "compilationAlias":
+   "lemma basis_eq_FD {n : ℕ} (c : Fin n → complexLorentzTensor.C)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) (i : Fin n)\n    (h : { as := c i } = { as := c1 }) :\n    (complexLorentzTensor.FD.map (eqToHom h)).hom\n    (complexLorentzTensor.basis (c i) (b i)) =\n    (complexLorentzTensor.basis c1 (Fin.cast (by simp_all) (b i))) := by\n  have h' : c i = c1 := by\n    simp_all only [Discrete.mk.injEq]\n  subst h'\n  rfl\n\n"},
+  "goal":
+  "c1 : complexLorentzTensor.C\nn : Nat\nc : Fin n → complexLorentzTensor.C\nb : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\ni : Fin n\nh : Eq { as := c i } { as := c1 }\n⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.FD.map (CategoryTheory.eqToHom h)).hom) ((complexLorentzTensor.basis (c i)) (b i))) ((complexLorentzTensor.basis c1) (Fin.cast ⋯ (b i)))",
+  "content_sorry":
+  "lemma basis_eq_FD {n : ℕ} (c : Fin n → complexLorentzTensor.C)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) (i : Fin n)\n    (h : { as := c i } = { as := c1 }) :\n    (complexLorentzTensor.FD.map (eqToHom h)).hom\n    (complexLorentzTensor.basis (c i) (b i)) =\n    (complexLorentzTensor.basis c1 (Fin.cast (by sorry",
+  "annotation":
+  "lemma basis_eq_FD {n : ℕ} (c : Fin n → complexLorentzTensor.C)\n    (b : Π j, Fin (complexLorentzTensor.repDim (c j))) (i : Fin n)\n    (h : { as := c i } = { as := c1 }) :\n    (complexLorentzTensor.FD.map (eqToHom h)).hom\n    (complexLorentzTensor.basis (c i) (b i)) =\n                                                 /-\n                                                   c1 : complexLorentzTensor.C\n                                                   n : Nat\n                                                   c : Fin n → complexLorentzTensor.C\n                                                   b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n                                                   i : Fin n\n                                                   h : Eq { as := c i } { as := c1 }\n                                                   ⊢ Eq (complexLorentzTensor.repDim (c i)) (complexLorentzTensor.repDim c1)\n                                                 -/\n    (complexLorentzTensor.basis c1 (Fin.cast (by simp_all) (b i))) := by\n                                                 /-\n                                                   🎉 no goals\n                                                 -/\n  have h' : c i = c1 := by\n    simp_all only [Discrete.mk.injEq]\n  /-\n    c1 : complexLorentzTensor.C\n    n : Nat\n    c : Fin n → complexLorentzTensor.C\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    i : Fin n\n    h : Eq { as := c i } { as := c1 }\n    h' : Eq (c i) c1\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.FD.map (Categ …\n  -/\n  subst h'\n  /-\n    n : Nat\n    c : Fin n → complexLorentzTensor.C\n    b : (j : Fin n) → Fin (complexLorentzTensor.repDim (c j))\n    i : Fin n\n    h : Eq { as := c i } { as := c i }\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (complexLorentzTensor.FD.map (Categ …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.cast",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `cast eq i` embeds `i` into an equal `Fin` type. -/\n@[inline] protected def cast (eq : n = m) (i : Fin n) : Fin m := ⟨i, eq ▸ i.2⟩",
+    "compilationAlias":
+    "/-- `cast eq i` embeds `i` into an equal `Fin` type. -/\n@[inline] protected def cast (eq : n = m) (i : Fin n) : Fin m := ⟨i, eq ▸ i.2⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Normed.Operator.LinearIsometry\n@[simp]\ntheorem coe_ofLinearIsometry_symm (f : E →ₛₗᵢ[σ₁₂] E₂) (g : E₂ →ₛₗ[σ₂₁] E)\n    (h₁ : f.toLinearMap.comp g = LinearMap.id) (h₂ : g.comp f.toLinearMap = LinearMap.id) :\n    ((ofLinearIsometry f g h₁ h₂).symm : E₂ → E) = (g : E₂ → E) :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Presheaf\nvariable (R) in\n/-- A presheaf of modules over `R : Cᵒᵖ ⥤ RingCat` consists of family of\nobjects `obj X : ModuleCat (R.obj X)` for all `X : Cᵒᵖ` together with\nfunctorial maps `obj X ⟶ (ModuleCat.restrictScalars (R.map f)).obj (obj Y)`\nfor all `f : X ⟶ Y` in `Cᵒᵖ`. -/\nstructure PresheafOfModules where\n  /-- a family of modules over `R.obj X` for all `X` -/\n  obj (X : Cᵒᵖ) : ModuleCat.{v} (R.obj X)\n  /-- the restriction maps of a presheaf of modules -/\n  map {X Y : Cᵒᵖ} (f : X ⟶ Y) : obj X ⟶ (ModuleCat.restrictScalars (R.map f).hom).obj (obj Y)\n  map_id (X : Cᵒᵖ) :\n    map (\u0000\u0000 X) =\n      (ModuleCat.restrictScalarsId' _ (congrArg RingCat.Hom.hom (R.map_id X))).inv.app _ := by\n        aesop_cat\n  map_comp {X Y Z : Cᵒᵖ} (f : X ⟶ Y) (g : Y ⟶ Z) :\n    map (f ≫ g) = map f ≫ (ModuleCat.restrictScalars _).map (map g) ≫\n      (ModuleCat.restrictScalarsComp' _ _ _\n        (congrArg RingCat.Hom.hom <| R.map_comp f g)).inv.app _ := by aesop_cat",
+   "--src: Mathlib.LinearAlgebra.Multilinear.Basic\n/-- If `f` is a collection of linear maps, then the construction `MultilinearMap.compLinearMap`\nsending a multilinear map `g` to `g (f₁ ⬝ , ..., fₙ ⬝ )` is linear in `g` and multilinear in\n`f₁, ..., fₙ`. -/\n@[simps] def compLinearMapMultilinear :\n  @MultilinearMap R ι (fun i ↦ M₁ i →ₗ[R] M₁' i)\n    ((MultilinearMap R M₁' M₂) →ₗ[R] MultilinearMap R M₁ M₂) _ _ _\n      (fun _ ↦ LinearMap.module) _ where\n  toFun := MultilinearMap.compLinearMapₗ\n  map_update_add' := by\n    intro _ f i f₁ f₂\n    ext g x\n    change (g fun j ↦ update f i (f₁ + f₂) j <| x j) =\n        (g fun j ↦ update f i f₁ j <|x j) + g fun j ↦ update f i f₂ j (x j)\n    let c : Π (i : ι), (M₁ i →ₗ[R] M₁' i) → M₁' i := fun i f ↦ f (x i)\n    convert g.map_update_add (fun j ↦ f j (x j)) i (f₁ (x i)) (f₂ (x i)) with j j j\n    · exact Function.apply_update c f i (f₁ + f₂) j\n    · exact Function.apply_update c f i f₁ j\n    · exact Function.apply_update c f i f₂ j\n  map_update_smul' := by\n    intro _ f i a f₀\n    ext g x\n    change (g fun j ↦ update f i (a • f₀) j <| x j) = a • g fun j ↦ update f i f₀ j (x j)\n    let c : Π (i : ι), (M₁ i →ₗ[R] M₁' i) → M₁' i := fun i f ↦ f (x i)\n    convert g.map_update_smul (fun j ↦ f j (x j)) i a (f₀ (x i)) with j j j\n    · exact Function.apply_update c f i (a • f₀) j\n    · exact Function.apply_update c f i f₀ j",
+   "--src: Mathlib.LinearAlgebra.DirectSum.TensorProduct\nlemma directSumRight_comp_rTensor (f : M₁' →ₗ[R] M₂'):\n    (directSumRight R M₂' M₁).toLinearMap ∘ₗ f.rTensor _ =\n      (lmap fun _ ↦ f.rTensor _) ∘ₗ directSumRight R M₁' M₁ := by\n  ext; simp",
+   "--src: Mathlib.RingTheory.Coalgebra.Hom\n/-- Given `R`-modules `A, B` with comultiplication maps `Δ_A, Δ_B` and counit maps\n`ε_A, ε_B`, an `R`-coalgebra homomorphism `A →ₗc[R] B` is an `R`-linear map `f` such that\n`ε_B ∘ f = ε_A` and `(f ⊗ f) ∘ Δ_A = Δ_B ∘ f`. -/\nstructure CoalgHom (R A B : Type*) [CommSemiring R]\n    [AddCommMonoid A] [Module R A] [AddCommMonoid B] [Module R B]\n    [CoalgebraStruct R A] [CoalgebraStruct R B] extends A →ₗ[R] B where\n  counit_comp : counit ∘ₗ toLinearMap = counit\n  map_comp_comul : TensorProduct.map toLinearMap toLinearMap ∘ₗ comul = comul ∘ₗ toLinearMap",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Sheaf\nlemma unitHomEquiv_symm_comp {M N : SheafOfModules.{u} R} (s : M.sections) (p : M ⟶ N) :\n    M.unitHomEquiv.symm s ≫ p = N.unitHomEquiv.symm (sectionsMap p s) :=\n  N.unitHomEquiv.injective (by simp [unitHomEquiv_comp_apply])",
+   "--src: Mathlib.Algebra.Category.ModuleCat.ChangeOfRings\n@[reassoc]\nlemma restrictScalarsComp'App_hom_naturality {M N : ModuleCat R₃} (φ : M ⟶ N) :\n    (restrictScalars gf).map φ ≫ (restrictScalarsComp'App f g gf hgf N).hom =\n      (restrictScalarsComp'App f g gf hgf M).hom ≫\n        (restrictScalars f).map ((restrictScalars g).map φ) :=\n  (restrictScalarsComp' f g gf hgf).hom.naturality φ",
+   "--src: Mathlib.Algebra.Category.CoalgebraCat.Basic\n/-- The category of `R`-coalgebras. -/\nstructure CoalgebraCat extends ModuleCat.{v} R where\n  instCoalgebra : Coalgebra R carrier",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Graded.External\n@[simp]\ntheorem gradedCommAux_comp_gradedCommAux :\n    gradedCommAux R \u0000\u0000 ℬ ∘ₗ gradedCommAux R ℬ \u0000\u0000 = LinearMap.id := by\n  ext i a b\n  dsimp\n  rw [gradedCommAux_lof_tmul, LinearMap.map_smul_of_tower, gradedCommAux_lof_tmul, smul_smul,\n    mul_comm i.2 i.1, Int.units_mul_self, one_smul]",
+   "--src: Mathlib.Analysis.Calculus.FDeriv.Equiv\nlemma _root_.fderivWithin_continuousLinearEquiv_comp (L : G ≃L[\u0000\u0000] G') (f : E → (F →L[\u0000\u0000] G))\n    (hs : UniqueDiffWithinAt \u0000\u0000 s x) :\n    fderivWithin \u0000\u0000 (fun x ↦ (L : G →L[\u0000\u0000] G').comp (f x)) s x =\n      (((ContinuousLinearEquiv.refl \u0000\u0000 F).arrowCongr L)) ∘L (fderivWithin \u0000\u0000 f s x) := by\n  change fderivWithin \u0000\u0000 (((ContinuousLinearEquiv.refl \u0000\u0000 F).arrowCongr L) ∘ f) s x = _\n  rw [ContinuousLinearEquiv.comp_fderivWithin _ hs]"],
+  "id":
+  {"name": "complexLorentzTensor.perm_basisVector_cast",
+   "module": "HepLean.Lorentz.ComplexTensor.Basis",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma perm_basisVector_cast {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (σ : OverColor.mk c ⟶ OverColor.mk c1) (i : Fin m) :\n    complexLorentzTensor.repDim (c ((OverColor.Hom.toEquiv σ).symm i)) =\n    complexLorentzTensor.repDim (c1 i) := by\n  have h1 := OverColor.Hom.toEquiv_symm_apply σ i\n  simp only [Functor.const_obj_obj, OverColor.mk_hom] at h1\n  rw [h1]\n\n",
+   "compilationAlias":
+   "lemma perm_basisVector_cast {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (σ : OverColor.mk c ⟶ OverColor.mk c1) (i : Fin m) :\n    complexLorentzTensor.repDim (c ((OverColor.Hom.toEquiv σ).symm i)) =\n    complexLorentzTensor.repDim (c1 i) := by\n  have h1 := OverColor.Hom.toEquiv_symm_apply σ i\n  simp only [Functor.const_obj_obj, OverColor.mk_hom] at h1\n  rw [h1]\n\n"},
+  "goal":
+  "n m : Nat\nc : Fin n → complexLorentzTensor.C\nc1 : Fin m → complexLorentzTensor.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\ni : Fin m\n⊢ Eq (complexLorentzTensor.repDim (c ((IndexNotation.OverColor.Hom.toEquiv σ).symm i))) (complexLorentzTensor.repDim (c1 i))",
+  "content_sorry":
+  "lemma perm_basisVector_cast {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (σ : OverColor.mk c ⟶ OverColor.mk c1) (i : Fin m) :\n    complexLorentzTensor.repDim (c ((OverColor.Hom.toEquiv σ).symm i)) =\n    complexLorentzTensor.repDim (c1 i) := by\n  sorry",
+  "annotation":
+  "lemma perm_basisVector_cast {n m : ℕ} {c : Fin n → complexLorentzTensor.C}\n    {c1 : Fin m → complexLorentzTensor.C}\n    (σ : OverColor.mk c ⟶ OverColor.mk c1) (i : Fin m) :\n    complexLorentzTensor.repDim (c ((OverColor.Hom.toEquiv σ).symm i)) =\n    complexLorentzTensor.repDim (c1 i) := by\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    i : Fin m\n    ⊢ Eq (complexLorentzTensor.repDim (c ((IndexNotation.OverColor.Hom.toEquiv σ). …\n  -/\n  have h1 := OverColor.Hom.toEquiv_symm_apply σ i\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    i : Fin m\n    h1 : Eq ((IndexNotation.OverColor.mk c).hom ((IndexNotation.OverColor.Hom.toEq …\n    ⊢ Eq (complexLorentzTensor.repDim (c ((IndexNotation.OverColor.Hom.toEquiv σ). …\n  -/\n  simp only [Functor.const_obj_obj, OverColor.mk_hom] at h1\n  /-\n    n m : Nat\n    c : Fin n → complexLorentzTensor.C\n    c1 : Fin m → complexLorentzTensor.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c1)\n    i : Fin m\n    h1 : Eq (c ((IndexNotation.OverColor.Hom.toEquiv σ).symm i)) (c1 i)\n    ⊢ Eq (complexLorentzTensor.repDim (c ((IndexNotation.OverColor.Hom.toEquiv σ). …\n  -/\n  rw [h1]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"}]}]

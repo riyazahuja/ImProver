@@ -117,46 +117,57 @@ example : True := by
             
     
     # INIT SCORING FUNCTION
-
+    score_fn = args.score_fn
     # Create a Lean function file if no external score_fn path is provided
-    if not args.llm_metric and args.score_fn is None:
-        lean_file_path = os.path.join(metric_path, f"{args.name}.lean")
-        with open(lean_file_path, "w", encoding="utf-8") as lf:
-            lf.write(f"""import TrainingData.Frontend
+    if not args.llm_metric:
+        if args.score_fn is None:
+            lean_file_path = os.path.join(metric_path, f"{args.name}.lean")
+            with open(lean_file_path, "w", encoding="utf-8") as lf:
+                lf.write(f"""import TrainingData.Frontend
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 -- Auto-generated scoring function schema for {args.name}
 def {args.name}_score (cs : CompilationStep) : Float :=
-  -- TODO: Implement custom score logic
-  0.0
+-- TODO: Implement custom score logic
+0.0
 """)
-        score_fn = lean_file_path
-    
-    score_module = score_fn.replace(os.path.sep, ".").replace(".lean", "")
+            score_fn = lean_file_path
+        
+        score_module = score_fn.replace(os.path.sep, ".").replace(".lean", "")
 
-    # Update the router.lean file to import and route this metric
-    router_file = os.path.join("metrics", "router.lean")
-    if not os.path.exists(router_file):
-        with open(router_file, "w", encoding="utf-8") as rf:
-            rf.write(f"""import {score_module}
+        # Update the router.lean file to import and route this metric
+        router_file = os.path.join("metrics", "router.lean")
+        if not os.path.exists(router_file):
+            with open(router_file, "w", encoding="utf-8") as rf:
+                rf.write(f"""import {score_module}
 
 def route_metric (name : String) (cs : CompilationStep) : IO Float := match name with
 | "{args.name}" => {args.name}_score cs
 | _ => pure 0.0
 """)
-    else:
-        with open(router_file, "r", encoding="utf-8") as rf:
-            contents = rf.read()
+        else:
+            with open(router_file, "r", encoding="utf-8") as rf:
+                contents = rf.read()
 
-        add_contents = contents.replace("| _ => 0.0", f"| \"{args.name}\" => {args.name}_score cs\n| _ => 0.0")
-        new_contents = f"""import {score_module}
+            add_contents = contents.replace("| _ => pure 0.0", f"| \"{args.name}\" => {args.name}_score cs\n| _ => pure 0.0")
+            new_contents = f"""import {score_module}
 {add_contents}
 """
-        if f"| \"{args.name}\" => {args.name}_score cs" not in contents:
-            with open(router_file, "w", encoding="utf-8") as rf:
-                rf.write(new_contents)
+            if f"| \"{args.name}\" => {args.name}_score cs" not in contents:
+                with open(router_file, "w", encoding="utf-8") as rf:
+                    rf.write(new_contents)
         # don't want redundant matches
 
+    rubric = None
+    if type(args.rubric) is str:
+        try:
+            rubric = json.loads(args.rubric)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON rubric: {e}")
+    else:
+        rubric = args.rubric
+    
+    
     config = {
         "name": args.name,
         "scoring": {
@@ -181,7 +192,7 @@ def route_metric (name : String) (cs : CompilationStep) : IO Float := match name
 
         "llm_metric": args.llm_metric,
         "metric_model": args.metric_model,
-        "rubric": json.loads(args.rubric) if args.rubric else None
+        "rubric": rubric
         }
     }
     with open(os.path.join(metric_path, "config.json"), "w", encoding="utf-8") as f:

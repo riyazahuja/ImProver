@@ -1,0 +1,1727 @@
+[{"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem succ_def (c : Cardinal) : succ c = sInf { c' | c < c' } :=\n  dif_neg <| not_isMax c",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_surjective_eq_arrow_of_lift_le (lle : lift.{u} #β' ≤ lift.{v} #α) :\n    #{f : α → β' | Surjective f} = #(α → β') :=\n  (mk_set_le _).antisymm <|\n    have ⟨e⟩ : Nonempty (α ≃ α ⊕ β') := by\n      simp_rw [← lift_mk_eq', mk_sum, lift_add, lift_lift]; rw [lift_umax.{u,v}, eq_comm]\n      exact add_eq_left (aleph0_le_lift.mpr <| aleph0_le_mk α) lle\n    ⟨⟨fun f ↦ ⟨fun a ↦ (e a).elim f id, fun b ↦ ⟨e.symm (.inr b), congr_arg _ (e.right_inv _)⟩⟩,\n      fun f g h ↦ funext fun a ↦ by\n        simpa only [e.apply_symm_apply] using congr_fun (Subtype.ext_iff.mp h) (e.symm <| .inl a)⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem cof_eq_sInf_lsub (o : Ordinal.{u}) : cof o =\n    sInf { a : Cardinal | ∃ (ι : Type u) (f : ι → Ordinal), lsub.{u, u} f = o ∧ #ι = a } := by\n  refine le_antisymm (le_csInf (cof_lsub_def_nonempty o) ?_) (csInf_le' ?_)\n  · rintro a ⟨ι, f, hf, rfl⟩\n    rw [← type_toType o]\n    refine\n      (cof_type_le fun a => ?_).trans\n        (@mk_le_of_injective _ _\n          (fun s : typein ((· < ·) : o.toType → o.toType → Prop) ⁻¹' Set.range f =>\n            Classical.choose s.prop)\n          fun s t hst => by\n          let H := congr_arg f hst\n          rwa [Classical.choose_spec s.prop, Classical.choose_spec t.prop, typein_inj,\n            Subtype.coe_inj] at H)\n    have := typein_lt_self a\n    simp_rw [← hf, lt_lsub_iff] at this\n    cases' this with i hi\n    refine ⟨enum (α := o.toType) (· < ·) ⟨f i, ?_⟩, ?_, ?_⟩\n    · rw [type_toType, ← hf]\n      apply lt_lsub\n    · rw [mem_preimage, typein_enum]\n      exact mem_range_self i\n    · rwa [← typein_le_typein, typein_enum]\n  · rcases cof_eq (α := o.toType) (· < ·) with ⟨S, hS, hS'⟩\n    let f : S → Ordinal := fun s => typein LT.lt s.val\n    refine ⟨S, f, le_antisymm (lsub_le fun i => typein_lt_self (o := o) i)\n      (le_of_forall_lt fun a ha => ?_), by rwa [type_toType o] at hS'⟩\n    rw [← type_toType o] at ha\n    rcases hS (enum (· < ·) ⟨a, ha⟩) with ⟨b, hb, hb'⟩\n    rw [← typein_le_typein, typein_enum] at hb'\n    exact hb'.trans_lt (lt_lsub.{u, u} f ⟨b, hb⟩)",
+   "--src: Mathlib.Topology.UniformSpace.Basic\ntheorem ball_eq_of_symmetry {V : Set (β × β)} (hV : SymmetricRel V) {x} :\n    ball x V = { y | (y, x) ∈ V } := by\n  ext y\n  rw [mem_ball_symmetry hV]\n  exact Iff.rfl",
+   "--src: Mathlib.Data.Set.Basic\ntheorem setOf_set {s : Set α} : setOf s = s :=\n  rfl",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\nset_option linter.deprecated false in\n@[deprecated \"No deprecation message was provided.\"  (since := \"2024-08-28\")]\ntheorem aleph'.relIso_coe : (Aleph'.relIso : Ordinal → Cardinal) = aleph' :=\n  rfl",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_embedding_le_arrow : #(α ↪ β') ≤ #(α → β') := ⟨⟨_, DFunLike.coe_injective⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_sum_compl {α} (s : Set α) : #s + #(sᶜ : Set α) = #α := by\n  classical\n  exact mk_congr (Equiv.Set.sumCompl s)",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_pNat : #ℕ+ = ℵ₀ :=\n  mk_denumerable ℕ+",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n/-- A variant of `Cardinal.mk_set` expressed in terms of a `Set` instead of a `Type`. -/\n@[simp]\ntheorem mk_powerset {α : Type u} (s : Set α) : #(↥(\u0000\u0000 s)) = 2 ^ #(↥s) :=\n  (mk_congr (Equiv.Set.powerset s)).trans mk_set"],
+  "id":
+  {"name": "ConNF.card_near_eq",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If `α` is any type with cardinality exactly `μ`, then the amount of sets near a given set `s`\nis precisely `μ`. -/\ntheorem card_near_eq (s : Set α) (h : #α = #μ) : #{t | t ~ s} = #μ := by\n  refine trans ?_ (card_small_eq h)\n  rw [Cardinal.eq]\n  refine ⟨⟨λ t ↦ ⟨t ∆ s, t.prop⟩, λ t ↦ ⟨t ∆ s, near_symmDiff_self_of_small t.prop⟩, ?_, ?_⟩⟩ <;>\n  · intro t\n    simp only [coe_setOf, mem_setOf_eq, symmDiff_symmDiff_cancel_right, Subtype.coe_eta]\n\n",
+   "compilationAlias":
+   "/-- If `α` is any type with cardinality exactly `μ`, then the amount of sets near a given set `s`\nis precisely `μ`. -/\ntheorem card_near_eq (s : Set α) (h : #α = #μ) : #{t | t ~ s} = #μ := by\n  refine trans ?_ (card_small_eq h)\n  rw [Cardinal.eq]\n  refine ⟨⟨λ t ↦ ⟨t ∆ s, t.prop⟩, λ t ↦ ⟨t ∆ s, near_symmDiff_self_of_small t.prop⟩, ?_, ?_⟩⟩ <;>\n  · intro t\n    simp only [coe_setOf, mem_setOf_eq, symmDiff_symmDiff_cancel_right, Subtype.coe_eta]\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns : Set α\nh : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n⊢ Eq (Cardinal.mk ↑(setOf fun t => ConNF.Near t s)) (Cardinal.mk ConNF.Params.μ)",
+  "content_sorry":
+  "/-- If `α` is any type with cardinality exactly `μ`, then the amount of sets near a given set `s`\nis precisely `μ`. -/\ntheorem card_near_eq (s : Set α) (h : #α = #μ) : #{t | t ~ s} = #μ := by\n  sorry",
+  "annotation":
+  "/-- If `α` is any type with cardinality exactly `μ`, then the amount of sets near a given set `s`\nis precisely `μ`. -/\ntheorem card_near_eq (s : Set α) (h : #α = #μ) : #{t | t ~ s} = #μ := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ Eq (Cardinal.mk ↑(setOf fun t => ConNF.Near t s)) (Cardinal.mk ConNF.Params.μ)\n  -/\n  refine trans ?_ (card_small_eq h)\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ Eq (Cardinal.mk ↑(setOf fun t => ConNF.Near t s)) (Cardinal.mk ↑(setOf fun s …\n  -/\n  rw [Cardinal.eq]\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ Nonempty (Equiv ↑(setOf fun t => ConNF.Near t s) ↑(setOf fun s => ConNF.Smal …\n  -/\n  refine ⟨⟨λ t ↦ ⟨t ∆ s, t.prop⟩, λ t ↦ ⟨t ∆ s, near_symmDiff_self_of_small t.prop⟩, ?_, ?_⟩⟩ <;>\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α : Type u\n      s : Set α\n      h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n      ⊢ Function.LeftInverse (fun t => ⟨symmDiff (↑t) s, ⋯⟩) fun t => ⟨symmDiff (↑t) …\n    -/\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α : Type u\n      s : Set α\n      h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n      t : ↑(setOf fun t => ConNF.Near t s)\n      ⊢ Eq ((fun t => ⟨symmDiff (↑t) s, ⋯⟩) ((fun t => ⟨symmDiff (↑t) s, ⋯⟩) t)) t\n    -/\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α : Type u\n      s : Set α\n      h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n      t : ↑(setOf fun s => ConNF.Small s)\n      ⊢ Eq ((fun t => ⟨symmDiff (↑t) s, ⋯⟩) ((fun t => ⟨symmDiff (↑t) s, ⋯⟩) t)) t\n    -/\n    simp only [coe_setOf, mem_setOf_eq, symmDiff_symmDiff_cancel_right, Subtype.coe_eta]\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Subtype.coe_eta",
+    "module": "Mathlib.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem coe_eta (a : { a // p a }) (h : p a) : mk (↑a) h = a :=\n  Subtype.ext rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem coe_eta (a : { a // p a }) (h : p a) : mk (↑a) h = a :=\n  Subtype.ext rfl"},
+   {"name": "symmDiff_symmDiff_cancel_right",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem symmDiff_symmDiff_cancel_right : b ∆ a ∆ a = b := by simp [symmDiff_assoc]",
+    "compilationAlias":
+    "@[simp]\ntheorem symmDiff_symmDiff_cancel_right : b ∆ a ∆ a = b := by simp [symmDiff_assoc]"},
+   {"name": "Cardinal.eq",
+    "module": "Mathlib.SetTheory.Cardinal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem eq : #α = #β ↔ Nonempty (α ≃ β) :=\n  Quotient.eq'",
+    "compilationAlias":
+    "protected theorem eq : #α = #β ↔ Nonempty (α ≃ β) :=\n  Quotient.eq'"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Aleph\ntheorem preAleph_le_aleph (o : Ordinal) : preAleph o ≤ ℵ_ o :=\n  preAleph_le_preAleph.2 (Ordinal.le_add_left _ _)",
+   "--src: Mathlib.SetTheory.Game.Ordinal\ntheorem toPGame_le {a b : Ordinal} (h : a ≤ b) : a.toPGame ≤ b.toPGame := by\n  refine le_iff_forall_lf.2 ⟨fun i => ?_, isEmptyElim⟩\n  rw [toPGame_moveLeft']\n  exact toPGame_lf ((toLeftMovesToPGame_symm_lt i).trans_le h)",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_embedding_le_arrow : #(α ↪ β') ≤ #(α → β') := ⟨⟨_, DFunLike.coe_injective⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\ntheorem preOmega_le_preOmega {o₁ o₂ : Ordinal} : preOmega o₁ ≤ preOmega o₂ ↔ o₁ ≤ o₂ :=\n  preOmega.le_iff_le",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\nset_option linter.deprecated false in\n@[deprecated cof_iSup_le (since := \"2024-08-27\")]\ntheorem cof_sup_le {ι} {f : ι → Ordinal} (H : ∀ i, f i < sup.{u, u} f) :\n    cof (sup.{u, u} f) ≤ #ι := by\n  rw [← (#ι).lift_id]\n  exact cof_sup_le_lift H",
+   "--src: Mathlib.SetTheory.Game.Ordinal\ntheorem toGame_le_iff {a b : Ordinal} : a.toGame ≤ b.toGame ↔ a ≤ b :=\n  toPGame_le_iff",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_subtype_le_of_subset {α : Type u} {p q : α → Prop} (h : ∀ ⦃x⦄, p x → q x) :\n    #(Subtype p) ≤ #(Subtype q) :=\n  ⟨Embedding.subtypeMap (Embedding.refl α) h⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small family of pre-games is bounded below. -/\nlemma bddBelow_range_of_small {ι : Type*} [Small.{u} ι] (f : ι → PGame.{u}) :\n    BddBelow (Set.range f) := by\n  let x : PGame.{u} := ⟨PEmpty, Σ i, (f <| (equivShrink.{u} ι).symm i).RightMoves, PEmpty.elim,\n    fun x ↦ moveRight _ x.2⟩\n  refine ⟨x, Set.forall_mem_range.2 fun i ↦ ?_⟩\n  rw [← (equivShrink ι).symm_apply_apply i, le_iff_forall_lf]\n  simpa [x] using fun j ↦ @lf_moveRight x ⟨equivShrink ι i, j⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem isRegular_preAleph_succ {o : Ordinal} (h : ω ≤ o) : IsRegular (preAleph (succ o)) := by\n  rw [preAleph_succ]\n  exact isRegular_succ (aleph0_le_preAleph.2 h)",
+   "--src: Mathlib.Data.W.Cardinal\n@[deprecated (since := \"2024-11-10\")] alias cardinal_mk_le_of_le' := cardinalMk_le_of_le'"],
+  "id":
+  {"name": "ConNF.card_near_le",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If `α` is any type with cardinality bounded by `μ`, then the amount of sets near a given set `s`\nis also bounded by `μ`. -/\ntheorem card_near_le (s : Set α) (h : #α ≤ #μ) : #{t | t ~ s} ≤ #μ := by\n  refine le_trans ?_ (card_small_le h)\n  apply mk_le_of_injective (f := λ t ↦ ⟨t ∆ s, t.prop⟩)\n  intro t₁ t₂ ht\n  exact Subtype.val_injective <| symmDiff_left_injective s <| congr_arg Subtype.val ht\n\n",
+   "compilationAlias":
+   "/-- If `α` is any type with cardinality bounded by `μ`, then the amount of sets near a given set `s`\nis also bounded by `μ`. -/\ntheorem card_near_le (s : Set α) (h : #α ≤ #μ) : #{t | t ~ s} ≤ #μ := by\n  refine le_trans ?_ (card_small_le h)\n  apply mk_le_of_injective (f := λ t ↦ ⟨t ∆ s, t.prop⟩)\n  intro t₁ t₂ ht\n  exact Subtype.val_injective <| symmDiff_left_injective s <| congr_arg Subtype.val ht\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns : Set α\nh : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n⊢ LE.le (Cardinal.mk ↑(setOf fun t => ConNF.Near t s)) (Cardinal.mk ConNF.Params.μ)",
+  "content_sorry":
+  "/-- If `α` is any type with cardinality bounded by `μ`, then the amount of sets near a given set `s`\nis also bounded by `μ`. -/\ntheorem card_near_le (s : Set α) (h : #α ≤ #μ) : #{t | t ~ s} ≤ #μ := by\n  sorry",
+  "annotation":
+  "/-- If `α` is any type with cardinality bounded by `μ`, then the amount of sets near a given set `s`\nis also bounded by `μ`. -/\ntheorem card_near_le (s : Set α) (h : #α ≤ #μ) : #{t | t ~ s} ≤ #μ := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun t => ConNF.Near t s)) (Cardinal.mk ConNF.Para …\n  -/\n  refine le_trans ?_ (card_small_le h)\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun t => ConNF.Near t s)) (Cardinal.mk ↑(setOf fu …\n  -/\n  apply mk_le_of_injective (f := λ t ↦ ⟨t ∆ s, t.prop⟩)\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ Function.Injective fun t => ⟨symmDiff (↑t) s, ⋯⟩\n  -/\n  intro t₁ t₂ ht\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    t₁ t₂ : ↑(setOf fun t => ConNF.Near t s)\n    ht : Eq ((fun t => ⟨symmDiff (↑t) s, ⋯⟩) t₁) ((fun t => ⟨symmDiff (↑t) s, ⋯⟩)  …\n    ⊢ Eq t₁ t₂\n  -/\n  exact Subtype.val_injective <| symmDiff_left_injective s <| congr_arg Subtype.val ht\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Subtype.val",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  val : α",
+    "compilationAlias": "  val : α"},
+   {"name": "congr_arg",
+    "module": "Batteries.Logic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias congr_arg := congrArg",
+    "compilationAlias": "alias congr_arg := congrArg"},
+   {"name": "symmDiff_left_injective",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem symmDiff_left_injective (a : α) : Injective (· ∆ a) :=\n  Function.Involutive.injective (symmDiff_left_involutive a)",
+    "compilationAlias":
+    "theorem symmDiff_left_injective (a : α) : Injective (· ∆ a) :=\n  Function.Involutive.injective (symmDiff_left_involutive a)"},
+   {"name": "Subtype.val_injective",
+    "module": "Mathlib.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem val_injective : Injective (@val _ p) :=\n  coe_injective",
+    "compilationAlias":
+    "@[simp] theorem val_injective : Injective (@val _ p) :=\n  coe_injective"},
+   {"name": "le_trans",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The relation `≤` on a preorder is transitive. -/\n@[trans] lemma le_trans : a ≤ b → b ≤ c → a ≤ c := Preorder.le_trans _ _ _",
+    "compilationAlias":
+    "/-- The relation `≤` on a preorder is transitive. -/\n@[trans] lemma le_trans : a ≤ b → b ≤ c → a ≤ c := Preorder.le_trans _ _ _"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Part\ntheorem left_dom_of_inter_dom [Inter α] {a b : Part α} (hab : Dom (a ∩ b)) : a.Dom := hab.1",
+   "--src: Mathlib.Order.PartialSups\ntheorem partialSups_mono : Monotone (partialSups : (ℕ → α) → ℕ →o α) := fun _f _g h _n ↦\n  partialSups_le_iff.2 fun k hk ↦ (h k).trans (le_partialSups_of_le _ hk)",
+   "--src: Mathlib.GroupTheory.GroupAction.Blocks\n@[to_additive]\nlemma isBlock_iff_smul_eq_smul_of_nonempty :\n    IsBlock G B ↔ ∀ ⦃g₁ g₂ : G⦄, (g₁ • B ∩ g₂ • B).Nonempty → g₁ • B = g₂ • B := by\n  simp_rw [IsBlock, ← not_disjoint_iff_nonempty_inter, not_imp_comm]",
+   "--src: Mathlib.Data.PFun\ntheorem image_inter (s t : Set α) : f.image (s ∩ t) ⊆ f.image s ∩ f.image t :=\n  Rel.image_inter _ s t",
+   "--src: Mathlib.Data.Set.Card\ntheorem ncard_inter_le_ncard_left (s t : Set α) (hs : s.Finite := by toFinite_tac) :\n    (s ∩ t).ncard ≤ s.ncard :=\n  ncard_le_ncard inter_subset_left hs",
+   "--src: Mathlib.SetTheory.Ordinal.Notation\ntheorem nfBelow_iff_topBelow {b} [NF b] : ∀ {o}, NFBelow o (repr b) ↔ NF o ∧ TopBelow b o\n  | 0 => ⟨fun h => ⟨⟨⟨_, h⟩⟩, trivial⟩, fun _ => NFBelow.zero⟩\n  | oadd _ _ _ =>\n    ⟨fun h => ⟨⟨⟨_, h⟩⟩, (@cmp_compares _ b h.fst _).eq_lt.2 h.lt⟩, fun ⟨h₁, h₂⟩ =>\n      h₁.below_of_lt <| (@cmp_compares _ b h₁.fst _).eq_lt.1 h₂⟩",
+   "--src: Mathlib.Data.Nat.PartENat\ntheorem withTopEquiv_symm_le {x y : ℕ∞} : withTopEquiv.symm x ≤ withTopEquiv.symm y ↔ x ≤ y := by\n  simp",
+   "--src: Mathlib.Data.Set.Basic\ntheorem inter_compl_nonempty_iff {s t : Set α} : (s ∩ tᶜ).Nonempty ↔ ¬s ⊆ t :=\n  (not_subset.trans <| exists_congr fun x => by simp [mem_compl]).symm",
+   "--src: Mathlib.SetTheory.Game.Basic\ntheorem le_iff_game_le {x y : PGame} : x ≤ y ↔ (⟦x⟧ : Game) ≤ ⟦y⟧ :=\n  Iff.rfl",
+   "--src: Mathlib.Computability.Partrec\ntheorem rfind_dom' {p : ℕ →. Bool} :\n    (rfind p).Dom ↔ ∃ n, true ∈ p n ∧ ∀ {m : ℕ}, m ≤ n → (p m).Dom :=\n  exists_congr fun _ =>\n    and_congr_right fun pn =>\n      ⟨fun H _ h => (Decidable.eq_or_lt_of_le h).elim (fun e => e.symm ▸ pn.fst) (H _), fun H _ h =>\n        H (le_of_lt h)⟩"],
+  "id":
+  {"name": "ConNF.inter_nonempty_of_near",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Any two large sets that are near each other must have nonempty intersection. -/\ntheorem inter_nonempty_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : (s ∩ t).Nonempty := by\n  rw [← mk_ne_zero_iff_nonempty, card_inter_of_near h₁ h₂]\n  exact ne_of_gt <| aleph0_pos.trans <| aleph0_lt_κ.trans_le <| κ_le_of_not_small h₂\n\n",
+   "compilationAlias":
+   "/-- Any two large sets that are near each other must have nonempty intersection. -/\ntheorem inter_nonempty_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : (s ∩ t).Nonempty := by\n  rw [← mk_ne_zero_iff_nonempty, card_inter_of_near h₁ h₂]\n  exact ne_of_gt <| aleph0_pos.trans <| aleph0_lt_κ.trans_le <| κ_le_of_not_small h₂\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh₁ : ConNF.Near s t\nh₂ : Not (ConNF.Small s)\n⊢ (Inter.inter s t).Nonempty",
+  "content_sorry":
+  "/-- Any two large sets that are near each other must have nonempty intersection. -/\ntheorem inter_nonempty_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : (s ∩ t).Nonempty := by\n  sorry",
+  "annotation":
+  "/-- Any two large sets that are near each other must have nonempty intersection. -/\ntheorem inter_nonempty_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : (s ∩ t).Nonempty := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small s)\n    ⊢ (Inter.inter s t).Nonempty\n  -/\n  rw [← mk_ne_zero_iff_nonempty, card_inter_of_near h₁ h₂]\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small s)\n    ⊢ Ne (Cardinal.mk ↑s) 0\n  -/\n  exact ne_of_gt <| aleph0_pos.trans <| aleph0_lt_κ.trans_le <| κ_le_of_not_small h₂\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ne_of_gt",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma ne_of_gt (h : b < a) : a ≠ b := fun he => absurd h (he ▸ lt_irrefl a)",
+    "compilationAlias":
+    "lemma ne_of_gt (h : b < a) : a ≠ b := fun he => absurd h (he ▸ lt_irrefl a)"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_union_add_mk_inter {α : Type u} {S T : Set α} :\n    #(S ∪ T : Set α) + #(S ∩ T : Set α) = #S + #T := by\n  classical\n  exact Quot.sound ⟨Equiv.Set.unionSumInter S T⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem le_mk_iff_exists_set {c : Cardinal} {α : Type u} : c ≤ #α ↔ ∃ p : Set α, #p = c :=\n  ⟨inductionOn c fun _ ⟨⟨f, hf⟩⟩ => ⟨Set.range f, (Equiv.ofInjective f hf).cardinal_eq.symm⟩,\n    fun ⟨_, e⟩ => e ▸ ⟨⟨Subtype.val, fun _ _ => Subtype.eq⟩⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_subtype_le {α : Type u} (p : α → Prop) : #(Subtype p) ≤ #α :=\n  ⟨Embedding.subtype p⟩",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\ntheorem toENat_congr {α : Type u} {β : Type v} (e : α ≃ β) : toENat #α = toENat #β := by\n  rw [← toENat_lift, lift_mk_eq.{_, _,v}.mpr ⟨e⟩, toENat_lift]",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_embedding_le_arrow : #(α ↪ β') ≤ #(α → β') := ⟨⟨_, DFunLike.coe_injective⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n@[simp]\ntheorem mk_option {α : Type u} : #(Option α) = #α + 1 := by\n  rw [(Equiv.optionEquivSumPUnit.{u, u} α).cardinal_eq, mk_sum, mk_eq_one PUnit, lift_id, lift_id]",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_pNat : #ℕ+ = ℵ₀ :=\n  mk_denumerable ℕ+",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded above. -/\nlemma bddAbove_of_small (s : Set PGame.{u}) [Small.{u} s] : BddAbove s := by\n  simpa using bddAbove_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Game.PGame\n@[simp]\nprotected theorem not_le {x y : PGame} : ¬x ≤ y ↔ y ⧏ x :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\n@[simp] lemma toENat_ofENat (n : ℕ∞) : toENat n = n := toENatAux_ofENat n"],
+  "id":
+  {"name": "ConNF.card_inter_of_near",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If `s` and `t` are large and near each other, then their intersection has the same cardinality\nas both `s` and `t`. -/\ntheorem card_inter_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : #(s ∩ t : Set α) = #s := by\n  apply le_antisymm\n  · apply mk_le_of_injective (f := λ x ↦ ⟨x, x.prop.1⟩)\n    intro x y h\n    rwa [Subtype.mk.injEq, Subtype.coe_inj] at h\n  · rw [← diff_symmDiff_self]\n    apply le_of_le_add (le_mk_diff_add_mk s (s ∆ t))\n    · exact aleph0_lt_κ.le.trans (κ_le_of_not_small h₂)\n    · exact h₁.trans_le (κ_le_of_not_small h₂)\n\n",
+   "compilationAlias":
+   "/-- If `s` and `t` are large and near each other, then their intersection has the same cardinality\nas both `s` and `t`. -/\ntheorem card_inter_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : #(s ∩ t : Set α) = #s := by\n  apply le_antisymm\n  · apply mk_le_of_injective (f := λ x ↦ ⟨x, x.prop.1⟩)\n    intro x y h\n    rwa [Subtype.mk.injEq, Subtype.coe_inj] at h\n  · rw [← diff_symmDiff_self]\n    apply le_of_le_add (le_mk_diff_add_mk s (s ∆ t))\n    · exact aleph0_lt_κ.le.trans (κ_le_of_not_small h₂)\n    · exact h₁.trans_le (κ_le_of_not_small h₂)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh₁ : ConNF.Near s t\nh₂ : Not (ConNF.Small s)\n⊢ Eq (Cardinal.mk ↑(Inter.inter s t)) (Cardinal.mk ↑s)",
+  "content_sorry":
+  "/-- If `s` and `t` are large and near each other, then their intersection has the same cardinality\nas both `s` and `t`. -/\ntheorem card_inter_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : #(s ∩ t : Set α) = #s := by\n  sorry",
+  "annotation":
+  "/-- If `s` and `t` are large and near each other, then their intersection has the same cardinality\nas both `s` and `t`. -/\ntheorem card_inter_of_near (h₁ : s ~ t) (h₂ : ¬Small s) : #(s ∩ t : Set α) = #s := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small s)\n    ⊢ Eq (Cardinal.mk ↑(Inter.inter s t)) (Cardinal.mk ↑s)\n  -/\n  apply le_antisymm\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h₁ : ConNF.Near s t\n      h₂ : Not (ConNF.Small s)\n      ⊢ LE.le (Cardinal.mk ↑(Inter.inter s t)) (Cardinal.mk ↑s)\n    -/\n  · apply mk_le_of_injective (f := λ x ↦ ⟨x, x.prop.1⟩)\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h₁ : ConNF.Near s t\n      h₂ : Not (ConNF.Small s)\n      ⊢ Function.Injective fun x => ⟨↑x, ⋯⟩\n    -/\n    intro x y h\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h₁ : ConNF.Near s t\n      h₂ : Not (ConNF.Small s)\n      x y : ↑(Inter.inter s t)\n      h : Eq ((fun x => ⟨↑x, ⋯⟩) x) ((fun x => ⟨↑x, ⋯⟩) y)\n      ⊢ Eq x y\n    -/\n    rwa [Subtype.mk.injEq, Subtype.coe_inj] at h\n    /-\n      🎉 no goals\n    -/\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h₁ : ConNF.Near s t\n      h₂ : Not (ConNF.Small s)\n      ⊢ LE.le (Cardinal.mk ↑s) (Cardinal.mk ↑(Inter.inter s t))\n    -/\n  · rw [← diff_symmDiff_self]\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h₁ : ConNF.Near s t\n      h₂ : Not (ConNF.Small s)\n      ⊢ LE.le (Cardinal.mk ↑s) (Cardinal.mk ↑(SDiff.sdiff s (symmDiff s t)))\n    -/\n    apply le_of_le_add (le_mk_diff_add_mk s (s ∆ t))\n      /-\n        case a.hc\n        inst✝ : ConNF.Params\n        α : Type u\n        s t : Set α\n        h₁ : ConNF.Near s t\n        h₂ : Not (ConNF.Small s)\n        ⊢ LE.le Cardinal.aleph0 (Cardinal.mk ↑s)\n      -/\n    · exact aleph0_lt_κ.le.trans (κ_le_of_not_small h₂)\n      /-\n        🎉 no goals\n      -/\n      /-\n        case a.he\n        inst✝ : ConNF.Params\n        α : Type u\n        s t : Set α\n        h₁ : ConNF.Near s t\n        h₂ : Not (ConNF.Small s)\n        ⊢ LT.lt (Cardinal.mk ↑(symmDiff s t)) (Cardinal.mk ↑s)\n      -/\n    · exact h₁.trans_le (κ_le_of_not_small h₂)\n      /-\n        🎉 no goals\n      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Subtype.coe_inj",
+    "module": "Mathlib.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem coe_inj {a b : Subtype p} : (a : α) = b ↔ a = b :=\n  coe_injective.eq_iff",
+    "compilationAlias":
+    "theorem coe_inj {a b : Subtype p} : (a : α) = b ↔ a = b :=\n  coe_injective.eq_iff"},
+   {"name": "Subtype.mk.injEq",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "",
+    "compilationAlias": ""},
+   {"name": "le_antisymm",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _",
+    "compilationAlias":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem le_mk_iff_exists_set {c : Cardinal} {α : Type u} : c ≤ #α ↔ ∃ p : Set α, #p = c :=\n  ⟨inductionOn c fun _ ⟨⟨f, hf⟩⟩ => ⟨Set.range f, (Equiv.ofInjective f hf).cardinal_eq.symm⟩,\n    fun ⟨_, e⟩ => e ▸ ⟨⟨Subtype.val, fun _ _ => Subtype.eq⟩⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_set_le (s : Set α) : #s ≤ #α :=\n  mk_subtype_le s",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\ntheorem toENat_congr {α : Type u} {β : Type v} (e : α ≃ β) : toENat #α = toENat #β := by\n  rw [← toENat_lift, lift_mk_eq.{_, _,v}.mpr ⟨e⟩, toENat_lift]",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n@[simp]\ntheorem mk_option {α : Type u} : #(Option α) = #α + 1 := by\n  rw [(Equiv.optionEquivSumPUnit.{u, u} α).cardinal_eq, mk_sum, mk_eq_one PUnit, lift_id, lift_id]",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_embedding_le_arrow : #(α ↪ β') ≤ #(α → β') := ⟨⟨_, DFunLike.coe_injective⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\ntheorem preAleph_limit {o : Ordinal} (ho : o.IsLimit) : preAleph o = ⨆ a : Iio o, preAleph a := by\n  refine le_antisymm ?_ (ciSup_le' fun i => preAleph_le_preAleph.2 i.2.le)\n  rw [preAleph_le_of_isLimit ho]\n  exact fun a ha => le_ciSup (bddAbove_of_small _) (⟨a, ha⟩ : Iio o)",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_quotient_le {α : Type u} {s : Setoid α} : #(Quotient s) ≤ #α :=\n  mk_quot_le",
+   "--src: Mathlib.SetTheory.Ordinal.Basic\ntheorem small_iff_lift_mk_lt_univ {α : Type u} :\n    Small.{v} α ↔ Cardinal.lift.{v+1,_} #α < univ.{v, max u (v + 1)} := by\n  rw [lt_univ']\n  constructor\n  · rintro ⟨β, e⟩\n    exact ⟨#β, lift_mk_eq.{u, _, v + 1}.2 e⟩\n  · rintro ⟨c, hc⟩\n    exact ⟨⟨c.out, lift_mk_eq.{u, _, v + 1}.1 (hc.trans (congr rfl c.mk_out.symm))⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n@[simp] theorem mk_multiplicative : #(Multiplicative α) = #α := rfl"],
+  "id":
+  {"name": "ConNF.card_eq_of_near",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Two large sets that are near each other have the same cardinality (and we only need to suppose\nthat one of them is large to draw this conclusion). -/\ntheorem card_eq_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #s = #t := by\n  have := card_le_of_near h₁ h₂\n  have h₃ : ¬Small s := h₂ ∘ this.trans_lt\n  exact le_antisymm (card_le_of_near (near_symm h₁) h₃) this\n\n",
+   "compilationAlias":
+   "/-- Two large sets that are near each other have the same cardinality (and we only need to suppose\nthat one of them is large to draw this conclusion). -/\ntheorem card_eq_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #s = #t := by\n  have := card_le_of_near h₁ h₂\n  have h₃ : ¬Small s := h₂ ∘ this.trans_lt\n  exact le_antisymm (card_le_of_near (near_symm h₁) h₃) this\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh₁ : ConNF.Near s t\nh₂ : Not (ConNF.Small t)\n⊢ Eq (Cardinal.mk ↑s) (Cardinal.mk ↑t)",
+  "content_sorry":
+  "/-- Two large sets that are near each other have the same cardinality (and we only need to suppose\nthat one of them is large to draw this conclusion). -/\ntheorem card_eq_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #s = #t := by\n  sorry",
+  "annotation":
+  "/-- Two large sets that are near each other have the same cardinality (and we only need to suppose\nthat one of them is large to draw this conclusion). -/\ntheorem card_eq_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #s = #t := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small t)\n    ⊢ Eq (Cardinal.mk ↑s) (Cardinal.mk ↑t)\n  -/\n  have := card_le_of_near h₁ h₂\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small t)\n    this : LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)\n    ⊢ Eq (Cardinal.mk ↑s) (Cardinal.mk ↑t)\n  -/\n  have h₃ : ¬Small s := h₂ ∘ this.trans_lt\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small t)\n    this : LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)\n    h₃ : Not (ConNF.Small s)\n    ⊢ Eq (Cardinal.mk ↑s) (Cardinal.mk ↑t)\n  -/\n  exact le_antisymm (card_le_of_near (near_symm h₁) h₃) this\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "le_antisymm",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _",
+    "compilationAlias":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_set_le (s : Set α) : #s ≤ #α :=\n  mk_subtype_le s",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem bddAbove_of_small (s : Set Cardinal.{u}) [h : Small.{u} s] : BddAbove s :=\n  bddAbove_iff_small.2 h",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_subtype_le_of_subset {α : Type u} {p q : α → Prop} (h : ∀ ⦃x⦄, p x → q x) :\n    #(Subtype p) ≤ #(Subtype q) :=\n  ⟨Embedding.subtypeMap (Embedding.refl α) h⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\n@[simp]\ntheorem aleph0_le_preAleph {o : Ordinal} : ℵ₀ ≤ preAleph o ↔ ω ≤ o := by\n  rw [← preAleph_omega0, preAleph_le_preAleph]",
+   "--src: Mathlib.SetTheory.Ordinal.Rank\n/-- if `r a b` then the rank of `a` is less than the rank of `b`. -/\ntheorem rank_lt_of_rel (hb : Acc r b) (h : r a b) : (hb.inv h).rank < hb.rank :=\n  (Order.lt_succ _).trans_le <| by\n    rw [hb.rank_eq]\n    exact Ordinal.le_iSup _ (⟨a, h⟩ : {a // r a b})",
+   "--src: Mathlib.Data.Nat.PartENat\ntheorem withTopEquiv_symm_le {x y : ℕ∞} : withTopEquiv.symm x ≤ withTopEquiv.symm y ↔ x ≤ y := by\n  simp",
+   "--src: Mathlib.Logic.UnivLE\ntheorem univLE_max : UnivLE.{u, max u v} := fun α ↦ small_max.{v} α",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\nlemma ofENat_toENat_le (a : Cardinal) : ↑(toENat a) ≤ a := enat_gc.l_u_le _",
+   "--src: Mathlib.SetTheory.Game.Ordinal\n@[simp]\ntheorem toPGame_le_iff {a b : Ordinal} : a.toPGame ≤ b.toPGame ↔ a ≤ b :=\n  ⟨by contrapose; rw [not_le, PGame.not_le]; exact toPGame_lf, toPGame_le⟩"],
+  "id":
+  {"name": "ConNF.card_le_of_near",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem card_le_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #t ≤ #s := by\n  rw [Near, Small, Set.symmDiff_def, mk_union_of_disjoint disjoint_sdiff_sdiff] at h₁\n  rw [Small, not_lt] at h₂\n  have h₃ := (le_add_self.trans_lt h₁).trans_le h₂\n  by_contra! h₄\n  have := add_lt_of_lt (aleph0_lt_κ.le.trans h₂) h₃ h₄\n  exact (le_mk_diff_add_mk t s).not_lt this\n\n",
+   "compilationAlias":
+   "theorem card_le_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #t ≤ #s := by\n  rw [Near, Small, Set.symmDiff_def, mk_union_of_disjoint disjoint_sdiff_sdiff] at h₁\n  rw [Small, not_lt] at h₂\n  have h₃ := (le_add_self.trans_lt h₁).trans_le h₂\n  by_contra! h₄\n  have := add_lt_of_lt (aleph0_lt_κ.le.trans h₂) h₃ h₄\n  exact (le_mk_diff_add_mk t s).not_lt this\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh₁ : ConNF.Near s t\nh₂ : Not (ConNF.Small t)\n⊢ LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)",
+  "content_sorry":
+  "theorem card_le_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #t ≤ #s := by\n  sorry",
+  "annotation":
+  "theorem card_le_of_near (h₁ : s ~ t) (h₂ : ¬Small t) : #t ≤ #s := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : ConNF.Near s t\n    h₂ : Not (ConNF.Small t)\n    ⊢ LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)\n  -/\n  rw [Near, Small, Set.symmDiff_def, mk_union_of_disjoint disjoint_sdiff_sdiff] at h₁\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : LT.lt (HAdd.hAdd (Cardinal.mk ↑(SDiff.sdiff s t)) (Cardinal.mk ↑(SDiff.sd …\n    h₂ : Not (ConNF.Small t)\n    ⊢ LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)\n  -/\n  rw [Small, not_lt] at h₂\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : LT.lt (HAdd.hAdd (Cardinal.mk ↑(SDiff.sdiff s t)) (Cardinal.mk ↑(SDiff.sd …\n    h₂ : LE.le (Cardinal.mk ConNF.Params.κ) (Cardinal.mk ↑t)\n    ⊢ LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)\n  -/\n  have h₃ := (le_add_self.trans_lt h₁).trans_le h₂\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : LT.lt (HAdd.hAdd (Cardinal.mk ↑(SDiff.sdiff s t)) (Cardinal.mk ↑(SDiff.sd …\n    h₂ : LE.le (Cardinal.mk ConNF.Params.κ) (Cardinal.mk ↑t)\n    h₃ : LT.lt (Cardinal.mk ↑(SDiff.sdiff t s)) (Cardinal.mk ↑t)\n    ⊢ LE.le (Cardinal.mk ↑t) (Cardinal.mk ↑s)\n  -/\n  by_contra! h₄\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : LT.lt (HAdd.hAdd (Cardinal.mk ↑(SDiff.sdiff s t)) (Cardinal.mk ↑(SDiff.sd …\n    h₂ : LE.le (Cardinal.mk ConNF.Params.κ) (Cardinal.mk ↑t)\n    h₃ : LT.lt (Cardinal.mk ↑(SDiff.sdiff t s)) (Cardinal.mk ↑t)\n    h₄ : LT.lt (Cardinal.mk ↑s) (Cardinal.mk ↑t)\n    ⊢ False\n  -/\n  have := add_lt_of_lt (aleph0_lt_κ.le.trans h₂) h₃ h₄\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h₁ : LT.lt (HAdd.hAdd (Cardinal.mk ↑(SDiff.sdiff s t)) (Cardinal.mk ↑(SDiff.sd …\n    h₂ : LE.le (Cardinal.mk ConNF.Params.κ) (Cardinal.mk ↑t)\n    h₃ : LT.lt (Cardinal.mk ↑(SDiff.sdiff t s)) (Cardinal.mk ↑t)\n    h₄ : LT.lt (Cardinal.mk ↑s) (Cardinal.mk ↑t)\n    this : LT.lt (HAdd.hAdd (Cardinal.mk ↑(SDiff.sdiff t s)) (Cardinal.mk ↑s)) (Ca …\n    ⊢ False\n  -/\n  exact (le_mk_diff_add_mk t s).not_lt this\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"},
+   {"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"},
+   {"name": "disjoint_sdiff_sdiff",
+    "module": "Mathlib.Order.BooleanAlgebra",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem disjoint_sdiff_sdiff : Disjoint (x \\ y) (y \\ x) :=\n  disjoint_iff_inf_le.mpr sdiff_inf_sdiff.le",
+    "compilationAlias":
+    "theorem disjoint_sdiff_sdiff : Disjoint (x \\ y) (y \\ x) :=\n  disjoint_iff_inf_le.mpr sdiff_inf_sdiff.le"},
+   {"name": "Set.symmDiff_def",
+    "module": "Mathlib.Data.Set.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem symmDiff_def (s t : Set α) : s ∆ t = s \\ t ∪ t \\ s :=\n  rfl",
+    "compilationAlias":
+    "protected theorem symmDiff_def (s t : Set α) : s ∆ t = s \\ t ∪ t \\ s :=\n  rfl"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Ordinal.Notation\ntheorem nfBelow_iff_topBelow {b} [NF b] : ∀ {o}, NFBelow o (repr b) ↔ NF o ∧ TopBelow b o\n  | 0 => ⟨fun h => ⟨⟨⟨_, h⟩⟩, trivial⟩, fun _ => NFBelow.zero⟩\n  | oadd _ _ _ =>\n    ⟨fun h => ⟨⟨⟨_, h⟩⟩, (@cmp_compares _ b h.fst _).eq_lt.2 h.lt⟩, fun ⟨h₁, h₂⟩ =>\n      h₁.below_of_lt <| (@cmp_compares _ b h₁.fst _).eq_lt.1 h₂⟩",
+   "--src: Mathlib.Data.Nat.PartENat\ntheorem withTopEquiv_symm_le {x y : ℕ∞} : withTopEquiv.symm x ≤ withTopEquiv.symm y ↔ x ≤ y := by\n  simp",
+   "--src: Mathlib.Order.Hom.Basic\ntheorem le_symm_apply (e : α ≃o β) {x : α} {y : β} : x ≤ e.symm y ↔ e x ≤ y :=\n  e.rel_symm_apply",
+   "--src: Mathlib.GroupTheory.Congruence.Defs\n/-- Definition of `≤` for congruence relations. -/\n@[to_additive \"Definition of `≤` for additive congruence relations.\"]\ntheorem le_def {c d : Con M} : c ≤ d ↔ ∀ {x y}, c x y → d x y :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Ordinal.Notation\n/-- A normal form ordinal notation has the form\n`ω ^ a₁ * n₁ + ω ^ a₂ * n₂ + ⋯ + ω ^ aₖ * nₖ`\nwhere `a₁ > a₂ > ⋯ > aₖ` and all the `aᵢ` are also in normal form.\nWe will essentially only be interested in normal form ordinal notations, but to avoid complicating\nthe algorithms, we define everything over general ordinal notations and only prove correctness with\nnormal form as an invariant. -/\nclass NF (o : ONote) : Prop where\n  out : Exists (NFBelow o)",
+   "--src: Mathlib.SetTheory.Ordinal.Notation\ntheorem sub_nfBelow : ∀ {o₁ o₂ b}, NFBelow o₁ b → NF o₂ → NFBelow (o₁ - o₂) b\n  | 0, o, b, _, h₂ => by cases o <;> exact NFBelow.zero\n  | oadd _ _ _, 0, _, h₁, _ => h₁\n  | oadd e₁ n₁ a₁, oadd e₂ n₂ a₂, b, h₁, h₂ => by\n    have h' := sub_nfBelow h₁.snd h₂.snd\n    simp only [HSub.hSub, Sub.sub, sub] at h' ⊢\n    have := @cmp_compares _ _ h₁.fst h₂.fst\n    cases h : cmp e₁ e₂\n    · apply NFBelow.zero\n    · rw [Nat.sub_eq]\n      simp only [h, Ordering.compares_eq] at this\n      subst e₂\n      cases (n₁ : ℕ) - n₂\n      · by_cases en : n₁ = n₂ <;> simp only [en, ↓reduceIte]\n        · exact h'.mono (le_of_lt h₁.lt)\n        · exact NFBelow.zero\n      · exact NFBelow.oadd h₁.fst h₁.snd h₁.lt\n    · exact h₁",
+   "--src: Mathlib.Order.GaloisConnection\ntheorem le_iff_le {a : α} {b : β} : l a ≤ b ↔ a ≤ u b :=\n  gc _ _",
+   "--src: Mathlib.CategoryTheory.Generator.Basic\n@[simp]\ntheorem hasCodetector_op_iff : HasCodetector Cᵒᵖ ↔ HasDetector C :=\n  ⟨fun ⟨G, hG⟩ => ⟨unop G, (isDetector_unop_iff G).mpr hG⟩,\n   fun ⟨G, hG⟩ => ⟨op G, (isCodetector_op_iff G).mpr hG⟩⟩",
+   "--src: Mathlib.SetTheory.Game.Ordinal\n@[simp]\ntheorem toPGame_le_iff {a b : Ordinal} : a.toPGame ≤ b.toPGame ↔ a ≤ b :=\n  ⟨by contrapose; rw [not_le, PGame.not_le]; exact toPGame_lf, toPGame_le⟩",
+   "--src: Mathlib.Order.WithBot\ntheorem untop_le_iff {a : WithTop α} {b : α} (h : a ≠ ⊤) :\n    untop a h ≤ b ↔ a ≤ (b : WithTop α) :=\n  @WithBot.le_unbot_iff αᵒᵈ _ _ _ _"],
+  "id":
+  {"name": "ConNF.near_symmDiff_iff",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Symmetric differences can be cancelled when comparing sets for nearness. -/\ntheorem near_symmDiff_iff (u : Set α) : u ∆ s ~ u ∆ t ↔ s ~ t := by\n  rw [Near, Near, symmDiff_comm u s, symmDiff_assoc, symmDiff_symmDiff_cancel_left]\n\n",
+   "compilationAlias":
+   "/-- Symmetric differences can be cancelled when comparing sets for nearness. -/\ntheorem near_symmDiff_iff (u : Set α) : u ∆ s ~ u ∆ t ↔ s ~ t := by\n  rw [Near, Near, symmDiff_comm u s, symmDiff_assoc, symmDiff_symmDiff_cancel_left]\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t u : Set α\n⊢ Iff (ConNF.Near (symmDiff u s) (symmDiff u t)) (ConNF.Near s t)",
+  "content_sorry":
+  "/-- Symmetric differences can be cancelled when comparing sets for nearness. -/\ntheorem near_symmDiff_iff (u : Set α) : u ∆ s ~ u ∆ t ↔ s ~ t := by\n  sorry",
+  "annotation":
+  "/-- Symmetric differences can be cancelled when comparing sets for nearness. -/\ntheorem near_symmDiff_iff (u : Set α) : u ∆ s ~ u ∆ t ↔ s ~ t := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t u : Set α\n    ⊢ Iff (ConNF.Near (symmDiff u s) (symmDiff u t)) (ConNF.Near s t)\n  -/\n  rw [Near, Near, symmDiff_comm u s, symmDiff_assoc, symmDiff_symmDiff_cancel_left]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symmDiff_symmDiff_cancel_left",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem symmDiff_symmDiff_cancel_left : a ∆ (a ∆ b) = b := by simp [← symmDiff_assoc]",
+    "compilationAlias":
+    "@[simp]\ntheorem symmDiff_symmDiff_cancel_left : a ∆ (a ∆ b) = b := by simp [← symmDiff_assoc]"},
+   {"name": "symmDiff_assoc",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem symmDiff_assoc : a ∆ b ∆ c = a ∆ (b ∆ c) := by\n  rw [symmDiff_symmDiff_left, symmDiff_symmDiff_right]",
+    "compilationAlias":
+    "theorem symmDiff_assoc : a ∆ b ∆ c = a ∆ (b ∆ c) := by\n  rw [symmDiff_symmDiff_left, symmDiff_symmDiff_right]"},
+   {"name": "symmDiff_comm",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem symmDiff_comm : a ∆ b = b ∆ a := by simp only [symmDiff, sup_comm]",
+    "compilationAlias":
+    "theorem symmDiff_comm : a ∆ b = b ∆ a := by simp only [symmDiff, sup_comm]"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma iUnion_smul_right_image : ⋃ a ∈ t, (· • a) '' s = s • t := iUnion_image_right _",
+   "--src: Mathlib.Data.PFun\ntheorem image_inter (s t : Set α) : f.image (s ∩ t) ⊆ f.image s ∩ f.image t :=\n  Rel.image_inter _ s t",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma image_smul_comm [SMul α β] [SMul α γ] (f : β → γ) (a : α) (s : Set β) :\n    (∀ b, f (a • b) = a • f b) → f '' (a • s) = a • f '' s := image_comm",
+   "--src: Mathlib.Data.Set.Pointwise.SMul\n@[to_additive]\ninstance smulCommClass_set [SMul α γ] [SMul β γ] [SMulCommClass α β γ] :\n    SMulCommClass α β (Set γ) :=\n  ⟨fun _ _ ↦ Commute.set_image <| smul_comm _ _⟩",
+   "--src: Mathlib.Order.Directed\ntheorem DirectedOn.mono_comp {r : α → α → Prop} {rb : β → β → Prop} {g : α → β} {s : Set α}\n    (hg : ∀ ⦃x y⦄, r x y → rb (g x) (g y)) (hf : DirectedOn r s) : DirectedOn rb (g '' s) :=\n  directedOn_image.mpr (hf.mono hg)",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_sUnion (s : Set α) (T : Set (Set β)) : s • ⋃₀ T = ⋃ t ∈ T, s • t :=\n  image2_sUnion_right ..",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive (attr := simp)] lemma image2_smul : image2 SMul.smul s t = s • t := rfl",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_inter_subset : s • (t₁ ∩ t₂) ⊆ s • t₁ ∩ s • t₂ := image2_inter_subset_right",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive] lemma smul_mem_smul : a ∈ s → b ∈ t → a • b ∈ s • t := mem_image2_of_mem",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_set_iInter_subset (a : α) (t : ι → Set β) : a • ⋂ i, t i ⊆ ⋂ i, a • t i :=\n  image_iInter_subset .."],
+  "id":
+  {"name": "ConNF.near_image",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Nearness is preserved under function application. -/\ntheorem near_image (h : s ~ t) (f : α → β) : f '' s ~ f '' t :=\n  (h.image f).mono subset_image_symmDiff\n\n",
+   "compilationAlias":
+   "/-- Nearness is preserved under function application. -/\ntheorem near_image (h : s ~ t) (f : α → β) : f '' s ~ f '' t :=\n  (h.image f).mono subset_image_symmDiff\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα β : Type u\ns t : Set α\nh : ConNF.Near s t\nf : α → β\n⊢ ConNF.Near (Set.image f s) (Set.image f t)",
+  "content_sorry":
+  "/-- Nearness is preserved under function application. -/\ntheorem near_image (h : s ~ t) (f : α → β) : f '' s ~ f '' t := by sorry",
+  "annotation":
+  "/-- Nearness is preserved under function application. -/\ntheorem near_image (h : s ~ t) (f : α → β) : f '' s ~ f '' t :=\n  (h.image f).mono subset_image_symmDiff\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Data.Set.Lattice\ntheorem union_eq_iUnion {s₁ s₂ : Set α} : s₁ ∪ s₂ = ⋃ b : Bool, cond b s₁ s₂ :=\n  sup_eq_iSup s₁ s₂",
+   "--src: Mathlib.Data.PFun\ntheorem image_union (s t : Set α) : f.image (s ∪ t) = f.image s ∪ f.image t :=\n  Rel.image_union _ s t",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Data.Set.Basic\n@[simp]\ntheorem subset_union_right {s t : Set α} : t ⊆ s ∪ t := fun _ => Or.inr",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem equiv_def {x y : PGame} : x ≈ y ↔ x ≤ y ∧ y ≤ x := Iff.rfl",
+   "--src: Mathlib.Data.Part\ntheorem left_dom_of_union_dom [Union α] {a b : Part α} (hab : Dom (a ∪ b)) : a.Dom := hab.1",
+   "--src: Mathlib.Data.Part\ntheorem some_union_some [Union α] (a b : α) : some a ∪ some b = some (a ∪ b) := by simp [union_def]",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive] lemma smul_union : s • (t₁ ∪ t₂) = s • t₁ ∪ s • t₂ := image2_union_right",
+   "--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.Logic.UnivLE\ntheorem Small.trans_univLE (α : Type w) [hα : Small.{u} α] [h : UnivLE.{u, v}] :\n    Small.{v} α :=\n  let ⟨β, ⟨f⟩⟩ := hα.equiv_small\n  let ⟨_, ⟨g⟩⟩ := (h β).equiv_small\n  ⟨_, ⟨f.trans g⟩⟩"],
+  "id":
+  {"name": "ConNF.near_union_of_small",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If `s` is small, then `t ∪ s` is near `t` for any `t`. -/\ntheorem near_union_of_small (h : Small s) : t ∪ s ~ t := by\n  simp only [Near, Set.symmDiff_def, union_diff_left]\n  apply small_union\n  · exact h.mono diff_subset\n  · rw [show t \\ (t ∪ s) = ∅ by aesop]\n    exact small_empty\n\n",
+   "compilationAlias":
+   "/-- If `s` is small, then `t ∪ s` is near `t` for any `t`. -/\ntheorem near_union_of_small (h : Small s) : t ∪ s ~ t := by\n  simp only [Near, Set.symmDiff_def, union_diff_left]\n  apply small_union\n  · exact h.mono diff_subset\n  · rw [show t \\ (t ∪ s) = ∅ by aesop]\n    exact small_empty\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh : ConNF.Small s\n⊢ ConNF.Near (Union.union t s) t",
+  "content_sorry":
+  "/-- If `s` is small, then `t ∪ s` is near `t` for any `t`. -/\ntheorem near_union_of_small (h : Small s) : t ∪ s ~ t := by\n  sorry",
+  "annotation":
+  "/-- If `s` is small, then `t ∪ s` is near `t` for any `t`. -/\ntheorem near_union_of_small (h : Small s) : t ∪ s ~ t := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h : ConNF.Small s\n    ⊢ ConNF.Near (Union.union t s) t\n  -/\n  simp only [Near, Set.symmDiff_def, union_diff_left]\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h : ConNF.Small s\n    ⊢ ConNF.Small (Union.union (SDiff.sdiff s t) (SDiff.sdiff t (Union.union t s)))\n  -/\n  apply small_union\n    /-\n      case hs\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h : ConNF.Small s\n      ⊢ ConNF.Small (SDiff.sdiff s t)\n    -/\n  · exact h.mono diff_subset\n    /-\n      🎉 no goals\n    -/\n    /-\n      case ht\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h : ConNF.Small s\n      ⊢ ConNF.Small (SDiff.sdiff t (Union.union t s))\n    -/\n  · rw [show t \\ (t ∪ s) = ∅ by aesop]\n    /-\n      case ht\n      inst✝ : ConNF.Params\n      α : Type u\n      s t : Set α\n      h : ConNF.Small s\n      ⊢ ConNF.Small EmptyCollection.emptyCollection\n    -/\n    exact small_empty\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "small_empty",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance",
+    "compilationAlias":
+    "theorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance"},
+   {"name": "small_union",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance",
+    "compilationAlias":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance"},
+   {"name": "Set.symmDiff_def",
+    "module": "Mathlib.Data.Set.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem symmDiff_def (s t : Set α) : s ∆ t = s \\ t ∪ t \\ s :=\n  rfl",
+    "compilationAlias":
+    "protected theorem symmDiff_def (s t : Set α) : s ∆ t = s \\ t ∪ t \\ s :=\n  rfl"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.UnivLE\ntheorem Small.trans_univLE (α : Type w) [hα : Small.{u} α] [h : UnivLE.{u, v}] :\n    Small.{v} α :=\n  let ⟨β, ⟨f⟩⟩ := hα.equiv_small\n  let ⟨_, ⟨g⟩⟩ := (h β).equiv_small\n  ⟨_, ⟨f.trans g⟩⟩",
+   "--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.CategoryTheory.EssentiallySmall\ninstance : (inverse C).IsEquivalence := (equivalence C).isEquivalence_inverse",
+   "--src: Mathlib.SetTheory.Game.Ordinal\ntheorem toGame_le_iff {a b : Ordinal} : a.toGame ≤ b.toGame ↔ a ≤ b :=\n  toPGame_le_iff",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Logic.Small.Defs\n/-- Constructor for `Small α` from an explicit witness type and equivalence.\n-/\ntheorem Small.mk' {α : Type v} {S : Type w} (e : α ≃ S) : Small.{w} α :=\n  ⟨⟨S, ⟨e⟩⟩⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem equiv_congr_left {y₁ y₂ : PGame} : (y₁ ≈ y₂) ↔ ∀ x₁, (x₁ ≈ y₁) ↔ (x₁ ≈ y₂) :=\n  ⟨fun h _ => ⟨fun h' => Equiv.trans h' h, fun h' => Equiv.trans h' (Equiv.symm h)⟩,\n   fun h => (h y₁).1 <| equiv_rfl⟩",
+   "--src: Mathlib.Logic.UnivLE\ntheorem univLE_max : UnivLE.{u, max u v} := fun α ↦ small_max.{v} α",
+   "--src: Mathlib.SetTheory.Nimber.Basic\ntheorem not_bddAbove_compl_of_small (s : Set Nimber.{u}) [Small.{u} s] : ¬ BddAbove sᶜ :=\n  Ordinal.not_bddAbove_compl_of_small s"],
+  "id":
+  {"name": "ConNF.near_symmDiff_self_of_small",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If `s` is small, then `s ∆ t` is near `t` for any `t`. -/\ntheorem near_symmDiff_self_of_small (h : Small s) : s ∆ t ~ t := by\n  rwa [Near, symmDiff_symmDiff_cancel_right]\n\n",
+   "compilationAlias":
+   "/-- If `s` is small, then `s ∆ t` is near `t` for any `t`. -/\ntheorem near_symmDiff_self_of_small (h : Small s) : s ∆ t ~ t := by\n  rwa [Near, symmDiff_symmDiff_cancel_right]\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh : ConNF.Small s\n⊢ ConNF.Near (symmDiff s t) t",
+  "content_sorry":
+  "/-- If `s` is small, then `s ∆ t` is near `t` for any `t`. -/\ntheorem near_symmDiff_self_of_small (h : Small s) : s ∆ t ~ t := by\n  sorry",
+  "annotation":
+  "/-- If `s` is small, then `s ∆ t` is near `t` for any `t`. -/\ntheorem near_symmDiff_self_of_small (h : Small s) : s ∆ t ~ t := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h : ConNF.Small s\n    ⊢ ConNF.Near (symmDiff s t) t\n  -/\n  rwa [Near, symmDiff_symmDiff_cancel_right]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symmDiff_symmDiff_cancel_right",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem symmDiff_symmDiff_cancel_right : b ∆ a ∆ a = b := by simp [symmDiff_assoc]",
+    "compilationAlias":
+    "@[simp]\ntheorem symmDiff_symmDiff_cancel_right : b ∆ a ∆ a = b := by simp [symmDiff_assoc]"}]},
+ {"rag":
+  ["--src: Mathlib.Order.GaloisConnection\ntheorem l_le {a : α} {b : β} : a ≤ u b → l a ≤ b :=\n  (gc _ _).mpr",
+   "--src: Mathlib.Data.PFun\ntheorem image_inter (s t : Set α) : f.image (s ∩ t) ⊆ f.image s ∩ f.image t :=\n  Rel.image_inter _ s t",
+   "--src: Mathlib.Order.Filter.Partial\ntheorem ptendsto'_of_ptendsto {f : α →. β} {l₁ : Filter α} {l₂ : Filter β} (h : f.Dom ∈ l₁) :\n    PTendsto f l₁ l₂ → PTendsto' f l₁ l₂ := by\n  rw [ptendsto_def, ptendsto'_def]\n  intro h' s sl₂\n  rw [PFun.preimage_eq]\n  exact inter_mem (h' s sl₂) h",
+   "--src: Mathlib.MeasureTheory.MeasurableSpace.Basic\ntheorem le_map_comap : m ≤ (m.comap g).map g :=\n  (gc_comap_map g).le_u_l _",
+   "--src: Mathlib.Order.Filter.Basic\ntheorem map_comap_le : map m (comap m g) ≤ g :=\n  (gc_map_comap m).l_u_le _",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_inter_subset : s • (t₁ ∩ t₂) ⊆ s • t₁ ∩ s • t₂ := image2_inter_subset_right",
+   "--src: Mathlib.Topology.Partial\ntheorem open_dom_of_pcontinuous {f : X →. Y} (h : PContinuous f) : IsOpen f.Dom := by\n  rw [← PFun.preimage_univ]; exact h _ isOpen_univ",
+   "--src: Mathlib.Topology.UniformSpace.Basic\nprotected theorem UniformSpace.sInf_le {tt : Set (UniformSpace α)} {t : UniformSpace α}\n    (h : t ∈ tt) : sInf tt ≤ t :=\n  show ⨅ u ∈ tt, \u0000\u0000[u] ≤ \u0000\u0000[t] from iInf₂_le t h",
+   "--src: Mathlib.GroupTheory.Congruence.Defs\n/-- Definition of `≤` for congruence relations. -/\n@[to_additive \"Definition of `≤` for additive congruence relations.\"]\ntheorem le_def {c d : Con M} : c ≤ d ↔ ∀ {x y}, c x y → d x y :=\n  Iff.rfl",
+   "--src: Mathlib.Data.Part\n@[simp]\ntheorem some_dom (a : α) : (some a).Dom :=\n  trivial"],
+  "id":
+  {"name": "ConNF.near_trans",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Nearness is transitive. -/\n@[trans]\ntheorem near_trans (h₁ : s ~ t) (h₂ : t ~ u) : s ~ u :=\n  (small_union h₁ h₂).mono (symmDiff_trans_subset s t u)\n\n",
+   "compilationAlias":
+   "/-- Nearness is transitive. -/\n@[trans]\ntheorem near_trans (h₁ : s ~ t) (h₂ : t ~ u) : s ~ u :=\n  (small_union h₁ h₂).mono (symmDiff_trans_subset s t u)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t u : Set α\nh₁ : ConNF.Near s t\nh₂ : ConNF.Near t u\n⊢ ConNF.Near s u",
+  "content_sorry":
+  "/-- Nearness is transitive. -/\n@[trans]\ntheorem near_trans (h₁ : s ~ t) (h₂ : t ~ u) : s ~ u := by sorry",
+  "annotation":
+  "/-- Nearness is transitive. -/\n@[trans]\ntheorem near_trans (h₁ : s ~ t) (h₂ : t ~ u) : s ~ u :=\n  (small_union h₁ h₂).mono (symmDiff_trans_subset s t u)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "small_union",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance",
+    "compilationAlias":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"}]},
+ {"rag":
+  ["--src: Mathlib.Computability.TuringMachine\ntheorem reaches_total {σ} {f : σ → Option σ} {a b c} (hab : Reaches f a b) (hac : Reaches f a c) :\n    Reaches f b c ∨ Reaches f c b :=\n  ReflTransGen.total_of_right_unique (fun _ _ _ ↦ Option.mem_unique) hab hac",
+   "--src: Mathlib.Data.Part\ntheorem left_dom_of_inter_dom [Inter α] {a b : Part α} (hab : Dom (a ∩ b)) : a.Dom := hab.1",
+   "--src: Mathlib.GroupTheory.Congruence.Defs\n/-- Definition of `≤` for congruence relations. -/\n@[to_additive \"Definition of `≤` for additive congruence relations.\"]\ntheorem le_def {c d : Con M} : c ≤ d ↔ ∀ {x y}, c x y → d x y :=\n  Iff.rfl",
+   "--src: Mathlib.Data.PFun\ntheorem image_inter (s t : Set α) : f.image (s ∩ t) ⊆ f.image s ∩ f.image t :=\n  Rel.image_inter _ s t",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_sUnion (s : Set α) (T : Set (Set β)) : s • ⋃₀ T = ⋃ t ∈ T, s • t :=\n  image2_sUnion_right ..",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_inter_subset : s • (t₁ ∩ t₂) ⊆ s • t₁ ∩ s • t₂ := image2_inter_subset_right",
+   "--src: Mathlib.GroupTheory.Congruence.Defs\n/-- The smallest congruence relation containing a binary relation `r` is contained in any\n    congruence relation containing `r`. -/\n@[to_additive addConGen_le \"The smallest additive congruence relation containing a binary\nrelation `r` is contained in any additive congruence relation containing `r`.\"]\ntheorem conGen_le {r : M → M → Prop} {c : Con M} (h : ∀ x y, r x y → c x y) :\n    conGen r ≤ c := by rw [conGen_eq]; exact sInf_le h",
+   "--src: Mathlib.Data.Part\n@[elab_as_elim]\nprotected theorem induction_on {P : Part α → Prop} (a : Part α) (hnone : P none)\n    (hsome : ∀ a : α, P (some a)) : P a :=\n  (Classical.em a.Dom).elim (fun h => Part.some_get h ▸ hsome _) fun h =>\n    (eq_none_iff'.2 h).symm ▸ hnone",
+   "--src: Mathlib.Order.RelIso.Basic\n@[simp]\ntheorem acc_lift₂_iff {_ : Setoid α} {r : α → α → Prop}\n    {H : ∀ (a₁ b₁ a₂ b₂ : α), a₁ ≈ a₂ → b₁ ≈ b₂ → r a₁ b₁ = r a₂ b₂} {a} :\n    Acc (Quotient.lift₂ r H) ⟦a⟧ ↔ Acc r a := by\n  constructor\n  · exact RelHomClass.acc (Quotient.mkRelHom H) a\n  · intro ac\n    induction ac with | intro _ _ IH => ?_\n    refine ⟨_, fun q h => ?_⟩\n    obtain ⟨a', rfl⟩ := q.exists_rep\n    exact IH a' h",
+   "--src: Mathlib.Order.GaloisConnection\ntheorem l_le {a : α} {b : β} : a ≤ u b → l a ≤ b :=\n  (gc _ _).mpr"],
+  "id":
+  {"name": "ConNF.near_symm",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Nearness is symmetric. -/\n@[symm]\ntheorem near_symm (h : s ~ t) : t ~ s := by\n  rwa [Near, symmDiff_comm] at h\n\n",
+   "compilationAlias":
+   "/-- Nearness is symmetric. -/\n@[symm]\ntheorem near_symm (h : s ~ t) : t ~ s := by\n  rwa [Near, symmDiff_comm] at h\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh : ConNF.Near s t\n⊢ ConNF.Near t s",
+  "content_sorry":
+  "/-- Nearness is symmetric. -/\n@[symm]\ntheorem near_symm (h : s ~ t) : t ~ s := by\n  sorry",
+  "annotation":
+  "/-- Nearness is symmetric. -/\n@[symm]\ntheorem near_symm (h : s ~ t) : t ~ s := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s t : Set α\n    h : ConNF.Near s t\n    ⊢ ConNF.Near t s\n  -/\n  rwa [Near, symmDiff_comm] at h\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symmDiff_comm",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem symmDiff_comm : a ∆ b = b ∆ a := by simp only [symmDiff, sup_comm]",
+    "compilationAlias":
+    "theorem symmDiff_comm : a ∆ b = b ∆ a := by simp only [symmDiff, sup_comm]"},
+   {"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"}]},
+ {"rag":
+  ["--src: Mathlib.Data.PFun\ntheorem image_inter (s t : Set α) : f.image (s ∩ t) ⊆ f.image s ∩ f.image t :=\n  Rel.image_inter _ s t",
+   "--src: Mathlib.Data.Set.Basic\ntheorem inter_eq_self_of_subset_left {s t : Set α} : s ⊆ t → s ∩ t = s :=\n  inter_eq_left.mpr",
+   "--src: Mathlib.Order.Filter.Defs\ntheorem filter_eq : ∀ {f g : Filter α}, f.sets = g.sets → f = g\n  | ⟨_, _, _, _⟩, ⟨_, _, _, _⟩, rfl => rfl",
+   "--src: Mathlib.Data.PFun\ntheorem image_def (s : Set α) : f.image s = { y | ∃ x ∈ s, y ∈ f x } :=\n  rfl",
+   "--src: Mathlib.Computability.TuringMachine\ntheorem reaches₁_eq {σ} {f : σ → Option σ} {a b c} (h : f a = f b) :\n    Reaches₁ f a c ↔ Reaches₁ f b c :=\n  TransGen.head'_iff.trans (TransGen.head'_iff.trans <| by rw [h]).symm",
+   "--src: Mathlib.Algebra.Group.Operations\n/-- Typeclass for types with a scalar multiplication operation, denoted `•` (`\\bu`) -/\n@[to_additive (attr := ext)]\nclass SMul (M : Type u) (α : Type v) where\n  /-- `a • b` computes the product of `a` and `b`. The meaning of this notation is type-dependent,\n  but it is intended to be used for left actions. -/\n  smul : M → α → α",
+   "--src: Mathlib.Order.Basic\nalias Eq.trans_le := le_of_eq_of_le",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive] lemma iUnion_smul_left_image : ⋃ a ∈ s, a • t = s • t := iUnion_image_left _",
+   "--src: Mathlib.Data.PFunctor.Univariate.M\ntheorem ext' (x y : M F) (H : ∀ i : ℕ, x.approx i = y.approx i) : x = y := by\n  cases x\n  cases y\n  congr with n\n  apply H",
+   "--src: Mathlib.Data.Set.SMulAntidiagonal\n@[to_additive]\ntheorem smulAntidiagonal_mono_right (h : t₁ ⊆ t₂) :\n    smulAntidiagonal s t₁ a ⊆ smulAntidiagonal s t₂ a := fun _ hx => ⟨hx.1, h hx.2.1, hx.2.2⟩"],
+  "id":
+  {"name": "ConNF.near_of_eq",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Equal sets are near. -/\ntheorem near_of_eq (h : s = t) : s ~ t :=\n  h ▸ near_refl s\n\n",
+   "compilationAlias":
+   "/-- Equal sets are near. -/\ntheorem near_of_eq (h : s = t) : s ~ t :=\n  h ▸ near_refl s\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh : Eq s t\n⊢ ConNF.Near s t",
+  "content_sorry":
+  "/-- Equal sets are near. -/\ntheorem near_of_eq (h : s = t) : s ~ t := by sorry",
+  "annotation":
+  "/-- Equal sets are near. -/\ntheorem near_of_eq (h : s = t) : s ~ t :=\n  h ▸ near_refl s\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Game.Basic\ntheorem le_iff_game_le {x y : PGame} : x ≤ y ↔ (⟦x⟧ : Game) ≤ ⟦y⟧ :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem equiv_def {x y : PGame} : x ≈ y ↔ x ≤ y ∧ y ≤ x := Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Game.PGame\ninstance addRightMono : AddRightMono PGame :=\n  ⟨fun _ _ _ => add_le_add_right'⟩",
+   "--src: Mathlib.SetTheory.Surreal.Basic\n@[simp]\nlemma mk_le_mk {x y : PGame.{u}} {hx hy} : mk x hx ≤ mk y hy ↔ x ≤ y := Iff.rfl",
+   "--src: Mathlib.SetTheory.Surreal.Basic\nlemma zero_le_mk {x : PGame.{u}} {hx} : 0 ≤ mk x hx ↔ 0 ≤ x := Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem lf_mk_of_le {x yl yr} {yL : yl → PGame} (yR) {i} : x ≤ yL i → x ⧏ mk yl yr yL yR :=\n  @lf_of_le_moveLeft x (mk _ _ _ _) i\n/- We prove that `x ≤ y → y ≤ z → x ≤ z` inductively, by also simultaneously proving its cyclic\nreorderings. This auxiliary lemma is used during said induction. -/",
+   "--src: Mathlib.SetTheory.Surreal.Basic\nalias LF.le := le_of_lf",
+   "--src: Mathlib.SetTheory.Game.PGame\n@[symm]\nprotected theorem Equiv.symm {x y : PGame} : (x ≈ y) → (y ≈ x) :=\n  symm",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem le_congr {x₁ y₁ x₂ y₂ : PGame} (hx : x₁ ≈ x₂) (hy : y₁ ≈ y₂) : x₁ ≤ y₁ ↔ x₂ ≤ y₂ :=\n  ⟨le_congr_imp hx hy, le_congr_imp (Equiv.symm hx) (Equiv.symm hy)⟩"],
+  "id":
+  {"name": "ConNF.near_rfl",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Like `near_refl`, but leaving all arguments implicit. -/\ntheorem near_rfl : s ~ s :=\n  near_refl s\n\n",
+   "compilationAlias":
+   "/-- Like `near_refl`, but leaving all arguments implicit. -/\ntheorem near_rfl : s ~ s :=\n  near_refl s\n\n"},
+  "goal": "inst✝ : ConNF.Params\nα : Type u\ns : Set α\n⊢ ConNF.Near s s",
+  "content_sorry":
+  "/-- Like `near_refl`, but leaving all arguments implicit. -/\ntheorem near_rfl : s ~ s := by sorry",
+  "annotation":
+  "/-- Like `near_refl`, but leaving all arguments implicit. -/\ntheorem near_rfl : s ~ s :=\n  near_refl s\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Game.Basic\ntheorem le_iff_game_le {x y : PGame} : x ≤ y ↔ (⟦x⟧ : Game) ≤ ⟦y⟧ :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem equiv_def {x y : PGame} : x ≈ y ↔ x ≤ y ∧ y ≤ x := Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Game.PGame\ninstance addRightMono : AddRightMono PGame :=\n  ⟨fun _ _ _ => add_le_add_right'⟩",
+   "--src: Mathlib.SetTheory.Surreal.Basic\n@[simp]\nlemma mk_le_mk {x y : PGame.{u}} {hx hy} : mk x hx ≤ mk y hy ↔ x ≤ y := Iff.rfl",
+   "--src: Mathlib.SetTheory.Surreal.Basic\nlemma zero_le_mk {x : PGame.{u}} {hx} : 0 ≤ mk x hx ↔ 0 ≤ x := Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem lf_mk_of_le {x yl yr} {yL : yl → PGame} (yR) {i} : x ≤ yL i → x ⧏ mk yl yr yL yR :=\n  @lf_of_le_moveLeft x (mk _ _ _ _) i\n/- We prove that `x ≤ y → y ≤ z → x ≤ z` inductively, by also simultaneously proving its cyclic\nreorderings. This auxiliary lemma is used during said induction. -/",
+   "--src: Mathlib.SetTheory.Surreal.Basic\nalias LF.le := le_of_lf",
+   "--src: Mathlib.SetTheory.Game.PGame\n@[symm]\nprotected theorem Equiv.symm {x y : PGame} : (x ≈ y) → (y ≈ x) :=\n  symm",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem le_congr {x₁ y₁ x₂ y₂ : PGame} (hx : x₁ ≈ x₂) (hy : y₁ ≈ y₂) : x₁ ≤ y₁ ↔ x₂ ≤ y₂ :=\n  ⟨le_congr_imp hx hy, le_congr_imp (Equiv.symm hx) (Equiv.symm hy)⟩"],
+  "id":
+  {"name": "ConNF.near_refl",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Nearness is reflexive. -/\n@[refl]\ntheorem near_refl (s : Set α) : s ~ s := by\n  rw [Near, symmDiff_self]\n  exact small_empty\n\n",
+   "compilationAlias":
+   "/-- Nearness is reflexive. -/\n@[refl]\ntheorem near_refl (s : Set α) : s ~ s := by\n  rw [Near, symmDiff_self]\n  exact small_empty\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\n⊢ Eq (ConNF.Near s t) (ConNF.Small (symmDiff s t))",
+  "content_sorry":
+  "/-- Nearness is reflexive. -/\n@[refl]\ntheorem near_refl (s : Set α) : s ~ s := by\n  sorry",
+  "annotation":
+  "/-- Nearness is reflexive. -/\n@[refl]\ntheorem near_refl (s : Set α) : s ~ s := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    ⊢ ConNF.Near s s\n  -/\n  rw [Near, symmDiff_self]\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    ⊢ ConNF.Small Bot.bot\n  -/\n  exact small_empty\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "small_empty",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance",
+    "compilationAlias":
+    "theorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance"},
+   {"name": "symmDiff_self",
+    "module": "Mathlib.Order.SymmDiff",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem symmDiff_self : a ∆ a = ⊥ := by rw [symmDiff, sup_idem, sdiff_self]",
+    "compilationAlias":
+    "@[simp]\ntheorem symmDiff_self : a ∆ a = ⊥ := by rw [symmDiff, sup_idem, sdiff_self]"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "refl",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma refl [IsRefl α r] (a : α) : a ≺ a := IsRefl.refl a",
+    "compilationAlias":
+    "lemma refl [IsRefl α r] (a : α) : a ≺ a := IsRefl.refl a"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Nat.PartENat\n@[simp]\ntheorem find_get (h : (find P).Dom) : (find P).get h = Nat.find h :=\n  rfl",
+   "--src: Mathlib.Computability.Partrec\ntheorem fix {f : α →. σ ⊕ α} (hf : Partrec f) : Partrec (PFun.fix f) := by\n  let F : α → ℕ →. σ ⊕ α := fun a n =>\n    n.rec (some (Sum.inr a)) fun _ IH => IH.bind fun s => Sum.casesOn s (fun _ => Part.some s) f\n  have hF : Partrec₂ F :=\n    Partrec.nat_rec snd (sum_inr.comp fst).partrec\n      (sum_casesOn_right (snd.comp snd) (snd.comp <| snd.comp fst).to₂ (hf.comp snd).to₂).to₂\n  let p a n := @Part.map _ Bool (fun s => Sum.casesOn s (fun _ => true) fun _ => false) (F a n)\n  have hp : Partrec₂ p :=\n    hF.map ((sum_casesOn Computable.id (const true).to₂ (const false).to₂).comp snd).to₂\n  exact (hp.rfind.bind (hF.bind (sum_casesOn_right snd snd.to₂ none.to₂).to₂).to₂).of_eq fun a =>\n    ext fun b => by simpa [p] using fix_aux f _ _",
+   "--src: Mathlib.Data.Part\n@[simp]\ntheorem some_dom (a : α) : (some a).Dom :=\n  trivial",
+   "--src: Mathlib.Computability.Partrec\ntheorem option_some_iff {f : α →. σ} : (Partrec fun a => (f a).map Option.some) ↔ Partrec f :=\n  ⟨fun h => (Nat.Partrec.ppred.comp h).of_eq fun n => by\n      -- Porting note: needed to help with applying bind_some_eq_map because `Function.comp` got\n      -- less reducible.\n      simp [Part.bind_assoc, ← Function.comp_apply (f := Part.some) (g := encode), bind_some_eq_map,\n        -Function.comp_apply],\n    fun hf => hf.map (option_some.comp snd).to₂⟩",
+   "--src: Mathlib.Computability.Partrec\ntheorem _root_.Decidable.Partrec.const' (s : Part σ) [Decidable s.Dom] : Partrec fun _ : α => s :=\n  (Computable.ofOption (const (toOption s))).of_eq fun _ => of_toOption s",
+   "--src: Mathlib.Computability.Partrec\n@[simp]\ntheorem rfind_dom {p : ℕ →. Bool} :\n    (rfind p).Dom ↔ ∃ n, true ∈ p n ∧ ∀ {m : ℕ}, m < n → (p m).Dom :=\n  Iff.rfl",
+   "--src: Mathlib.Data.Part\n/-- The map operation for `Part` just maps the value and maintains the same domain. -/\n@[simps]\ndef map (f : α → β) (o : Part α) : Part β :=\n  ⟨o.Dom, f ∘ o.get⟩",
+   "--src: Mathlib.Computability.Partrec\ntheorem rfind_spec {p : ℕ →. Bool} {n : ℕ} (h : n ∈ rfind p) : true ∈ p n :=\n  h.snd ▸ (rfindX p h.fst).2.1",
+   "--src: Mathlib.Computability.TuringMachine\ntheorem Reaches₁.to₀ {σ} {f : σ → Option σ} {a b : σ} (h : Reaches₁ f a b) : Reaches₀ f a b\n  | _, h₂ => h.trans h₂",
+   "--src: Mathlib.Data.Part\ntheorem dom_iff_mem : ∀ {o : Part α}, o.Dom ↔ ∃ y, y ∈ o\n  | ⟨_, f⟩ => ⟨fun h => ⟨f h, h, rfl⟩, fun ⟨_, h, rfl⟩ => h⟩"],
+  "id":
+  {"name": "ConNF.small_graph'",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If the domain and codomain of a relation are small, then its graph is also small. -/\ntheorem small_graph' {r : Rel α β} (h₁ : Small r.dom) (h₂ : Small r.codom) :\n    Small r.graph' := by\n  have := small_biUnion h₁ (f := λ x _ ↦ {z : α × β | z.1 = x ∧ r x z.2}) ?_\n  · apply this.mono\n    rintro z hz\n    simp only [mem_iUnion]\n    exact ⟨z.1, ⟨z.2, hz⟩, rfl, hz⟩\n  · intro x hx\n    apply (h₂.image (λ y ↦ (x, y))).mono\n    rintro ⟨x', y⟩ hy\n    rw [mem_setOf_eq] at hy\n    cases hy.1\n    rw [mem_image]\n    exact ⟨y, ⟨x', hy.2⟩, rfl⟩\n\n",
+   "compilationAlias":
+   "/-- If the domain and codomain of a relation are small, then its graph is also small. -/\ntheorem small_graph' {r : Rel α β} (h₁ : Small r.dom) (h₂ : Small r.codom) :\n    Small r.graph' := by\n  have := small_biUnion h₁ (f := λ x _ ↦ {z : α × β | z.1 = x ∧ r x z.2}) ?_\n  · apply this.mono\n    rintro z hz\n    simp only [mem_iUnion]\n    exact ⟨z.1, ⟨z.2, hz⟩, rfl, hz⟩\n  · intro x hx\n    apply (h₂.image (λ y ↦ (x, y))).mono\n    rintro ⟨x', y⟩ hy\n    rw [mem_setOf_eq] at hy\n    cases hy.1\n    rw [mem_image]\n    exact ⟨y, ⟨x', hy.2⟩, rfl⟩\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα β : Type u\nr : Rel α β\nh₁ : ConNF.Small r.dom\nh₂ : ConNF.Small r.codom\n⊢ ConNF.Small r.graph'",
+  "content_sorry":
+  "/-- If the domain and codomain of a relation are small, then its graph is also small. -/\ntheorem small_graph' {r : Rel α β} (h₁ : Small r.dom) (h₂ : Small r.codom) :\n    Small r.graph' := by\n  sorry",
+  "annotation":
+  "/-- If the domain and codomain of a relation are small, then its graph is also small. -/\ntheorem small_graph' {r : Rel α β} (h₁ : Small r.dom) (h₂ : Small r.codom) :\n    Small r.graph' := by\n  /-\n    inst✝ : ConNF.Params\n    α β : Type u\n    r : Rel α β\n    h₁ : ConNF.Small r.dom\n    h₂ : ConNF.Small r.codom\n    ⊢ ConNF.Small r.graph'\n  -/\n  have := small_biUnion h₁ (f := λ x _ ↦ {z : α × β | z.1 = x ∧ r x z.2}) ?_\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun z => An …\n      ⊢ ConNF.Small r.graph'\n    -/\n  · apply this.mono\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun z => An …\n      ⊢ HasSubset.Subset r.graph' (Set.iUnion fun i => Set.iUnion fun hi => setOf fu …\n    -/\n    rintro z hz\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun z => An …\n      z : Prod α β\n      hz : Membership.mem r.graph' z\n      ⊢ Membership.mem (Set.iUnion fun i => Set.iUnion fun hi => setOf fun z => And  …\n    -/\n    simp only [mem_iUnion]\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun z => An …\n      z : Prod α β\n      hz : Membership.mem r.graph' z\n      ⊢ Exists fun i => Exists fun i_1 => Membership.mem (setOf fun z => And (Eq z.1 …\n    -/\n    exact ⟨z.1, ⟨z.2, hz⟩, rfl, hz⟩\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      ⊢ ∀ (i : α) (hi : Membership.mem r.dom i), ConNF.Small ((fun x x_1 => setOf fu …\n    -/\n  · intro x hx\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      x : α\n      hx : Membership.mem r.dom x\n      ⊢ ConNF.Small ((fun x x_1 => setOf fun z => And (Eq z.1 x) (r x z.2)) x hx)\n    -/\n    apply (h₂.image (λ y ↦ (x, y))).mono\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      x : α\n      hx : Membership.mem r.dom x\n      ⊢ HasSubset.Subset ((fun x x_1 => setOf fun z => And (Eq z.1 x) (r x z.2)) x h …\n    -/\n    rintro ⟨x', y⟩ hy\n    /-\n      case refine_1.mk\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      x : α\n      hx : Membership.mem r.dom x\n      x' : α\n      y : β\n      hy : Membership.mem ((fun x x_1 => setOf fun z => And (Eq z.1 x) (r x z.2)) x  …\n      ⊢ Membership.mem (Set.image (fun y => { fst := x, snd := y }) r.codom) { fst : …\n    -/\n    rw [mem_setOf_eq] at hy\n    /-\n      case refine_1.mk\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      x : α\n      hx : Membership.mem r.dom x\n      x' : α\n      y : β\n      hy : And (Eq { fst := x', snd := y }.1 x) (r x { fst := x', snd := y }.2)\n      ⊢ Membership.mem (Set.image (fun y => { fst := x, snd := y }) r.codom) { fst : …\n    -/\n    cases hy.1\n    /-\n      case refine_1.mk.refl\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      x' : α\n      y : β\n      hx : Membership.mem r.dom { fst := x', snd := y }.1\n      hy : And (Eq { fst := x', snd := y }.1 { fst := x', snd := y }.1) (r { fst :=  …\n      ⊢ Membership.mem (Set.image (fun y_1 => { fst := { fst := x', snd := y }.1, sn …\n    -/\n    rw [mem_image]\n    /-\n      case refine_1.mk.refl\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h₁ : ConNF.Small r.dom\n      h₂ : ConNF.Small r.codom\n      x' : α\n      y : β\n      hx : Membership.mem r.dom { fst := x', snd := y }.1\n      hy : And (Eq { fst := x', snd := y }.1 { fst := x', snd := y }.1) (r { fst :=  …\n      ⊢ Exists fun x => And (Membership.mem r.codom x) (Eq { fst := { fst := x', snd …\n    -/\n    exact ⟨y, ⟨x', hy.2⟩, rfl⟩\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "small_biUnion",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _",
+    "compilationAlias":
+    "instance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _"},
+   {"name": "Rel",
+    "module": "Mathlib.Data.Rel",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+    "compilationAlias":
+    "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Nat.PartENat\n@[simp]\ntheorem find_get (h : (find P).Dom) : (find P).get h = Nat.find h :=\n  rfl",
+   "--src: Mathlib.Data.Rel\ntheorem dom_inv : r.inv.dom = r.codom := by\n  ext x\n  rfl",
+   "--src: Mathlib.Data.Part\ntheorem get_mem {o : Part α} (h) : get o h ∈ o :=\n  ⟨_, rfl⟩",
+   "--src: Mathlib.Data.Part\n@[simp]\ntheorem get_some {a : α} (ha : (some a).Dom) : get (some a) ha = a :=\n  rfl",
+   "--src: Mathlib.Computability.Partrec\ntheorem rfind_dom' {p : ℕ →. Bool} :\n    (rfind p).Dom ↔ ∃ n, true ∈ p n ∧ ∀ {m : ℕ}, m ≤ n → (p m).Dom :=\n  exists_congr fun _ =>\n    and_congr_right fun pn =>\n      ⟨fun H _ h => (Decidable.eq_or_lt_of_le h).elim (fun e => e.symm ▸ pn.fst) (H _), fun H _ h =>\n        H (le_of_lt h)⟩",
+   "--src: Mathlib.Data.PFun\n@[simp]\ntheorem dom_comp (f : β →. γ) (g : α →. β) : (f.comp g).Dom = g.preimage f.Dom := by\n  ext\n  simp_rw [mem_preimage, mem_dom, comp_apply, Part.mem_bind_iff, ← exists_and_right]\n  rw [exists_comm]\n  simp_rw [and_comm]",
+   "--src: Mathlib.Data.Rel\ntheorem image_univ : r.image Set.univ = r.codom := by\n  ext y\n  simp [mem_image, codom]",
+   "--src: Mathlib.Data.Part\ntheorem right_dom_of_sdiff_dom [SDiff α] {a b : Part α} (hab : Dom (a \\ b)) : b.Dom := hab.2",
+   "--src: Mathlib.Data.Part\n@[simp]\ntheorem mem_restrict (p : Prop) (o : Part α) (h : p → o.Dom) (a : α) :\n    a ∈ restrict p o h ↔ p ∧ a ∈ o := by\n  dsimp [restrict, mem_eq]; constructor\n  · rintro ⟨h₀, h₁⟩\n    exact ⟨h₀, ⟨_, h₁⟩⟩\n  rintro ⟨h₀, _, h₂⟩; exact ⟨h₀, h₂⟩",
+   "--src: Mathlib.Data.Part\n@[simp]\ntheorem mem_assert_iff {p : Prop} {f : p → Part α} {a} : a ∈ assert p f ↔ ∃ h : p, a ∈ f h :=\n  ⟨fun ha => match a, ha with\n    | _, ⟨_, rfl⟩ => ⟨_, ⟨_, rfl⟩⟩,\n    fun ⟨_, h⟩ => mem_assert _ h⟩"],
+  "id":
+  {"name": "ConNF.small_codom_of_small_dom",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If the domain of a coinjective relation is small, then its codomain is also small.\nThis is a special case of the previous result. -/\ntheorem small_codom_of_small_dom {r : Rel α β} (h : r.Coinjective) (h' : Small r.dom) :\n    Small r.codom :=\n  Rel.image_dom ▸ image_small_of_coinjective h h'\n\n",
+   "compilationAlias":
+   "/-- If the domain of a coinjective relation is small, then its codomain is also small.\nThis is a special case of the previous result. -/\ntheorem small_codom_of_small_dom {r : Rel α β} (h : r.Coinjective) (h' : Small r.dom) :\n    Small r.codom :=\n  Rel.image_dom ▸ image_small_of_coinjective h h'\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα β : Type u\nr : Rel α β\nh : r.Coinjective\nh' : ConNF.Small r.dom\n⊢ ConNF.Small r.codom",
+  "content_sorry":
+  "/-- If the domain of a coinjective relation is small, then its codomain is also small.\nThis is a special case of the previous result. -/\ntheorem small_codom_of_small_dom {r : Rel α β} (h : r.Coinjective) (h' : Small r.dom) :\n    Small r.codom := by sorry",
+  "annotation":
+  "/-- If the domain of a coinjective relation is small, then its codomain is also small.\nThis is a special case of the previous result. -/\ntheorem small_codom_of_small_dom {r : Rel α β} (h : r.Coinjective) (h' : Small r.dom) :\n    Small r.codom :=\n  Rel.image_dom ▸ image_small_of_coinjective h h'\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Rel.image_dom",
+    "module": "ConNF.Background.Rel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem image_dom {r : Rel α β} :\n    r.image r.dom = r.codom :=\n  preimage_eq_codom_of_domain_subset r subset_rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem image_dom {r : Rel α β} :\n    r.image r.dom = r.codom :=\n  preimage_eq_codom_of_domain_subset r subset_rfl"},
+   {"name": "Rel",
+    "module": "Mathlib.Data.Rel",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+    "compilationAlias":
+    "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Set\ninstance small_image (f : α → β) (s : Set α) [Small.{u} s] :\n    Small.{u} (f '' s) :=\n  small_of_surjective Set.surjective_onto_image",
+   "--src: Mathlib.Data.Rel\ntheorem image_univ : r.image Set.univ = r.codom := by\n  ext y\n  simp [mem_image, codom]",
+   "--src: Mathlib.Data.Rel\ntheorem mem_image (y : β) (s : Set α) : y ∈ image r s ↔ ∃ x ∈ s, r x y :=\n  Iff.rfl",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Data.PFun\ntheorem image_def (s : Set α) : f.image s = { y | ∃ x ∈ s, y ∈ f x } :=\n  rfl",
+   "--src: Mathlib.Data.Rel\ntheorem image_preimage_subset_inter_codom (s : Set β) : s ∩ r.codom ⊆ r.image (r.preimage s) := by\n  rw [← dom_inv, ← preimage_inv]\n  apply inter_dom_subset_preimage_image",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\nset_option linter.deprecated false in\n@[deprecated \"No deprecation message was provided.\"  (since := \"2024-08-27\")]\ntheorem sup_eq_sSup {s : Set Ordinal.{u}} (hs : Small.{u} s) :\n    (sup.{u, u} fun x => (@equivShrink s hs).symm x) = sSup s :=\n  let hs' := bddAbove_iff_small.2 hs\n  ((csSup_le_iff' hs').2 (le_sup_shrink_equiv hs)).antisymm'\n    (sup_le fun _x => le_csSup hs' (Subtype.mem _))",
+   "--src: Mathlib.Order.Directed\ntheorem DirectedOn.mono_comp {r : α → α → Prop} {rb : β → β → Prop} {g : α → β} {s : Set α}\n    (hg : ∀ ⦃x y⦄, r x y → rb (g x) (g y)) (hf : DirectedOn r s) : DirectedOn rb (g '' s) :=\n  directedOn_image.mpr (hf.mono hg)",
+   "--src: Mathlib.Order.Filter.Partial\ntheorem rcomap'_sets (r : Rel α β) (f : Filter β) :\n    (rcomap' r f).sets = Rel.image (fun s t => r.preimage s ⊆ t) f.sets :=\n  rfl",
+   "--src: Mathlib.Order.Filter.SmallSets\ntheorem frequently_smallSets {p : Set α → Prop} :\n    (∃ᶠ s in l.smallSets, p s) ↔ ∀ t ∈ l, ∃ s, s ⊆ t ∧ p s :=\n  l.hasBasis_smallSets.frequently_iff"],
+  "id":
+  {"name": "ConNF.image_small_of_coinjective",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The image of any small set under a coinjective relation is small.\nThis is a generalisation of the fact that the image of a small set under a function (or functional\nrelation) is small. -/\ntheorem image_small_of_coinjective {r : Rel α β} (h : r.Coinjective) {s : Set α} (hs : Small s) :\n    Small (r.image s) := by\n  have := small_biUnion hs (f := λ x _ ↦ {y | r x y}) ?_\n  · apply this.mono\n    rintro y ⟨x, hxy⟩\n    simp only [mem_iUnion]\n    exact ⟨x, hxy.1, hxy.2⟩\n  · intro x hx\n    apply small_of_subsingleton\n    intro y hy z hz\n    exact h.coinjective hy hz\n\n",
+   "compilationAlias":
+   "/-- The image of any small set under a coinjective relation is small.\nThis is a generalisation of the fact that the image of a small set under a function (or functional\nrelation) is small. -/\ntheorem image_small_of_coinjective {r : Rel α β} (h : r.Coinjective) {s : Set α} (hs : Small s) :\n    Small (r.image s) := by\n  have := small_biUnion hs (f := λ x _ ↦ {y | r x y}) ?_\n  · apply this.mono\n    rintro y ⟨x, hxy⟩\n    simp only [mem_iUnion]\n    exact ⟨x, hxy.1, hxy.2⟩\n  · intro x hx\n    apply small_of_subsingleton\n    intro y hy z hz\n    exact h.coinjective hy hz\n\n"},
+  "goal":
+  "α : Type u\nι : Sort v\nx : α\ns : ι → Set α\n⊢ Eq (Membership.mem (Set.iUnion fun i => s i) x) (Exists fun i => Membership.mem (s i) x)",
+  "content_sorry":
+  "/-- The image of any small set under a coinjective relation is small.\nThis is a generalisation of the fact that the image of a small set under a function (or functional\nrelation) is small. -/\ntheorem image_small_of_coinjective {r : Rel α β} (h : r.Coinjective) {s : Set α} (hs : Small s) :\n    Small (r.image s) := by\n  sorry",
+  "annotation":
+  "/-- The image of any small set under a coinjective relation is small.\nThis is a generalisation of the fact that the image of a small set under a function (or functional\nrelation) is small. -/\ntheorem image_small_of_coinjective {r : Rel α β} (h : r.Coinjective) {s : Set α} (hs : Small s) :\n    Small (r.image s) := by\n  /-\n    inst✝ : ConNF.Params\n    α β : Type u\n    r : Rel α β\n    h : r.Coinjective\n    s : Set α\n    hs : ConNF.Small s\n    ⊢ ConNF.Small (r.image s)\n  -/\n  have := small_biUnion hs (f := λ x _ ↦ {y | r x y}) ?_\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun y => r  …\n      ⊢ ConNF.Small (r.image s)\n    -/\n  · apply this.mono\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun y => r  …\n      ⊢ HasSubset.Subset (r.image s) (Set.iUnion fun i => Set.iUnion fun hi => setOf …\n    -/\n    rintro y ⟨x, hxy⟩\n    /-\n      case refine_2.intro\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun y => r  …\n      y : β\n      x : α\n      hxy : And (Membership.mem s x) (r x y)\n      ⊢ Membership.mem (Set.iUnion fun i => Set.iUnion fun hi => setOf fun y => r i  …\n    -/\n    simp only [mem_iUnion]\n    /-\n      case refine_2.intro\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      this : ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => setOf fun y => r  …\n      y : β\n      x : α\n      hxy : And (Membership.mem s x) (r x y)\n      ⊢ Exists fun i => Exists fun i_1 => Membership.mem (setOf fun y => r i y) y\n    -/\n    exact ⟨x, hxy.1, hxy.2⟩\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      ⊢ ∀ (i : α) (hi : Membership.mem s i), ConNF.Small ((fun x x_1 => setOf fun y  …\n    -/\n  · intro x hx\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      x : α\n      hx : Membership.mem s x\n      ⊢ ConNF.Small ((fun x x_1 => setOf fun y => r x y) x hx)\n    -/\n    apply small_of_subsingleton\n    /-\n      case refine_1.h\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      x : α\n      hx : Membership.mem s x\n      ⊢ ((fun x x_1 => setOf fun y => r x y) x hx).Subsingleton\n    -/\n    intro y hy z hz\n    /-\n      case refine_1.h\n      inst✝ : ConNF.Params\n      α β : Type u\n      r : Rel α β\n      h : r.Coinjective\n      s : Set α\n      hs : ConNF.Small s\n      x : α\n      hx : Membership.mem s x\n      y : β\n      hy : Membership.mem ((fun x x_1 => setOf fun y => r x y) x hx) y\n      z : β\n      hz : Membership.mem ((fun x x_1 => setOf fun y => r x y) x hx) z\n      ⊢ Eq y z\n    -/\n    exact h.coinjective hy hz\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "small_biUnion",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _",
+    "compilationAlias":
+    "instance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "Rel",
+    "module": "Mathlib.Data.Rel",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+    "compilationAlias":
+    "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_surjective_eq_arrow_of_lift_le (lle : lift.{u} #β' ≤ lift.{v} #α) :\n    #{f : α → β' | Surjective f} = #(α → β') :=\n  (mk_set_le _).antisymm <|\n    have ⟨e⟩ : Nonempty (α ≃ α ⊕ β') := by\n      simp_rw [← lift_mk_eq', mk_sum, lift_add, lift_lift]; rw [lift_umax.{u,v}, eq_comm]\n      exact add_eq_left (aleph0_le_lift.mpr <| aleph0_le_mk α) lle\n    ⟨⟨fun f ↦ ⟨fun a ↦ (e a).elim f id, fun b ↦ ⟨e.symm (.inr b), congr_arg _ (e.right_inv _)⟩⟩,\n      fun f g h ↦ funext fun a ↦ by\n        simpa only [e.apply_symm_apply] using congr_fun (Subtype.ext_iff.mp h) (e.symm <| .inl a)⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem le_mk_iff_exists_set {c : Cardinal} {α : Type u} : c ≤ #α ↔ ∃ p : Set α, #p = c :=\n  ⟨inductionOn c fun _ ⟨⟨f, hf⟩⟩ => ⟨Set.range f, (Equiv.ofInjective f hf).cardinal_eq.symm⟩,\n    fun ⟨_, e⟩ => e ▸ ⟨⟨Subtype.val, fun _ _ => Subtype.eq⟩⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem succ_def (c : Cardinal) : succ c = sInf { c' | c < c' } :=\n  dif_neg <| not_isMax c",
+   "--src: Mathlib.SetTheory.Game.PGame\n@[simp]\ntheorem one_leftMoves : LeftMoves 1 = PUnit :=\n  rfl",
+   "--src: Mathlib.Data.Set.Basic\ntheorem setOf_set {s : Set α} : setOf s = s :=\n  rfl",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem cof_eq_sInf_lsub (o : Ordinal.{u}) : cof o =\n    sInf { a : Cardinal | ∃ (ι : Type u) (f : ι → Ordinal), lsub.{u, u} f = o ∧ #ι = a } := by\n  refine le_antisymm (le_csInf (cof_lsub_def_nonempty o) ?_) (csInf_le' ?_)\n  · rintro a ⟨ι, f, hf, rfl⟩\n    rw [← type_toType o]\n    refine\n      (cof_type_le fun a => ?_).trans\n        (@mk_le_of_injective _ _\n          (fun s : typein ((· < ·) : o.toType → o.toType → Prop) ⁻¹' Set.range f =>\n            Classical.choose s.prop)\n          fun s t hst => by\n          let H := congr_arg f hst\n          rwa [Classical.choose_spec s.prop, Classical.choose_spec t.prop, typein_inj,\n            Subtype.coe_inj] at H)\n    have := typein_lt_self a\n    simp_rw [← hf, lt_lsub_iff] at this\n    cases' this with i hi\n    refine ⟨enum (α := o.toType) (· < ·) ⟨f i, ?_⟩, ?_, ?_⟩\n    · rw [type_toType, ← hf]\n      apply lt_lsub\n    · rw [mem_preimage, typein_enum]\n      exact mem_range_self i\n    · rwa [← typein_le_typein, typein_enum]\n  · rcases cof_eq (α := o.toType) (· < ·) with ⟨S, hS, hS'⟩\n    let f : S → Ordinal := fun s => typein LT.lt s.val\n    refine ⟨S, f, le_antisymm (lsub_le fun i => typein_lt_self (o := o) i)\n      (le_of_forall_lt fun a ha => ?_), by rwa [type_toType o] at hS'⟩\n    rw [← type_toType o] at ha\n    rcases hS (enum (· < ·) ⟨a, ha⟩) with ⟨b, hb, hb'⟩\n    rw [← typein_le_typein, typein_enum] at hb'\n    exact hb'.trans_lt (lt_lsub.{u, u} f ⟨b, hb⟩)",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\n@[deprecated mk_Iio_ordinal (since := \"2024-09-19\")]\ntheorem mk_initialSeg (o : Ordinal.{u}) :\n    #{ o' : Ordinal | o' < o } = Cardinal.lift.{u + 1} o.card := mk_Iio_ordinal o",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n@[simp] theorem mk_multiplicative : #(Multiplicative α) = #α := rfl",
+   "--src: Mathlib.Data.PFun\ntheorem image_def (s : Set α) : f.image s = { y | ∃ x ∈ s, y ∈ f x } :=\n  rfl",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\nset_option linter.deprecated false in\n@[deprecated \"No deprecation message was provided.\"  (since := \"2024-08-28\")]\ntheorem aleph'.relIso_coe : (Aleph'.relIso : Ordinal → Cardinal) = aleph' :=\n  rfl"],
+  "id":
+  {"name": "ConNF.card_small_eq",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- There are exactly `μ` small subsets of any type `α` of size `μ`. -/\ntheorem card_small_eq (h : #α = #μ) : #{s : Set α | Small s} = #μ := by\n  apply le_antisymm\n  · exact card_small_le h.le\n  · exact h.symm.trans_le <| card_le_card_small α\n\n",
+   "compilationAlias":
+   "/-- There are exactly `μ` small subsets of any type `α` of size `μ`. -/\ntheorem card_small_eq (h : #α = #μ) : #{s : Set α | Small s} = #μ := by\n  apply le_antisymm\n  · exact card_small_le h.le\n  · exact h.symm.trans_le <| card_le_card_small α\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\nh : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n⊢ Eq (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Params.μ)",
+  "content_sorry":
+  "/-- There are exactly `μ` small subsets of any type `α` of size `μ`. -/\ntheorem card_small_eq (h : #α = #μ) : #{s : Set α | Small s} = #μ := by\n  sorry",
+  "annotation":
+  "/-- There are exactly `μ` small subsets of any type `α` of size `μ`. -/\ntheorem card_small_eq (h : #α = #μ) : #{s : Set α | Small s} = #μ := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ Eq (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Params.μ)\n  -/\n  apply le_antisymm\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n      ⊢ LE.le (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Param …\n    -/\n  · exact card_small_le h.le\n    /-\n      🎉 no goals\n    -/\n    /-\n      case a\n      inst✝ : ConNF.Params\n      α : Type u\n      h : Eq (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n      ⊢ LE.le (Cardinal.mk ConNF.Params.μ) (Cardinal.mk ↑(setOf fun s => ConNF.Small …\n    -/\n  · exact h.symm.trans_le <| card_le_card_small α\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "le_antisymm",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _",
+    "compilationAlias":
+    "lemma le_antisymm : a ≤ b → b ≤ a → a = b := PartialOrder.le_antisymm _ _"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem lift_card_iSup_le_sum_card {ι : Type u} [Small.{v} ι] (f : ι → Ordinal.{v}) :\n    Cardinal.lift.{u} (⨆ i, f i).card ≤ Cardinal.sum fun i ↦ (f i).card := by\n  simp_rw [← mk_toType]\n  rw [← mk_sigma, ← Cardinal.lift_id'.{v} #(Σ _, _), ← Cardinal.lift_umax.{v, u}]\n  apply lift_mk_le_lift_mk_of_surjective (f := enumIsoToType _ ∘ (⟨(enumIsoToType _).symm ·.2,\n    (mem_Iio.mp ((enumIsoToType _).symm _).2).trans_le (Ordinal.le_iSup _ _)⟩))\n  rw [EquivLike.comp_surjective]\n  rintro ⟨x, hx⟩\n  obtain ⟨i, hi⟩ := Ordinal.lt_iSup_iff.mp hx\n  exact ⟨⟨i, enumIsoToType _ ⟨x, hi⟩⟩, by simp⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\n@[simp]\ntheorem aleph0_le_preAleph {o : Ordinal} : ℵ₀ ≤ preAleph o ↔ ω ≤ o := by\n  rw [← preAleph_omega0, preAleph_le_preAleph]",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem bddAbove_of_small (s : Set Cardinal.{u}) [h : Small.{u} s] : BddAbove s :=\n  bddAbove_iff_small.2 h",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_set_le (s : Set α) : #s ≤ #α :=\n  mk_subtype_le s",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_embedding_le_arrow : #(α ↪ β') ≤ #(α → β') := ⟨⟨_, DFunLike.coe_injective⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\ntheorem aleph_le_beth (o : Ordinal) : ℵ_ o ≤ ℶ_ o := by\n  induction o using limitRecOn with\n  | H₁ => simp\n  | H₂ o h =>\n    rw [aleph_succ, beth_succ, succ_le_iff]\n    exact (cantor _).trans_le (power_le_power_left two_ne_zero h)\n  | H₃ o ho IH =>\n    rw [aleph_limit ho, beth_limit ho]\n    exact ciSup_mono (bddAbove_of_small _) fun x => IH x.1 x.2",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small family of pre-games is bounded below. -/\nlemma bddBelow_range_of_small {ι : Type*} [Small.{u} ι] (f : ι → PGame.{u}) :\n    BddBelow (Set.range f) := by\n  let x : PGame.{u} := ⟨PEmpty, Σ i, (f <| (equivShrink.{u} ι).symm i).RightMoves, PEmpty.elim,\n    fun x ↦ moveRight _ x.2⟩\n  refine ⟨x, Set.forall_mem_range.2 fun i ↦ ?_⟩\n  rw [← (equivShrink ι).symm_apply_apply i, le_iff_forall_lf]\n  simpa [x] using fun j ↦ @lf_moveRight x ⟨equivShrink ι i, j⟩",
+   "--src: Mathlib.Data.W.Cardinal\n/-- `#(WType β)` is the least cardinal `κ` such that `sum (fun a : α ↦ κ ^ #(β a)) ≤ κ` -/\ntheorem cardinalMk_le_of_le' {κ : Cardinal.{max u v}}\n    (hκ : (sum fun a : α => κ ^ lift.{u} #(β a)) ≤ κ) :\n    #(WType β) ≤ κ := by\n  induction' κ using Cardinal.inductionOn with γ\n  simp_rw [← lift_umax.{v, u}] at hκ\n  nth_rewrite 1 [← lift_id'.{v, u} #γ] at hκ\n  simp_rw [← mk_arrow, ← mk_sigma, le_def] at hκ\n  cases' hκ with hκ\n  exact Cardinal.mk_le_of_injective (elim_injective _ hκ.1 hκ.2)",
+   "--src: Mathlib.LinearAlgebra.Dimension.Basic\ntheorem rank_le_card : Module.rank R M ≤ #M :=\n  (Module.rank_def _ _).trans_le (ciSup_le' fun _ ↦ mk_set_le _)",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_bounded_set_le (α : Type u) (c : Cardinal) :\n    #{ t : Set α // #t ≤ c } ≤ max #α ℵ₀ ^ c := by\n  trans #{ t : Set ((ULift.{u} ℕ) ⊕ α) // #t ≤ c }\n  · refine ⟨Embedding.subtypeMap ?_ ?_⟩\n    · apply Embedding.image\n      use Sum.inr\n      apply Sum.inr.inj\n    intro s hs\n    exact mk_image_le.trans hs\n  apply (mk_bounded_set_le_of_infinite ((ULift.{u} ℕ) ⊕ α) c).trans\n  rw [max_comm, ← add_eq_max] <;> rfl"],
+  "id":
+  {"name": "ConNF.card_small_le",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Because `μ` is a strong limit,\nthere are at most `μ` small subsets of a type at most as large as `μ`. -/\ntheorem card_small_le (h : #α ≤ #μ) : #{s : Set α | Small s} ≤ #μ := by\n  rw [le_def] at h\n  obtain ⟨⟨f, hf⟩⟩ := h\n  rw [← mk_subset_mk_lt_cof μ_isStrongLimit.2]\n  refine mk_le_of_injective (f := λ s ↦ ⟨f '' s, ?_⟩) ?_\n  · exact mk_image_le.trans_lt <| s.prop.trans_le κ_le_μ_ord_cof\n  · intro s t h\n    exact Subtype.val_injective <| hf.image_injective <| congr_arg Subtype.val h\n\n",
+   "compilationAlias":
+   "/-- Because `μ` is a strong limit,\nthere are at most `μ` small subsets of a type at most as large as `μ`. -/\ntheorem card_small_le (h : #α ≤ #μ) : #{s : Set α | Small s} ≤ #μ := by\n  rw [le_def] at h\n  obtain ⟨⟨f, hf⟩⟩ := h\n  rw [← mk_subset_mk_lt_cof μ_isStrongLimit.2]\n  refine mk_le_of_injective (f := λ s ↦ ⟨f '' s, ?_⟩) ?_\n  · exact mk_image_le.trans_lt <| s.prop.trans_le κ_le_μ_ord_cof\n  · intro s t h\n    exact Subtype.val_injective <| hf.image_injective <| congr_arg Subtype.val h\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\nh : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n⊢ LE.le (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Params.μ)",
+  "content_sorry":
+  "/-- Because `μ` is a strong limit,\nthere are at most `μ` small subsets of a type at most as large as `μ`. -/\ntheorem card_small_le (h : #α ≤ #μ) : #{s : Set α | Small s} ≤ #μ := by\n  sorry",
+  "annotation":
+  "/-- Because `μ` is a strong limit,\nthere are at most `μ` small subsets of a type at most as large as `μ`. -/\ntheorem card_small_le (h : #α ≤ #μ) : #{s : Set α | Small s} ≤ #μ := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    h : LE.le (Cardinal.mk α) (Cardinal.mk ConNF.Params.μ)\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Param …\n  -/\n  rw [le_def] at h\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    h : Nonempty (Function.Embedding α ConNF.Params.μ)\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Param …\n  -/\n  obtain ⟨⟨f, hf⟩⟩ := h\n  /-\n    case intro.mk\n    inst✝ : ConNF.Params\n    α : Type u\n    f : α → ConNF.Params.μ\n    hf : Function.Injective f\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk ConNF.Param …\n  -/\n  rw [← mk_subset_mk_lt_cof μ_isStrongLimit.2]\n  /-\n    case intro.mk\n    inst✝ : ConNF.Params\n    α : Type u\n    f : α → ConNF.Params.μ\n    hf : Function.Injective f\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun s => ConNF.Small s)) (Cardinal.mk (Subtype fu …\n  -/\n  refine mk_le_of_injective (f := λ s ↦ ⟨f '' s, ?_⟩) ?_\n    /-\n      case intro.mk.refine_1\n      inst✝ : ConNF.Params\n      α : Type u\n      f : α → ConNF.Params.μ\n      hf : Function.Injective f\n      s : ↑(setOf fun s => ConNF.Small s)\n      ⊢ LT.lt (Cardinal.mk ↑(Set.image f ↑s)) (Cardinal.mk ConNF.Params.μ).ord.cof\n    -/\n  · exact mk_image_le.trans_lt <| s.prop.trans_le κ_le_μ_ord_cof\n    /-\n      🎉 no goals\n    -/\n    /-\n      case intro.mk.refine_2\n      inst✝ : ConNF.Params\n      α : Type u\n      f : α → ConNF.Params.μ\n      hf : Function.Injective f\n      ⊢ Function.Injective fun s => ⟨Set.image f ↑s, ⋯⟩\n    -/\n  · intro s t h\n    /-\n      case intro.mk.refine_2\n      inst✝ : ConNF.Params\n      α : Type u\n      f : α → ConNF.Params.μ\n      hf : Function.Injective f\n      s t : ↑(setOf fun s => ConNF.Small s)\n      h : Eq ((fun s => ⟨Set.image f ↑s, ⋯⟩) s) ((fun s => ⟨Set.image f ↑s, ⋯⟩) t)\n      ⊢ Eq s t\n    -/\n    exact Subtype.val_injective <| hf.image_injective <| congr_arg Subtype.val h\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Subtype.val",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  val : α",
+    "compilationAlias": "  val : α"},
+   {"name": "congr_arg",
+    "module": "Batteries.Logic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias congr_arg := congrArg",
+    "compilationAlias": "alias congr_arg := congrArg"},
+   {"name": "Subtype.val_injective",
+    "module": "Mathlib.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem val_injective : Injective (@val _ p) :=\n  coe_injective",
+    "compilationAlias":
+    "@[simp] theorem val_injective : Injective (@val _ p) :=\n  coe_injective"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_set_le (s : Set α) : #s ≤ #α :=\n  mk_subtype_le s",
+   "--src: Mathlib.LinearAlgebra.Dimension.Basic\ntheorem rank_le_card : Module.rank R M ≤ #M :=\n  (Module.rank_def _ _).trans_le (ciSup_le' fun _ ↦ mk_set_le _)",
+   "--src: Mathlib.SetTheory.Game.Basic\n/-- A small set of games is bounded below. -/\nlemma bddBelow_of_small (s : Set Game.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → Game.{u})",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem lift_card_iSup_le_sum_card {ι : Type u} [Small.{v} ι] (f : ι → Ordinal.{v}) :\n    Cardinal.lift.{u} (⨆ i, f i).card ≤ Cardinal.sum fun i ↦ (f i).card := by\n  simp_rw [← mk_toType]\n  rw [← mk_sigma, ← Cardinal.lift_id'.{v} #(Σ _, _), ← Cardinal.lift_umax.{v, u}]\n  apply lift_mk_le_lift_mk_of_surjective (f := enumIsoToType _ ∘ (⟨(enumIsoToType _).symm ·.2,\n    (mem_Iio.mp ((enumIsoToType _).symm _).2).trans_le (Ordinal.le_iSup _ _)⟩))\n  rw [EquivLike.comp_surjective]\n  rintro ⟨x, hx⟩\n  obtain ⟨i, hi⟩ := Ordinal.lt_iSup_iff.mp hx\n  exact ⟨⟨i, enumIsoToType _ ⟨x, hi⟩⟩, by simp⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_subtype_mono {p q : α → Prop} (h : ∀ x, p x → q x) :\n    #{ x // p x } ≤ #{ x // q x } :=\n  ⟨embeddingOfSubset _ _ h⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_embedding_le_arrow : #(α ↪ β') ≤ #(α → β') := ⟨⟨_, DFunLike.coe_injective⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_quotient_le {α : Type u} {s : Setoid α} : #(Quotient s) ≤ #α :=\n  mk_quot_le",
+   "--src: Mathlib.SetTheory.Cardinal.Aleph\n@[simp]\ntheorem aleph0_le_preAleph {o : Ordinal} : ℵ₀ ≤ preAleph o ↔ ω ≤ o := by\n  rw [← preAleph_omega0, preAleph_le_preAleph]",
+   "--src: Mathlib.GroupTheory.MonoidLocalization.Cardinality\n@[to_additive]\ntheorem cardinalMk_le : #(Localization S) ≤ #M :=\n  OreLocalization.cardinalMk_le S",
+   "--src: Mathlib.Deprecated.Cardinal.PartENat\ntheorem toPartENat_mono {c c' : Cardinal} (h : c ≤ c') :\n    toPartENat c ≤ toPartENat c' :=\n  OrderHomClass.mono _ h"],
+  "id":
+  {"name": "ConNF.card_le_card_small",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The amount of small subsets of any type `α` is bounded below by the cardinality of `α`. -/\ntheorem card_le_card_small (α : Type _) : #α ≤ #{s : Set α | Small s} := by\n  apply mk_le_of_injective (f := λ x ↦ ⟨{x}, small_singleton x⟩)\n  intro x y h\n  exact singleton_injective <| congr_arg Subtype.val h\n\n",
+   "compilationAlias":
+   "/-- The amount of small subsets of any type `α` is bounded below by the cardinality of `α`. -/\ntheorem card_le_card_small (α : Type _) : #α ≤ #{s : Set α | Small s} := by\n  apply mk_le_of_injective (f := λ x ↦ ⟨{x}, small_singleton x⟩)\n  intro x y h\n  exact singleton_injective <| congr_arg Subtype.val h\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\n⊢ LE.le (Cardinal.mk α) (Cardinal.mk ↑(setOf fun s => ConNF.Small s))",
+  "content_sorry":
+  "/-- The amount of small subsets of any type `α` is bounded below by the cardinality of `α`. -/\ntheorem card_le_card_small (α : Type _) : #α ≤ #{s : Set α | Small s} := by\n  sorry",
+  "annotation":
+  "/-- The amount of small subsets of any type `α` is bounded below by the cardinality of `α`. -/\ntheorem card_le_card_small (α : Type _) : #α ≤ #{s : Set α | Small s} := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    ⊢ LE.le (Cardinal.mk α) (Cardinal.mk ↑(setOf fun s => ConNF.Small s))\n  -/\n  apply mk_le_of_injective (f := λ x ↦ ⟨{x}, small_singleton x⟩)\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    ⊢ Function.Injective fun x => ⟨Singleton.singleton x, ⋯⟩\n  -/\n  intro x y h\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    x y : α\n    h : Eq ((fun x => ⟨Singleton.singleton x, ⋯⟩) x) ((fun x => ⟨Singleton.singlet …\n    ⊢ Eq x y\n  -/\n  exact singleton_injective <| congr_arg Subtype.val h\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Subtype.val",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  val : α",
+    "compilationAlias": "  val : α"},
+   {"name": "congr_arg",
+    "module": "Batteries.Logic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias congr_arg := congrArg",
+    "compilationAlias": "alias congr_arg := congrArg"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.Computability.Partrec\ntheorem rfind_dom' {p : ℕ →. Bool} :\n    (rfind p).Dom ↔ ∃ n, true ∈ p n ∧ ∀ {m : ℕ}, m ≤ n → (p m).Dom :=\n  exists_congr fun _ =>\n    and_congr_right fun pn =>\n      ⟨fun H _ h => (Decidable.eq_or_lt_of_le h).elim (fun e => e.symm ▸ pn.fst) (H _), fun H _ h =>\n        H (le_of_lt h)⟩",
+   "--src: Mathlib.Data.Nat.PartENat\ntheorem withTopEquiv_symm_le {x y : ℕ∞} : withTopEquiv.symm x ≤ withTopEquiv.symm y ↔ x ≤ y := by\n  simp",
+   "--src: Mathlib.Order.PartialSups\n@[simp]\nlemma partialSups_le_iff {f : ℕ → α} {n : ℕ} {a : α} : partialSups f n ≤ a ↔ ∀ k ≤ n, f k ≤ a :=\n  partialSups_iff_forall (· ≤ a) sup_le_iff",
+   "--src: Mathlib.Data.Nat.Find\nlemma le_findGreatest (hmb : m ≤ n) (hm : P m) : m ≤ Nat.findGreatest P n :=\n  le_of_not_lt fun hlt => (findGreatest_eq_iff.1 rfl).2.2 hlt hmb hm",
+   "--src: Mathlib.Data.Nat.PartENat\ntheorem le_def (x y : PartENat) :\n    x ≤ y ↔ ∃ h : y.Dom → x.Dom, ∀ hy : y.Dom, x.get (h hy) ≤ y.get hy :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.Basic\ntheorem le_iff_game_le {x y : PGame} : x ≤ y ↔ (⟦x⟧ : Game) ≤ ⟦y⟧ :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small family of pre-games is bounded below. -/\nlemma bddBelow_range_of_small {ι : Type*} [Small.{u} ι] (f : ι → PGame.{u}) :\n    BddBelow (Set.range f) := by\n  let x : PGame.{u} := ⟨PEmpty, Σ i, (f <| (equivShrink.{u} ι).symm i).RightMoves, PEmpty.elim,\n    fun x ↦ moveRight _ x.2⟩\n  refine ⟨x, Set.forall_mem_range.2 fun i ↦ ?_⟩\n  rw [← (equivShrink ι).symm_apply_apply i, le_iff_forall_lf]\n  simpa [x] using fun j ↦ @lf_moveRight x ⟨equivShrink ι i, j⟩",
+   "--src: Mathlib.Computability.Primrec\ntheorem option_iget [Inhabited α] : Primrec (@Option.iget α _) :=\n  (option_casesOn .id (const <| @default α _) .right).of_eq fun o => by cases o <;> rfl",
+   "--src: Mathlib.SetTheory.Game.Ordinal\n@[simp]\ntheorem toPGame_le_iff {a b : Ordinal} : a.toPGame ≤ b.toPGame ↔ a ≤ b :=\n  ⟨by contrapose; rw [not_le, PGame.not_le]; exact toPGame_lf, toPGame_le⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- Definition of `x ≤ y` on pre-games, in terms of `⧏`.\nThe ordering here is chosen so that `And.left` refer to moves by Left, and `And.right` refer to\nmoves by Right. -/\ntheorem le_iff_forall_lf {x y : PGame} :\n    x ≤ y ↔ (∀ i, x.moveLeft i ⧏ y) ∧ ∀ j, x ⧏ y.moveRight j := by\n  unfold LE.le le\n  simp only\n  rw [Sym2.GameAdd.fix_eq]\n  rfl"],
+  "id":
+  {"name": "ConNF.iic_small",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Initial segments of `κ` (including the endpoint) are small. -/\ntheorem iic_small (i : κ) : Small {j | j ≤ i} := by\n  have := Ordinal.type_Iic_lt i\n  rwa [κ_type, lt_ord, Ordinal.card_type] at this\n\n",
+   "compilationAlias":
+   "/-- Initial segments of `κ` (including the endpoint) are small. -/\ntheorem iic_small (i : κ) : Small {j | j ≤ i} := by\n  have := Ordinal.type_Iic_lt i\n  rwa [κ_type, lt_ord, Ordinal.card_type] at this\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\ni : ConNF.Params.κ\n⊢ ConNF.Small (setOf fun j => LE.le j i)",
+  "content_sorry":
+  "/-- Initial segments of `κ` (including the endpoint) are small. -/\ntheorem iic_small (i : κ) : Small {j | j ≤ i} := by\n  sorry",
+  "annotation":
+  "/-- Initial segments of `κ` (including the endpoint) are small. -/\ntheorem iic_small (i : κ) : Small {j | j ≤ i} := by\n  /-\n    inst✝ : ConNF.Params\n    i : ConNF.Params.κ\n    ⊢ ConNF.Small (setOf fun j => LE.le j i)\n  -/\n  have := Ordinal.type_Iic_lt i\n  /-\n    inst✝ : ConNF.Params\n    i : ConNF.Params.κ\n    this : LT.lt (Ordinal.type (Subrel (fun x1 x2 => LT.lt x1 x2) (Set.Iic i))) (O …\n    ⊢ ConNF.Small (setOf fun j => LE.le j i)\n  -/\n  rwa [κ_type, lt_ord, Ordinal.card_type] at this\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Ordinal.card_type",
+    "module": "Mathlib.SetTheory.Ordinal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem card_type (r : α → α → Prop) [IsWellOrder α r] : card (type r) = #α :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem card_type (r : α → α → Prop) [IsWellOrder α r] : card (type r) = #α :=\n  rfl"},
+   {"name": "Ordinal.type_Iic_lt",
+    "module": "ConNF.Background.Ordinal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem type_Iic_lt {α : Type u} [LtWellOrder α] [NoMaxOrder α] (x : α) :\n    type (Subrel ((· < ·) : α → α → Prop) (Set.Iic x)) < type ((· < ·) : α → α → Prop) := by\n  rw [type_Iic_eq]\n  haveI : Nonempty α := ⟨x⟩\n  have h := isLimit_of_noMaxOrder (inferInstanceAs (NoMaxOrder α))\n  exact h.2.succ_lt (type_Iio_lt x)",
+    "compilationAlias":
+    "theorem type_Iic_lt {α : Type u} [LtWellOrder α] [NoMaxOrder α] (x : α) :\n    type (Subrel ((· < ·) : α → α → Prop) (Set.Iic x)) < type ((· < ·) : α → α → Prop) := by\n  rw [type_Iic_eq]\n  haveI : Nonempty α := ⟨x⟩\n  have h := isLimit_of_noMaxOrder (inferInstanceAs (NoMaxOrder α))\n  exact h.2.succ_lt (type_Iio_lt x)"}]},
+ {"rag":
+  ["--src: Mathlib.Computability.Partrec\ntheorem rfind_dom' {p : ℕ →. Bool} :\n    (rfind p).Dom ↔ ∃ n, true ∈ p n ∧ ∀ {m : ℕ}, m ≤ n → (p m).Dom :=\n  exists_congr fun _ =>\n    and_congr_right fun pn =>\n      ⟨fun H _ h => (Decidable.eq_or_lt_of_le h).elim (fun e => e.symm ▸ pn.fst) (H _), fun H _ h =>\n        H (le_of_lt h)⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem equiv_def {x y : PGame} : x ≈ y ↔ x ≤ y ∧ y ≤ x := Iff.rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small family of pre-games is bounded below. -/\nlemma bddBelow_range_of_small {ι : Type*} [Small.{u} ι] (f : ι → PGame.{u}) :\n    BddBelow (Set.range f) := by\n  let x : PGame.{u} := ⟨PEmpty, Σ i, (f <| (equivShrink.{u} ι).symm i).RightMoves, PEmpty.elim,\n    fun x ↦ moveRight _ x.2⟩\n  refine ⟨x, Set.forall_mem_range.2 fun i ↦ ?_⟩\n  rw [← (equivShrink ι).symm_apply_apply i, le_iff_forall_lf]\n  simpa [x] using fun j ↦ @lf_moveRight x ⟨equivShrink ι i, j⟩",
+   "--src: Mathlib.SetTheory.Surreal.Basic\nalias LF.le := le_of_lf",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- The definition of `x ⧏ 0` on pre-games, in terms of `≤ 0`. -/\ntheorem lf_zero_le {x : PGame} : x ⧏ 0 ↔ ∃ j, x.moveRight j ≤ 0 := by\n  rw [lf_iff_exists_le]\n  simp",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem lt_of_le_of_lf {x y : PGame} (h₁ : x ≤ y) (h₂ : x ⧏ y) : x < y :=\n  ⟨h₁, h₂⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- The definition of `x ≤ y` on pre-games, in terms of `≤` two moves later.\nNote that it's often more convenient to use `le_iff_forall_lf`, which only unfolds the definition by\none step. -/\ntheorem le_def {x y : PGame} :\n    x ≤ y ↔\n      (∀ i, (∃ i', x.moveLeft i ≤ y.moveLeft i') ∨ ∃ j, (x.moveLeft i).moveRight j ≤ y) ∧\n        ∀ j, (∃ i, x ≤ (y.moveRight j).moveLeft i) ∨ ∃ j', x.moveRight j' ≤ y.moveRight j := by\n  rw [le_iff_forall_lf]\n  conv =>\n    lhs\n    simp only [lf_iff_exists_le]",
+   "--src: Mathlib.Computability.Partrec\ntheorem option_some_iff {f : α →. σ} : (Partrec fun a => (f a).map Option.some) ↔ Partrec f :=\n  ⟨fun h => (Nat.Partrec.ppred.comp h).of_eq fun n => by\n      -- Porting note: needed to help with applying bind_some_eq_map because `Function.comp` got\n      -- less reducible.\n      simp [Part.bind_assoc, ← Function.comp_apply (f := Part.some) (g := encode), bind_some_eq_map,\n        -Function.comp_apply],\n    fun hf => hf.map (option_some.comp snd).to₂⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n@[simp]\nprotected theorem not_le {x y : PGame} : ¬x ≤ y ↔ y ⧏ x :=\n  Iff.rfl",
+   "--src: Mathlib.Computability.Primrec\ntheorem prim_iff₁ {f : ℕ → ℕ} : (@Primrec' 1 fun v => f v.head) ↔ Primrec f :=\n  prim_iff.trans\n    ⟨fun h => (h.comp <| .vector_ofFn fun _ => .id).of_eq fun v => by simp, fun h =>\n      h.comp .vector_head⟩"],
+  "id":
+  {"name": "ConNF.iio_small",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Initial segments of `κ` (excluding the endpoint) are small. -/\ntheorem iio_small (i : κ) : Small {j | j < i} := by\n  have := Ordinal.type_Iio_lt i\n  rwa [κ_type, lt_ord, Ordinal.card_type] at this\n\n",
+   "compilationAlias":
+   "/-- Initial segments of `κ` (excluding the endpoint) are small. -/\ntheorem iio_small (i : κ) : Small {j | j < i} := by\n  have := Ordinal.type_Iio_lt i\n  rwa [κ_type, lt_ord, Ordinal.card_type] at this\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\ni : ConNF.Params.κ\n⊢ ConNF.Small (setOf fun j => LT.lt j i)",
+  "content_sorry":
+  "/-- Initial segments of `κ` (excluding the endpoint) are small. -/\ntheorem iio_small (i : κ) : Small {j | j < i} := by\n  sorry",
+  "annotation":
+  "/-- Initial segments of `κ` (excluding the endpoint) are small. -/\ntheorem iio_small (i : κ) : Small {j | j < i} := by\n  /-\n    inst✝ : ConNF.Params\n    i : ConNF.Params.κ\n    ⊢ ConNF.Small (setOf fun j => LT.lt j i)\n  -/\n  have := Ordinal.type_Iio_lt i\n  /-\n    inst✝ : ConNF.Params\n    i : ConNF.Params.κ\n    this : LT.lt (Ordinal.type (Subrel (fun x1 x2 => LT.lt x1 x2) (Set.Iio i))) (O …\n    ⊢ ConNF.Small (setOf fun j => LT.lt j i)\n  -/\n  rwa [κ_type, lt_ord, Ordinal.card_type] at this\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Ordinal.card_type",
+    "module": "Mathlib.SetTheory.Ordinal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem card_type (r : α → α → Prop) [IsWellOrder α r] : card (type r) = #α :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem card_type (r : α → α → Prop) [IsWellOrder α r] : card (type r) = #α :=\n  rfl"},
+   {"name": "Ordinal.type_Iio_lt",
+    "module": "ConNF.Background.Ordinal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem type_Iio_lt {α : Type u} [LtWellOrder α] (x : α) :\n    type (Subrel ((· < ·) : α → α → Prop) (Set.Iio x)) < type ((· < ·) : α → α → Prop) :=\n  @typein_lt_type _ _ (inferInstanceAs (IsWellOrder α (· < ·))) x",
+    "compilationAlias":
+    "theorem type_Iio_lt {α : Type u} [LtWellOrder α] (x : α) :\n    type (Subrel ((· < ·) : α → α → Prop) (Set.Iio x)) < type ((· < ·) : α → α → Prop) :=\n  @typein_lt_type _ _ (inferInstanceAs (IsWellOrder α (· < ·))) x"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_set_le (s : Set α) : #s ≤ #α :=\n  mk_subtype_le s",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n/-- A set of cardinals is bounded above iff it's small, i.e. it corresponds to a usual ZFC set. -/\ntheorem bddAbove_iff_small {s : Set Cardinal.{u}} : BddAbove s ↔ Small.{u} s :=\n  ⟨fun ⟨a, ha⟩ => @small_subset _ (Iic a) s (fun _ h => ha h) _, by\n    rintro ⟨ι, ⟨e⟩⟩\n    use sum.{u, u} fun x ↦ e.symm x\n    intro a ha\n    simpa using le_sum (fun x ↦ e.symm x) (e ⟨a, ha⟩)⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded above. -/\nlemma bddAbove_of_small (s : Set PGame.{u}) [Small.{u} s] : BddAbove s := by\n  simpa using bddAbove_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem cof_type_le [IsWellOrder α r] {S : Set α} (h : Unbounded r S) : cof (type r) ≤ #S :=\n  le_cof_type.1 le_rfl S h",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem lift_card_iSup_le_sum_card {ι : Type u} [Small.{v} ι] (f : ι → Ordinal.{v}) :\n    Cardinal.lift.{u} (⨆ i, f i).card ≤ Cardinal.sum fun i ↦ (f i).card := by\n  simp_rw [← mk_toType]\n  rw [← mk_sigma, ← Cardinal.lift_id'.{v} #(Σ _, _), ← Cardinal.lift_umax.{v, u}]\n  apply lift_mk_le_lift_mk_of_surjective (f := enumIsoToType _ ∘ (⟨(enumIsoToType _).symm ·.2,\n    (mem_Iio.mp ((enumIsoToType _).symm _).2).trans_le (Ordinal.le_iSup _ _)⟩))\n  rw [EquivLike.comp_surjective]\n  rintro ⟨x, hx⟩\n  obtain ⟨i, hi⟩ := Ordinal.lt_iSup_iff.mp hx\n  exact ⟨⟨i, enumIsoToType _ ⟨x, hi⟩⟩, by simp⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_biUnion_le {ι α : Type u} (A : ι → Set α) (s : Set ι) :\n    #(⋃ x ∈ s, A x) ≤ #s * ⨆ x : s, #(A x.1) := by\n  rw [biUnion_eq_iUnion]\n  apply mk_iUnion_le",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem mk_bounded_set_le (α : Type u) (c : Cardinal) :\n    #{ t : Set α // #t ≤ c } ≤ max #α ℵ₀ ^ c := by\n  trans #{ t : Set ((ULift.{u} ℕ) ⊕ α) // #t ≤ c }\n  · refine ⟨Embedding.subtypeMap ?_ ?_⟩\n    · apply Embedding.image\n      use Sum.inr\n      apply Sum.inr.inj\n    intro s hs\n    exact mk_image_le.trans hs\n  apply (mk_bounded_set_le_of_infinite ((ULift.{u} ℕ) ⊕ α) c).trans\n  rw [max_comm, ← add_eq_max] <;> rfl",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\nlemma aleph0_le_mk_iff : ℵ₀ ≤ #α ↔ Infinite α := infinite_iff.symm",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\n@[simp] lemma lift_le_ofENat {x : Cardinal.{v}} {m : ℕ∞} : lift.{u} x ≤ m ↔ x ≤ m := by\n  rw [← lift_ofENat.{u, v}, lift_le]",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem le_cof [IsRefl α r] (c : Cardinal) :\n    c ≤ cof r ↔ ∀ {S : Set α}, (∀ a, ∃ b ∈ S, r a b) → c ≤ #S := by\n  rw [cof, le_csInf_iff'' (cof_nonempty r)]\n  use fun H S h => H _ ⟨S, h, rfl⟩\n  rintro H d ⟨S, h, rfl⟩\n  exact H h"],
+  "id":
+  {"name": "ConNF.κ_le_of_not_small",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If a set is not small, its cardinality is larger than `#κ`. -/\ntheorem κ_le_of_not_small (h : ¬Small s) : #κ ≤ #s := by\n  rwa [Small, not_lt] at h\n\n",
+   "compilationAlias":
+   "/-- If a set is not small, its cardinality is larger than `#κ`. -/\ntheorem κ_le_of_not_small (h : ¬Small s) : #κ ≤ #s := by\n  rwa [Small, not_lt] at h\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns : Set α\n⊢ Eq (ConNF.Small s) (LT.lt (Cardinal.mk ↑s) (Cardinal.mk ConNF.Params.κ))",
+  "content_sorry":
+  "/-- If a set is not small, its cardinality is larger than `#κ`. -/\ntheorem κ_le_of_not_small (h : ¬Small s) : #κ ≤ #s := by\n  sorry",
+  "annotation":
+  "/-- If a set is not small, its cardinality is larger than `#κ`. -/\ntheorem κ_le_of_not_small (h : ¬Small s) : #κ ≤ #s := by\n  /-\n    inst✝ : ConNF.Params\n    α : Type u\n    s : Set α\n    h : Not (ConNF.Small s)\n    ⊢ LE.le (Cardinal.mk ConNF.Params.κ) (Cardinal.mk ↑s)\n  -/\n  rwa [Small, not_lt] at h\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Basic\ntheorem small_of_injective {α : Type v} {β : Type w} [Small.{u} β] {f : α → β}\n    (hf : Function.Injective f) : Small.{u} α :=\n  small_map (Equiv.ofInjective f hf)",
+   "--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_image (f : α → β) (s : Set α) [Small.{u} s] :\n    Small.{u} (f '' s) :=\n  small_of_surjective Set.surjective_onto_image",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\ntheorem not_injective_of_ordinal_of_small {α : Type v} [Small.{u} α] (f : Ordinal.{u} → α) :\n    ¬Injective f := fun h => not_injective_of_ordinal _ ((equivShrink _).injective.comp h)",
+   "--src: Mathlib.Logic.Equiv.Set\ntheorem image_symm_preimage {α β} {f : α → β} (hf : Injective f) (u s : Set α) :\n    (fun x => (Set.image f s hf).symm x : f '' s → α) ⁻¹' u = Subtype.val ⁻¹' (f '' u) := by\n  ext ⟨b, a, has, rfl⟩\n  simp [hf.eq_iff]",
+   "--src: Mathlib.Logic.Small.Defs\n/-- A type is `Small.{w}` if there exists an equivalence to some `S : Type w`.\n-/\n@[mk_iff, pp_with_univ]\nclass Small (α : Type v) : Prop where\n  /-- If a type is `Small.{w}`, then there exists an equivalence with some `S : Type w` -/\n  equiv_small : ∃ S : Type w, Nonempty (α ≃ S)",
+   "--src: Mathlib.SetTheory.Nimber.Basic\ntheorem not_bddAbove_compl_of_small (s : Set Nimber.{u}) [Small.{u} s] : ¬ BddAbove sᶜ :=\n  Ordinal.not_bddAbove_compl_of_small s",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem bddAbove_of_small (s : Set Cardinal.{u}) [h : Small.{u} s] : BddAbove s :=\n  bddAbove_iff_small.2 h"],
+  "id":
+  {"name": "ConNF.Small.preimage",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The preimage of a small set under an injective function `f` is small. -/\ntheorem Small.preimage (f : β → α) (h : f.Injective) : Small s → Small (f ⁻¹' s) :=\n  (mk_preimage_of_injective f s h).trans_lt\n\n",
+   "compilationAlias":
+   "/-- The preimage of a small set under an injective function `f` is small. -/\ntheorem Small.preimage (f : β → α) (h : f.Injective) : Small s → Small (f ⁻¹' s) :=\n  (mk_preimage_of_injective f s h).trans_lt\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα β : Type u\ns : Set α\nf : β → α\nh : Function.Injective f\na✝ : ConNF.Small s\n⊢ ConNF.Small (Set.preimage f s)",
+  "content_sorry":
+  "/-- The preimage of a small set under an injective function `f` is small. -/\ntheorem Small.preimage (f : β → α) (h : f.Injective) : Small s → Small (f ⁻¹' s) := by sorry",
+  "annotation":
+  "/-- The preimage of a small set under an injective function `f` is small. -/\ntheorem Small.preimage (f : β → α) (h : f.Injective) : Small s → Small (f ⁻¹' s) :=\n  (mk_preimage_of_injective f s h).trans_lt\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Set\ninstance small_image (f : α → β) (s : Set α) [Small.{u} s] :\n    Small.{u} (f '' s) :=\n  small_of_surjective Set.surjective_onto_image",
+   "--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Data.PFun\ntheorem mem_image (y : β) (s : Set α) : y ∈ f.image s ↔ ∃ x ∈ s, y ∈ f x :=\n  Iff.rfl",
+   "--src: Mathlib.Order.Filter.SmallSets\ntheorem smallSets_comap_eq_comap_image (l : Filter β) (f : α → β) :\n    (comap f l).smallSets = comap (image f) l.smallSets := by\n  refine (gc_map_comap _).u_comm_of_l_comm (gc_map_comap _) bind_smallSets_gc bind_smallSets_gc ?_\n  simp [Function.comp_def, map_bind, bind_map]",
+   "--src: Mathlib.Data.Set.Operations\ntheorem mapsTo_image (f : α → β) (s : Set α) : MapsTo f s (f '' s) := fun _ ↦ mem_image_of_mem f",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma iUnion_smul_right_image : ⋃ a ∈ t, (· • a) '' s = s • t := iUnion_image_right _",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.Order.Directed\ntheorem DirectedOn.mono_comp {r : α → α → Prop} {rb : β → β → Prop} {g : α → β} {s : Set α}\n    (hg : ∀ ⦃x y⦄, r x y → rb (g x) (g y)) (hf : DirectedOn r s) : DirectedOn rb (g '' s) :=\n  directedOn_image.mpr (hf.mono hg)",
+   "--src: Mathlib.Data.Set.Image\ntheorem exists_set_subtype {t : Set α} (p : Set α → Prop) :\n    (∃ s : Set t, p (((↑) : t → α) '' s)) ↔ ∃ s : Set α, s ⊆ t ∧ p s := by\n  rw [← exists_subset_range_and_iff, range_coe]"],
+  "id":
+  {"name": "ConNF.Small.image",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The image of a small set under any function `f` is small. -/\ntheorem Small.image (f : α → β) : Small s → Small (f '' s) :=\n  mk_image_le.trans_lt\n\n",
+   "compilationAlias":
+   "/-- The image of a small set under any function `f` is small. -/\ntheorem Small.image (f : α → β) : Small s → Small (f '' s) :=\n  mk_image_le.trans_lt\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα β : Type u\ns : Set α\nf : α → β\na✝ : ConNF.Small s\n⊢ ConNF.Small (Set.image f s)",
+  "content_sorry":
+  "/-- The image of a small set under any function `f` is small. -/\ntheorem Small.image (f : α → β) : Small s → Small (f '' s) := by sorry",
+  "annotation":
+  "/-- The image of a small set under any function `f` is small. -/\ntheorem Small.image (f : α → β) : Small s → Small (f '' s) :=\n  mk_image_le.trans_lt\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Set\ninstance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _",
+   "--src: Mathlib.SetTheory.Ordinal.Rank\ntheorem mem_range_rank_of_le {o : Ordinal} (ha : Acc r a) (ho : o ≤ ha.rank) :\n    ∃ (b : α) (hb : Acc r b), hb.rank = o := by\n  obtain rfl | ho := ho.eq_or_lt\n  · exact ⟨a, ha, rfl⟩\n  · revert ho\n    refine ha.recOn fun a ha IH ho ↦ ?_\n    rw [rank_eq, Ordinal.lt_iSup_iff] at ho\n    obtain ⟨⟨b, hb⟩, ho⟩ := ho\n    rw [Order.lt_succ_iff] at ho\n    obtain rfl | ho := ho.eq_or_lt\n    exacts [⟨b, ha b hb, rfl⟩, IH _ hb ho]",
+   "--src: Mathlib.Logic.Small.Set\ntheorem small_biInter {s : Set ι} {i : ι} (hi : i ∈ s)\n    (f : (i : ι) → i ∈ s → Set α) [Small.{u} (f i hi)] : Small.{u} (⋂ i, ⋂ hi, f i hi) :=\n  Set.biInter_eq_iInter s f ▸ small_iInter _ ⟨i, hi⟩",
+   "--src: Mathlib.SetTheory.Ordinal.FixedPoint\ntheorem le_nfpFamily [Small.{u} ι] (f : ι → Ordinal.{u} → Ordinal.{u}) (a) : a ≤ nfpFamily f a :=\n  foldr_le_nfpFamily f a []",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_sep (s : Set α) (P : α → Prop) [Small.{u} s] :\n    Small.{u} { x | x ∈ s ∧ P x} :=\n  small_subset (Set.sep_subset s P)",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.ZFC.Rank\ntheorem lt_rank_iff {o : Ordinal} : o < rank x ↔ ∃ y ∈ x, o ≤ rank y := by\n  rw [← not_iff_not, not_lt, rank_le_iff]\n  simp",
+   "--src: Mathlib.Logic.UnivLE\ntheorem Small.trans_univLE (α : Type w) [hα : Small.{u} α] [h : UnivLE.{u, v}] :\n    Small.{v} α :=\n  let ⟨β, ⟨f⟩⟩ := hα.equiv_small\n  let ⟨_, ⟨g⟩⟩ := (h β).equiv_small\n  ⟨_, ⟨f.trans g⟩⟩",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\n/-- `lt_ciSup_iff'` whenever the input type is small in the output universe. -/\nprotected theorem lt_iSup_iff {ι} {f : ι → Ordinal.{u}} {a : Ordinal.{u}} [Small.{u} ι] :\n    a < iSup f ↔ ∃ i, a < f i :=\n  lt_ciSup_iff' (bddAbove_of_small _)",
+   "--src: Mathlib.SetTheory.ZFC.Rank\n@[simp]\ntheorem rank_range {α : Type*} [Small.{u} α] (f : α → ZFSet.{u}) :\n    rank (range f) = ⨆ i, succ (rank (f i)) := by\n  apply (Ordinal.iSup_le _).antisymm'\n  · simpa [rank_le_iff, ← succ_le_iff] using Ordinal.le_iSup _\n  · simp [rank_lt_of_mem]"],
+  "id":
+  {"name": "ConNF.small_biUnion",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- A small set-indexed union of sets is small. -/\ntheorem small_biUnion {s : Set ι} (hs : Small s) {f : ∀ i ∈ s, Set α}\n    (hf : ∀ (i : ι) (hi : i ∈ s), Small (f i hi)) : Small (⋃ (i : ι) (hi : i ∈ s), f i hi) :=\n  (small_iUnion hs (λ i ↦ hf i i.prop)).congr (Set.biUnion_eq_iUnion _ _)\n\n",
+   "compilationAlias":
+   "/-- A small set-indexed union of sets is small. -/\ntheorem small_biUnion {s : Set ι} (hs : Small s) {f : ∀ i ∈ s, Set α}\n    (hf : ∀ (i : ι) (hi : i ∈ s), Small (f i hi)) : Small (⋃ (i : ι) (hi : i ∈ s), f i hi) :=\n  (small_iUnion hs (λ i ↦ hf i i.prop)).congr (Set.biUnion_eq_iUnion _ _)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nι α : Type u\ns : Set ι\nhs : ConNF.Small s\nf : (i : ι) → Membership.mem s i → Set α\nhf : ∀ (i : ι) (hi : Membership.mem s i), ConNF.Small (f i hi)\n⊢ ConNF.Small (Set.iUnion fun i => Set.iUnion fun hi => f i hi)",
+  "content_sorry":
+  "/-- A small set-indexed union of sets is small. -/\ntheorem small_biUnion {s : Set ι} (hs : Small s) {f : ∀ i ∈ s, Set α}\n    (hf : ∀ (i : ι) (hi : i ∈ s), Small (f i hi)) : Small (⋃ (i : ι) (hi : i ∈ s), f i hi) := by sorry",
+  "annotation":
+  "/-- A small set-indexed union of sets is small. -/\ntheorem small_biUnion {s : Set ι} (hs : Small s) {f : ∀ i ∈ s, Set α}\n    (hf : ∀ (i : ι) (hi : i ∈ s), Small (f i hi)) : Small (⋃ (i : ι) (hi : i ∈ s), f i hi) :=\n  (small_iUnion hs (λ i ↦ hf i i.prop)).congr (Set.biUnion_eq_iUnion _ _)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set.biUnion_eq_iUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem biUnion_eq_iUnion (s : Set α) (t : ∀ x ∈ s, Set β) :\n    ⋃ x ∈ s, t x ‹_› = ⋃ x : s, t x x.2 :=\n  iSup_subtype'",
+    "compilationAlias":
+    "theorem biUnion_eq_iUnion (s : Set α) (t : ∀ x ∈ s, Set β) :\n    ⋃ x ∈ s, t x ‹_› = ⋃ x : s, t x x.2 :=\n  iSup_subtype'"},
+   {"name": "congr",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in both function and argument. If `f₁ = f₂` and `a₁ = a₂` then\n`f₁ a₁ = f₂ a₂`. This only works for nondependent functions; the theorem\nstatement is more complex in the dependent case.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congr {α : Sort u} {β : Sort v} {f₁ f₂ : α → β} {a₁ a₂ : α} (h₁ : Eq f₁ f₂) (h₂ : Eq a₁ a₂) : Eq (f₁ a₁) (f₂ a₂) :=\n  h₁ ▸ h₂ ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in both function and argument. If `f₁ = f₂` and `a₁ = a₂` then\n`f₁ a₁ = f₂ a₂`. This only works for nondependent functions; the theorem\nstatement is more complex in the dependent case.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congr {α : Sort u} {β : Sort v} {f₁ f₂ : α → β} {a₁ a₂ : α} (h₁ : Eq f₁ f₂) (h₂ : Eq a₁ a₂) : Eq (f₁ a₁) (f₂ a₂) :=\n  h₁ ▸ h₂ ▸ rfl"},
+   {"name": "small_iUnion",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_iUnion [Small.{u} ι] (s : ι → Set α)\n    [∀ i, Small.{u} (s i)] : Small.{u} (⋃ i, s i) :=\n  small_of_surjective <| Set.sigmaToiUnion_surjective _",
+    "compilationAlias":
+    "instance small_iUnion [Small.{u} ι] (s : ι → Set α)\n    [∀ i, Small.{u} (s i)] : Small.{u} (⋃ i, s i) :=\n  small_of_surjective <| Set.sigmaToiUnion_surjective _"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "small_biUnion",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _",
+    "compilationAlias":
+    "instance small_biUnion (s : Set ι) [Small.{u} s]\n    (f : (i : ι) → i ∈ s → Set α) [∀ i hi, Small.{u} (f i hi)] : Small.{u} (⋃ i, ⋃ hi, f i hi) :=\n  Set.biUnion_eq_iUnion s f ▸ small_iUnion _"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Set\ninstance small_iUnion [Small.{u} ι] (s : ι → Set α)\n    [∀ i, Small.{u} (s i)] : Small.{u} (⋃ i, s i) :=\n  small_of_surjective <| Set.sigmaToiUnion_surjective _",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded above. -/\nlemma bddAbove_of_small (s : Set PGame.{u}) [Small.{u} s] : BddAbove s := by\n  simpa using bddAbove_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Ordinal.Rank\ntheorem rank_eq (h : Acc r a) :\n    h.rank = ⨆ b : { b // r b a }, Order.succ (h.inv b.2).rank := by\n  change (Acc.intro a fun _ => h.inv).rank = _\n  rfl",
+   "--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem lt_iff_le_and_lf {x y : PGame} : x < y ↔ x ≤ y ∧ x ⧏ y :=\n  Iff.rfl",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\n/-- `ciSup_le_iff'` whenever the input type is small in the output universe. -/\nprotected theorem iSup_le_iff {ι} {f : ι → Ordinal.{u}} {a : Ordinal.{u}} [Small.{u} ι] :\n    iSup f ≤ a ↔ ∀ i, f i ≤ a :=\n  ciSup_le_iff' (bddAbove_of_small _)",
+   "--src: Mathlib.SetTheory.Game.Ordinal\n@[simp]\ntheorem toPGame_le_iff {a b : Ordinal} : a.toPGame ≤ b.toPGame ↔ a ≤ b :=\n  ⟨by contrapose; rw [not_le, PGame.not_le]; exact toPGame_lf, toPGame_le⟩",
+   "--src: Mathlib.SetTheory.ZFC.Rank\n@[simp]\ntheorem rank_range {α : Type*} [Small.{u} α] (f : α → ZFSet.{u}) :\n    rank (range f) = ⨆ i, succ (rank (f i)) := by\n  apply (Ordinal.iSup_le _).antisymm'\n  · simpa [rank_le_iff, ← succ_le_iff] using Ordinal.le_iSup _\n  · simp [rank_lt_of_mem]",
+   "--src: Mathlib.SetTheory.Ordinal.Rank\ntheorem mem_range_rank_of_le {o : Ordinal} (ha : Acc r a) (ho : o ≤ ha.rank) :\n    ∃ (b : α) (hb : Acc r b), hb.rank = o := by\n  obtain rfl | ho := ho.eq_or_lt\n  · exact ⟨a, ha, rfl⟩\n  · revert ho\n    refine ha.recOn fun a ha IH ho ↦ ?_\n    rw [rank_eq, Ordinal.lt_iSup_iff] at ho\n    obtain ⟨⟨b, hb⟩, ho⟩ := ho\n    rw [Order.lt_succ_iff] at ho\n    obtain rfl | ho := ho.eq_or_lt\n    exacts [⟨b, ha b hb, rfl⟩, IH _ hb ho]",
+   "--src: Mathlib.SetTheory.ZFC.Rank\ntheorem lt_rank_iff {o : Ordinal} : o < rank x ↔ ∃ y ∈ x, o ≤ rank y := by\n  rw [← not_iff_not, not_lt, rank_le_iff]\n  simp"],
+  "id":
+  {"name": "ConNF.small_iUnion_Prop",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- It is occasionally useful to take an indexed union over the proofs of a proposition, for example\nwhen taking a union over the elements of some set. In these cases, if the resulting set is small\nfor every proof, the union is also small. -/\ntheorem small_iUnion_Prop {p : Prop} {f : p → Set α} (hf : ∀ i, Small (f i)) : Small (⋃ i, f i) :=\n  by by_cases p <;> simp_all\n\n",
+   "compilationAlias":
+   "/-- It is occasionally useful to take an indexed union over the proofs of a proposition, for example\nwhen taking a union over the elements of some set. In these cases, if the resulting set is small\nfor every proof, the union is also small. -/\ntheorem small_iUnion_Prop {p : Prop} {f : p → Set α} (hf : ∀ i, Small (f i)) : Small (⋃ i, f i) :=\n  by by_cases p <;> simp_all\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\np : Prop\nf : p → Set α\nhf : ∀ (i : p), ConNF.Small (f i)\n⊢ ConNF.Small (Set.iUnion fun i => f i)",
+  "content_sorry":
+  "/-- It is occasionally useful to take an indexed union over the proofs of a proposition, for example\nwhen taking a union over the elements of some set. In these cases, if the resulting set is small\nfor every proof, the union is also small. -/\ntheorem small_iUnion_Prop {p : Prop} {f : p → Set α} (hf : ∀ i, Small (f i)) : Small (⋃ i, f i) :=\n  by sorry",
+  "annotation":
+  "/-- It is occasionally useful to take an indexed union over the proofs of a proposition, for example\nwhen taking a union over the elements of some set. In these cases, if the resulting set is small\nfor every proof, the union is also small. -/\ntheorem small_iUnion_Prop {p : Prop} {f : p → Set α} (hf : ∀ i, Small (f i)) : Small (⋃ i, f i) :=\n     /-\n       inst✝ : ConNF.Params\n       α : Type u\n       p : Prop\n       f : p → Set α\n       hf : ∀ (i : p), ConNF.Small (f i)\n       ⊢ ConNF.Small (Set.iUnion fun i => f i)\n     -/\n                    /-\n                      🎉 no goals\n                    -/\n  by by_cases p <;> simp_all\n                    /-\n                      🎉 no goals\n                    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}]},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem cof_iSup_le {ι} {f : ι → Ordinal} (H : ∀ i, f i < iSup f) :\n    cof (iSup f) ≤ #ι := by\n  rw [← (#ι).lift_id]\n  exact cof_iSup_le_lift H",
+   "--src: Mathlib.SetTheory.Cardinal.Arithmetic\ntheorem lift_card_iSup_le_sum_card {ι : Type u} [Small.{v} ι] (f : ι → Ordinal.{v}) :\n    Cardinal.lift.{u} (⨆ i, f i).card ≤ Cardinal.sum fun i ↦ (f i).card := by\n  simp_rw [← mk_toType]\n  rw [← mk_sigma, ← Cardinal.lift_id'.{v} #(Σ _, _), ← Cardinal.lift_umax.{v, u}]\n  apply lift_mk_le_lift_mk_of_surjective (f := enumIsoToType _ ∘ (⟨(enumIsoToType _).symm ·.2,\n    (mem_Iio.mp ((enumIsoToType _).symm _).2).trans_le (Ordinal.le_iSup _ _)⟩))\n  rw [EquivLike.comp_surjective]\n  rintro ⟨x, hx⟩\n  obtain ⟨i, hi⟩ := Ordinal.lt_iSup_iff.mp hx\n  exact ⟨⟨i, enumIsoToType _ ⟨x, hi⟩⟩, by simp⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem bddAbove_of_small (s : Set Cardinal.{u}) [h : Small.{u} s] : BddAbove s :=\n  bddAbove_iff_small.2 h",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem bddAbove_range {ι : Type*} [Small.{u} ι] (f : ι → Cardinal.{u}) : BddAbove (Set.range f) :=\n  bddAbove_of_small _",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\n/-- `lt_ciSup_iff'` whenever the input type is small in the output universe. -/\nprotected theorem lt_iSup_iff {ι} {f : ι → Ordinal.{u}} {a : Ordinal.{u}} [Small.{u} ι] :\n    a < iSup f ↔ ∃ i, a < f i :=\n  lt_ciSup_iff' (bddAbove_of_small _)",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_biUnion_le {ι α : Type u} (A : ι → Set α) (s : Set ι) :\n    #(⋃ x ∈ s, A x) ≤ #s * ⨆ x : s, #(A x.1) := by\n  rw [biUnion_eq_iUnion]\n  apply mk_iUnion_le",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\n@[simp]\ntheorem card_lt_of_card_iUnion_lt {ι : Type u} {α : Type u} {t : ι → Set α} {c : Cardinal}\n    (h : #(⋃ i, t i) < c) (i : ι) : #(t i) < c :=\n  lt_of_le_of_lt (Cardinal.mk_le_mk_of_subset <| subset_iUnion _ _) h",
+   "--src: Mathlib.SetTheory.Ordinal.Basic\ntheorem small_iff_lift_mk_lt_univ {α : Type u} :\n    Small.{v} α ↔ Cardinal.lift.{v+1,_} #α < univ.{v, max u (v + 1)} := by\n  rw [lt_univ']\n  constructor\n  · rintro ⟨β, e⟩\n    exact ⟨#β, lift_mk_eq.{u, _, v + 1}.2 e⟩\n  · rintro ⟨c, hc⟩\n    exact ⟨⟨c.out, lift_mk_eq.{u, _, v + 1}.1 (hc.trans (congr rfl c.mk_out.symm))⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem sum_le_iSup {ι : Type u} (f : ι → Cardinal.{u}) : sum f ≤ #ι * iSup f := by\n  rw [← lift_id #ι]\n  exact sum_le_iSup_lift f"],
+  "id":
+  {"name": "ConNF.small_iUnion",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- An indexed union of sets is small if the index type is small and each set mentioned is small. -/\ntheorem small_iUnion (hι : #ι < #κ) {f : ι → Set α} (hf : ∀ i, Small (f i)) :\n    Small (⋃ i, f i) :=\n  (mk_iUnion_le _).trans_lt <|\n    mul_lt_of_lt Params.κ_isRegular.aleph0_le hι <| iSup_lt_of_isRegular Params.κ_isRegular hι hf\n\n",
+   "compilationAlias":
+   "/-- An indexed union of sets is small if the index type is small and each set mentioned is small. -/\ntheorem small_iUnion (hι : #ι < #κ) {f : ι → Set α} (hf : ∀ i, Small (f i)) :\n    Small (⋃ i, f i) :=\n  (mk_iUnion_le _).trans_lt <|\n    mul_lt_of_lt Params.κ_isRegular.aleph0_le hι <| iSup_lt_of_isRegular Params.κ_isRegular hι hf\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nι α : Type u\nhι : LT.lt (Cardinal.mk ι) (Cardinal.mk ConNF.Params.κ)\nf : ι → Set α\nhf : ∀ (i : ι), ConNF.Small (f i)\n⊢ ConNF.Small (Set.iUnion fun i => f i)",
+  "content_sorry":
+  "/-- An indexed union of sets is small if the index type is small and each set mentioned is small. -/\ntheorem small_iUnion (hι : #ι < #κ) {f : ι → Set α} (hf : ∀ i, Small (f i)) :\n    Small (⋃ i, f i) := by sorry",
+  "annotation":
+  "/-- An indexed union of sets is small if the index type is small and each set mentioned is small. -/\ntheorem small_iUnion (hι : #ι < #κ) {f : ι → Set α} (hf : ∀ i, Small (f i)) :\n    Small (⋃ i, f i) :=\n  (mk_iUnion_le _).trans_lt <|\n    mul_lt_of_lt Params.κ_isRegular.aleph0_le hι <| iSup_lt_of_isRegular Params.κ_isRegular hι hf\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "small_iUnion",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_iUnion [Small.{u} ι] (s : ι → Set α)\n    [∀ i, Small.{u} (s i)] : Small.{u} (⋃ i, s i) :=\n  small_of_surjective <| Set.sigmaToiUnion_surjective _",
+    "compilationAlias":
+    "instance small_iUnion [Small.{u} ι] (s : ι → Set α)\n    [∀ i, Small.{u} (s i)] : Small.{u} (⋃ i, s i) :=\n  small_of_surjective <| Set.sigmaToiUnion_surjective _"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Nat.PartENat\ntheorem withTopEquiv_symm_le {x y : ℕ∞} : withTopEquiv.symm x ≤ withTopEquiv.symm y ↔ x ≤ y := by\n  simp",
+   "--src: Mathlib.SetTheory.Ordinal.Arithmetic\nset_option linter.deprecated false in\n@[deprecated \"No deprecation message was provided.\"  (since := \"2024-08-27\")]\ntheorem sup_eq_sSup {s : Set Ordinal.{u}} (hs : Small.{u} s) :\n    (sup.{u, u} fun x => (@equivShrink s hs).symm x) = sSup s :=\n  let hs' := bddAbove_iff_small.2 hs\n  ((csSup_le_iff' hs').2 (le_sup_shrink_equiv hs)).antisymm'\n    (sup_le fun _x => le_csSup hs' (Subtype.mem _))",
+   "--src: Mathlib.CategoryTheory.EssentiallySmall\ninstance (priority := 100) locallySmall_of_univLE (C : Type u) [Category.{v} C] [UnivLE.{v, w}] :\n    LocallySmall.{w} C where",
+   "--src: Mathlib.SetTheory.Game.Ordinal\n@[simp]\ntheorem toPGame_le_iff {a b : Ordinal} : a.toPGame ≤ b.toPGame ↔ a ≤ b :=\n  ⟨by contrapose; rw [not_le, PGame.not_le]; exact toPGame_lf, toPGame_le⟩",
+   "--src: Mathlib.SetTheory.Ordinal.Basic\n@[simp]\ntheorem lift_le {a b : Ordinal} : lift.{u, v} a ≤ lift.{u, v} b ↔ a ≤ b :=\n  inductionOn₂ a b fun α r _ β s _ => by\n    rw [← lift_umax]\n    exact lift_type_le.{_,_,u}",
+   "--src: Mathlib.SetTheory.Ordinal.Notation\ntheorem nfBelow_iff_topBelow {b} [NF b] : ∀ {o}, NFBelow o (repr b) ↔ NF o ∧ TopBelow b o\n  | 0 => ⟨fun h => ⟨⟨⟨_, h⟩⟩, trivial⟩, fun _ => NFBelow.zero⟩\n  | oadd _ _ _ =>\n    ⟨fun h => ⟨⟨⟨_, h⟩⟩, (@cmp_compares _ b h.fst _).eq_lt.2 h.lt⟩, fun ⟨h₁, h₂⟩ =>\n      h₁.below_of_lt <| (@cmp_compares _ b h₁.fst _).eq_lt.1 h₂⟩",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_image2 (f : α → β → γ) (s : Set α) (t : Set β) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (Set.image2 f s t) := by\n  rw [← Set.image_uncurry_prod]\n  infer_instance",
+   "--src: Mathlib.Logic.UnivLE\ntheorem UnivLE.trans [UnivLE.{u, v}] [UnivLE.{v, w}] : UnivLE.{u, w} :=\n  fun α ↦ Small.trans_univLE α\n/- This is the crucial instance that subsumes `univLE_max`. -/",
+   "--src: Mathlib.Logic.Small.Defs\n/-- A type is `Small.{w}` if there exists an equivalence to some `S : Type w`.\n-/\n@[mk_iff, pp_with_univ]\nclass Small (α : Type v) : Prop where\n  /-- If a type is `Small.{w}`, then there exists an equivalence with some `S : Type w` -/\n  equiv_small : ∃ S : Type w, Nonempty (α ≃ S)",
+   "--src: Mathlib.Order.WithBot\n@[simp, deprecated le_top \"Don't mix Option and WithTop\" (since := \"2024-05-27\")]\ntheorem le_none {a : WithTop α} : @LE.le (WithTop α) _ a none := le_top"],
+  "id":
+  {"name": "ConNF.small_symmDiff",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The *symmetric difference* of two small sets is small; recall that the symmetric difference\n`s ∆ t` of two sets `s` and `t` is the union of their differences: `s ∆ t = s \\ t ∪ t \\ s`. -/\ntheorem small_symmDiff (hs : Small s) (ht : Small t) : Small (s ∆ t) :=\n  (small_union hs ht).mono symmDiff_subset_union\n\n",
+   "compilationAlias":
+   "/-- The *symmetric difference* of two small sets is small; recall that the symmetric difference\n`s ∆ t` of two sets `s` and `t` is the union of their differences: `s ∆ t = s \\ t ∪ t \\ s`. -/\ntheorem small_symmDiff (hs : Small s) (ht : Small t) : Small (s ∆ t) :=\n  (small_union hs ht).mono symmDiff_subset_union\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nhs : ConNF.Small s\nht : ConNF.Small t\n⊢ ConNF.Small (symmDiff s t)",
+  "content_sorry":
+  "/-- The *symmetric difference* of two small sets is small; recall that the symmetric difference\n`s ∆ t` of two sets `s` and `t` is the union of their differences: `s ∆ t = s \\ t ∪ t \\ s`. -/\ntheorem small_symmDiff (hs : Small s) (ht : Small t) : Small (s ∆ t) := by sorry",
+  "annotation":
+  "/-- The *symmetric difference* of two small sets is small; recall that the symmetric difference\n`s ∆ t` of two sets `s` and `t` is the union of their differences: `s ∆ t = s \\ t ∪ t \\ s`. -/\ntheorem small_symmDiff (hs : Small s) (ht : Small t) : Small (s ∆ t) :=\n  (small_union hs ht).mono symmDiff_subset_union\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "small_union",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance",
+    "compilationAlias":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Set.Lattice\ntheorem union_eq_iUnion {s₁ s₂ : Set α} : s₁ ∪ s₂ = ⋃ b : Bool, cond b s₁ s₂ :=\n  sup_eq_iSup s₁ s₂",
+   "--src: Mathlib.Data.PFun\ntheorem image_union (s t : Set α) : f.image (s ∪ t) = f.image s ∪ f.image t :=\n  Rel.image_union _ s t",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Logic.UnivLE\ntheorem Small.trans_univLE (α : Type w) [hα : Small.{u} α] [h : UnivLE.{u, v}] :\n    Small.{v} α :=\n  let ⟨β, ⟨f⟩⟩ := hα.equiv_small\n  let ⟨_, ⟨g⟩⟩ := (h β).equiv_small\n  ⟨_, ⟨f.trans g⟩⟩",
+   "--src: Mathlib.SetTheory.Game.PGame\ntheorem equiv_def {x y : PGame} : x ≈ y ↔ x ≤ y ∧ y ≤ x := Iff.rfl",
+   "--src: Mathlib.Data.Set.Basic\ntheorem subset_union_of_subset_right {s u : Set α} (h : s ⊆ u) (t : Set α) : s ⊆ t ∪ u :=\n  h.trans subset_union_right\n-- Porting note: replaced `⊔` in RHS",
+   "--src: Mathlib.Data.Part\ntheorem left_dom_of_union_dom [Union α] {a b : Part α} (hab : Dom (a ∪ b)) : a.Dom := hab.1",
+   "--src: Mathlib.Data.Set.Lattice\nlemma iUnion_sum {s : α ⊕ β → Set γ} : ⋃ x, s x = (⋃ x, s (.inl x)) ∪ ⋃ x, s (.inr x) := iSup_sum",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\n/-- The cardinality of a union is at most the sum of the cardinalities\nof the two sets. -/\ntheorem mk_union_le {α : Type u} (S T : Set α) : #(S ∪ T : Set α) ≤ #S + #T :=\n  @mk_union_add_mk_inter α S T ▸ self_le_add_right #(S ∪ T : Set α) #(S ∩ T : Set α)",
+   "--src: Mathlib.MeasureTheory.OuterMeasure.Caratheodory\ntheorem isCaratheodory_union (h₁ : IsCaratheodory m s₁) (h₂ : IsCaratheodory m s₂) :\n    IsCaratheodory m (s₁ ∪ s₂) := fun t => by\n  rw [h₁ t, h₂ (t ∩ s₁), h₂ (t \\ s₁), h₁ (t ∩ (s₁ ∪ s₂)), inter_diff_assoc _ _ s₁,\n    Set.inter_assoc _ _ s₁, inter_eq_self_of_subset_right Set.subset_union_left,\n    union_diff_left, h₂ (t ∩ s₁)]\n  simp [diff_eq, add_assoc]"],
+  "id":
+  {"name": "ConNF.small_union",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Binary unions of small sets are small. -/\ntheorem small_union (hs : Small s) (ht : Small t) : Small (s ∪ t) :=\n  (mk_union_le _ _).trans_lt <| add_lt_of_lt Params.κ_isRegular.aleph0_le hs ht\n\n",
+   "compilationAlias":
+   "/-- Binary unions of small sets are small. -/\ntheorem small_union (hs : Small s) (ht : Small t) : Small (s ∪ t) :=\n  (mk_union_le _ _).trans_lt <| add_lt_of_lt Params.κ_isRegular.aleph0_le hs ht\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nhs : ConNF.Small s\nht : ConNF.Small t\n⊢ ConNF.Small (Union.union s t)",
+  "content_sorry":
+  "/-- Binary unions of small sets are small. -/\ntheorem small_union (hs : Small s) (ht : Small t) : Small (s ∪ t) := by sorry",
+  "annotation":
+  "/-- Binary unions of small sets are small. -/\ntheorem small_union (hs : Small s) (ht : Small t) : Small (s ∪ t) :=\n  (mk_union_le _ _).trans_lt <| add_lt_of_lt Params.κ_isRegular.aleph0_le hs ht\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "small_union",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance",
+    "compilationAlias":
+    "instance small_union (s t : Set α) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (s ∪ t : Set α) := by\n  rw [← Subtype.range_val (s := s), ← Subtype.range_val (s := t), ← Set.Sum.elim_range]\n  infer_instance"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Data.Set.Pointwise.SMul\n@[to_additive]\ntheorem op_smul_set_smul_eq_smul_smul_set (a : α) (s : Set β) (t : Set γ)\n    (h : ∀ (a : α) (b : β) (c : γ), (op a • b) • c = b • a • c) : (op a • s) • t = s • a • t := by\n  ext\n  simp [mem_smul, mem_smul_set, h]",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive]\nlemma smul_sUnion (s : Set α) (T : Set (Set β)) : s • ⋃₀ T = ⋃ t ∈ T, s • t :=\n  image2_sUnion_right ..",
+   "--src: Mathlib.GroupTheory.Coset.Basic\n@[to_additive leftAddCoset_assoc]\ntheorem leftCoset_assoc (s : Set α) (a b : α) : a • (b • s) = (a * b) • s := by\n  simp [← image_smul, (image_comp _ _ _).symm, Function.comp, mul_assoc]",
+   "--src: Mathlib.Computability.EpsilonNFA\n/-- An `εNFA` is a set of states (`σ`), a transition function from state to state labelled by the\n  alphabet (`step`), a starting state (`start`) and a set of acceptance states (`accept`).\n  Note the transition function sends a state to a `Set` of states and can make ε-transitions by\n  inputting `none`.\n  Since this definition allows for Automata with infinite states, a `Fintype` instance must be\n  supplied for true `εNFA`'s. -/\nstructure εNFA (α : Type u) (σ : Type v) where\n  /-- Transition function. The automaton is rendered non-deterministic by this transition function\n  returning `Set σ` (rather than `σ`), and ε-transitions are made possible by taking `Option α`\n  (rather than `α`). -/\n  step : σ → Option α → Set σ\n  /-- Starting states. -/\n  start : Set σ\n  /-- Set of acceptance states. -/\n  accept : Set σ",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive (attr := simp)]\ntheorem sUnion_inv (S : Set (Set α)) : (⋃₀ S)⁻¹ = ⋃ s ∈ S, s⁻¹ :=\n  preimage_sUnion",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_image2 (f : α → β → γ) (s : Set α) (t : Set β) [Small.{u} s] [Small.{u} t] :\n    Small.{u} (Set.image2 f s t) := by\n  rw [← Set.image_uncurry_prod]\n  infer_instance",
+   "--src: Mathlib.Order.Filter.Defs\ntheorem filter_eq : ∀ {f g : Filter α}, f.sets = g.sets → f = g\n  | ⟨_, _, _, _⟩, ⟨_, _, _, _⟩, rfl => rfl",
+   "--src: Mathlib.Data.Set.Pointwise.SMul\n@[to_additive vaddAssocClass']\ninstance isScalarTower' [SMul α β] [SMul α γ] [SMul β γ] [IsScalarTower α β γ] :\n    IsScalarTower α (Set β) (Set γ) :=\n  ⟨fun _ _ _ ↦ image2_image_left_comm <| smul_assoc _⟩"],
+  "id":
+  {"name": "ConNF.Small.congr",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- If two sets are equal and one is small, then the other is small. -/\ntheorem Small.congr (h : s = t) : Small t → Small s :=\n  Small.mono (subset_of_eq h)\n\n",
+   "compilationAlias":
+   "/-- If two sets are equal and one is small, then the other is small. -/\ntheorem Small.congr (h : s = t) : Small t → Small s :=\n  Small.mono (subset_of_eq h)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh : Eq s t\na✝ : ConNF.Small t\n⊢ ConNF.Small s",
+  "content_sorry":
+  "/-- If two sets are equal and one is small, then the other is small. -/\ntheorem Small.congr (h : s = t) : Small t → Small s := by sorry",
+  "annotation":
+  "/-- If two sets are equal and one is small, then the other is small. -/\ntheorem Small.congr (h : s = t) : Small t → Small s :=\n  Small.mono (subset_of_eq h)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "subset_of_eq",
+    "module": "Mathlib.Order.RelClasses",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma subset_of_eq [IsRefl α (· ⊆ ·)] : a = b → a ⊆ b := fun h => h ▸ subset_rfl",
+    "compilationAlias":
+    "lemma subset_of_eq [IsRefl α (· ⊆ ·)] : a = b → a ⊆ b := fun h => h ▸ subset_rfl"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Set.SMulAntidiagonal\n@[to_additive]\ntheorem smulAntidiagonal_mono_left (h : s₁ ⊆ s₂) :\n    smulAntidiagonal s₁ t a ⊆ smulAntidiagonal s₂ t a :=\n  fun _ hx => ⟨h hx.1, hx.2.1, hx.2.2⟩",
+   "--src: Mathlib.Logic.Small.Basic\ninstance small_set {α} [Small.{w} α] : Small.{w} (Set α) :=\n  ⟨⟨Set (Shrink α), ⟨Equiv.Set.congr (equivShrink α)⟩⟩⟩",
+   "--src: Mathlib.Order.Filter.SmallSets\ntheorem eventually_smallSets {p : Set α → Prop} :\n    (∀ᶠ s in l.smallSets, p s) ↔ ∃ s ∈ l, ∀ t, t ⊆ s → p t :=\n  eventually_lift'_iff monotone_powerset",
+   "--src: Mathlib.Data.PFun\ntheorem image_mono {s t : Set α} (h : s ⊆ t) : f.image s ⊆ f.image t :=\n  Rel.image_mono _ h",
+   "--src: Mathlib.Logic.Small.Set\ntheorem small_subset {s t : Set α} (hts : t ⊆ s) [Small.{u} s] : Small.{u} t :=\n  small_of_injective (Set.inclusion_injective hts)",
+   "--src: Mathlib.Data.Set.Basic\nalias ⟨_root_.LE.le.subset, _root_.HasSubset.Subset.le⟩ := le_iff_subset",
+   "--src: Mathlib.Algebra.Group.Pointwise.Set.Basic\n@[to_additive (attr := gcongr)]\nlemma smul_subset_smul_left : t₁ ⊆ t₂ → s • t₁ ⊆ s • t₂ := image2_subset_left",
+   "--src: Mathlib.Logic.Small.Set\ninstance small_inter_of_right (s t : Set α) [Small.{u} t] :\n    Small.{u} (s ∩ t : Set α) :=\n  small_subset Set.inter_subset_right",
+   "--src: Mathlib.Order.Filter.SmallSets\nprotected theorem HasBasis.smallSets {p : ι → Prop} {s : ι → Set α} (h : HasBasis l p s) :\n    HasBasis l.smallSets p fun i => \u0000\u0000 s i :=\n  h.lift' monotone_powerset",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded above. -/\nlemma bddAbove_of_small (s : Set PGame.{u}) [Small.{u} s] : BddAbove s := by\n  simpa using bddAbove_range_of_small (Subtype.val : s → PGame.{u})"],
+  "id":
+  {"name": "ConNF.Small.mono",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Subsets of small sets are small. We say that the 'smallness' relation is monotone. -/\ntheorem Small.mono (h : s ⊆ t) : Small t → Small s :=\n  (mk_le_mk_of_subset h).trans_lt\n\n",
+   "compilationAlias":
+   "/-- Subsets of small sets are small. We say that the 'smallness' relation is monotone. -/\ntheorem Small.mono (h : s ⊆ t) : Small t → Small s :=\n  (mk_le_mk_of_subset h).trans_lt\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns t : Set α\nh : HasSubset.Subset s t\na✝ : ConNF.Small t\n⊢ ConNF.Small s",
+  "content_sorry":
+  "/-- Subsets of small sets are small. We say that the 'smallness' relation is monotone. -/\ntheorem Small.mono (h : s ⊆ t) : Small t → Small s := by sorry",
+  "annotation":
+  "/-- Subsets of small sets are small. We say that the 'smallness' relation is monotone. -/\ntheorem Small.mono (h : s ⊆ t) : Small t → Small s :=\n  (mk_le_mk_of_subset h).trans_lt\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Basic\ninstance (priority := 100) small_subsingleton (α : Type v) [Subsingleton α] : Small.{w} α := by\n  rcases isEmpty_or_nonempty α with ⟨⟩\n  · apply small_map (Equiv.equivPEmpty α)\n  · apply small_map Equiv.punitOfNonemptyOfSubsingleton",
+   "--src: Mathlib.Logic.Small.Set\ntheorem small_single (x : α) : Small.{u} ({x} : Set α) :=\n  inferInstance",
+   "--src: Mathlib.Computability.Partrec\ntheorem rfind_dom' {p : ℕ →. Bool} :\n    (rfind p).Dom ↔ ∃ n, true ∈ p n ∧ ∀ {m : ℕ}, m ≤ n → (p m).Dom :=\n  exists_congr fun _ =>\n    and_congr_right fun pn =>\n      ⟨fun H _ h => (Decidable.eq_or_lt_of_le h).elim (fun e => e.symm ▸ pn.fst) (H _), fun H _ h =>\n        H (le_of_lt h)⟩",
+   "--src: Mathlib.Data.Set.Subsingleton\n@[simp]\ntheorem subsingleton_singleton {a} : ({a} : Set α).Subsingleton := fun _ hx _ hy =>\n  (eq_of_mem_singleton hx).symm ▸ (eq_of_mem_singleton hy).symm ▸ rfl",
+   "--src: Mathlib.SetTheory.Game.Short\nattribute [-instance] subsingleton_short in\ntheorem subsingleton_short_example : ∀ x : PGame, Subsingleton (Short x)\n  | mk xl xr xL xR =>\n    ⟨fun a b => by\n      cases a; cases b\n      congr!\n      · funext x\n        apply @Subsingleton.elim _ (subsingleton_short_example (xL x))\n        -- Decreasing goal in Lean 4 is `Subsequent (xL x) (mk α β L R)`\n        -- where `α`, `β`, `L`, and `R` are fresh hypotheses only propositionally\n        -- equal to `xl`, `xr`, `xL`, and `xR`.\n        -- (In Lean 3 it was `(mk xl xr xL xR)` instead.)\n      · funext x\n        apply @Subsingleton.elim _ (subsingleton_short_example (xR x))⟩\ntermination_by x => x\n-- We need to unify a bunch of hypotheses before `pgame_wf_tac` can work.\ndecreasing_by all_goals {\n  subst_vars\n  simp only [mk.injEq, heq_eq_eq, true_and] at *\n  casesm* _ ∧ _\n  subst_vars\n  pgame_wf_tac\n}",
+   "--src: Mathlib.Data.Part\n@[simp]\ntheorem some_dom (a : α) : (some a).Dom :=\n  trivial",
+   "--src: Mathlib.Data.PFun\n@[simp]\ntheorem id_apply (a : α) : PFun.id α a = Part.some a :=\n  rfl",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded above. -/\nlemma bddAbove_of_small (s : Set PGame.{u}) [Small.{u} s] : BddAbove s := by\n  simpa using bddAbove_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.Data.PFunctor.Univariate.M\ntheorem M.default_consistent [Inhabited F.A] : ∀ n, Agree (default : CofixA F n) default\n  | 0 => Agree.continu _ _\n  | succ n => Agree.intro _ _ fun _ => M.default_consistent n",
+   "--src: Mathlib.CategoryTheory.Limits.IsConnected\n/-- The cocone on `constPUnitFunctor` with cone point `PUnit`. -/\n@[simps]\ndef pUnitCocone : Cocone (constPUnitFunctor.{w} C) where\n  pt := PUnit\n  ι := { app := fun _ => id }"],
+  "id":
+  {"name": "ConNF.small_singleton",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Singletons are small. -/\n@[simp]\ntheorem small_singleton (x : α) : Small {x} :=\n  small_of_subsingleton subsingleton_singleton\n\n",
+   "compilationAlias":
+   "/-- Singletons are small. -/\n@[simp]\ntheorem small_singleton (x : α) : Small {x} :=\n  small_of_subsingleton subsingleton_singleton\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\nx : α\n⊢ Eq (ConNF.Small (Singleton.singleton x)) True",
+  "content_sorry":
+  "/-- Singletons are small. -/\n@[simp]\ntheorem small_singleton (x : α) : Small {x} := by sorry",
+  "annotation":
+  "/-- Singletons are small. -/\n@[simp]\ntheorem small_singleton (x : α) : Small {x} :=\n  small_of_subsingleton subsingleton_singleton\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.Logic.Small.Set\ntheorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance",
+   "--src: Mathlib.Logic.Small.Basic\ninstance (priority := 100) small_subsingleton (α : Type v) [Subsingleton α] : Small.{w} α := by\n  rcases isEmpty_or_nonempty α with ⟨⟩\n  · apply small_map (Equiv.equivPEmpty α)\n  · apply small_map Equiv.punitOfNonemptyOfSubsingleton",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded above. -/\nlemma bddAbove_of_small (s : Set PGame.{u}) [Small.{u} s] : BddAbove s := by\n  simpa using bddAbove_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.Data.Set.Subsingleton\n@[simp]\ntheorem subsingleton_empty : (∅ : Set α).Subsingleton := fun _ => False.elim",
+   "--src: Mathlib.SetTheory.Game.PGame\n@[simp]\ntheorem le_zero_of_isEmpty_leftMoves (x : PGame) [IsEmpty x.LeftMoves] : x ≤ 0 :=\n  le_zero.2 isEmptyElim",
+   "--src: Mathlib.SetTheory.ZFC.Basic\ntheorem empty_def : (∅ : PSet) = ⟨_, PEmpty.elim⟩ := by\n  simp [EmptyCollection.emptyCollection, PSet.empty]",
+   "--src: Mathlib.Data.Finmap\n@[simp]\ntheorem keys_empty : (∅ : Finmap β).keys = ∅ :=\n  rfl",
+   "--src: Mathlib.SetTheory.Game.Short\nattribute [-instance] subsingleton_short in\ntheorem subsingleton_short_example : ∀ x : PGame, Subsingleton (Short x)\n  | mk xl xr xL xR =>\n    ⟨fun a b => by\n      cases a; cases b\n      congr!\n      · funext x\n        apply @Subsingleton.elim _ (subsingleton_short_example (xL x))\n        -- Decreasing goal in Lean 4 is `Subsequent (xL x) (mk α β L R)`\n        -- where `α`, `β`, `L`, and `R` are fresh hypotheses only propositionally\n        -- equal to `xl`, `xr`, `xL`, and `xR`.\n        -- (In Lean 3 it was `(mk xl xr xL xR)` instead.)\n      · funext x\n        apply @Subsingleton.elim _ (subsingleton_short_example (xR x))⟩\ntermination_by x => x\n-- We need to unify a bunch of hypotheses before `pgame_wf_tac` can work.\ndecreasing_by all_goals {\n  subst_vars\n  simp only [mk.injEq, heq_eq_eq, true_and] at *\n  casesm* _ ∧ _\n  subst_vars\n  pgame_wf_tac\n}",
+   "--src: Mathlib.Order.Cofinal\ntheorem isCofinal_empty_iff : IsCofinal (∅ : Set α) ↔ IsEmpty α := by\n  refine ⟨fun h ↦ ⟨fun a ↦ ?_⟩, fun h ↦ .of_isEmpty _⟩\n  simpa using h a",
+   "--src: Mathlib.Data.Finset.PImage\n@[simp]\ntheorem pimage_empty : pimage f ∅ = ∅ := by\n  ext\n  simp"],
+  "id":
+  {"name": "ConNF.small_empty",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The empty set is small. -/\n@[simp]\ntheorem small_empty : Small (∅ : Set α) :=\n  small_of_subsingleton subsingleton_empty\n\n",
+   "compilationAlias":
+   "/-- The empty set is small. -/\n@[simp]\ntheorem small_empty : Small (∅ : Set α) :=\n  small_of_subsingleton subsingleton_empty\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\n⊢ Eq (ConNF.Small EmptyCollection.emptyCollection) True",
+  "content_sorry":
+  "/-- The empty set is small. -/\n@[simp]\ntheorem small_empty : Small (∅ : Set α) := by sorry",
+  "annotation":
+  "/-- The empty set is small. -/\n@[simp]\ntheorem small_empty : Small (∅ : Set α) :=\n  small_of_subsingleton subsingleton_empty\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "small_empty",
+    "module": "Mathlib.Logic.Small.Set",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance",
+    "compilationAlias":
+    "theorem small_empty : Small.{u} (∅ : Set α) :=\n  inferInstance"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Set.Subsingleton\ntheorem subsingleton_of_subsingleton [Subsingleton α] {s : Set α} : Set.Subsingleton s :=\n  subsingleton_univ.anti (subset_univ s)",
+   "--src: Mathlib.SetTheory.Game.Short\nattribute [-instance] subsingleton_short in\ntheorem subsingleton_short_example : ∀ x : PGame, Subsingleton (Short x)\n  | mk xl xr xL xR =>\n    ⟨fun a b => by\n      cases a; cases b\n      congr!\n      · funext x\n        apply @Subsingleton.elim _ (subsingleton_short_example (xL x))\n        -- Decreasing goal in Lean 4 is `Subsequent (xL x) (mk α β L R)`\n        -- where `α`, `β`, `L`, and `R` are fresh hypotheses only propositionally\n        -- equal to `xl`, `xr`, `xL`, and `xR`.\n        -- (In Lean 3 it was `(mk xl xr xL xR)` instead.)\n      · funext x\n        apply @Subsingleton.elim _ (subsingleton_short_example (xR x))⟩\ntermination_by x => x\n-- We need to unify a bunch of hypotheses before `pgame_wf_tac` can work.\ndecreasing_by all_goals {\n  subst_vars\n  simp only [mk.injEq, heq_eq_eq, true_and] at *\n  casesm* _ ∧ _\n  subst_vars\n  pgame_wf_tac\n}",
+   "--src: Mathlib.Logic.Small.Basic\ninstance (priority := 100) small_subsingleton (α : Type v) [Subsingleton α] : Small.{w} α := by\n  rcases isEmpty_or_nonempty α with ⟨⟩\n  · apply small_map (Equiv.equivPEmpty α)\n  · apply small_map Equiv.punitOfNonemptyOfSubsingleton",
+   "--src: Mathlib.Data.Set.Subsingleton\n/-- `s`, coerced to a type, is a subsingleton type if and only if `s` is a subsingleton set. -/\n@[simp, norm_cast]\ntheorem subsingleton_coe (s : Set α) : Subsingleton s ↔ s.Subsingleton := by\n  constructor\n  · refine fun h => fun a ha b hb => ?_\n    exact SetCoe.ext_iff.2 (@Subsingleton.elim s h ⟨a, ha⟩ ⟨b, hb⟩)\n  · exact fun h => Subsingleton.intro fun a b => SetCoe.ext (h a.property b.property)",
+   "--src: Mathlib.Data.Set.Subsingleton\n@[simp]\ntheorem subsingleton_univ_iff : (univ : Set α).Subsingleton ↔ Subsingleton α :=\n  ⟨subsingleton_of_univ_subsingleton, fun h => @subsingleton_univ _ h⟩",
+   "--src: Mathlib.Logic.Unique\n/-- `Option α` is a `Subsingleton` if and only if `α` is empty. -/\ntheorem subsingleton_iff_isEmpty {α : Type u} : Subsingleton (Option α) ↔ IsEmpty α :=\n  ⟨fun h ↦ ⟨fun x ↦ Option.noConfusion <| @Subsingleton.elim _ h x none⟩,\n   fun h ↦ ⟨fun x y ↦\n     Option.casesOn x (Option.casesOn y rfl fun x ↦ h.elim x) fun x ↦ h.elim x⟩⟩",
+   "--src: Mathlib.Data.Set.Subsingleton\n@[simp]\ntheorem subsingleton_empty : (∅ : Set α).Subsingleton := fun _ => False.elim",
+   "--src: Mathlib.Logic.Nontrivial.Basic\n@[nontriviality]\nprotected theorem Subsingleton.le [Preorder α] [Subsingleton α] (x y : α) : x ≤ y :=\n  le_of_eq (Subsingleton.elim x y)",
+   "--src: Mathlib.Data.ULift\ninstance [Subsingleton α] : Subsingleton (PLift α) :=\n  Equiv.plift.subsingleton",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem le_one_iff_subsingleton {α : Type u} : #α ≤ 1 ↔ Subsingleton α :=\n  ⟨fun ⟨f⟩ => ⟨fun _ _ => f.injective (Subsingleton.elim _ _)⟩, fun ⟨h⟩ =>\n    ⟨fun _ => ULift.up 0, fun _ _ _ => h _ _⟩⟩"],
+  "id":
+  {"name": "ConNF.small_of_subsingleton",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Subsingletons are small. -/\ntheorem small_of_subsingleton (h : s.Subsingleton) : Small s :=\n  h.cardinalMk_le_one.trans_lt <| one_lt_aleph0.trans_le aleph0_lt_κ.le\n\n",
+   "compilationAlias":
+   "/-- Subsingletons are small. -/\ntheorem small_of_subsingleton (h : s.Subsingleton) : Small s :=\n  h.cardinalMk_le_one.trans_lt <| one_lt_aleph0.trans_le aleph0_lt_κ.le\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns : Set α\nh : s.Subsingleton\n⊢ ConNF.Small s",
+  "content_sorry":
+  "/-- Subsingletons are small. -/\ntheorem small_of_subsingleton (h : s.Subsingleton) : Small s := by sorry",
+  "annotation":
+  "/-- Subsingletons are small. -/\ntheorem small_of_subsingleton (h : s.Subsingleton) : Small s :=\n  h.cardinalMk_le_one.trans_lt <| one_lt_aleph0.trans_le aleph0_lt_κ.le\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": []},
+ {"rag":
+  ["--src: Mathlib.SetTheory.Ordinal.Basic\ntheorem small_iff_lift_mk_lt_univ {α : Type u} :\n    Small.{v} α ↔ Cardinal.lift.{v+1,_} #α < univ.{v, max u (v + 1)} := by\n  rw [lt_univ']\n  constructor\n  · rintro ⟨β, e⟩\n    exact ⟨#β, lift_mk_eq.{u, _, v + 1}.2 e⟩\n  · rintro ⟨c, hc⟩\n    exact ⟨⟨c.out, lift_mk_eq.{u, _, v + 1}.1 (hc.trans (congr rfl c.mk_out.symm))⟩⟩",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem lt_cof_type [IsWellOrder α r] {S : Set α} : #S < cof (type r) → Bounded r S := by\n  simpa using not_imp_not.2 cof_type_le",
+   "--src: Mathlib.SetTheory.Cardinal.Cofinality\ntheorem cof_iSup_le {ι} {f : ι → Ordinal} (H : ∀ i, f i < iSup f) :\n    cof (iSup f) ≤ #ι := by\n  rw [← (#ι).lift_id]\n  exact cof_iSup_le_lift H",
+   "--src: Mathlib.SetTheory.Game.PGame\n/-- A small set of pre-games is bounded below. -/\nlemma bddBelow_of_small (s : Set PGame.{u}) [Small.{u} s] : BddBelow s := by\n  simpa using bddBelow_range_of_small (Subtype.val : s → PGame.{u})",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\n@[simp] lemma lift_le_ofENat {x : Cardinal.{v}} {m : ℕ∞} : lift.{u} x ≤ m ↔ x ≤ m := by\n  rw [← lift_ofENat.{u, v}, lift_le]",
+   "--src: Mathlib.Deprecated.Cardinal.Finite\n@[simp]\ntheorem _root_.Cardinal.natCast_lt_toPartENat_iff {n : ℕ} {c : Cardinal} :\n    ↑n < toPartENat c ↔ ↑n < c := by\n  simp only [← not_le, Cardinal.toPartENat_le_natCast_iff]",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem lt_aleph0_iff_set_finite {S : Set α} : #S < ℵ₀ ↔ S.Finite :=\n  lt_aleph0_iff_finite.trans finite_coe_iff",
+   "--src: Mathlib.SetTheory.Cardinal.Basic\ntheorem mk_set_le (s : Set α) : #s ≤ #α :=\n  mk_subtype_le s",
+   "--src: Mathlib.SetTheory.Cardinal.ENat\n@[simp, norm_cast]\nlemma ofENat_lt_aleph0 {m : ℕ∞} : (m : Cardinal) < ℵ₀ ↔ m < ⊤ :=\n  ofENat_lt_ofENat (n := ⊤)",
+   "--src: Mathlib.SetTheory.Game.Ordinal\ntheorem toGame_lt_iff {a b : Ordinal} : a.toGame < b.toGame ↔ a < b :=\n  toPGame_lt_iff"],
+  "id":
+  {"name": "ConNF.Small.lt",
+   "module": "ConNF.Base.Small",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "theorem Small.lt : Small s → #s < #κ :=\n  id\n\n",
+   "compilationAlias": "theorem Small.lt : Small s → #s < #κ :=\n  id\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nα : Type u\ns : Set α\na✝ : ConNF.Small s\n⊢ LT.lt (Cardinal.mk ↑s) (Cardinal.mk ConNF.Params.κ)",
+  "content_sorry": "theorem Small.lt : Small s → #s < #κ := by sorry",
+  "annotation": "theorem Small.lt : Small s → #s < #κ :=\n  id\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"}]}]

@@ -1,9 +1,9 @@
 import argparse
-from build_vector_db import main as vec_main
-from build_combined_db import main as combined_main
-from compute_class3_edges import main as c3_main
-from heuristic_filter import main as filter_main
-from insert_neo4j import main as neo4j_main
+from .build_vector_db import main as vec_main
+from .build_combined_db import main as combined_main
+from .compute_class3_edges import main as c3_main
+from .heuristic_filter import main as filter_main
+from .insert_neo4j import main as neo4j_main
 import torch
 
 
@@ -15,7 +15,7 @@ All arguments:
 dataset_path: required
 split: optional, default is "train"
 prompts_id: required
-KG_id: optional, default is "KG_" + current timestamp
+kg_id: optional, default is "KG_" + current timestamp
 prompts_dir: optional, default is ".prompts"
 KG_dir: optional, default is ".knowledge_graphs"
 embedding_model: optional, default is "Qwen/Qwen3-Embedding-0.6B
@@ -47,7 +47,7 @@ def get_parser():
     parser.add_argument("prompts_id", type=str, help="ID for prompts")
     
     # Optional arguments with defaults
-    parser.add_argument("--KG_id", type=str, help="ID for Knowledge Graph",
+    parser.add_argument("--kg_id", type=str, help="ID for Knowledge Graph",
                         default=f"KG_{__import__('datetime').datetime.now().strftime('%Y%m%d_%H%M%S')}")
     parser.add_argument("--split", type=str, default="train", help="Dataset split to use")
     # parser.add_argument("--prompts_dir", type=str, default=".prompts", help="Directory for prompts")
@@ -76,7 +76,7 @@ def get_parser():
     parser.add_argument("--n", type=int, default=1, help="Majority vote value")
     parser.add_argument("--run_inference", action="store_true", default=True, 
                         help="Whether to run inference")
-    parser.add_argument("--augment_DB", action="store_true", default=True,
+    parser.add_argument("--augment_db", action="store_true", default=True,
                         help="Whether to augment filteredDB")
     parser.add_argument("--training_data", action="store_true", default=True,
                         help="Whether to generate training data")
@@ -95,7 +95,7 @@ def main(args):
     print("[IMPROVER: Building vector database...]")
     vec_args = argparse.Namespace(
         prompts_id=args.prompts_id,
-        KG_id=args.KG_id,
+        kg_id=args.kg_id,
         # prompts_dir=args.prompts_dir,
         # KG_dir=args.KG_dir,
         model=args.embedding_model
@@ -106,7 +106,7 @@ def main(args):
     print("[IMPROVER: Building combined database...]")
     combined_args = argparse.Namespace(
         dataset_path=args.dataset_path,
-        KG_id=args.KG_id,
+        kg_id=args.kg_id,
         split=args.split,
         # KG_dir=args.KG_dir
     )
@@ -115,7 +115,7 @@ def main(args):
     # Compute class 3 edges
     print("[IMPROVER: Computing class 3 edges...]")
     c3_args = argparse.Namespace(
-        KG_id=args.KG_id,
+        kg_id=args.kg_id,
         # KG_dir=args.KG_dir,
         model=args.embedding_model,
         k=args.k,
@@ -126,14 +126,14 @@ def main(args):
     # Apply heuristic filter
     print("[IMPROVER: Applying heuristic filtering...]")
     filter_args = argparse.Namespace(
-        KG_id=args.KG_id,
+        kg_id=args.kg_id,
         # KG_dir=args.KG_dir,
         model=args.heuristic_model,
         cpus=args.cpus,
         gpus=args.gpus,
         n=args.n,
         run_inference=args.run_inference,
-        augment_DB=args.augment_DB,
+        augment_DB=args.augment_db,
         training_data=args.training_data
     )
     filter_main(filter_args)
@@ -141,7 +141,7 @@ def main(args):
     # Insert into Neo4j
     print("[IMPROVER: Inserting into Neo4j...]")
     neo4j_args = argparse.Namespace(
-        KG_id=args.KG_id,
+        kg_id=args.kg_id,
         # KG_dir=args.KG_dir,
         neo4j_uri=args.neo4j_uri,
         neo4j_user=args.neo4j_user,
@@ -149,7 +149,7 @@ def main(args):
     )
     neo4j_main(neo4j_args)
     
-    print(f"[IMPROVER: Knowledge Graph {args.KG_id} successfully built and processed.]")
+    print(f"[IMPROVER: Knowledge Graph {args.kg_id} successfully built and processed.]")
 
 if __name__ == "__main__":
     parser = get_parser()
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 # Informalize theorems
 parser = argparse.ArgumentParser(description="Build vector DB for informal theorems")
     parser.add_argument("prompts_id", type=str)
-    parser.add_argument("KG_id", type=str, nargs='?', default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
+    parser.add_argument("kg_id", type=str, nargs='?', default="KG_"+datetime.now().strftime("%Y%m%d_%H%M%S"))
     parser.add_argument("--prompts_dir", type=str, default=".prompts")
     parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
@@ -173,7 +173,7 @@ parser = argparse.ArgumentParser(description="Build vector DB for informal theor
 #compute c3
 
 parser = argparse.ArgumentParser(description="Compute class3 edges")
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
     parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     # parser.add_argument("--chroma_dir", type=str, default = "chroma_db", help="Path to chroma db")
     parser.add_argument("--model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
@@ -187,7 +187,7 @@ parser = argparse.ArgumentParser(description="Compute class3 edges")
 
 parser = argparse.ArgumentParser(description="Build combined KG database")
     parser.add_argument("dataset_path", type=str)
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     args = parser.parse_args()
@@ -197,7 +197,7 @@ parser = argparse.ArgumentParser(description="Build combined KG database")
 
 
  parser = argparse.ArgumentParser(description="Filter KG for ImProver")
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
 
     parser.add_argument(
         "--KG_dir",
@@ -246,7 +246,7 @@ parser = argparse.ArgumentParser(description="Build combined KG database")
 # neo4j
 
 parser = argparse.ArgumentParser(description="Export KG with class3 edges")
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
 
     parser.add_argument("KG_dir", type=str, help="Path to KG directory")
     parser.add_argument("--neo4j_uri", type=str, default="bolt://localhost:7687")

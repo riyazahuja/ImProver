@@ -8,8 +8,8 @@ from chromadb.utils import embedding_functions
 import torch
 
 def main(args):
-    db_path = os.path.join("knowledge_graphs", args.KG_id, "informal_data.duckdb")
-    chroma_dir = os.path.join("knowledge_graphs", args.KG_id, "chroma_db")
+    db_path = os.path.join("knowledge_graphs", args.kg_id, "informal_data.duckdb")
+    chroma_dir = os.path.join("knowledge_graphs", args.kg_id, "chroma_db")
     
     con = duckdb.connect(db_path, read_only=True)
     rows = con.execute("SELECT module, name, informal_statement, informal_proof FROM informal_data").fetchall()
@@ -51,14 +51,14 @@ def main(args):
         edges[f"{module}:{name}"] = deps
         print(f"Processed {module}:{name} with {len(deps)} dependencies")
 
-    out_path = os.path.join("knowledge_graphs", args.KG_id, "c3edges.json")
+    out_path = os.path.join("knowledge_graphs", args.kg_id, "c3edges.json")
     with open(out_path, "w") as f:
         json.dump(edges, f, indent=2)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute class3 edges")
-    parser.add_argument("KG_id", type=str)
+    parser.add_argument("kg_id", type=str)
     # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
     # parser.add_argument("--chroma_dir", type=str, default = "chroma_db", help="Path to chroma db")
     parser.add_argument("--embedding_model", type=str, default="Qwen/Qwen3-Embedding-0.6B")
