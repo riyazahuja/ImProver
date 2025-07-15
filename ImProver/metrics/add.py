@@ -127,9 +127,9 @@ example : True := by
 import TrainingData.InfoTree.Basic
 import TrainingData.InfoTree.TacticInvocation.Basic
 -- Auto-generated scoring function schema for {args.name}
-def {args.name}_score (cs : CompilationStep) : Float :=
+def {args.name}_score (cs : CompilationStep) : IO Float :=
 -- TODO: Implement custom score logic
-0.0
+pure 0.0
 """)
             score_fn = lean_file_path
         
@@ -140,6 +140,7 @@ def {args.name}_score (cs : CompilationStep) : Float :=
         if not os.path.exists(router_file):
             with open(router_file, "w", encoding="utf-8") as rf:
                 rf.write(f"""import {score_module}
+open Lean Elab IO
 
 def route_metric (name : String) (cs : CompilationStep) : IO Float := match name with
 | "{args.name}" => {args.name}_score cs
@@ -174,6 +175,7 @@ def route_metric (name : String) (cs : CompilationStep) : IO Float := match name
         "score_fn": score_fn,
         "sorry_ok": args.sorry_ok,
         "correctness_condition": args.correctness_condition,
+        "minmax": args.minmax
         },
         "examples": {
         "example_file": args.example_file,
@@ -217,6 +219,9 @@ def get_parser():
     parser.add_argument("--llm_metric", action="store_true", help="Use an LLM-based metric")
     parser.add_argument("--metric_model", default=None, help="Model name for LLM metric")
     parser.add_argument("--rubric", default=None, help="JSON rubric")
+
+    parser.add_argument("--minmax", default="max", help="Minimize or maximize the metric score")
+
     
     parser.add_argument("--annotation_prompt", default=prompt_defaults['annotation_prompt'], help="annotation prompt")
     parser.add_argument("--context_prompt", default=prompt_defaults['context_prompt'], help="context prompt")

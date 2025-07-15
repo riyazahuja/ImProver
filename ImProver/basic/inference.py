@@ -11,14 +11,33 @@ import multiprocessing
 import argparse
 import duckdb
 
+# NCCL_P2P (default is False, A6000)
+# ray_timeout (def 1800s)
+# num_blocks (default 16)
+# engine_cpu_resources = args.cpus // args.gpus
+# engine_gpu_resources = 1
+# concurrency=args.gpus
+# tensor_parallel_size=1
+# enable_chunked_prefill=True
+# max_model_len=16384
+# max_num_batched_tokens=65536
+# max_concurrent_batches=32
+# batch_size=32
+# truncate_prompt_tokens=16384-2048
+# max_tokens=2048
 
 def run_inference(df, args, ray_init=True):
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
-    os.environ["NCCL_P2P_DISABLE"] = "1"
+    # os.environ["NCCL_P2P_DISABLE"] = "1"
+    if args.NCCL_P2P:
+        os.environ["NCCL_P2P_DISABLE"] = "0"
+    else:
+        os.environ["NCCL_P2P_DISABLE"] = "1"
+        
     if ray_init:
         ray.init(num_cpus=args.cpus, num_gpus=args.gpus)#, _temp_dir='/home/riyaza/ray_tmp')
-    DataContext.get_current().wait_for_min_actors_s = 1800
+    DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
     ctx = DataContext.get_current()
     # ctx.progress_bar = True
     # ctx.execution_options.verbose_progress = True
@@ -37,7 +56,7 @@ def run_inference(df, args, ray_init=True):
 
     df2 = pd.concat(df2_parts, ignore_index=True)
     # Use df2 instead of df for the Ray dataset
-    ds = ray.data.from_pandas(df2).repartition(args.gpus * 12)
+    ds = ray.data.from_pandas(df2).repartition(args.num_blocks)
     # ds = ray.data.from_pandas(df).repartition(args.gpus * 4)
     # ds = ray.data.read_text("s3://anonymous@air-example-data/prompts.txt")
     print(ds.schema())
@@ -49,19 +68,19 @@ def run_inference(df, args, ray_init=True):
 
     config = vLLMEngineProcessorConfig(
         model_source=args.model,
-        engine_resources={"CPU": args.cpus // args.gpus, "GPU": 1},
-        concurrency=args.gpus,
+        engine_resources={"CPU": args.engine_cpu_resources, "GPU": args.engine_gpu_resources},
+        concurrency=args.concurrency,
         engine_kwargs={
-            "tensor_parallel_size": 1,
-            "enable_chunked_prefill": True,
-            "max_model_len": 16384,
-            "max_num_batched_tokens": 65536,
+            "tensor_parallel_size": args.tensor_parallel_size,
+            "enable_chunked_prefill": args.enable_chunked_prefill,
+            "max_model_len": args.max_model_len,
+            "max_num_batched_tokens": args.max_num_batched_tokens,
             # "max_num_batched_tokens": 4096,
             # "max_model_len": 16384,
             
         },
-        max_concurrent_batches=32,
-        batch_size=32,
+        max_concurrent_batches=args.max_concurrent_batches,
+        batch_size=args.batch_size,
     )
 
     
@@ -71,9 +90,9 @@ def run_inference(df, args, ray_init=True):
             messages=[{"role": "user", "content": row["raw_prompt"]}],
             sampling_params=dict(
                 # n=args.n,
-                truncate_prompt_tokens=16384-2048,
+                truncate_prompt_tokens=args.truncate_prompt_tokens,
                 # temperature=0.3,
-                max_tokens=2048,
+                max_tokens=args.max_tokens,
             ),
         ),
         postprocess= lambda row : dict(answer=row["generated_text"], **row),
@@ -302,7 +321,94 @@ if __name__ == "__main__":
         default=0,
         help="Number of few-shot example retrievals (default: 0)",
     )
+    parser.add_argument(
+        "--NCCL_P2P",
+        type=bool,
+        default=False,
+        help="Enable NCCL P2P - set to false if nvidia-smi topo -m shows SYS between gpus, or something or another about PCIE? A6000 -> false. (default: False)",
+    )
+    parser.add_argument(
+        "--ray_timeout",
+        type=int,
+        default=1800,
+        help="Ray timeout in seconds (default: 1800)",
+    )
+    parser.add_argument(
+        "--num_blocks",
+        type=int,
+        default=16,
+        help="Number of blocks to repartition the dataset into (default: 16)",
+    )
+    parser.add_argument(
+        "--engine_cpu_resources",
+        type=int,
+        default=multiprocessing.cpu_count() // available_gpus,
+        help="Number of CPU resources for the engine (default: cpus // gpus)",
+    )
+    parser.add_argument(
+        "--engine_gpu_resources",
+        type=int,
+        default=1,
+        help="Number of GPU resources for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=available_gpus,
+        help="Concurrency for the engine (default: gpus)",
+    )
+    parser.add_argument(
+        "--tensor_parallel_size",
+        type=int,
+        default=1,
+        help="Tensor parallel size for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--enable_chunked_prefill",
+        type=bool,
+        default=True,
+        help="Enable chunked prefill for the engine (default: True)",
+    )
+    parser.add_argument(
+        "--max_model_len",
+        type=int,
+        default=16384,
+        help="Maximum model length for the engine (default: 16384)",
+    )
+    parser.add_argument(
+        "--max_num_batched_tokens",
+        type=int,
+        default=65536,
+        help="Maximum number of batched tokens for the engine (default: 65536)",
+    )
+    parser.add_argument(
+        "--max_concurrent_batches",
+        type=int,
+        default=32,
+        help="Maximum number of concurrent batches for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--truncate_prompt_tokens",
+        type=int,
+        default=16384 - 2048,
+        help="Number of prompt tokens to truncate (default: 16384 - 2048)",
+    )
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=2048,
+        help="Maximum number of tokens to generate (default: 2048)",
+    )
+    
 
     args = parser.parse_args()
+    
+    
 
     main(args)

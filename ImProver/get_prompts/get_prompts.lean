@@ -17,6 +17,9 @@ import Mathlib.Lean.Expr.Basic
 import Batteries.Lean.HashMap
 import ImProver.online.c2
 import ImProver.get_prompts.utils
+import ImProver.get_prompts.where_with_end
+import Lean.Elab.Command
+
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
@@ -26,6 +29,7 @@ set_option autoImplicit true
 def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String): IO Unit := do
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean mod).toString
+  -- let scope_import := "import ImProver.get_prompts.where_with_end\n"
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
 
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
@@ -46,6 +50,7 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
     if --not isThm? ||
       not isHuman then
       continue
+
 
     let curr_name_variants :=
       let fullName := ci.name.toString

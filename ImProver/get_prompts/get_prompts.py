@@ -144,6 +144,19 @@ async def main_async(args):
     progress_bar.close()
     
     
+def main(args):
+    make_config(args)
+    
+    asyncio.run(main_async(args))
+
+    print(f"[IMPROVER: Prompts saved to prompts/{args.prompts_id}/src]")
+    print(f"[IMPROVER: Starting inference with prompts {args.prompts_id}...]")
+    if args.informalize:
+        print("[IMPROVER: Informalizing theorems...]")
+        informalizer_main(args)
+
+    
+    
 
 if __name__ == "__main__":
 
@@ -192,15 +205,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    make_config(args)
-    
-    asyncio.run(main_async(args))
-
-    print(f"[IMPROVER: Prompts saved to prompts/{args.prompts_id}/src]")
-    print(f"[IMPROVER: Starting inference with prompts {args.prompts_id}...]")
-    if args.informalize:
-        print("[IMPROVER: Informalizing theorems...]")
-        informalizer_main(args)
-
+    main(args)
 
 

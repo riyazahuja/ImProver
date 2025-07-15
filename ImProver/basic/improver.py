@@ -41,6 +41,94 @@ def get_parser():
     parser.add_argument("--rag", type=int, default=0, help="Number of RAG retrievals")
     parser.add_argument("--examples", type=int, default=0, help="Number of few-shot example retrievals")
     
+    
+    #inference hyperparams
+    parser.add_argument(
+        "--NCCL_P2P",
+        type=bool,
+        default=False,
+        help="Enable NCCL P2P - set to false if nvidia-smi topo -m shows SYS between gpus, or something or another about PCIE? A6000 -> false. (default: False)",
+    )
+    parser.add_argument(
+        "--ray_timeout",
+        type=int,
+        default=1800,
+        help="Ray timeout in seconds (default: 1800)",
+    )
+    parser.add_argument(
+        "--num_blocks",
+        type=int,
+        default=16,
+        help="Number of blocks to repartition the dataset into (default: 16)",
+    )
+    parser.add_argument(
+        "--engine_cpu_resources",
+        type=int,
+        default=multiprocessing.cpu_count() // available_gpus,
+        help="Number of CPU resources for the engine (default: cpus // gpus)",
+    )
+    parser.add_argument(
+        "--engine_gpu_resources",
+        type=int,
+        default=1,
+        help="Number of GPU resources for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=available_gpus,
+        help="Concurrency for the engine (default: gpus)",
+    )
+    parser.add_argument(
+        "--tensor_parallel_size",
+        type=int,
+        default=1,
+        help="Tensor parallel size for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--enable_chunked_prefill",
+        type=bool,
+        default=True,
+        help="Enable chunked prefill for the engine (default: True)",
+    )
+    parser.add_argument(
+        "--max_model_len",
+        type=int,
+        default=16384,
+        help="Maximum model length for the engine (default: 16384)",
+    )
+    parser.add_argument(
+        "--max_num_batched_tokens",
+        type=int,
+        default=65536,
+        help="Maximum number of batched tokens for the engine (default: 65536)",
+    )
+    parser.add_argument(
+        "--max_concurrent_batches",
+        type=int,
+        default=32,
+        help="Maximum number of concurrent batches for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--truncate_prompt_tokens",
+        type=int,
+        default=16384 - 2048,
+        help="Number of prompt tokens to truncate (default: 16384 - 2048)",
+    )
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=2048,
+        help="Maximum number of tokens to generate (default: 2048)",
+    )
+    
+    
     # Run identifier
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     parser.add_argument("--runID", type=str, default=f"RUN_{timestamp}", help="Run identifier")

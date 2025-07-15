@@ -16,7 +16,7 @@ import Mathlib.Control.Basic
 import Mathlib.Lean.Expr.Basic
 import Batteries.Lean.HashMap
 import ImProver.online.c2
-
+import ImProver.get_prompts.where_with_end
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 
@@ -48,6 +48,31 @@ def getNormalId (target : CompilationStep × ConstantInfo) (mod : Name): IO Theo
     errorMsgs := msgs.toArray,
     kind := kind
   }
+
+open Lean.Elab.Command
+
+
+
+def getScopes (cmd : CompilationStep) (fileName : String) : IO (String × String) := do
+
+  let ctx : Command.Context := {
+    fileName := fileName,
+    fileMap := cmd.src.toString.toFileMap,
+    tacticCache? := none,
+    snap? := none,
+    cancelTk? := none
+  }
+  let state := cmd.commandStateBefore
+
+  let ((prescopes_raw, postscopes_raw), _) ← CommandElabM.toIO whereWithEndCore ctx state
+  let prescopes ← prescopes_raw.toString
+  let postscopes ← postscopes_raw.toString
+  IO.println s!"==== Got scopes ===="
+  IO.println s!"Prescopes: {prescopes}"
+  IO.println s!"Postscopes: {postscopes}"
+  return (prescopes, postscopes)
+
+
 
 def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod : Name) (python_cmd : String) (fileName: String) : IO (List (List TheoremData × Nat)) := do
   let rag_strings : Array Json ← do
@@ -86,6 +111,7 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
     --         ("context_item_type", Json.str c.kind),
     --         ("content", Json.str c.text)
     --       ]) |>.toArray
+    let (prescopes, postscopes) ← getScopes cmd fileName
 
     let pfAsSorry := proofAsSorry cmd |>.getD ""
 
@@ -113,8 +139,11 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
 
       C2_dependencies := split_thm :: C2_dependencies
 
+      -- we don't get all the fancy data for splits bc we are lazy...
       let split_data : TheoremData :=
         { id := split_thm,
+          prescopes := prescopes,
+          postscopes := postscopes,
           C0_dependencies := prev_ids, --idk yet whether to keep this
           C1_dependencies := deps.map (fun ctx => {name := ctx.name, module := ctx.module, content := some ctx.text}) |>.toArray,
           C2_dependencies := #[]
@@ -133,7 +162,9 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
         annotation := annotation_string,
         content_sorry := pfAsSorry,
         goal := initialGoal,
-        rag := rag
+        rag := rag,
+        prescopes := prescopes,
+        postscopes := postscopes
         }
 
     outputs := ((mainData :: extracted_thms),target_idx) :: outputs

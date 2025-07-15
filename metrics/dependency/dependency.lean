@@ -24,7 +24,7 @@ import Cli
 open Lean Core Elab IO Meta Term Command Tactic Cli System
 
 
-def metric_dependency (cmd:CompilationStep) : IO Float := do
+def dependency_score (cmd:CompilationStep) : IO Float := do
   let context ← get_context cmd
   let external_deps := context.filter (fun c =>
     match c.kind with

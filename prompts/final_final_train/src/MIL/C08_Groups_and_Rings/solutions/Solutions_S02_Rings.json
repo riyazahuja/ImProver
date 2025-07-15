@@ -1,0 +1,735 @@
+[{"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_surj [Finite ι] {I : ι → Ideal R}\n    (hI : Pairwise (IsCoprime on I)) : Surjective (quotientInfToPiQuotient I) := by\n  classical\n  cases nonempty_fintype ι\n  intro g\n  choose f hf using fun i ↦ mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_biInf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i*e i)\n  ext i\n  rw [quotientInfToPiQuotient_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_mk (I : ι → Ideal R) (x : R) :\n    quotientInfToPiQuotient I (Quotient.mk _ x) = fun i : ι ↦ Quotient.mk (I i) x :=\nrfl",
+   "--src: Mathlib.RingTheory.Idempotents\nlemma bijective_pi_of_isIdempotentElem (e : I → R)\n    (he : ∀ i, IsIdempotentElem (e i))\n    (he₁ : ∀ i j, i ≠ j → (1 - e i) * (1 - e j) = 0) (he₂ : ∏ i, e i = 0) :\n    Function.Bijective (Pi.ringHom fun i ↦ Ideal.Quotient.mk (Ideal.span {e i})) :=\n  (CompleteOrthogonalIdempotents.of_prod_one_sub\n      ⟨fun i ↦ (he i).one_sub, he₁⟩ (by simpa using he₂)).bijective_pi'",
+   "--src: Mathlib.RingTheory.Ideal.Maps\nlemma _root_.Pi.ker_ringHom {ι : Type*} {R : ι → Type*} [∀ i, Semiring (R i)]\n    (φ : ∀ i, S →+* R i) : ker (Pi.ringHom φ) = ⨅ i, ker (φ i) := by\n  ext x\n  simp [mem_ker, Ideal.mem_iInf, funext_iff]",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem iInf_span_singleton_natCast {R : Type*} [CommRing R] {ι : Type*} [Fintype ι]\n    {I : ι → ℕ} (hI : Pairwise fun i j => (I i).Coprime (I j)) :\n    ⨅ (i : ι), span {(I i : R)} = span {((∏ i : ι, I i : ℕ) : R)} := by\n  rw [iInf_span_singleton, Nat.cast_prod]\n  exact fun i j h ↦ (hI h).cast",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem isCoprime_biInf {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K            := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K*(I + J i)  := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1+K)*I + K*J i  := by ring\n        _ ≤ I + K ⊓ J i      := add_le_add mul_le_left mul_le_inf",
+   "--src: Mathlib.RingTheory.Idempotents\nlemma CompleteOrthogonalIdempotents.map (he : CompleteOrthogonalIdempotents e) :\n    CompleteOrthogonalIdempotents (f ∘ e) where\n  __ := he.toOrthogonalIdempotents.map f\n  complete := by simp only [Function.comp_apply, ← map_sum, he.complete, map_one]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Defs\ntheorem mk_surjective : Function.Surjective (mk I) := fun y =>\n  Quotient.inductionOn' y fun x => Exists.intro x rfl",
+   "--src: Mathlib.Algebra.Ring.Hom.Defs\n/-- `RingHomClass F α β` states that `F` is a type of (semi)ring homomorphisms.\nYou should extend this class when you extend `RingHom`.\nThis extends from both `MonoidHomClass` and `MonoidWithZeroHomClass` in\norder to put the fields in a sensible order, even though\n`MonoidWithZeroHomClass` already extends `MonoidHomClass`. -/\nclass RingHomClass (F : Type*) (α β : outParam Type*)\n    [NonAssocSemiring α] [NonAssocSemiring β] [FunLike F α β]\n  extends MonoidHomClass F α β, AddMonoidHomClass F α β, MonoidWithZeroHomClass F α β : Prop",
+   "--src: Mathlib.RingTheory.Coprime.Lemmas\ntheorem Fintype.prod_dvd_of_coprime [Fintype I] (Hs : Pairwise (IsCoprime on s))\n    (Hs1 : ∀ i, s i ∣ z) : (∏ x, s x) ∣ z :=\n  Finset.prod_dvd_of_coprime (Hs.set_pairwise _) fun i _ ↦ Hs1 i"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "chineseIso",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)\n    (hf : ∀ i j, i ≠ j → IsCoprime (f i) (f j)) : (R ⧸ ⨅ i, f i) ≃+* Π i, R ⧸ f i :=\n  { Equiv.ofBijective _ ⟨chineseMap_inj f, chineseMap_surj hf⟩,\n    chineseMap f with }\n\n",
+   "compilationAlias":
+   "noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)\n    (hf : ∀ i j, i ≠ j → IsCoprime (f i) (f j)) : (R ⧸ ⨅ i, f i) ≃+* Π i, R ⧸ f i :=\n  { Equiv.ofBijective _ ⟨chineseMap_inj f, chineseMap_surj hf⟩,\n    chineseMap f with }\n\n"},
+  "goal":
+  "ι : Type u_2\nR : Type u_1\ninst✝¹ : CommRing R\ninst✝ : Fintype ι\nf : ι → Ideal R\nhf : ∀ (i j : ι), Ne i j → IsCoprime (f i) (f j)\n⊢ And (Function.Injective ⇑(chineseMap f)) (Function.Surjective ⇑(chineseMap f))",
+  "content_sorry":
+  "noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)\n    (hf : ∀ i j, i ≠ j → IsCoprime (f i) (f j)) : (R ⧸ ⨅ i, f i) ≃+* Π i, R ⧸ f i := by sorry",
+  "annotation":
+  "noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)\n    (hf : ∀ i j, i ≠ j → IsCoprime (f i) (f j)) : (R ⧸ ⨅ i, f i) ≃+* Π i, R ⧸ f i :=\n  { Equiv.ofBijective _ ⟨chineseMap_inj f, chineseMap_surj hf⟩,\n    chineseMap f with }\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Equiv.ofBijective",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- If `f` is a bijective function, then its domain is equivalent to its codomain. -/\n@[simps apply]\nnoncomputable def ofBijective (f : α → β) (hf : Bijective f) : α ≃ β where\n  toFun := f\n  invFun := surjInv hf.surjective\n  left_inv := leftInverse_surjInv hf\n  right_inv := rightInverse_surjInv _",
+    "compilationAlias":
+    "/-- If `f` is a bijective function, then its domain is equivalent to its codomain. -/\n@[simps apply]\nnoncomputable def ofBijective (f : α → β) (hf : Bijective f) : α ≃ β where\n  toFun := f\n  invFun := surjInv hf.surjective\n  left_inv := leftInverse_surjInv hf\n  right_inv := rightInverse_surjInv _"},
+   {"name": "IsCoprime",
+    "module": "Mathlib.RingTheory.Coprime.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1",
+    "compilationAlias":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "chineseMap",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+    "compilationAlias":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"},
+   {"name": "chineseMap_mk",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_mk'",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_inj",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n",
+    "compilationAlias":
+    "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n"},
+   {"name": "isCoprime_Inf",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n",
+    "compilationAlias":
+    "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n"},
+   {"name": "chineseMap_surj",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}\n    (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by\n  classical\n  intro g\n  choose f hf using fun i ↦ Ideal.Quotient.mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI _ _ (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i * e i)\n  ext i\n  rw [chineseMap_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]\n\n",
+    "compilationAlias":
+    "lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}\n    (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by\n  classical\n  intro g\n  choose f hf using fun i ↦ Ideal.Quotient.mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI _ _ (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i * e i)\n  ext i\n  rw [chineseMap_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n/-- Corollary of Chinese Remainder Theorem: if `Iᵢ` are pairwise coprime ideals in a\ncommutative ring then the canonical map `R → ∏ (R ⧸ Iᵢ)` is surjective. -/\nlemma pi_quotient_surjective {R : Type*} [CommRing R] {ι : Type*} [Finite ι] {I : ι → Ideal R}\n    (hf : Pairwise fun i j ↦ IsCoprime (I i) (I j)) (x : (i : ι) → R ⧸ I i) :\n    ∃ r : R, ∀ i, r = x i := by\n  obtain ⟨y, rfl⟩ := Ideal.quotientInfToPiQuotient_surj hf x\n  obtain ⟨r, rfl⟩ := Ideal.Quotient.mk_surjective y\n  exact ⟨r, fun i ↦ rfl⟩\n-- variant of `IsDedekindDomain.exists_forall_sub_mem_ideal` which doesn't assume Dedekind domain!",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_surj [Finite ι] {I : ι → Ideal R}\n    (hI : Pairwise (IsCoprime on I)) : Surjective (quotientInfToPiQuotient I) := by\n  classical\n  cases nonempty_fintype ι\n  intro g\n  choose f hf using fun i ↦ mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_biInf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i*e i)\n  ext i\n  rw [quotientInfToPiQuotient_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n/-- Corollary of Chinese Remainder Theorem: if `Iᵢ` are pairwise coprime ideals in a\ncommutative ring then given elements `xᵢ` you can find `r` with `r - xᵢ ∈ Iᵢ` for all `i`. -/\nlemma exists_forall_sub_mem_ideal {R : Type*} [CommRing R] {ι : Type*} [Finite ι]\n    {I : ι → Ideal R} (hI : Pairwise fun i j ↦ IsCoprime (I i) (I j)) (x : ι → R) :\n    ∃ r : R, ∀ i, r - x i ∈ I i := by\n  obtain ⟨y, hy⟩ := Ideal.pi_quotient_surjective hI (fun i ↦ x i)\n  exact ⟨y, fun i ↦ (Submodule.Quotient.eq (I i)).mp <| hy i⟩",
+   "--src: Mathlib.RingTheory.Idempotents\nlemma bijective_pi_of_isIdempotentElem (e : I → R)\n    (he : ∀ i, IsIdempotentElem (e i))\n    (he₁ : ∀ i j, i ≠ j → (1 - e i) * (1 - e j) = 0) (he₂ : ∏ i, e i = 0) :\n    Function.Bijective (Pi.ringHom fun i ↦ Ideal.Quotient.mk (Ideal.span {e i})) :=\n  (CompleteOrthogonalIdempotents.of_prod_one_sub\n      ⟨fun i ↦ (he i).one_sub, he₁⟩ (by simpa using he₂)).bijective_pi'",
+   "--src: Mathlib.RingTheory.Coprime.Lemmas\ntheorem Fintype.prod_dvd_of_coprime [Fintype I] (Hs : Pairwise (IsCoprime on s))\n    (Hs1 : ∀ i, s i ∣ z) : (∏ x, s x) ∣ z :=\n  Finset.prod_dvd_of_coprime (Hs.set_pairwise _) fun i _ ↦ Hs1 i",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem iInf_span_singleton_natCast {R : Type*} [CommRing R] {ι : Type*} [Fintype ι]\n    {I : ι → ℕ} (hI : Pairwise fun i j => (I i).Coprime (I j)) :\n    ⨅ (i : ι), span {(I i : R)} = span {((∏ i : ι, I i : ℕ) : R)} := by\n  rw [iInf_span_singleton, Nat.cast_prod]\n  exact fun i j h ↦ (hI h).cast",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem isCoprime_iff_exists : IsCoprime I J ↔ ∃ i ∈ I, ∃ j ∈ J, i + j = 1 := by\n  rw [← add_eq_one_iff, isCoprime_iff_add]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma ker_Pi_Quotient_mk {ι : Type*} (I : ι → Ideal R) :\n    ker (Pi.ringHom fun i : ι ↦ Quotient.mk (I i)) = ⨅ i, I i := by\n  simp [Pi.ker_ringHom, mk_ker]",
+   "--src: Mathlib.RingTheory.Idempotents\nlemma CompleteOrthogonalIdempotents.unique_iff [Unique I] :\n    CompleteOrthogonalIdempotents e ↔ e default = 1 := by\n  rw [completeOrthogonalIdempotents_iff, OrthogonalIdempotents.unique, Fintype.sum_unique,\n    and_iff_right_iff_imp]\n  exact (· ▸ IsIdempotentElem.one)",
+   "--src: Mathlib.RingTheory.Coprime.Lemmas\ntheorem exists_sum_eq_one_iff_pairwise_coprime' [Fintype I] [Nonempty I] [DecidableEq I] :\n    (∃ μ : I → R, (∑ i : I, μ i * ∏ j ∈ {i}ᶜ, s j) = 1) ↔ Pairwise (IsCoprime on s) := by\n  convert exists_sum_eq_one_iff_pairwise_coprime Finset.univ_nonempty (s := s) using 1\n  simp only [Function.onFun, pairwise_subtype_iff_pairwise_finset', coe_univ, Set.pairwise_univ]\n-- Porting note: a lot of the capitalization wasn't working"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "chineseMap_surj",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}\n    (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by\n  classical\n  intro g\n  choose f hf using fun i ↦ Ideal.Quotient.mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI _ _ (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i * e i)\n  ext i\n  rw [chineseMap_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]\n\n",
+   "compilationAlias":
+   "lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}\n    (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by\n  classical\n  intro g\n  choose f hf using fun i ↦ Ideal.Quotient.mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI _ _ (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i * e i)\n  ext i\n  rw [chineseMap_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]\n\n"},
+  "goal": "α : Sort u_1\na b : α\n⊢ Eq (Ne a b) (Ne b a)",
+  "content_sorry":
+  "lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}\n    (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by\n  sorry",
+  "annotation":
+  "lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}\n    (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by\n  classical\n  intro g\n  choose f hf using fun i ↦ Ideal.Quotient.mk_surjective (g i)\n  have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by\n    intro i\n    have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by\n      intros j hj\n      exact hI _ _ (by simpa [ne_comm, isCoprime_iff_add] using hj)\n    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, hu, e, he, hue⟩\n    replace he : ∀ j, j ≠ i → e ∈ I j := by simpa using he\n    refine ⟨e, ?_, ?_⟩\n    · simp [eq_sub_of_add_eq' hue, map_sub, eq_zero_iff_mem.mpr hu]\n    · exact fun j hj ↦ eq_zero_iff_mem.mpr (he j hj)\n  choose e he using key\n  use mk _ (∑ i, f i * e i)\n  ext i\n  rw [chineseMap_mk', map_sum, Fintype.sum_eq_single i]\n  · simp [(he i).1, hf]\n  · intros j hj\n    simp [(he j).2 i hj.symm]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fintype.sum_eq_single",
+    "module": "Mathlib.Data.Fintype.BigOperators",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "map_sum",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "map_sub",
+    "module": "Mathlib.Algebra.Group.Hom.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp low) \"Additive group homomorphisms preserve subtraction.\"]",
+    "compilationAlias":
+    "@[to_additive (attr := simp low) \"Additive group homomorphisms preserve subtraction.\"]"},
+   {"name": "eq_sub_of_add_eq'",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive eq_sub_of_add_eq']",
+    "compilationAlias": "@[to_additive eq_sub_of_add_eq']"},
+   {"name": "ne_comm",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem ne_comm {α} {a b : α} : a ≠ b ↔ b ≠ a := ⟨Ne.symm, Ne.symm⟩",
+    "compilationAlias":
+    "theorem ne_comm {α} {a b : α} : a ≠ b ↔ b ≠ a := ⟨Ne.symm, Ne.symm⟩"},
+   {"name": "IsCoprime",
+    "module": "Mathlib.RingTheory.Coprime.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1",
+    "compilationAlias":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1"},
+   {"name": "Ideal.Quotient.mk_surjective",
+    "module": "Mathlib.RingTheory.Ideal.Quotient.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mk_surjective : Function.Surjective (mk I) := fun y =>\n  Quotient.inductionOn' y fun x => Exists.intro x rfl",
+    "compilationAlias":
+    "theorem mk_surjective : Function.Surjective (mk I) := fun y =>\n  Quotient.inductionOn' y fun x => Exists.intro x rfl"},
+   {"name": "IsCoprime",
+    "module": "Mathlib.RingTheory.Coprime.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1",
+    "compilationAlias":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "chineseMap",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+    "compilationAlias":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"},
+   {"name": "chineseMap_mk",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_mk'",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_inj",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n",
+    "compilationAlias":
+    "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n"},
+   {"name": "isCoprime_Inf",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n",
+    "compilationAlias":
+    "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Operations\ntheorem isCoprime_biInf {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K            := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K*(I + J i)  := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1+K)*I + K*J i  := by ring\n        _ ≤ I + K ⊓ J i      := add_le_add mul_le_left mul_le_inf",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem finset_inf_span_singleton {ι : Type*} (s : Finset ι) (I : ι → R)\n    (hI : Set.Pairwise (↑s) (IsCoprime on I)) :\n    (s.inf fun i => Ideal.span ({I i} : Set R)) = Ideal.span {∏ i ∈ s, I i} := by\n  ext x\n  simp only [Submodule.mem_finset_inf, Ideal.mem_span_singleton]\n  exact ⟨Finset.prod_dvd_of_coprime hI, fun h i hi => (Finset.dvd_prod_of_mem _ hi).trans h⟩",
+   "--src: Mathlib.RingTheory.DedekindDomain.Ideal\ntheorem Ideal.coprime_of_no_prime_ge {I J : Ideal R} (h : ∀ P, I ≤ P → J ≤ P → ¬IsPrime P) :\n    IsCoprime I J := by\n  rw [isCoprime_iff_sup_eq]\n  by_contra hIJ\n  obtain ⟨P, hP, hIJ⟩ := Ideal.exists_le_maximal _ hIJ\n  exact h P (le_trans le_sup_left hIJ) (le_trans le_sup_right hIJ) hP.isPrime",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem _root_.IsCoprime.sup_eq (h : IsCoprime I J) : I ⊔ J = ⊤ := isCoprime_iff_sup_eq.mp h",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem isCoprime_iff_codisjoint : IsCoprime I J ↔ Codisjoint I J := by\n  rw [IsCoprime, codisjoint_iff]\n  constructor\n  · rintro ⟨x, y, hxy⟩\n    rw [eq_top_iff_one]\n    apply (show x * I + y * J ≤ I ⊔ J from\n      sup_le (mul_le_left.trans le_sup_left) (mul_le_left.trans le_sup_right))\n    rw [hxy]\n    simp only [one_eq_top, Submodule.mem_top]\n  · intro h\n    refine ⟨1, 1, ?_⟩\n    simpa only [one_eq_top, top_mul, Submodule.add_eq_sup]",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem _root_.IsCoprime.exists (h : IsCoprime I J) : ∃ i ∈ I, ∃ j ∈ J, i + j = 1 :=\n  isCoprime_iff_exists.mp h",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem iInf_sup_eq_top {s : Finset ι} {J : ι → Ideal R} (h : ∀ i, i ∈ s → J i ⊔ I = ⊤) :\n    (⨅ i ∈ s, J i) ⊔ I = ⊤ := by rw [sup_comm, sup_iInf_eq_top]; intro i hi; rw [sup_comm, h i hi]",
+   "--src: Mathlib.RingTheory.Coprime.Ideal\n/-- A finite family of ideals is pairwise coprime (that is, any two of them generate the whole ring)\niff when taking all the possible intersections of all but one of these ideals, the resulting family\nof ideals still generate the whole ring.\nFor example with three ideals : `I ⊔ J = I ⊔ K = J ⊔ K = ⊤ ↔ (I ⊓ J) ⊔ (I ⊓ K) ⊔ (J ⊓ K) = ⊤`.\nWhen ideals are all of the form `I i = R ∙ s i`, this is equivalent to the\n`exists_sum_eq_one_iff_pairwise_coprime` lemma. -/\ntheorem iSup_iInf_eq_top_iff_pairwise {t : Finset ι} (h : t.Nonempty) (I : ι → Ideal R) :\n    (⨆ i ∈ t, ⨅ (j) (_ : j ∈ t) (_ : j ≠ i), I j) = ⊤ ↔\n      (t : Set ι).Pairwise fun i j => I i ⊔ I j = ⊤ := by\n  haveI : DecidableEq ι := Classical.decEq ι\n  rw [eq_top_iff_one, Submodule.mem_iSup_finset_iff_exists_sum]\n  refine h.cons_induction ?_ ?_ <;> clear t h\n  · simp only [Finset.sum_singleton, Finset.coe_singleton, Set.pairwise_singleton, iff_true]\n    refine fun a => ⟨fun i => if h : i = a then ⟨1, ?_⟩ else 0, ?_⟩\n    · simp [h]\n    · simp only [dif_pos, Submodule.coe_mk, eq_self_iff_true]\n  intro a t hat h ih\n  rw [Finset.coe_cons,\n    Set.pairwise_insert_of_symmetric fun i j (h : I i ⊔ I j = ⊤) ↦ (sup_comm _ _).trans h]\n  constructor\n  · rintro ⟨μ, hμ⟩\n    rw [Finset.sum_cons] at hμ\n    -- Porting note: `refine` yields goals in a different order than in lean3.\n    refine ⟨ih.mp ⟨Pi.single h.choose ⟨μ a, ?a1⟩ + fun i => ⟨μ i, ?a2⟩, ?a3⟩, fun b hb ab => ?a4⟩\n    case a1 =>\n      have := Submodule.coe_mem (μ a)\n      rw [mem_iInf] at this ⊢\n      --for some reason `simp only [mem_iInf]` times out\n      intro i\n      specialize this i\n      rw [mem_iInf, mem_iInf] at this ⊢\n      intro hi _\n      apply this (Finset.subset_cons _ hi)\n      rintro rfl\n      exact hat hi\n    case a2 =>\n      have := Submodule.coe_mem (μ i)\n      simp only [mem_iInf] at this ⊢\n      intro j hj ij\n      exact this _ (Finset.subset_cons _ hj) ij\n    case a3 =>\n      rw [← @if_pos _ _ h.choose_spec R (μ a) 0, ← Finset.sum_pi_single', ← Finset.sum_add_distrib]\n        at hμ\n      convert hμ\n      rename_i i _\n      rw [Pi.add_apply, Submodule.coe_add, Submodule.coe_mk]\n      by_cases hi : i = h.choose\n      · rw [hi, Pi.single_eq_same, Pi.single_eq_same, Submodule.coe_mk]\n      · rw [Pi.single_eq_of_ne hi, Pi.single_eq_of_ne hi, Submodule.coe_zero]\n    case a4 =>\n      rw [eq_top_iff_one, Submodule.mem_sup]\n      rw [add_comm] at hμ\n      refine ⟨_, ?_, _, ?_, hμ⟩\n      · refine sum_mem _ fun x hx => ?_\n        have := Submodule.coe_mem (μ x)\n        simp only [mem_iInf] at this\n        apply this _ (Finset.mem_cons_self _ _)\n        rintro rfl\n        exact hat hx\n      · have := Submodule.coe_mem (μ a)\n        simp only [mem_iInf] at this\n        exact this _ (Finset.subset_cons _ hb) ab.symm\n  · rintro ⟨hs, Hb⟩\n    obtain ⟨μ, hμ⟩ := ih.mpr hs\n    have := sup_iInf_eq_top fun b hb => Hb b hb (ne_of_mem_of_not_mem hb hat).symm\n    rw [eq_top_iff_one, Submodule.mem_sup] at this\n    obtain ⟨u, hu, v, hv, huv⟩ := this\n    refine ⟨fun i => if hi : i = a then ⟨v, ?_⟩ else ⟨u * μ i, ?_⟩, ?_⟩\n    · simp only [mem_iInf] at hv ⊢\n      intro j hj ij\n      rw [Finset.mem_cons, ← hi] at hj\n      exact hv _ (hj.resolve_left ij)\n    · have := Submodule.coe_mem (μ i)\n      simp only [mem_iInf] at this ⊢\n      intro j hj ij\n      rcases Finset.mem_cons.mp hj with (rfl | hj)\n      · exact mul_mem_right _ _ hu\n      · exact mul_mem_left _ _ (this _ hj ij)\n    · dsimp only\n      rw [Finset.sum_cons, dif_pos rfl, add_comm]\n      rw [← mul_one u] at huv\n      rw [← huv, ← hμ, Finset.mul_sum]\n      congr 1\n      apply Finset.sum_congr rfl\n      intro j hj\n      rw [dif_neg]\n      rintro rfl\n      exact hat hj",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem iInf_span_singleton_natCast {R : Type*} [CommRing R] {ι : Type*} [Fintype ι]\n    {I : ι → ℕ} (hI : Pairwise fun i j => (I i).Coprime (I j)) :\n    ⨅ (i : ι), span {(I i : R)} = span {((∏ i : ι, I i : ℕ) : R)} := by\n  rw [iInf_span_singleton, Nat.cast_prod]\n  exact fun i j h ↦ (hI h).cast",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma ker_Pi_Quotient_mk {ι : Type*} (I : ι → Ideal R) :\n    ker (Pi.ringHom fun i : ι ↦ Quotient.mk (I i)) = ⨅ i, I i := by\n  simp [Pi.ker_ringHom, mk_ker]"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "isCoprime_Inf",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n",
+   "compilationAlias":
+   "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n"},
+  "goal":
+  "R : Type u\ninst✝ : CommSemiring R\nI J : Ideal R\n⊢ Eq (IsCoprime I J) (Eq (HAdd.hAdd I J) 1)",
+  "content_sorry":
+  "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  sorry",
+  "annotation":
+  "theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}\n    (hf : ∀ j ∈ s, IsCoprime I (J j)) : IsCoprime I (⨅ j ∈ s, J j) := by\n  classical\n  simp_rw [isCoprime_iff_add] at *\n  induction s using Finset.induction with\n  | empty =>\n      simp\n  | @insert i s _ hs =>\n      rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]\n      set K := ⨅ j ∈ s, J j\n      calc\n        1 = I + K                  := (hs fun j hj ↦ hf j (Finset.mem_insert_of_mem hj)).symm\n        _ = I + K * (I + J i)      := by rw [hf i (Finset.mem_insert_self i s), mul_one]\n        _ = (1 + K) * I + K * J i  := by ring\n        _ ≤ I + K ⊓ J i            := by gcongr ; apply mul_le_left ; apply mul_le_inf\n\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "Finset.mem_insert_self",
+    "module": "Mathlib.Data.Finset.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_insert_self (a : α) (s : Finset α) : a ∈ insert a s :=\n  mem_ndinsert_self a s.1",
+    "compilationAlias":
+    "theorem mem_insert_self (a : α) (s : Finset α) : a ∈ insert a s :=\n  mem_ndinsert_self a s.1"},
+   {"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "Finset.mem_insert_of_mem",
+    "module": "Mathlib.Data.Finset.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_insert_of_mem (h : a ∈ s) : a ∈ insert b s :=\n  mem_ndinsert_of_mem h",
+    "compilationAlias":
+    "theorem mem_insert_of_mem (h : a ∈ s) : a ∈ insert b s :=\n  mem_ndinsert_of_mem h"},
+   {"name": "eq_top_iff",
+    "module": "Mathlib.Order.BoundedOrder.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem eq_top_iff : a = ⊤ ↔ ⊤ ≤ a :=\n  top_le_iff.symm",
+    "compilationAlias":
+    "theorem eq_top_iff : a = ⊤ ↔ ⊤ ≤ a :=\n  top_le_iff.symm"},
+   {"name": "inf_comm",
+    "module": "Mathlib.Order.Lattice",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem inf_comm (a b : α) : a ⊓ b = b ⊓ a := @sup_comm αᵒᵈ _ _ _",
+    "compilationAlias":
+    "theorem inf_comm (a b : α) : a ⊓ b = b ⊓ a := @sup_comm αᵒᵈ _ _ _"},
+   {"name": "Finset.iInf_insert",
+    "module": "Mathlib.Order.CompleteLattice.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem iInf_insert (a : α) (s : Finset α) (t : α → β) :\n    ⨅ x ∈ insert a s, t x = t a ⊓ ⨅ x ∈ s, t x :=\n  @iSup_insert α βᵒᵈ _ _ _ _ _",
+    "compilationAlias":
+    "theorem iInf_insert (a : α) (s : Finset α) (t : α → β) :\n    ⨅ x ∈ insert a s, t x = t a ⊓ ⨅ x ∈ s, t x :=\n  @iSup_insert α βᵒᵈ _ _ _ _ _"},
+   {"name": "Finset.induction",
+    "module": "Mathlib.Data.Finset.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction {α : Type*} {p : Finset α → Prop} [DecidableEq α] (empty : p ∅)\n    (insert : ∀ ⦃a : α⦄ {s : Finset α}, a ∉ s → p s → p (insert a s)) : ∀ s, p s :=\n  cons_induction empty fun a s ha => (s.cons_eq_insert a ha).symm ▸ insert ha",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction {α : Type*} {p : Finset α → Prop} [DecidableEq α] (empty : p ∅)\n    (insert : ∀ ⦃a : α⦄ {s : Finset α}, a ∉ s → p s → p (insert a s)) : ∀ s, p s :=\n  cons_induction empty fun a s ha => (s.cons_eq_insert a ha).symm ▸ insert ha"},
+   {"name": "IsCoprime",
+    "module": "Mathlib.RingTheory.Coprime.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1",
+    "compilationAlias":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1"},
+   {"name": "IsCoprime",
+    "module": "Mathlib.RingTheory.Coprime.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1",
+    "compilationAlias":
+    "/-- The proposition that `x` and `y` are coprime, defined to be the existence of `a` and `b` such\nthat `a * x + b * y = 1`. Note that elements with no common divisors are not necessarily coprime,\ne.g., the multivariate polynomials `x₁` and `x₂` are not coprime. -/\ndef IsCoprime : Prop :=\n  ∃ a b, a * x + b * y = 1"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "chineseMap",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+    "compilationAlias":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"},
+   {"name": "chineseMap_mk",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_mk'",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_inj",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n",
+    "compilationAlias":
+    "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n/-- If we take `J = I.comap f` then `quotientMap` is injective automatically. -/\ntheorem quotientMap_injective {I : Ideal S} {f : R →+* S} :\n    Function.Injective (quotientMap I f le_rfl) :=\n  quotientMap_injective' le_rfl",
+   "--src: Mathlib.NumberTheory.RamificationInertia.Basic\ntheorem powQuotSuccInclusion_injective (i : ℕ) :\n    Function.Injective (powQuotSuccInclusion p P i) := by\n  rw [← LinearMap.ker_eq_bot, LinearMap.ker_eq_bot']\n  rintro ⟨x, hx⟩ hx0\n  rw [Subtype.ext_iff] at hx0 ⊢\n  rwa [powQuotSuccInclusion_apply_coe] at hx0",
+   "--src: Mathlib.RingTheory.Jacobson.Ideal\n/-- An ideal `I` of `R` is equal to its Jacobson radical if and only if\nthe Jacobson radical of the quotient ring `R/I` is the zero ideal -/\n-- Porting note: changed `Quotient.mk'` to ``\ntheorem jacobson_eq_iff_jacobson_quotient_eq_bot :\n    I.jacobson = I ↔ jacobson (⊥ : Ideal (R ⧸ I)) = ⊥ := by\n  have hf : Function.Surjective (Ideal.Quotient.mk I) := Submodule.Quotient.mk_surjective I\n  constructor\n  · intro h\n    replace h := congr_arg (Ideal.map (Ideal.Quotient.mk I)) h\n    rw [map_jacobson_of_surjective hf (le_of_eq mk_ker)] at h\n    simpa using h\n  · intro h\n    replace h := congr_arg (comap (Ideal.Quotient.mk I)) h\n    rw [comap_jacobson_of_surjective hf, ← RingHom.ker_eq_comap_bot (Ideal.Quotient.mk I)] at h\n    simpa using h",
+   "--src: Mathlib.RingTheory.Ideal.Cotangent\ntheorem mem_toCotangent_ker {x : I} : x ∈ LinearMap.ker I.toCotangent ↔ (x : R) ∈ I ^ 2 := by\n  rw [← I.map_toCotangent_ker]\n  simp",
+   "--src: Mathlib.RingTheory.Extension\nlemma σ_injective : P.σ.Injective := by\n  intro x y e\n  rw [← P.algebraMap_σ x, ← P.algebraMap_σ y, e]",
+   "--src: Mathlib.LinearAlgebra.LinearDisjoint\n/-- Two submodules `M` and `N` in an algebra `S` over `R` are linearly disjoint if the natural map\n`M ⊗[R] N →ₗ[R] S` induced by multiplication in `S` is injective. -/\n@[mk_iff]\nprotected structure LinearDisjoint : Prop where\n  injective : Function.Injective (mulMap M N)",
+   "--src: Mathlib.RingTheory.AdicCompletion.AsTensorProduct\nlemma tensor_map_id_left_injective_of_injective (hf : Function.Injective f) :\n    Function.Injective (AlgebraTensorModule.map LinearMap.id f :\n        AdicCompletion I R ⊗[R] M →ₗ[AdicCompletion I R] AdicCompletion I R ⊗[R] N) := by\n  rw [tensor_map_id_left_eq_map I f]\n  simp only [LinearMap.coe_comp, LinearEquiv.coe_coe, EmbeddingLike.comp_injective,\n    EquivLike.injective_comp]\n  exact map_injective I hf",
+   "--src: Mathlib.RingTheory.Flat.Basic\n/-- An `R`-module `M` is flat iff for all ideals `I` of `R`, the tensor product of the\ninclusion `I → R` and the identity `M → M` is injective. See `iff_rTensor_injective` to\nrestrict to finitely generated ideals `I`. --/\ntheorem iff_rTensor_injective' :\n    Flat R M ↔ ∀ I : Ideal R, Function.Injective (rTensor M I.subtype) := by\n  rewrite [Flat.iff_rTensor_injective]\n  refine ⟨fun h I => ?_, fun h I _ => h I⟩\n  rewrite [injective_iff_map_eq_zero]\n  intro x hx₀\n  obtain ⟨J, hfg, hle, y, rfl⟩ := Submodule.exists_fg_le_eq_rTensor_inclusion x\n  rewrite [← rTensor_comp_apply] at hx₀\n  rw [(injective_iff_map_eq_zero _).mp (h hfg) y hx₀, LinearMap.map_zero]",
+   "--src: Mathlib.RepresentationTheory.GroupCohomology.LowDegree\ntheorem dZero_ker_eq_invariants : LinearMap.ker (dZero A) = invariants A.ρ := by\n  ext x\n  simp only [LinearMap.mem_ker, mem_invariants, ← @sub_eq_zero _ _ _ x, funext_iff]\n  rfl",
+   "--src: Mathlib.RingTheory.Ideal.Operations\ntheorem map_le_smul_top (I : Ideal R) (f : R →ₗ[R] M) :\n    Submodule.map f I ≤ I • (⊤ : Submodule R M) := by\n  rintro _ ⟨y, hy, rfl⟩\n  rw [← mul_one y, ← smul_eq_mul, f.map_smul]\n  exact smul_mem_smul hy mem_top"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "chineseMap_inj",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n",
+   "compilationAlias":
+   "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n\n"},
+  "goal":
+  "ι : Type u_1\nR : Type u_2\ninst✝ : CommRing R\nI : ι → Ideal R\n⊢ Eq (chineseMap I) (Ideal.Quotient.lift (iInf fun i => I i) (Pi.ringHom fun i => Ideal.Quotient.mk (I i)) ⋯)",
+  "content_sorry":
+  "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  sorry",
+  "annotation":
+  "lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by\n  /-\n    ι : Type u_1\n    R : Type u_2\n    inst✝ : CommRing R\n    I : ι → Ideal R\n    ⊢ Function.Injective ⇑(chineseMap I)\n  -/\n  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "chineseMap",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+    "compilationAlias":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"},
+   {"name": "chineseMap_mk",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n"},
+   {"name": "chineseMap_mk'",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    quotientInfToPiQuotient I (Quotient.mk _ x) i = Quotient.mk (I i) x :=\nrfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma ker_Pi_Quotient_mk {ι : Type*} (I : ι → Ideal R) :\n    ker (Pi.ringHom fun i : ι ↦ Quotient.mk (I i)) = ⨅ i, I i := by\n  simp [Pi.ker_ringHom, mk_ker]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_inj (I : ι → Ideal R) : Injective (quotientInfToPiQuotient I) := by\n  rw [quotientInfToPiQuotient, injective_lift_iff, ker_Pi_Quotient_mk]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n/-- If we take `J = I.comap f` then `quotientMap` is injective automatically. -/\ntheorem quotientMap_injective {I : Ideal S} {f : R →+* S} :\n    Function.Injective (quotientMap I f le_rfl) :=\n  quotientMap_injective' le_rfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n@[simp]\ntheorem Quotient.algebraMap_eq (I : Ideal R) : algebraMap R (R ⧸ I) = Quotient.mk I :=\n  rfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Defs\nprotected theorem eq : mk I x = mk I y ↔ x - y ∈ I :=\n  Submodule.Quotient.eq I",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma comap_map_mk {I J : Ideal R} (h : I ≤ J) :\n    Ideal.comap (Ideal.Quotient.mk I) (Ideal.map (Ideal.Quotient.mk I) J) = J := by\n  ext; rw [← Ideal.mem_quotient_iff_mem h, Ideal.mem_comap]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n@[simp]\ntheorem quotientMap_algebraMap {J : Ideal A} {I : Ideal S} {f : A →+* S} {H : J ≤ I.comap f}\n    {x : R₁} : quotientMap I f H (algebraMap R₁ (A ⧸ J) x) = Quotient.mk I (f (algebraMap _ _ x)) :=\n  Quotient.lift_mk J _ _",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Defs\n@[simp]\ntheorem mk_eq_mk (x : R) : (Submodule.Quotient.mk x : R ⧸ I) = mk I x := rfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Defs\ntheorem mk_surjective : Function.Surjective (mk I) := fun y =>\n  Quotient.inductionOn' y fun x => Exists.intro x rfl"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "chineseMap_mk'",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n",
+   "compilationAlias":
+   "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n"},
+  "goal":
+  "ι : Type u_1\nR : Type u_2\ninst✝ : CommRing R\nI : ι → Ideal R\nx : R\ni : ι\n⊢ Eq ((chineseMap I) ((Ideal.Quotient.mk (iInf fun i => I i)) x) i) ((Ideal.Quotient.mk (I i)) x)",
+  "content_sorry":
+  "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x := by sorry",
+  "annotation":
+  "lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    chineseMap I (mk _ x) i = mk (I i) x :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "chineseMap",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+    "compilationAlias":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"},
+   {"name": "chineseMap_mk",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+    "compilationAlias":
+    "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.Quotient.Defs\ntheorem mk'_eq_mk' {p : Submodule R M} (x : M) :\n    @Quotient.mk' _ (quotientRel p) x = mk x :=\n  rfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Defs\n@[simp]\ntheorem mk_eq_mk (x : R) : (Submodule.Quotient.mk x : R ⧸ I) = mk I x := rfl",
+   "--src: Mathlib.RingTheory.Ideal.Cotangent\n/-- The quotient map from `I` to `I ⧸ I ^ 2`. -/\n@[simps! (config := .lemmasOnly) apply]\ndef toCotangent : I →ₗ[R] I.Cotangent := Submodule.mkQ _",
+   "--src: Mathlib.LinearAlgebra.Dual\n@[simp]\ntheorem dualQuotEquivDualAnnihilator_symm_apply_mk (W : Submodule R M) (φ : W.dualAnnihilator)\n    (x : M) : (dualQuotEquivDualAnnihilator W).symm φ (Quotient.mk x) = φ x :=\n  rfl",
+   "--src: Mathlib.RingTheory.AdicCompletion.Algebra\n@[local simp]\ntheorem mk_smul_mk (r : R) (x : M) :\n    Ideal.Quotient.mk (I • ⊤) r • Submodule.Quotient.mk (p := (I • ⊤ : Submodule R M)) x\n      = r • Submodule.Quotient.mk (p := (I • ⊤ : Submodule R M)) x :=\n  rfl",
+   "--src: Mathlib.RingTheory.AdicCompletion.Basic\n@[simp]\ntheorem transitionMap_mk {m n : ℕ} (hmn : m ≤ n) (x : M) :\n    transitionMap I M hmn\n      (Submodule.Quotient.mk (p := (I ^ n • ⊤ : Submodule R M)) x) =\n      Submodule.Quotient.mk (p := (I ^ m • ⊤ : Submodule R M)) x := by\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Isomorphisms\ntheorem quotientInfEquivSupQuotient_injective (p p' : Submodule R M) :\n    Function.Injective (quotientInfToSupQuotient p p') := by\n  rw [← ker_eq_bot, quotientInfToSupQuotient, ker_liftQ_eq_bot]\n  rw [ker_comp, ker_mkQ]\n  exact fun ⟨x, hx1⟩ hx2 => ⟨hx1, hx2⟩\n-- Porting note: breaking up original definition of quotientInfEquivSupQuotient to avoid timing out",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_mk' (I : ι → Ideal R) (x : R) (i : ι) :\n    quotientInfToPiQuotient I (Quotient.mk _ x) i = Quotient.mk (I i) x :=\nrfl",
+   "--src: Mathlib.LinearAlgebra.Quotient.Basic\n@[simp]\ntheorem mapQ_apply (f : M →ₛₗ[τ₁₂] M₂) {h} (x : M) :\n    mapQ p q f h (Quotient.mk x) = Quotient.mk (f x) :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.Isomorphisms\n@[simp]\ntheorem quotientQuotientEquivQuotientAux_mk (x : M ⧸ S) :\n    quotientQuotientEquivQuotientAux S T h (Quotient.mk x) = mapQ S T LinearMap.id h x :=\n  liftQ_apply _ _ _"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "chineseMap_mk",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+   "compilationAlias":
+   "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n"},
+  "goal":
+  "ι : Type u_1\nR : Type u_2\ninst✝ : CommRing R\nI : ι → Ideal R\nx : R\n⊢ Eq ((chineseMap I) (Quotient.mk (Submodule.quotientRel (iInf fun i => I i)) x)) fun i => (Ideal.Quotient.mk (I i)) x",
+  "content_sorry":
+  "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x := by sorry",
+  "annotation":
+  "lemma chineseMap_mk (I : ι → Ideal R) (x : R) :\n    chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Ideal.Quotient.mk",
+    "module": "Mathlib.RingTheory.Ideal.Quotient.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ring homomorphism from a ring `R` to a quotient ring `R/I`. -/\ndef mk : R →+* R ⧸ I where\n  toFun a := Submodule.Quotient.mk a\n  map_zero' := rfl\n  map_one' := rfl\n  map_mul' _ _ := rfl\n  map_add' _ _ := rfl",
+    "compilationAlias":
+    "/-- The ring homomorphism from a ring `R` to a quotient ring `R/I`. -/\ndef mk : R →+* R ⧸ I where\n  toFun a := Submodule.Quotient.mk a\n  map_zero' := rfl\n  map_one' := rfl\n  map_mul' _ _ := rfl\n  map_add' _ _ := rfl"},
+   {"name": "Quotient.mk",
+    "module": "Init.Core",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The canonical quotient map into a `Quotient`. -/\n@[inline]\nprotected def mk {α : Sort u} (s : Setoid α) (a : α) : Quotient s :=\n  Quot.mk Setoid.r a",
+    "compilationAlias":
+    "/-- The canonical quotient map into a `Quotient`. -/\n@[inline]\nprotected def mk {α : Sort u} (s : Setoid α) (a : α) : Quotient s :=\n  Quot.mk Setoid.r a"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "chineseMap",
+    "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+    "compilationAlias":
+    "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma ker_Pi_Quotient_mk {ι : Type*} (I : ι → Ideal R) :\n    ker (Pi.ringHom fun i : ι ↦ Quotient.mk (I i)) = ⨅ i, I i := by\n  simp [Pi.ker_ringHom, mk_ker]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_mk (I : ι → Ideal R) (x : R) :\n    quotientInfToPiQuotient I (Quotient.mk _ x) = fun i : ι ↦ Quotient.mk (I i) x :=\nrfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\nlemma quotientInfToPiQuotient_inj (I : ι → Ideal R) : Injective (quotientInfToPiQuotient I) := by\n  rw [quotientInfToPiQuotient, injective_lift_iff, ker_Pi_Quotient_mk]",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Defs\ninstance : RingHomSurjective (mk I) :=\n  ⟨mk_surjective⟩",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\ntheorem quotientMap_surjective {J : Ideal R} {I : Ideal S} {f : R →+* S} {H : J ≤ I.comap f}\n    (hf : Function.Surjective f) : Function.Surjective (quotientMap I f H) := fun x =>\n  let ⟨x, hx⟩ := Quotient.mk_surjective x\n  let ⟨y, hy⟩ := hf x\n  ⟨(Quotient.mk J) y, by simp [hx, hy]⟩",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n@[simp]\ntheorem Quotient.algebraMap_eq (I : Ideal R) : algebraMap R (R ⧸ I) = Quotient.mk I :=\n  rfl",
+   "--src: Mathlib.Algebra.RingQuot\n@[simp]\ntheorem idealQuotientToRingQuot_apply (r : B → B → Prop) (x : B) :\n    idealQuotientToRingQuot r (Ideal.Quotient.mk _ x) = mkRingHom r x :=\n  rfl",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n@[simp]\ntheorem map_quotient_self (I : Ideal R) : map (Quotient.mk I) I = ⊥ :=\n  eq_bot_iff.2 <|\n    Ideal.map_le_iff_le_comap.2 fun _ hx =>\n      (Submodule.mem_bot (R ⧸ I)).2 <| Ideal.Quotient.eq_zero_iff_mem.2 hx",
+   "--src: Mathlib.RingTheory.Ideal.Maps\ntheorem comap_iInf (K : ι → Ideal S) : (iInf K).comap f = ⨅ i, (K i).comap f :=\n  (gc_map_comap f : GaloisConnection (map f) (comap f)).u_iInf",
+   "--src: Mathlib.RingTheory.Ideal.Quotient.Operations\n/-- The kernel of `quotLeftToQuotSup` -/\ntheorem ker_quotLeftToQuotSup : RingHom.ker (quotLeftToQuotSup I J) =\n    J.map (Ideal.Quotient.mk I) := by\n  simp only [mk_ker, sup_idem, sup_comm, quotLeftToQuotSup, Quotient.factor, ker_quotient_lift,\n    map_eq_iff_sup_ker_eq_of_surjective (Ideal.Quotient.mk I) Quotient.mk_surjective, ← sup_assoc]"],
+  "prescopes":
+  "noncomputable section\n\nopen BigOperators PiNotation Ideal Quotient Ideal.Quotient Function\n\nvariable {ι R : Type*} [CommRing R]",
+  "postscopes": "end",
+  "id":
+  {"name": "chineseMap",
+   "module": "MIL.C08_Groups_and_Rings.solutions.Solutions_S02_Rings",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n",
+   "compilationAlias":
+   "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n\n"},
+  "goal":
+  "R : Type u\nS : Type v\nF : Type u_1\ninst✝² : Semiring R\ninst✝¹ : Semiring S\ninst✝ : FunLike F R S\nrcf : RingHomClass F R S\nf : F\nr : R\n⊢ Eq (Eq (f r) 0) (Membership.mem (RingHom.ker f) r)",
+  "content_sorry":
+  "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n    (by sorry",
+  "annotation":
+  "/-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese\n  Remainder Theorem. -/\ndef chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=\n  Ideal.Quotient.lift (⨅ i, I i) (Pi.ringHom fun i : ι ↦ Ideal.Quotient.mk (I i))\n        /-\n          ι : Type u_1\n          R : Type u_2\n          inst✝ : CommRing R\n          I : ι → Ideal R\n          ⊢ ∀ (a : R), Membership.mem (iInf fun i => I i) a → Eq ((Pi.ringHom fun i => I …\n        -/\n    (by simp [← RingHom.mem_ker, ker_Pi_Quotient_mk])\n        /-\n          🎉 no goals\n        -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "RingHom.mem_ker",
+    "module": "Mathlib.RingTheory.Ideal.Maps",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- An element is in the kernel if and only if it maps to zero. -/\n@[simp] theorem mem_ker {r} : r ∈ ker f ↔ f r = 0 := by rw [ker, Ideal.mem_comap, Submodule.mem_bot]",
+    "compilationAlias":
+    "/-- An element is in the kernel if and only if it maps to zero. -/\n@[simp] theorem mem_ker {r} : r ∈ ker f ↔ f r = 0 := by rw [ker, Ideal.mem_comap, Submodule.mem_bot]"},
+   {"name": "Ideal.Quotient.mk",
+    "module": "Mathlib.RingTheory.Ideal.Quotient.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ring homomorphism from a ring `R` to a quotient ring `R/I`. -/\ndef mk : R →+* R ⧸ I where\n  toFun a := Submodule.Quotient.mk a\n  map_zero' := rfl\n  map_one' := rfl\n  map_mul' _ _ := rfl\n  map_add' _ _ := rfl",
+    "compilationAlias":
+    "/-- The ring homomorphism from a ring `R` to a quotient ring `R/I`. -/\ndef mk : R →+* R ⧸ I where\n  toFun a := Submodule.Quotient.mk a\n  map_zero' := rfl\n  map_one' := rfl\n  map_mul' _ _ := rfl\n  map_add' _ _ := rfl"},
+   {"name": "Pi.ringHom",
+    "module": "Mathlib.Algebra.Ring.Pi",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A family of ring homomorphisms `f a : γ →+* β a` defines a ring homomorphism\n`Pi.ringHom f : γ →+* Π a, β a` given by `Pi.ringHom f x b = f b x`. -/\n@[simps]\nprotected def ringHom {γ : Type w} [∀ i, NonAssocSemiring (f i)] [NonAssocSemiring γ]\n    (g : ∀ i, γ →+* f i) : γ →+* ∀ i, f i :=\n  { Pi.monoidHom fun i => (g i).toMonoidHom, Pi.addMonoidHom fun i => (g i).toAddMonoidHom with\n    toFun := fun x b => g b x }",
+    "compilationAlias":
+    "/-- A family of ring homomorphisms `f a : γ →+* β a` defines a ring homomorphism\n`Pi.ringHom f : γ →+* Π a, β a` given by `Pi.ringHom f x b = f b x`. -/\n@[simps]\nprotected def ringHom {γ : Type w} [∀ i, NonAssocSemiring (f i)] [NonAssocSemiring γ]\n    (g : ∀ i, γ →+* f i) : γ →+* ∀ i, f i :=\n  { Pi.monoidHom fun i => (g i).toMonoidHom, Pi.addMonoidHom fun i => (g i).toAddMonoidHom with\n    toFun := fun x b => g b x }"},
+   {"name": "Ideal.Quotient.lift",
+    "module": "Mathlib.RingTheory.Ideal.Quotient.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given a ring homomorphism `f : R →+* S` sending all elements of an ideal to zero,\nlift it to the quotient by this ideal. -/\ndef lift (f : R →+* S) (H : ∀ a : R, a ∈ I → f a = 0) : R ⧸ I →+* S :=\n  { QuotientAddGroup.lift I.toAddSubgroup f.toAddMonoidHom H with\n    map_one' := f.map_one\n    map_mul' := fun a₁ a₂ => Quotient.inductionOn₂' a₁ a₂ f.map_mul }",
+    "compilationAlias":
+    "/-- Given a ring homomorphism `f : R →+* S` sending all elements of an ideal to zero,\nlift it to the quotient by this ideal. -/\ndef lift (f : R →+* S) (H : ∀ a : R, a ∈ I → f a = 0) : R ⧸ I →+* S :=\n  { QuotientAddGroup.lift I.toAddSubgroup f.toAddMonoidHom H with\n    map_one' := f.map_one\n    map_mul' := fun a₁ a₂ => Quotient.inductionOn₂' a₁ a₂ f.map_mul }"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies": []}]

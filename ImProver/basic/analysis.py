@@ -9,14 +9,14 @@ from pathlib import Path
 import math
 
 # Hard-coded metric specifications (value: "min" or "max")
-METRIC_SPECIFICATIONS = {
-    "length": "min",
-    "declarativity": "max",
-    "completion": "min",
-    "dependency": "min",
-    "readability": "max",
-    "conjecturer" : "min"
-}
+# METRIC_SPECIFICATIONS = {
+#     "length": "min",
+#     "declarativity": "max",
+#     "completion": "min",
+#     "dependency": "min",
+#     "readability": "max",
+#     "conjecturer" : "min"
+# }
 
 def get_db_connection(db_path):
     """Establishes a connection to a DuckDB database."""
@@ -173,15 +173,15 @@ def calculate_nonzero_improvement(rows, metric_name, metric_spec_map):
 
 # --- Analysis Commands ---
 
-def run_best_of_n_analysis(run_id, run_dir_path, db_con, config):
+def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFICATIONS):
     print("Starting Best-of-N analysis...")
     metric_name = config['metric']
     n_config_val = int(config['n'])
-    metric_objective = METRIC_SPECIFICATIONS.get(metric_name)
+    metric_objective = METRIC_SPECIFICATIONS
 
-    if not metric_objective:
-        print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
-        return False
+    # if not metric_objective:
+    #     print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
+    #     return False
 
     analysis_base_path = run_dir_path / run_id / "analysis" / "BoN"
     analysis_base_path.mkdir(parents=True, exist_ok=True)
@@ -400,11 +400,11 @@ def extract_improved_content(text):
         # Neither tag found
         return text
 
-def run_training_analysis(run_id, run_dir_path, config):
+def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, thinking_mode):
     """Performs the training data extraction analysis."""
     print("Starting training data extraction...")
     metric_name = config['metric']
-    metric_objective = METRIC_SPECIFICATIONS.get(metric_name)
+    metric_objective = METRIC_SPECIFICATIONS
 
     if not metric_objective:
         print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
@@ -472,6 +472,12 @@ def run_training_analysis(run_id, run_dir_path, config):
                             new = row['new_raw']
                             errors.append(row['decl'])
                         new_trimmed = row['new_trimmed'] if row['new_trimmed'] else new
+                        
+                        output = new_trimmed.strip()
+                        if thinking_mode == "raw":
+                            output = row['new_raw'].strip()
+                        # TODO IMPLEMENT AUTO THINKING MODE
+                        
                         # print(f"NEW: {new}")
                         pair = {"instruction": prompt.strip(), "output": new_trimmed.strip() + "\n</IMPROVED>"}
                         pairs.append(pair)
@@ -501,6 +507,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Perform analysis on experimental run data.")
     parser.add_argument("runID", help="Identifier for the run.")
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data (default: True)", default=True)
+    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw', 'auto'.")
     return parser
 
 def main(args):
@@ -518,6 +525,22 @@ def main(args):
     config = load_config(config_path)
     if not config:
         return
+    
+    metric = config.get('metric')
+    metric_config_path = Path("metrics") / metric / "config.json"
+    try:
+        with open(metric_config_path, 'r') as f:
+            metric_config = json.load(f)
+        METRIC_SPECIFICATIONS = metric_config.get("minmax", "min")
+    except FileNotFoundError:
+        print(f"Error: Metric config file not found at {metric_config_path}")
+        return
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {metric_config_path}")
+        return
+    except Exception as e:
+        print(f"Error loading metric config {metric_config_path}: {e}")
+        return
 
     # Main DB connection for eval.duckdb (used by BoN if called directly)
     # Training command might re-open it if BoN needs to be run first.
@@ -528,11 +551,11 @@ def main(args):
 
     db_con_eval = get_db_connection(db_path)
     if db_con_eval:
-        run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config)
+        run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config, METRIC_SPECIFICATIONS)
         db_con_eval.close()
     
     if args.training_data:
-        run_training_analysis(run_id, run_dir_path, config)
+        run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, args.thinking)
     
 if __name__ == "__main__":
     parser = get_parser()

@@ -1,0 +1,944 @@
+[{"rag":
+  ["--src: Mathlib.Algebra.Module.Torsion\n/-- Quotienting by the torsion submodule gives a torsion-free module. -/\n@[simp]\ntheorem torsion_eq_bot : torsion R (M ⧸ torsion R M) = ⊥ :=\n  eq_bot_iff.mpr fun z =>\n    Quotient.inductionOn' z fun x ⟨a, hax⟩ => by\n      rw [Quotient.mk''_eq_mk, ← Quotient.mk_smul, Quotient.mk_eq_zero] at hax\n      rw [mem_bot, Quotient.mk''_eq_mk, Quotient.mk_eq_zero]\n      cases' hax with b h\n      exact ⟨b * a, (mul_smul _ _ _).trans h⟩",
+   "--src: Mathlib.Algebra.Module.Torsion\n/-- A module over a domain has `NoZeroSMulDivisors` iff its torsion submodule is trivial. -/\ntheorem noZeroSMulDivisors_iff_torsion_eq_bot : NoZeroSMulDivisors R M ↔ torsion R M = ⊥ := by\n  constructor <;> intro h\n  · haveI : NoZeroSMulDivisors R M := h\n    rw [eq_bot_iff]\n    rintro x ⟨a, hax⟩\n    change (a : R) • x = 0 at hax\n    cases' eq_zero_or_eq_zero_of_smul_eq_zero hax with h0 h0\n    · exfalso\n      exact nonZeroDivisors.coe_ne_zero a h0\n    · exact h0\n  · exact\n      { eq_zero_or_eq_zero_of_smul_eq_zero := fun {a} {x} hax => by\n          by_cases ha : a = 0\n          · left\n            exact ha\n          · right\n            rw [← mem_bot R, ← h]\n            exact ⟨⟨a, mem_nonZeroDivisors_of_ne_zero ha⟩, hax⟩ }",
+   "--src: Mathlib.Algebra.Module.Torsion\n/-- The torsion submodule of the torsion submodule (viewed as a module) is the full\ntorsion module. -/\ntheorem torsion_torsion_eq_top : torsion R (torsion R M) = ⊤ :=\n  torsion'_torsion'_eq_top R⁰",
+   "--src: Mathlib.LinearAlgebra.FreeModule.PID\ntheorem Module.free_iff_noZeroSMulDivisors [Module.Finite R M] :\n    Module.Free R M ↔ NoZeroSMulDivisors R M :=\n  ⟨fun _ ↦ inferInstance, fun _ ↦ inferInstance⟩",
+   "--src: Mathlib.Algebra.Module.Torsion\nlemma isSMulRegular_iff_torsionBy_eq_bot {R} (M : Type*)\n    [CommRing R] [AddCommGroup M] [Module R M] (r : R) :\n    IsSMulRegular M r ↔ Submodule.torsionBy R M r = ⊥ :=\n  Iff.symm (DistribMulAction.toLinearMap R M r).ker_eq_bot",
+   "--src: Mathlib.Algebra.Module.PID\ntheorem Submodule.isSemisimple_torsionBy_of_irreducible {a : R} (h : Irreducible a) :\n    IsSemisimpleModule R (torsionBy R M a) :=\n  haveI := PrincipalIdealRing.isMaximal_of_irreducible h\n  letI := Ideal.Quotient.field (R ∙ a)\n  (submodule_torsionBy_orderIso a).complementedLattice",
+   "--src: Mathlib.Algebra.Module.Torsion\ntheorem coe_torsion_eq_annihilator_ne_bot :\n    (torsion R M : Set M) = { x : M | (R ∙ x).annihilator ≠ ⊥ } := by\n  ext x; simp_rw [Submodule.ne_bot_iff, mem_annihilator, mem_span_singleton]\n  exact\n    ⟨fun ⟨a, hax⟩ =>\n      ⟨a, fun _ ⟨b, hb⟩ => by rw [← hb, smul_comm, ← Submonoid.smul_def, hax, smul_zero],\n        nonZeroDivisors.coe_ne_zero _⟩,\n      fun ⟨a, hax, ha⟩ => ⟨⟨_, mem_nonZeroDivisors_of_ne_zero ha⟩, hax x ⟨1, one_smul _ _⟩⟩⟩",
+   "--src: Mathlib.Algebra.Module.Submodule.Lattice\ntheorem subsingleton_iff_eq_bot : Subsingleton p ↔ p = ⊥ := by\n  rw [subsingleton_iff, Submodule.eq_bot_iff]\n  refine ⟨fun h x hx ↦ by simpa using h ⟨x, hx⟩ ⟨0, p.zero_mem⟩,\n    fun h ⟨x, hx⟩ ⟨y, hy⟩ ↦ by simp [h x hx, h y hy]⟩",
+   "--src: Mathlib.RingTheory.Flat.Basic\ninstance self (R : Type u) [CommRing R] : Flat R R :=\n  ⟨by\n    intro I _\n    rw [← Equiv.injective_comp (TensorProduct.rid R I).symm.toEquiv]\n    convert Subtype.coe_injective using 1\n    ext x\n    simp only [Function.comp_apply, LinearEquiv.coe_toEquiv, rid_symm_apply, comp_apply, mul_one,\n      lift.tmul, Submodule.subtype_apply, Algebra.id.smul_eq_mul, lsmul_apply]⟩",
+   "--src: Mathlib.GroupTheory.Torsion\n@[to_additive]\nlemma isTorsionFree_iff_torsion_eq_bot {G} [CommGroup G] :\n    IsTorsionFree G ↔ CommGroup.torsion G = ⊥ := by\n  rw [IsTorsionFree, eq_bot_iff, SetLike.le_def]\n  simp [not_imp_not, CommGroup.mem_torsion]"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M] {R : Type*} [CommRing R] {M : Type*}\n  [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Module.Flat.flat_iff_torsion_eq_bot",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "open Module Submodule in\n/-- If `R` is a PID then an `R`-module is flat iff it has no torsion. -/\ntheorem flat_iff_torsion_eq_bot [IsPrincipalIdealRing R] [IsDomain R] :\n    Flat R M ↔ torsion R M = ⊥ := by\n  refine ⟨?_, ?_⟩\n    -- one way is true in general\n  · apply torsion_eq_bot\n    -- now assume R is a PID and M is a torsionfree R-module\n  · intro htors\n    -- we need to show that if I is an ideal of R then the natural map I ⊗ M → M is injective\n    rw [iff_lift_lsmul_comp_subtype_injective]\n    rintro I -\n    -- If I = 0 this is obvious because I ⊗ M is a subsingleton (i.e. has ≤1 element)\n    obtain (rfl | h) := eq_or_ne I ⊥\n    · rintro x y -\n      apply Subsingleton.elim\n    · -- If I ≠ 0 then I ≅ R because R is a PID\n      apply Function.Injective.of_comp_right _\n        (LinearEquiv.rTensor M (Ideal.isoBaseOfIsPrincipal h)).surjective\n      rw [← LinearEquiv.coe_toLinearMap, ← LinearMap.coe_comp, LinearEquiv.coe_rTensor, rTensor,\n        lift_comp_map, LinearMap.compl₂_id, LinearMap.comp_assoc, extracted_1, extracted_2,\n        LinearMap.coe_comp]\n      rw [← noZeroSMulDivisors_iff_torsion_eq_bot] at htors\n      have : IsPrincipal.generator I ≠ 0 := by\n        rwa [ne_eq, ← IsPrincipal.eq_bot_iff_generator_eq_zero]\n      refine Function.Injective.comp (LinearMap.lsmul_injective this) ?_\n      rw [← Equiv.injective_comp (TensorProduct.lid R M).symm.toEquiv]\n      convert Function.injective_id\n      ext x\n      simp\n",
+   "compilationAlias":
+   "open Module Submodule in\n/-- If `R` is a PID then an `R`-module is flat iff it has no torsion. -/\ntheorem flat_iff_torsion_eq_bot [IsPrincipalIdealRing R] [IsDomain R] :\n    Flat R M ↔ torsion R M = ⊥ := by\n  refine ⟨?_, ?_⟩\n    -- one way is true in general\n  · apply torsion_eq_bot\n    -- now assume R is a PID and M is a torsionfree R-module\n  · intro htors\n    -- we need to show that if I is an ideal of R then the natural map I ⊗ M → M is injective\n    rw [iff_lift_lsmul_comp_subtype_injective]\n    rintro I -\n    -- If I = 0 this is obvious because I ⊗ M is a subsingleton (i.e. has ≤1 element)\n    obtain (rfl | h) := eq_or_ne I ⊥\n    · rintro x y -\n      apply Subsingleton.elim\n    · -- If I ≠ 0 then I ≅ R because R is a PID\n      apply Function.Injective.of_comp_right _\n        (LinearEquiv.rTensor M (Ideal.isoBaseOfIsPrincipal h)).surjective\n      rw [← LinearEquiv.coe_toLinearMap, ← LinearMap.coe_comp, LinearEquiv.coe_rTensor, rTensor,\n        lift_comp_map, LinearMap.compl₂_id, LinearMap.comp_assoc, extracted_1, extracted_2,\n        LinearMap.coe_comp]\n      rw [← noZeroSMulDivisors_iff_torsion_eq_bot] at htors\n      have : IsPrincipal.generator I ≠ 0 := by\n        rwa [ne_eq, ← IsPrincipal.eq_bot_iff_generator_eq_zero]\n      refine Function.Injective.comp (LinearMap.lsmul_injective this) ?_\n      rw [← Equiv.injective_comp (TensorProduct.lid R M).symm.toEquiv]\n      convert Function.injective_id\n      ext x\n      simp\n"},
+  "goal":
+  "R : Type u_1\ninst✝⁴ : CommRing R\nM : Type u_2\ninst✝³ : AddCommGroup M\ninst✝² : Module R M\ninst✝¹ : IsPrincipalIdealRing R\ninst✝ : IsDomain R\n⊢ Iff (Module.Flat R M) (Eq (Submodule.torsion R M) Bot.bot)",
+  "content_sorry":
+  "open Module Submodule in\n/-- If `R` is a PID then an `R`-module is flat iff it has no torsion. -/\ntheorem flat_iff_torsion_eq_bot [IsPrincipalIdealRing R] [IsDomain R] :\n    Flat R M ↔ torsion R M = ⊥ := by\n  sorry",
+  "annotation":
+  "open Module Submodule in\n/-- If `R` is a PID then an `R`-module is flat iff it has no torsion. -/\ntheorem flat_iff_torsion_eq_bot [IsPrincipalIdealRing R] [IsDomain R] :\n    Flat R M ↔ torsion R M = ⊥ := by\n  /-\n    R : Type u_1\n    inst✝⁴ : CommRing R\n    M : Type u_2\n    inst✝³ : AddCommGroup M\n    inst✝² : Module R M\n    inst✝¹ : IsPrincipalIdealRing R\n    inst✝ : IsDomain R\n    ⊢ Iff (Module.Flat R M) (Eq (Submodule.torsion R M) Bot.bot)\n  -/\n  refine ⟨?_, ?_⟩\n    -- one way is true in general\n    /-\n      case refine_1\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      inst✝¹ : IsPrincipalIdealRing R\n      inst✝ : IsDomain R\n      ⊢ Module.Flat R M → Eq (Submodule.torsion R M) Bot.bot\n    -/\n  · apply torsion_eq_bot\n    /-\n      🎉 no goals\n    -/\n    -- now assume R is a PID and M is a torsionfree R-module\n    /-\n      case refine_2\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      inst✝¹ : IsPrincipalIdealRing R\n      inst✝ : IsDomain R\n      ⊢ Eq (Submodule.torsion R M) Bot.bot → Module.Flat R M\n    -/\n  · intro htors\n    -- we need to show that if I is an ideal of R then the natural map I ⊗ M → M is injective\n    /-\n      case refine_2\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      inst✝¹ : IsPrincipalIdealRing R\n      inst✝ : IsDomain R\n      htors : Eq (Submodule.torsion R M) Bot.bot\n      ⊢ Module.Flat R M\n    -/\n    rw [iff_lift_lsmul_comp_subtype_injective]\n    /-\n      case refine_2\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      inst✝¹ : IsPrincipalIdealRing R\n      inst✝ : IsDomain R\n      htors : Eq (Submodule.torsion R M) Bot.bot\n      ⊢ ∀ ⦃I : Ideal R⦄, I.FG → Function.Injective ⇑(TensorProduct.lift ((LinearMap. …\n    -/\n    rintro I -\n    -- If I = 0 this is obvious because I ⊗ M is a subsingleton (i.e. has ≤1 element)\n    /-\n      case refine_2\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      inst✝¹ : IsPrincipalIdealRing R\n      inst✝ : IsDomain R\n      htors : Eq (Submodule.torsion R M) Bot.bot\n      I : Ideal R\n      ⊢ Function.Injective ⇑(TensorProduct.lift ((LinearMap.lsmul R M).comp (Submodu …\n    -/\n    obtain (rfl | h) := eq_or_ne I ⊥\n      /-\n        case refine_2.inl\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : Eq (Submodule.torsion R M) Bot.bot\n        ⊢ Function.Injective ⇑(TensorProduct.lift ((LinearMap.lsmul R M).comp (Submodu …\n      -/\n    · rintro x y -\n      /-\n        case refine_2.inl\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : Eq (Submodule.torsion R M) Bot.bot\n        x y : TensorProduct R (Subtype fun x => Membership.mem Bot.bot x) M\n        ⊢ Eq x y\n      -/\n      apply Subsingleton.elim\n      /-\n        🎉 no goals\n      -/\n    · -- If I ≠ 0 then I ≅ R because R is a PID\n      apply Function.Injective.of_comp_right _\n        (LinearEquiv.rTensor M (Ideal.isoBaseOfIsPrincipal h)).surjective\n      rw [← LinearEquiv.coe_toLinearMap, ← LinearMap.coe_comp, LinearEquiv.coe_rTensor, rTensor,\n        lift_comp_map, LinearMap.compl₂_id, LinearMap.comp_assoc, extracted_1, extracted_2,\n        LinearMap.coe_comp]\n      /-\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : Eq (Submodule.torsion R M) Bot.bot\n        I : Ideal R\n        h : Ne I Bot.bot\n        ⊢ Function.Injective (Function.comp ⇑((LinearMap.lsmul R M) (Submodule.IsPrinc …\n      -/\n      rw [← noZeroSMulDivisors_iff_torsion_eq_bot] at htors\n      have : IsPrincipal.generator I ≠ 0 := by\n        rwa [ne_eq, ← IsPrincipal.eq_bot_iff_generator_eq_zero]\n      /-\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : NoZeroSMulDivisors R M\n        I : Ideal R\n        h : Ne I Bot.bot\n        this : Ne (Submodule.IsPrincipal.generator I) 0\n        ⊢ Function.Injective (Function.comp ⇑((LinearMap.lsmul R M) (Submodule.IsPrinc …\n      -/\n      refine Function.Injective.comp (LinearMap.lsmul_injective this) ?_\n      /-\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : NoZeroSMulDivisors R M\n        I : Ideal R\n        h : Ne I Bot.bot\n        this : Ne (Submodule.IsPrincipal.generator I) 0\n        ⊢ Function.Injective ⇑(TensorProduct.lift (LinearMap.lsmul R M))\n      -/\n      rw [← Equiv.injective_comp (TensorProduct.lid R M).symm.toEquiv]\n      /-\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : NoZeroSMulDivisors R M\n        I : Ideal R\n        h : Ne I Bot.bot\n        this : Ne (Submodule.IsPrincipal.generator I) 0\n        ⊢ Function.Injective (Function.comp ⇑(TensorProduct.lift (LinearMap.lsmul R M) …\n      -/\n      convert Function.injective_id\n      /-\n        case h.e'_3\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : NoZeroSMulDivisors R M\n        I : Ideal R\n        h : Ne I Bot.bot\n        this : Ne (Submodule.IsPrincipal.generator I) 0\n        ⊢ Eq (Function.comp ⇑(TensorProduct.lift (LinearMap.lsmul R M)) ⇑(TensorProduc …\n      -/\n      ext x\n      /-\n        case h.e'_3.h\n        R : Type u_1\n        inst✝⁴ : CommRing R\n        M : Type u_2\n        inst✝³ : AddCommGroup M\n        inst✝² : Module R M\n        inst✝¹ : IsPrincipalIdealRing R\n        inst✝ : IsDomain R\n        htors : NoZeroSMulDivisors R M\n        I : Ideal R\n        h : Ne I Bot.bot\n        this : Ne (Submodule.IsPrincipal.generator I) 0\n        x : M\n        ⊢ Eq (Function.comp (⇑(TensorProduct.lift (LinearMap.lsmul R M))) (⇑(TensorPro …\n      -/\n      simp\n      /-\n        🎉 no goals\n      -/\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Function.injective_id",
+    "module": "Mathlib.Logic.Function.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem injective_id : Injective (@id α) := fun _a₁ _a₂ h => h",
+    "compilationAlias":
+    "theorem injective_id : Injective (@id α) := fun _a₁ _a₂ h => h"},
+   {"name": "TensorProduct.lid",
+    "module": "Mathlib.LinearAlgebra.TensorProduct.Associator",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The base ring is a left identity for the tensor product of modules, up to linear equivalence.\n-/\nprotected def lid : R ⊗[R] M ≃ₗ[R] M :=\n  LinearEquiv.ofLinear (lift <| LinearMap.lsmul R M) (mk R R M 1) (LinearMap.ext fun _ => by simp)\n    (ext' fun r m => by simp; rw [← tmul_smul, ← smul_tmul, smul_eq_mul, mul_one])",
+    "compilationAlias":
+    "/-- The base ring is a left identity for the tensor product of modules, up to linear equivalence.\n-/\nprotected def lid : R ⊗[R] M ≃ₗ[R] M :=\n  LinearEquiv.ofLinear (lift <| LinearMap.lsmul R M) (mk R R M 1) (LinearMap.ext fun _ => by simp)\n    (ext' fun r m => by simp; rw [← tmul_smul, ← smul_tmul, smul_eq_mul, mul_one])"},
+   {"name": "Equiv.injective_comp",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem injective_comp (e : α ≃ β) (f : β → γ) : Injective (f ∘ e) ↔ Injective f :=\n  EquivLike.injective_comp e f",
+    "compilationAlias":
+    "theorem injective_comp (e : α ≃ β) (f : β → γ) : Injective (f ∘ e) ↔ Injective f :=\n  EquivLike.injective_comp e f"},
+   {"name": "LinearMap.lsmul_injective",
+    "module": "Mathlib.LinearAlgebra.BilinearMap",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lsmul_injective [NoZeroSMulDivisors R M] {x : R} (hx : x ≠ 0) :\n    Function.Injective (lsmul R M x) :=\n  smul_right_injective _ hx",
+    "compilationAlias":
+    "theorem lsmul_injective [NoZeroSMulDivisors R M] {x : R} (hx : x ≠ 0) :\n    Function.Injective (lsmul R M x) :=\n  smul_right_injective _ hx"},
+   {"name": "Function.Injective.comp",
+    "module": "Mathlib.Logic.Function.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Injective.comp {g : β → φ} {f : α → β} (hg : Injective g) (hf : Injective f) :\n    Injective (g ∘ f) := fun _a₁ _a₂ => fun h => hf (hg h)",
+    "compilationAlias":
+    "theorem Injective.comp {g : β → φ} {f : α → β} (hg : Injective g) (hf : Injective f) :\n    Injective (g ∘ f) := fun _a₁ _a₂ => fun h => hf (hg h)"},
+   {"name": "ne_eq",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem ne_eq (a b : α) : (a ≠ b) = ¬(a = b) := rfl",
+    "compilationAlias":
+    "@[simp] theorem ne_eq (a b : α) : (a ≠ b) = ¬(a = b) := rfl"},
+   {"name": "LinearMap.coe_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl"},
+   {"name": "LinearMap.comp_assoc",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem comp_assoc\n    {R₄ M₄ : Type*} [Semiring R₄] [AddCommMonoid M₄] [Module R₄ M₄]\n    {σ₃₄ : R₃ →+* R₄} {σ₂₄ : R₂ →+* R₄} {σ₁₄ : R₁ →+* R₄}\n    [RingHomCompTriple σ₂₃ σ₃₄ σ₂₄] [RingHomCompTriple σ₁₃ σ₃₄ σ₁₄] [RingHomCompTriple σ₁₂ σ₂₄ σ₁₄]\n    (f : M₁ →ₛₗ[σ₁₂] M₂) (g : M₂ →ₛₗ[σ₂₃] M₃) (h : M₃ →ₛₗ[σ₃₄] M₄) :\n    ((h.comp g : M₂ →ₛₗ[σ₂₄] M₄).comp f : M₁ →ₛₗ[σ₁₄] M₄) = h.comp (g.comp f : M₁ →ₛₗ[σ₁₃] M₃) :=\n  rfl",
+    "compilationAlias":
+    "theorem comp_assoc\n    {R₄ M₄ : Type*} [Semiring R₄] [AddCommMonoid M₄] [Module R₄ M₄]\n    {σ₃₄ : R₃ →+* R₄} {σ₂₄ : R₂ →+* R₄} {σ₁₄ : R₁ →+* R₄}\n    [RingHomCompTriple σ₂₃ σ₃₄ σ₂₄] [RingHomCompTriple σ₁₃ σ₃₄ σ₁₄] [RingHomCompTriple σ₁₂ σ₂₄ σ₁₄]\n    (f : M₁ →ₛₗ[σ₁₂] M₂) (g : M₂ →ₛₗ[σ₂₃] M₃) (h : M₃ →ₛₗ[σ₃₄] M₄) :\n    ((h.comp g : M₂ →ₛₗ[σ₂₄] M₄).comp f : M₁ →ₛₗ[σ₁₄] M₄) = h.comp (g.comp f : M₁ →ₛₗ[σ₁₃] M₃) :=\n  rfl"},
+   {"name": "LinearMap.compl₂_id",
+    "module": "Mathlib.LinearAlgebra.BilinearMap",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem compl₂_id : f.compl₂ LinearMap.id = f := by\n  ext\n  rw [compl₂_apply, id_coe, _root_.id]",
+    "compilationAlias":
+    "@[simp]\ntheorem compl₂_id : f.compl₂ LinearMap.id = f := by\n  ext\n  rw [compl₂_apply, id_coe, _root_.id]"},
+   {"name": "LinearEquiv.coe_rTensor",
+    "module": "Mathlib.LinearAlgebra.TensorProduct.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem coe_rTensor : rTensor M f = (f : N →ₗ[R] P).rTensor M := rfl",
+    "compilationAlias":
+    "@[simp] theorem coe_rTensor : rTensor M f = (f : N →ₗ[R] P).rTensor M := rfl"},
+   {"name": "LinearMap.coe_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl"},
+   {"name": "LinearEquiv.coe_toLinearMap",
+    "module": "Mathlib.Algebra.Module.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem coe_toLinearMap : ⇑e.toLinearMap = e :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem coe_toLinearMap : ⇑e.toLinearMap = e :=\n  rfl"},
+   {"name": "LinearEquiv.rTensor",
+    "module": "Mathlib.LinearAlgebra.TensorProduct.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `LinearEquiv.rTensor M f : N₁ ⊗ M ≃ₗ N₂ ⊗ M` is the natural linear equivalence\ninduced by `f : N₁ ≃ₗ N₂`. -/\ndef rTensor (f : N ≃ₗ[R] P) : N ⊗[R] M ≃ₗ[R] P ⊗[R] M := TensorProduct.congr f (refl R M)",
+    "compilationAlias":
+    "/-- `LinearEquiv.rTensor M f : N₁ ⊗ M ≃ₗ N₂ ⊗ M` is the natural linear equivalence\ninduced by `f : N₁ ≃ₗ N₂`. -/\ndef rTensor (f : N ≃ₗ[R] P) : N ⊗[R] M ≃ₗ[R] P ⊗[R] M := TensorProduct.congr f (refl R M)"},
+   {"name": "Function.Injective.of_comp_right",
+    "module": "Mathlib.Logic.Function.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Injective.of_comp_right {g : γ → α} (I : Injective (f ∘ g)) (hg : Surjective g) :\n    Injective f := fun x y h ↦ by\n  obtain ⟨x, rfl⟩ := hg x\n  obtain ⟨y, rfl⟩ := hg y\n  exact congr_arg g (I h)",
+    "compilationAlias":
+    "theorem Injective.of_comp_right {g : γ → α} (I : Injective (f ∘ g)) (hg : Surjective g) :\n    Injective f := fun x y h ↦ by\n  obtain ⟨x, rfl⟩ := hg x\n  obtain ⟨y, rfl⟩ := hg y\n  exact congr_arg g (I h)"},
+   {"name": "Subsingleton.elim",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem Subsingleton.elim {α : Sort u} [h : Subsingleton α] : (a b : α) → a = b :=\n  h.allEq",
+    "compilationAlias":
+    "protected theorem Subsingleton.elim {α : Sort u} [h : Subsingleton α] : (a b : α) → a = b :=\n  h.allEq"},
+   {"name": "eq_or_ne",
+    "module": "Mathlib.Logic.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_or_ne {α : Sort*} (x y : α) : x = y ∨ x ≠ y := em <| x = y",
+    "compilationAlias":
+    "theorem eq_or_ne {α : Sort*} (x y : α) : x = y ∨ x ≠ y := em <| x = y"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+   {"name": "Module.Flat.torsion_eq_bot",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"},
+   {"name": "Ideal.mulGeneratorOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n"},
+   {"name": "Module.Flat.LinearMap.EquivOfKerEqBotOfSurjective",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n",
+    "compilationAlias":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n"},
+   {"name": "Ideal.isoBaseOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n",
+    "compilationAlias":
+    "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n"},
+   {"name": "Module.Flat.extracted_1",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n",
+    "compilationAlias":
+    "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n"},
+   {"name": "Module.Flat.extracted_2",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem extracted_2 [IsPrincipalIdealRing R] {y : R} :\n    lift (lsmul R M ∘ₗ LinearMap.mul R R y) = lsmul R M y ∘ₗ lift (lsmul R M) := by\n  ext x\n  simp\n\n",
+    "compilationAlias":
+    "theorem extracted_2 [IsPrincipalIdealRing R] {y : R} :\n    lift (lsmul R M ∘ₗ LinearMap.mul R R y) = lsmul R M y ∘ₗ lift (lsmul R M) := by\n  ext x\n  simp\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.TensorProduct.Basic\ntheorem lid_comp_rTensor (f : N →ₗ[R] R) :\n    (TensorProduct.lid R M).comp (rTensor M f) = lift ((lsmul R M).comp f) := ext' fun _ _ ↦ rfl",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\n@[simp]\ntheorem lTensor_comp_mk (m : M) :\n    f.lTensor M ∘ₗ TensorProduct.mk R M N m = TensorProduct.mk R M P m ∘ₗ f :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.BilinearMap\ntheorem lcomp_apply' (f : M →ₗ[R] Nₗ) (g : Nₗ →ₗ[R] Pₗ) : lcomp R Pₗ f g = g ∘ₗ f := rfl",
+   "--src: Mathlib.RingTheory.Coalgebra.Basic\n/-- A coalgebra over a commutative (semi)ring `R` is an `R`-module equipped with a coassociative\ncomultiplication `Δ` and a counit `ε` obeying the left and right counitality laws. -/\nclass Coalgebra (R : Type u) (A : Type v)\n    [CommSemiring R] [AddCommMonoid A] [Module R A] extends CoalgebraStruct R A where\n  /-- The comultiplication is coassociative -/\n  coassoc : TensorProduct.assoc R A A A ∘ₗ comul.rTensor A ∘ₗ comul = comul.lTensor A ∘ₗ comul\n  /-- The counit satisfies the left counitality law -/\n  rTensor_counit_comp_comul : counit.rTensor A ∘ₗ comul = TensorProduct.mk R _ _ 1\n  /-- The counit satisfies the right counitality law -/\n  lTensor_counit_comp_comul : counit.lTensor A ∘ₗ comul = (TensorProduct.mk R _ _).flip 1",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\nlemma lift_comp_comm_eq (f : M →ₗ[R] N →ₗ[R] P) :\n    lift f ∘ₗ TensorProduct.comm R N M = lift f.flip :=\n  ext rfl",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\ntheorem lift_compr₂ (g : P →ₗ[R] Q) : lift (f.compr₂ g) = g.comp (lift f) :=\n  Eq.symm <| lift.unique fun _ _ => by simp",
+   "--src: Mathlib.LinearAlgebra.TensorProduct.Basic\ntheorem lift_mk : lift (mk R M N) = LinearMap.id :=\n  Eq.symm <| lift.unique fun _ _ => rfl",
+   "--src: Mathlib.RingTheory.Flat.Basic\n/-- An `R`-module `M` is flat if for all finitely generated ideals `I` of `R`,\nthe canonical map `I ⊗ M →ₗ M` is injective. -/\n@[mk_iff] class Flat : Prop where\n  out : ∀ ⦃I : Ideal R⦄ (_ : I.FG),\n    Function.Injective (TensorProduct.lift ((lsmul R M).comp I.subtype))",
+   "--src: Mathlib.LinearAlgebra.BilinearForm.Hom\n@[simp]\ntheorem linMulLin_compLeft (l : M →ₗ[R] M) :\n    (linMulLin f g).compLeft l = linMulLin (f.comp l) g :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.QuadraticForm.Basic\n@[simp]\ntheorem linMulLin_comp (f g : M →ₗ[R] A) (h : N' →ₗ[R] M) :\n    (linMulLin f g).comp h = linMulLin (f.comp h) (g.comp h) :=\n  rfl"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M] {R : Type*} [CommRing R] {M : Type*}\n  [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Module.Flat.extracted_2",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem extracted_2 [IsPrincipalIdealRing R] {y : R} :\n    lift (lsmul R M ∘ₗ LinearMap.mul R R y) = lsmul R M y ∘ₗ lift (lsmul R M) := by\n  ext x\n  simp\n\n",
+   "compilationAlias":
+   "theorem extracted_2 [IsPrincipalIdealRing R] {y : R} :\n    lift (lsmul R M ∘ₗ LinearMap.mul R R y) = lsmul R M y ∘ₗ lift (lsmul R M) := by\n  ext x\n  simp\n\n"},
+  "goal":
+  "R : Type u_1\ninst✝³ : CommRing R\nM : Type u_2\ninst✝² : AddCommGroup M\ninst✝¹ : Module R M\ninst✝ : IsPrincipalIdealRing R\ny : R\n⊢ Eq (TensorProduct.lift ((LinearMap.lsmul R M).comp ((LinearMap.mul R R) y))) (((LinearMap.lsmul R M) y).comp (TensorProduct.lift (LinearMap.lsmul R M)))",
+  "content_sorry":
+  "theorem extracted_2 [IsPrincipalIdealRing R] {y : R} :\n    lift (lsmul R M ∘ₗ LinearMap.mul R R y) = lsmul R M y ∘ₗ lift (lsmul R M) := by\n  sorry",
+  "annotation":
+  "theorem extracted_2 [IsPrincipalIdealRing R] {y : R} :\n    lift (lsmul R M ∘ₗ LinearMap.mul R R y) = lsmul R M y ∘ₗ lift (lsmul R M) := by\n  /-\n    R : Type u_1\n    inst✝³ : CommRing R\n    M : Type u_2\n    inst✝² : AddCommGroup M\n    inst✝¹ : Module R M\n    inst✝ : IsPrincipalIdealRing R\n    y : R\n    ⊢ Eq (TensorProduct.lift ((LinearMap.lsmul R M).comp ((LinearMap.mul R R) y))) …\n  -/\n  ext x\n  /-\n    case a.h.h\n    R : Type u_1\n    inst✝³ : CommRing R\n    M : Type u_2\n    inst✝² : AddCommGroup M\n    inst✝¹ : Module R M\n    inst✝ : IsPrincipalIdealRing R\n    y : R\n    x : M\n    ⊢ Eq (((TensorProduct.AlgebraTensorModule.curry (TensorProduct.lift ((LinearMa …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LinearMap.mul",
+    "module": "Mathlib.Algebra.Algebra.Bilinear",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The multiplication in a non-unital non-associative algebra is a bilinear map.\n\nA weaker version of this for semirings exists as `AddMonoidHom.mul`. -/\n@[simps!]\ndef mul : A →ₗ[R] A →ₗ[R] A :=\n  LinearMap.mk₂ R (· * ·) add_mul smul_mul_assoc mul_add mul_smul_comm",
+    "compilationAlias":
+    "/-- The multiplication in a non-unital non-associative algebra is a bilinear map.\n\nA weaker version of this for semirings exists as `AddMonoidHom.mul`. -/\n@[simps!]\ndef mul : A →ₗ[R] A →ₗ[R] A :=\n  LinearMap.mk₂ R (· * ·) add_mul smul_mul_assoc mul_add mul_smul_comm"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+   {"name": "Module.Flat.torsion_eq_bot",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"},
+   {"name": "Ideal.mulGeneratorOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n"},
+   {"name": "Module.Flat.LinearMap.EquivOfKerEqBotOfSurjective",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n",
+    "compilationAlias":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n"},
+   {"name": "Ideal.isoBaseOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n",
+    "compilationAlias":
+    "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n"},
+   {"name": "Module.Flat.extracted_1",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n",
+    "compilationAlias":
+    "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.PrincipalIdealDomain\n@[simp]\ntheorem _root_.Ideal.span_singleton_generator (I : Ideal R) [I.IsPrincipal] :\n    Ideal.span ({generator I} : Set R) = I :=\n  Eq.symm (Classical.choose_spec (principal I))",
+   "--src: Mathlib.LinearAlgebra.FreeModule.PID\ntheorem dvd_generator_iff {I : Ideal R} [I.IsPrincipal] {x : R} (hx : x ∈ I) :\n    x ∣ generator I ↔ I = Ideal.span {x} := by\n  conv_rhs => rw [← span_singleton_generator I]\n  rw [Ideal.submodule_span_eq, Ideal.span_singleton_eq_span_singleton, ← dvd_dvd_iff_associated,\n    ← mem_iff_generator_dvd]\n  exact ⟨fun h ↦ ⟨hx, h⟩, fun h ↦ h.2⟩",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem prime_generator_of_isPrime (S : Ideal R) [S.IsPrincipal] [is_prime : S.IsPrime]\n    (ne_bot : S ≠ ⊥) : Prime (generator S) :=\n  ⟨fun h => ne_bot ((eq_bot_iff_generator_eq_zero S).2 h), fun h =>\n    is_prime.ne_top (S.eq_top_of_isUnit_mem (generator_mem S) h), fun _ _ => by\n    simpa only [← mem_iff_generator_dvd S] using is_prime.2⟩\n-- Note that the converse may not hold if `ϕ` is not injective.",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem associated_generator_span_self [IsPrincipalIdealRing R] [IsDomain R] (r : R) :\n    Associated (generator <| Ideal.span {r}) r := by\n  rw [← Ideal.span_singleton_eq_span_singleton]\n  exact Ideal.span_singleton_generator _",
+   "--src: Mathlib.RingTheory.Ideal.IsPrincipal\n@[simp]\ntheorem associatesEquivIsPrincipal_symm_apply {I : Ideal R} (hI : IsPrincipal I) :\n    (associatesEquivIsPrincipal R).symm ⟨I, hI⟩ = .mk hI.generator := rfl",
+   "--src: Mathlib.RingTheory.DedekindDomain.Ideal\nopen Submodule.IsPrincipal in\ntheorem Ideal.prime_generator_of_prime {P : Ideal A} (h : Prime P) [P.IsPrincipal] :\n    Prime (generator P) :=\n  have : Ideal.IsPrime P := Ideal.isPrime_of_prime h\n  prime_generator_of_isPrime _ h.ne_zero",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem eq_bot_iff_generator_eq_zero (S : Submodule R M) [S.IsPrincipal] :\n    S = ⊥ ↔ generator S = 0 := by rw [← @span_singleton_eq_bot R M, span_singleton_generator]",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\n@[simp]\ntheorem generator_mem (S : Submodule R M) [S.IsPrincipal] : generator S ∈ S := by\n  have : generator S ∈ span R {generator S} := subset_span (mem_singleton _)\n  convert this\n  exact span_singleton_generator S |>.symm",
+   "--src: Mathlib.LinearAlgebra.FreeModule.PID\ntheorem generator_maximal_submoduleImage_dvd {N O : Submodule R M} (hNO : N ≤ O) {ϕ : O →ₗ[R] R}\n    (hϕ : ∀ ψ : O →ₗ[R] R, ¬ϕ.submoduleImage N < ψ.submoduleImage N)\n    [(ϕ.submoduleImage N).IsPrincipal] (y : M) (yN : y ∈ N)\n    (ϕy_eq : ϕ ⟨y, hNO yN⟩ = generator (ϕ.submoduleImage N)) (ψ : O →ₗ[R] R) :\n    generator (ϕ.submoduleImage N) ∣ ψ ⟨y, hNO yN⟩ := by\n  let a : R := generator (ϕ.submoduleImage N)\n  let d : R := IsPrincipal.generator (Submodule.span R {a, ψ ⟨y, hNO yN⟩})\n  have d_dvd_left : d ∣ a := (mem_iff_generator_dvd _).mp (subset_span (mem_insert _ _))\n  have d_dvd_right : d ∣ ψ ⟨y, hNO yN⟩ :=\n    (mem_iff_generator_dvd _).mp (subset_span (mem_insert_of_mem _ (mem_singleton _)))\n  refine dvd_trans ?_ d_dvd_right\n  rw [dvd_generator_iff, Ideal.span, ←\n    span_singleton_generator (Submodule.span R {a, ψ ⟨y, hNO yN⟩})]\n  · obtain ⟨r₁, r₂, d_eq⟩ : ∃ r₁ r₂ : R, d = r₁ * a + r₂ * ψ ⟨y, hNO yN⟩ := by\n      obtain ⟨r₁, r₂', hr₂', hr₁⟩ :=\n        mem_span_insert.mp (IsPrincipal.generator_mem (Submodule.span R {a, ψ ⟨y, hNO yN⟩}))\n      obtain ⟨r₂, rfl⟩ := mem_span_singleton.mp hr₂'\n      exact ⟨r₁, r₂, hr₁⟩\n    let ψ' : O →ₗ[R] R := r₁ • ϕ + r₂ • ψ\n    have : span R {d} ≤ ψ'.submoduleImage N := by\n      rw [span_le, singleton_subset_iff, SetLike.mem_coe, LinearMap.mem_submoduleImage_of_le hNO]\n      refine ⟨y, yN, ?_⟩\n      change r₁ * ϕ ⟨y, hNO yN⟩ + r₂ * ψ ⟨y, hNO yN⟩ = d\n      rw [d_eq, ϕy_eq]\n    refine\n      le_antisymm (this.trans (le_of_eq ?_)) (Ideal.span_singleton_le_span_singleton.mpr d_dvd_left)\n    rw [span_singleton_generator]\n    apply (le_trans _ this).eq_of_not_gt (hϕ ψ')\n    rw [← span_singleton_generator (ϕ.submoduleImage N)]\n    exact Ideal.span_singleton_le_span_singleton.mpr d_dvd_left\n  · exact subset_span (mem_insert _ _)",
+   "--src: Mathlib.RingTheory.Ideal.IsPrincipal\ntheorem associatesEquivIsPrincipal_mul (x y : Associates R) :\n    (associatesEquivIsPrincipal R (x * y) : Ideal R) =\n      (associatesEquivIsPrincipal R x) * (associatesEquivIsPrincipal R y) := by\n  rw [← quot_out x, ← quot_out y]\n  simp_rw [mk_mul_mk, associatesEquivIsPrincipal_apply, span_singleton_mul_span_singleton]"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M] {R : Type*} [CommRing R] {M : Type*}\n  [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Module.Flat.extracted_1",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n",
+   "compilationAlias":
+   "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n"},
+  "goal":
+  "R : Type u_1\ninst✝² : CommRing R\ninst✝¹ : IsPrincipalIdealRing R\ninst✝ : IsDomain R\nI : Ideal R\nh : Ne I Bot.bot\n⊢ Eq ((Submodule.subtype I).comp ↑(Ideal.isoBaseOfIsPrincipal h)) ((LinearMap.mul R R) (Submodule.IsPrincipal.generator I))",
+  "content_sorry":
+  "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  sorry",
+  "annotation":
+  "/--\nDescribing how isoBaseOfIsPrincipal acts: more specifically shows that the composite\nR → I → R is the same as multiplication by the generator of I.\n-/\ntheorem extracted_1 [IsPrincipalIdealRing R] [IsDomain R] {I : Ideal R}\n    (h : I ≠ ⊥) :\n    Submodule.subtype I ∘ₗ ↑(Ideal.isoBaseOfIsPrincipal h) =\n    LinearMap.mul R R (Submodule.IsPrincipal.generator I) := by\n  /-\n    R : Type u_1\n    inst✝² : CommRing R\n    inst✝¹ : IsPrincipalIdealRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Ne I Bot.bot\n    ⊢ Eq ((Submodule.subtype I).comp ↑(Ideal.isoBaseOfIsPrincipal h)) ((LinearMap. …\n  -/\n  ext\n  simp [Ideal.isoBaseOfIsPrincipal,\n    LinearMap.EquivOfKerEqBotOfSurjective, Ideal.mulGeneratorOfIsPrincipal]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Submodule.IsPrincipal.generator",
+    "module": "Mathlib.RingTheory.PrincipalIdealDomain",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `generator I`, if `I` is a principal submodule, is an `x ∈ M` such that `span R {x} = I` -/\nnoncomputable def generator (S : Submodule R M) [S.IsPrincipal] : M :=\n  Classical.choose (principal S)",
+    "compilationAlias":
+    "/-- `generator I`, if `I` is a principal submodule, is an `x ∈ M` such that `span R {x} = I` -/\nnoncomputable def generator (S : Submodule R M) [S.IsPrincipal] : M :=\n  Classical.choose (principal S)"},
+   {"name": "LinearMap.mul",
+    "module": "Mathlib.Algebra.Algebra.Bilinear",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The multiplication in a non-unital non-associative algebra is a bilinear map.\n\nA weaker version of this for semirings exists as `AddMonoidHom.mul`. -/\n@[simps!]\ndef mul : A →ₗ[R] A →ₗ[R] A :=\n  LinearMap.mk₂ R (· * ·) add_mul smul_mul_assoc mul_add mul_smul_comm",
+    "compilationAlias":
+    "/-- The multiplication in a non-unital non-associative algebra is a bilinear map.\n\nA weaker version of this for semirings exists as `AddMonoidHom.mul`. -/\n@[simps!]\ndef mul : A →ₗ[R] A →ₗ[R] A :=\n  LinearMap.mk₂ R (· * ·) add_mul smul_mul_assoc mul_add mul_smul_comm"},
+   {"name": "Submodule.subtype",
+    "module": "Mathlib.Algebra.Module.Submodule.LinearMap",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Embedding of a submodule `p` to the ambient space `M`. -/\nprotected def subtype : p →ₗ[R] M where\n  toFun := Subtype.val\n  map_add' := by simp [coe_smul]\n  map_smul' := by simp [coe_smul]",
+    "compilationAlias":
+    "/-- Embedding of a submodule `p` to the ambient space `M`. -/\nprotected def subtype : p →ₗ[R] M where\n  toFun := Subtype.val\n  map_add' := by simp [coe_smul]\n  map_smul' := by simp [coe_smul]"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+   {"name": "Module.Flat.torsion_eq_bot",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"},
+   {"name": "Ideal.mulGeneratorOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n"},
+   {"name": "Module.Flat.LinearMap.EquivOfKerEqBotOfSurjective",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n",
+    "compilationAlias":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n"},
+   {"name": "Ideal.isoBaseOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n",
+    "compilationAlias":
+    "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem prime_generator_of_isPrime (S : Ideal R) [S.IsPrincipal] [is_prime : S.IsPrime]\n    (ne_bot : S ≠ ⊥) : Prime (generator S) :=\n  ⟨fun h => ne_bot ((eq_bot_iff_generator_eq_zero S).2 h), fun h =>\n    is_prime.ne_top (S.eq_top_of_isUnit_mem (generator_mem S) h), fun _ _ => by\n    simpa only [← mem_iff_generator_dvd S] using is_prime.2⟩\n-- Note that the converse may not hold if `ϕ` is not injective.",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem to_maximal_ideal [CommRing R] [IsDomain R] [IsPrincipalIdealRing R] {S : Ideal R}\n    [hpi : IsPrime S] (hS : S ≠ ⊥) : IsMaximal S :=\n  isMaximal_iff.2\n    ⟨(ne_top_iff_one S).1 hpi.1, by\n      intro T x hST hxS hxT\n      cases' (mem_iff_generator_dvd _).1 (hST <| generator_mem S) with z hz\n      cases hpi.mem_or_mem (show generator T * z ∈ S from hz ▸ generator_mem S) with\n      | inl h =>\n        have hTS : T ≤ S := by\n          rwa [← T.span_singleton_generator, Ideal.span_le, singleton_subset_iff]\n        exact (hxS <| hTS hxT).elim\n      | inr h =>\n        cases' (mem_iff_generator_dvd _).1 h with y hy\n        have : generator S ≠ 0 := mt (eq_bot_iff_generator_eq_zero _).2 hS\n        rw [← mul_one (generator S), hy, mul_left_comm, mul_right_inj' this] at hz\n        exact hz.symm ▸ T.mul_mem_right _ (generator_mem T)⟩",
+   "--src: Mathlib.RingTheory.Ideal.Span\n/-- A ring is a principal ideal ring if all (left) ideals are principal. -/\n@[mk_iff]\nclass IsPrincipalIdealRing (R : Type u) [Semiring R] : Prop where\n  principal : ∀ S : Ideal R, S.IsPrincipal",
+   "--src: Mathlib.RingTheory.Ideal.IsPrincipal\n@[simp]\ntheorem associatesEquivIsPrincipal_symm_apply {I : Ideal R} (hI : IsPrincipal I) :\n    (associatesEquivIsPrincipal R).symm ⟨I, hI⟩ = .mk hI.generator := rfl",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem isMaximal_of_irreducible [CommRing R] [IsPrincipalIdealRing R] {p : R}\n    (hp : Irreducible p) : Ideal.IsMaximal (span R ({p} : Set R)) :=\n  ⟨⟨mt Ideal.span_singleton_eq_top.1 hp.1, fun I hI => by\n      rcases principal I with ⟨a, rfl⟩\n      erw [Ideal.span_singleton_eq_top]\n      rcases Ideal.span_singleton_le_span_singleton.1 (le_of_lt hI) with ⟨b, rfl⟩\n      refine (of_irreducible_mul hp).resolve_right (mt (fun hb => ?_) (not_le_of_lt hI))\n      erw [Ideal.span_singleton_le_span_singleton, IsUnit.mul_right_dvd hb]⟩⟩",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem eq_bot_iff_generator_eq_zero (S : Submodule R M) [S.IsPrincipal] :\n    S = ⊥ ↔ generator S = 0 := by rw [← @span_singleton_eq_bot R M, span_singleton_generator]",
+   "--src: Mathlib.LinearAlgebra.FreeModule.PID\n/-- If `S` a finite-dimensional ring extension of a PID `R` which is free as an `R`-module,\nthen any nonzero `S`-ideal `I` is free as an `R`-submodule of `S`, and we can\nfind a basis for `S` and `I` such that the inclusion map is a square diagonal\nmatrix.\nSee also `Ideal.smithNormalForm` for a version of this theorem that returns\na `Basis.SmithNormalForm`.\nThe definitions `Ideal.ringBasis`, `Ideal.selfBasis`, `Ideal.smithCoeffs` are (noncomputable)\nchoices of values for this existential quantifier.\n-/\ntheorem Ideal.exists_smith_normal_form (b : Basis ι R S) (I : Ideal S) (hI : I ≠ ⊥) :\n    ∃ (b' : Basis ι R S) (a : ι → R) (ab' : Basis ι R I), ∀ i, (ab' i : S) = a i • b' i := by\n  cases nonempty_fintype ι\n  let ⟨bS, bI, f, a, snf⟩ := I.smithNormalForm b hI\n  let e : Fin (Fintype.card ι) ≃ ι :=\n    Equiv.ofBijective f\n      ((Fintype.bijective_iff_injective_and_card f).mpr ⟨f.injective, Fintype.card_fin _⟩)\n  have fe : ∀ i, f (e.symm i) = i := e.apply_symm_apply\n  exact\n    ⟨bS, a ∘ e.symm, (bI.reindex e).map ((restrictScalarsEquiv R S _ _).restrictScalars R),\n      fun i ↦ by\n        simp only [snf, fe, Basis.map_apply, LinearEquiv.restrictScalars_apply R,\n          Submodule.restrictScalarsEquiv_apply, Basis.coe_reindex, (· ∘ ·)]⟩",
+   "--src: Mathlib.RingTheory.Localization.Submodule\n@[simp]\ntheorem coeSubmodule_isPrincipal {I : Ideal R} : (coeSubmodule K I).IsPrincipal ↔ I.IsPrincipal :=\n  IsLocalization.coeSubmodule_isPrincipal _ le_rfl",
+   "--src: Mathlib.LinearAlgebra.Span.Defs\n/-- An `R`-submodule of `M` is principal if it is generated by one element. -/\n@[mk_iff]\nclass IsPrincipal (S : Submodule R M) : Prop where\n  principal' : ∃ a, S = span R {a}",
+   "--src: Mathlib.LinearAlgebra.Span.Basic\ntheorem coord_apply_smul (y : Submodule.span R ({x} : Set M)) : coord R M x h y • x = y :=\n  Subtype.ext_iff.1 <| (toSpanNonzeroSingleton R M x h).apply_symm_apply _"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M] {R : Type*} [CommRing R] {M : Type*}\n  [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Ideal.isoBaseOfIsPrincipal",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n",
+   "compilationAlias":
+   "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    rw [eq_bot_iff]\n    intro m h\n    rw [LinearMap.mem_ker] at h\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    rw [Ideal.mem_bot]\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n  (by\n    rintro ⟨i, hi⟩\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    obtain ⟨s, rfl⟩ := hi\n    exact ⟨s, rfl⟩)\n\n"},
+  "goal":
+  "R : Type u_1\ninst✝¹ : CommRing R\nI : Ideal R\ninst✝ : IsDomain R\nhprinc : Submodule.IsPrincipal I\nhI : Ne I Bot.bot\n⊢ LinearEquiv (RingHom.id R) R (Subtype fun x => Membership.mem I x)",
+  "content_sorry":
+  "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    sorry",
+  "annotation":
+  "/-- A nonzero principal ideal in an integral domain `R` is isomorphic to `R` as a module.\nThe isomorphism we choose here sends `1` to the generator chosen by `Ideal.generator`. -/\nnoncomputable def _root_.Ideal.isoBaseOfIsPrincipal {I : Ideal R} [IsDomain R]\n    [hprinc : I.IsPrincipal] (hI : I ≠ ⊥) : R ≃ₗ[R] I :=\n  LinearMap.EquivOfKerEqBotOfSurjective (I.mulGeneratorOfIsPrincipal)\n  (by\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      ⊢ Eq (LinearMap.ker I.mulGeneratorOfIsPrincipal) Bot.bot\n    -/\n    rw [eq_bot_iff]\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      ⊢ LE.le (LinearMap.ker I.mulGeneratorOfIsPrincipal) Bot.bot\n    -/\n    intro m h\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      m : R\n      h : Membership.mem (LinearMap.ker I.mulGeneratorOfIsPrincipal) m\n      ⊢ Membership.mem Bot.bot m\n    -/\n    rw [LinearMap.mem_ker] at h\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      m : R\n      h : Eq (I.mulGeneratorOfIsPrincipal m) 0\n      ⊢ Membership.mem Bot.bot m\n    -/\n    apply (AddSubmonoid.mk_eq_zero _).mp at h\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      m : R\n      h : Eq (HMul.hMul m (Submodule.IsPrincipal.generator I)) 0\n      ⊢ Membership.mem Bot.bot m\n    -/\n    rw [Ideal.mem_bot]\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      m : R\n      h : Eq (HMul.hMul m (Submodule.IsPrincipal.generator I)) 0\n      ⊢ Eq m 0\n    -/\n    refine eq_zero_of_ne_zero_of_mul_right_eq_zero (mt (fun h3 ↦ ?_) hI) h\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      m : R\n      h : Eq (HMul.hMul m (Submodule.IsPrincipal.generator I)) 0\n      h3 : Eq (Submodule.IsPrincipal.generator I) 0\n      ⊢ Eq I Bot.bot\n    -/\n    rwa [Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero I])\n    /-\n      🎉 no goals\n    -/\n  (by\n    /-\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      ⊢ Function.Surjective ⇑I.mulGeneratorOfIsPrincipal\n    -/\n    rintro ⟨i, hi⟩\n    /-\n      case mk\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      i : R\n      hi : Membership.mem I i\n      ⊢ Exists fun a => Eq (I.mulGeneratorOfIsPrincipal a) ⟨i, hi⟩\n    -/\n    rw [Submodule.IsPrincipal.mem_iff_eq_smul_generator] at hi\n    /-\n      case mk\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      i : R\n      hi✝ : Membership.mem I i\n      hi : Exists fun s => Eq i (HSMul.hSMul s (Submodule.IsPrincipal.generator I))\n      ⊢ Exists fun a => Eq (I.mulGeneratorOfIsPrincipal a) ⟨i, hi✝⟩\n    -/\n    obtain ⟨s, rfl⟩ := hi\n    /-\n      case mk.intro\n      R✝ : Type u\n      inst✝⁶ : CommRing R✝\n      M✝ : Type v\n      inst✝⁵ : AddCommGroup M✝\n      inst✝⁴ : Module R✝ M✝\n      R : Type u_1\n      inst✝³ : CommRing R\n      M : Type u_2\n      inst✝² : AddCommGroup M\n      inst✝¹ : Module R M\n      I : Ideal R\n      inst✝ : IsDomain R\n      hprinc : Submodule.IsPrincipal I\n      hI : Ne I Bot.bot\n      s : R\n      hi : Membership.mem I (HSMul.hSMul s (Submodule.IsPrincipal.generator I))\n      ⊢ Exists fun a => Eq (I.mulGeneratorOfIsPrincipal a) ⟨HSMul.hSMul s (Submodule …\n    -/\n    exact ⟨s, rfl⟩)\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Submodule.IsPrincipal.mem_iff_eq_smul_generator",
+    "module": "Mathlib.RingTheory.PrincipalIdealDomain",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_iff_eq_smul_generator (S : Submodule R M) [S.IsPrincipal] {x : M} :\n    x ∈ S ↔ ∃ s : R, x = s • generator S := by\n  simp_rw [@eq_comm _ x, ← mem_span_singleton, span_singleton_generator]",
+    "compilationAlias":
+    "theorem mem_iff_eq_smul_generator (S : Submodule R M) [S.IsPrincipal] {x : M} :\n    x ∈ S ↔ ∃ s : R, x = s • generator S := by\n  simp_rw [@eq_comm _ x, ← mem_span_singleton, span_singleton_generator]"},
+   {"name": "Submodule.IsPrincipal.eq_bot_iff_generator_eq_zero",
+    "module": "Mathlib.RingTheory.PrincipalIdealDomain",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_bot_iff_generator_eq_zero (S : Submodule R M) [S.IsPrincipal] :\n    S = ⊥ ↔ generator S = 0 := by rw [← @span_singleton_eq_bot R M, span_singleton_generator]",
+    "compilationAlias":
+    "theorem eq_bot_iff_generator_eq_zero (S : Submodule R M) [S.IsPrincipal] :\n    S = ⊥ ↔ generator S = 0 := by rw [← @span_singleton_eq_bot R M, span_singleton_generator]"},
+   {"name": "mt",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mt {a b : Prop} (h₁ : a → b) (h₂ : ¬b) : ¬a :=\n  fun ha => h₂ (h₁ ha)",
+    "compilationAlias":
+    "theorem mt {a b : Prop} (h₁ : a → b) (h₂ : ¬b) : ¬a :=\n  fun ha => h₂ (h₁ ha)"},
+   {"name": "eq_zero_of_ne_zero_of_mul_right_eq_zero",
+    "module": "Mathlib.Algebra.GroupWithZero.NonZeroDivisors",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem eq_zero_of_ne_zero_of_mul_right_eq_zero (hx : x ≠ 0) (hxy : y * x = 0) : y = 0 :=\n  Or.resolve_right (eq_zero_or_eq_zero_of_mul_eq_zero hxy) hx",
+    "compilationAlias":
+    "theorem eq_zero_of_ne_zero_of_mul_right_eq_zero (hx : x ≠ 0) (hxy : y * x = 0) : y = 0 :=\n  Or.resolve_right (eq_zero_or_eq_zero_of_mul_eq_zero hxy) hx"},
+   {"name": "Ideal.mem_bot",
+    "module": "Mathlib.RingTheory.Ideal.Lattice",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp 1001] -- Porting note: increased priority to appease `simpNF`\ntheorem mem_bot {x : R} : x ∈ (⊥ : Ideal R) ↔ x = 0 :=\n  Submodule.mem_bot _",
+    "compilationAlias":
+    "@[simp 1001] -- Porting note: increased priority to appease `simpNF`\ntheorem mem_bot {x : R} : x ∈ (⊥ : Ideal R) ↔ x = 0 :=\n  Submodule.mem_bot _"},
+   {"name": "AddSubmonoid.mk_eq_zero",
+    "module": "Mathlib.Algebra.Group.Submonoid.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "LinearMap.mem_ker",
+    "module": "Mathlib.Algebra.Module.Submodule.Ker",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_ker {f : F} {y} : y ∈ ker f ↔ f y = 0 :=\n  mem_bot R₂",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_ker {f : F} {y} : y ∈ ker f ↔ f y = 0 :=\n  mem_bot R₂"},
+   {"name": "eq_bot_iff",
+    "module": "Mathlib.Order.BoundedOrder.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem eq_bot_iff : a = ⊥ ↔ a ≤ ⊥ :=\n  le_bot_iff.symm",
+    "compilationAlias":
+    "theorem eq_bot_iff : a = ⊥ ↔ a ≤ ⊥ :=\n  le_bot_iff.symm"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+   {"name": "Module.Flat.torsion_eq_bot",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"},
+   {"name": "Ideal.mulGeneratorOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n"},
+   {"name": "Module.Flat.LinearMap.EquivOfKerEqBotOfSurjective",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n",
+    "compilationAlias":
+    "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Module.Submodule.Ker\ntheorem ker_eq_bot_of_inverse {τ₂₁ : R₂ →+* R} [RingHomInvPair τ₁₂ τ₂₁] {f : M →ₛₗ[τ₁₂] M₂}\n    {g : M₂ →ₛₗ[τ₂₁] M} (h : (g.comp f : M →ₗ[R] M) = id) : ker f = ⊥ :=\n  ker_eq_bot'.2 fun m hm => by rw [← id_apply (R := R) m, ← h, comp_apply, hm, g.map_zero]",
+   "--src: Mathlib.Algebra.Module.Submodule.Ker\ntheorem ker_eq_bot {f : M →ₛₗ[τ₁₂] M₂} : ker f = ⊥ ↔ Injective f :=\n  LinearMapClass.ker_eq_bot _",
+   "--src: Mathlib.LinearAlgebra.Span.Basic\ntheorem map_injective {f : F} (hf : ker f = ⊥) : Injective (map f) := fun _ _ h =>\n  le_antisymm ((map_le_map_iff' hf).1 (le_of_eq h)) ((map_le_map_iff' hf).1 (ge_of_eq h))",
+   "--src: Mathlib.Algebra.Module.Equiv.Defs\nprotected theorem surjective : Function.Surjective e :=\n  e.toEquiv.surjective",
+   "--src: Mathlib.LinearAlgebra.LinearIndependent\ntheorem LinearIndependent.repr_ker : LinearMap.ker hv.repr = ⊥ := by\n  rw [LinearIndependent.repr, LinearEquiv.ker]",
+   "--src: Mathlib.Algebra.Module.Submodule.Ker\n@[simp]\ntheorem ker_comp (l : M →ₛₗ[σ₁₂] M₂) :\n    LinearMap.ker (((e'' : M₂ →ₛₗ[σ₂₃] M₃).comp l : M →ₛₗ[σ₁₃] M₃) : M →ₛₗ[σ₁₃] M₃) =\n    LinearMap.ker l :=\n  LinearMap.ker_comp_of_ker_eq_bot _ e''.ker",
+   "--src: Mathlib.LinearAlgebra.Dual\ntheorem range_dualMap_eq_dualAnnihilator_ker_of_subtype_range_surjective (f : M →ₗ[R] M')\n    (hf : Function.Surjective f.range.subtype.dualMap) :\n    LinearMap.range f.dualMap = f.ker.dualAnnihilator := by\n  have rr_surj : Function.Surjective f.rangeRestrict := by\n    rw [← range_eq_top, range_rangeRestrict]\n  have := range_dualMap_eq_dualAnnihilator_ker_of_surjective f.rangeRestrict rr_surj\n  convert this using 1\n  -- Porting note (https://github.com/leanprover-community/mathlib4/issues/11036): broken dot notation https://github.com/leanprover/lean4/issues/1629\n  · calc\n      _ = range ((range f).subtype.comp f.rangeRestrict).dualMap := by simp\n      _ = _ := ?_\n    rw [← dualMap_comp_dualMap, range_comp_of_range_eq_top]\n    rwa [range_eq_top]\n  · apply congr_arg\n    exact (ker_rangeRestrict f).symm",
+   "--src: Mathlib.LinearAlgebra.LinearPMap\ntheorem inverse_graph : (inverse f).graph = f.graph.map (LinearEquiv.prodComm R E F) := by\n  rw [inverse, Submodule.toLinearPMap_graph_eq _ (mem_inverse_graph_snd_eq_zero hf)]",
+   "--src: Mathlib.LinearAlgebra.SesquilinearForm\n/-- A bilinear map is left-separating if and only if it has a trivial kernel. -/\ntheorem separatingLeft_iff_ker_eq_bot {B : M₁ →ₛₗ[I₁] M₂ →ₛₗ[I₂] M} :\n    B.SeparatingLeft ↔ LinearMap.ker B = ⊥ :=\n  Iff.trans separatingLeft_iff_linear_nontrivial LinearMap.ker_eq_bot'.symm",
+   "--src: Mathlib.Algebra.Exact\nlemma ker_eq_bot_range_liftQ_iff (h : range f ≤ ker g) :\n    ker ((range f).liftQ g h) = ⊥ ↔ ker g = range f := by\n  simp only [Submodule.ext_iff, mem_ker, Submodule.mem_bot, mem_range]\n  constructor\n  · intro hfg x\n    simpa using hfg (Submodule.Quotient.mk x)\n  · intro hfg x\n    obtain ⟨x, rfl⟩ := Submodule.Quotient.mk_surjective _ x\n    simpa using hfg x"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M] {R : Type*} [CommRing R] {M : Type*}\n  [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Module.Flat.LinearMap.EquivOfKerEqBotOfSurjective",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n",
+   "compilationAlias":
+   "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    rw [LinearMap.ker_eq_bot] at h1\n    exact h1 <| (h2 (φ m)).choose_spec\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n"},
+  "goal":
+  "R : Type u_1\ninst✝ : CommRing R\n⊢ RingHomInvPair (RingHom.id R) (RingHom.id R)",
+  "content_sorry":
+  "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    sorry",
+  "annotation":
+  "variable {M' : Type*} [AddCommGroup M'] [Module R M'] in\nnoncomputable def LinearMap.EquivOfKerEqBotOfSurjective\n    (φ : M' →ₗ[R] M) (h1 : LinearMap.ker φ = ⊥) (h2 : Function.Surjective φ) :\n    M' ≃ₗ[R] M := { φ with\n  invFun := fun m' ↦ (h2 m').choose\n  left_inv := fun m ↦ by\n    /-\n      R✝ : Type u\n      inst✝⁷ : CommRing R✝\n      M✝ : Type v\n      inst✝⁶ : AddCommGroup M✝\n      inst✝⁵ : Module R✝ M✝\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      M' : Type u_3\n      inst✝¹ : AddCommGroup M'\n      inst✝ : Module R M'\n      φ : LinearMap (RingHom.id R) M' M\n      h1 : Eq (LinearMap.ker φ) Bot.bot\n      h2 : Function.Surjective ⇑φ\n      m : M'\n      ⊢ Eq ((fun m' => ⋯.choose) (φ.toFun m)) m\n    -/\n    rw [LinearMap.ker_eq_bot] at h1\n    /-\n      R✝ : Type u\n      inst✝⁷ : CommRing R✝\n      M✝ : Type v\n      inst✝⁶ : AddCommGroup M✝\n      inst✝⁵ : Module R✝ M✝\n      R : Type u_1\n      inst✝⁴ : CommRing R\n      M : Type u_2\n      inst✝³ : AddCommGroup M\n      inst✝² : Module R M\n      M' : Type u_3\n      inst✝¹ : AddCommGroup M'\n      inst✝ : Module R M'\n      φ : LinearMap (RingHom.id R) M' M\n      h1 : Function.Injective ⇑φ\n      h2 : Function.Surjective ⇑φ\n      m : M'\n      ⊢ Eq ((fun m' => ⋯.choose) (φ.toFun m)) m\n    -/\n    exact h1 <| (h2 (φ m)).choose_spec\n    /-\n      🎉 no goals\n    -/\n  right_inv := fun m' ↦ (h2 m').choose_spec\n  }\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LinearMap.ker_eq_bot",
+    "module": "Mathlib.Algebra.Module.Submodule.Ker",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem ker_eq_bot {f : M →ₛₗ[τ₁₂] M₂} : ker f = ⊥ ↔ Injective f :=\n  LinearMapClass.ker_eq_bot _",
+    "compilationAlias":
+    "theorem ker_eq_bot {f : M →ₛₗ[τ₁₂] M₂} : ker f = ⊥ ↔ Injective f :=\n  LinearMapClass.ker_eq_bot _"},
+   {"name": "Function.Surjective",
+    "module": "Mathlib.Logic.Function.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A function `f : α → β` is called surjective if every `b : β` is equal to `f a`\nfor some `a : α`. -/\ndef Surjective (f : α → β) : Prop :=\n  ∀ b, ∃ a, f a = b",
+    "compilationAlias":
+    "/-- A function `f : α → β` is called surjective if every `b : β` is equal to `f a`\nfor some `a : α`. -/\ndef Surjective (f : α → β) : Prop :=\n  ∀ b, ∃ a, f a = b"},
+   {"name": "LinearMap.ker",
+    "module": "Mathlib.Algebra.Module.Submodule.Ker",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The kernel of a linear map `f : M → M₂` is defined to be `comap f ⊥`. This is equivalent to the\nset of `x : M` such that `f x = 0`. The kernel is a submodule of `M`. -/\ndef ker (f : F) : Submodule R M :=\n  comap f ⊥",
+    "compilationAlias":
+    "/-- The kernel of a linear map `f : M → M₂` is defined to be `comap f ⊥`. This is equivalent to the\nset of `x : M` such that `f x = 0`. The kernel is a submodule of `M`. -/\ndef ker (f : F) : Submodule R M :=\n  comap f ⊥"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+   {"name": "Module.Flat.torsion_eq_bot",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"},
+   {"name": "Ideal.mulGeneratorOfIsPrincipal",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Ideal.Span\n/-- A ring is a principal ideal ring if all (left) ideals are principal. -/\n@[mk_iff]\nclass IsPrincipalIdealRing (R : Type u) [Semiring R] : Prop where\n  principal : ∀ S : Ideal R, S.IsPrincipal",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem mem_iff_generator_dvd (S : Ideal R) [S.IsPrincipal] {x : R} : x ∈ S ↔ generator S ∣ x :=\n  (mem_iff_eq_smul_generator S).trans (exists_congr fun a => by simp only [mul_comm, smul_eq_mul])",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem Submodule.IsPrincipal.map_ringHom (f : F) {I : Ideal R}\n    (hI : IsPrincipal I) : IsPrincipal (Ideal.map f I) :=\n  ⟨⟨f (IsPrincipal.generator I), by\n      rw [Ideal.submodule_span_eq, ← Set.image_singleton, ← Ideal.map_span,\n      Ideal.span_singleton_generator]⟩⟩",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem prime_generator_of_isPrime (S : Ideal R) [S.IsPrincipal] [is_prime : S.IsPrime]\n    (ne_bot : S ≠ ⊥) : Prime (generator S) :=\n  ⟨fun h => ne_bot ((eq_bot_iff_generator_eq_zero S).2 h), fun h =>\n    is_prime.ne_top (S.eq_top_of_isUnit_mem (generator_mem S) h), fun _ _ => by\n    simpa only [← mem_iff_generator_dvd S] using is_prime.2⟩\n-- Note that the converse may not hold if `ϕ` is not injective.",
+   "--src: Mathlib.RingTheory.SimpleModule\ninstance (S : Submodule R M) : S.IsPrincipal where\n  principal' := by\n    obtain rfl | rfl := eq_bot_or_eq_top S\n    · exact ⟨0, Submodule.span_zero.symm⟩\n    have := IsSimpleModule.nontrivial R M\n    have ⟨m, hm⟩ := exists_ne (0 : M)\n    exact ⟨m, (span_singleton_eq_top R hm).symm⟩",
+   "--src: Mathlib.RingTheory.Localization.Submodule\n@[simp]\ntheorem coeSubmodule_isPrincipal {I : Ideal R} : (coeSubmodule K I).IsPrincipal ↔ I.IsPrincipal :=\n  IsLocalization.coeSubmodule_isPrincipal _ le_rfl",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem nonPrincipals_def {I : Ideal R} : I ∈ nonPrincipals R ↔ ¬I.IsPrincipal :=\n  Iff.rfl",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem isMaximal_of_irreducible [CommRing R] [IsPrincipalIdealRing R] {p : R}\n    (hp : Irreducible p) : Ideal.IsMaximal (span R ({p} : Set R)) :=\n  ⟨⟨mt Ideal.span_singleton_eq_top.1 hp.1, fun I hI => by\n      rcases principal I with ⟨a, rfl⟩\n      erw [Ideal.span_singleton_eq_top]\n      rcases Ideal.span_singleton_le_span_singleton.1 (le_of_lt hI) with ⟨b, rfl⟩\n      refine (of_irreducible_mul hp).resolve_right (mt (fun hb => ?_) (not_le_of_lt hI))\n      erw [Ideal.span_singleton_le_span_singleton, IsUnit.mul_right_dvd hb]⟩⟩",
+   "--src: Mathlib.RingTheory.PrincipalIdealDomain\ntheorem generator_map_dvd_of_mem {N : Submodule R M} (ϕ : M →ₗ[R] R) [(N.map ϕ).IsPrincipal] {x : M}\n    (hx : x ∈ N) : generator (N.map ϕ) ∣ ϕ x := by\n  rw [← mem_iff_generator_dvd, Submodule.mem_map]\n  exact ⟨x, hx, rfl⟩\n-- Note that the converse may not hold if `ϕ` is not injective.",
+   "--src: Mathlib.LinearAlgebra.FreeModule.PID\ntheorem generator_maximal_submoduleImage_dvd {N O : Submodule R M} (hNO : N ≤ O) {ϕ : O →ₗ[R] R}\n    (hϕ : ∀ ψ : O →ₗ[R] R, ¬ϕ.submoduleImage N < ψ.submoduleImage N)\n    [(ϕ.submoduleImage N).IsPrincipal] (y : M) (yN : y ∈ N)\n    (ϕy_eq : ϕ ⟨y, hNO yN⟩ = generator (ϕ.submoduleImage N)) (ψ : O →ₗ[R] R) :\n    generator (ϕ.submoduleImage N) ∣ ψ ⟨y, hNO yN⟩ := by\n  let a : R := generator (ϕ.submoduleImage N)\n  let d : R := IsPrincipal.generator (Submodule.span R {a, ψ ⟨y, hNO yN⟩})\n  have d_dvd_left : d ∣ a := (mem_iff_generator_dvd _).mp (subset_span (mem_insert _ _))\n  have d_dvd_right : d ∣ ψ ⟨y, hNO yN⟩ :=\n    (mem_iff_generator_dvd _).mp (subset_span (mem_insert_of_mem _ (mem_singleton _)))\n  refine dvd_trans ?_ d_dvd_right\n  rw [dvd_generator_iff, Ideal.span, ←\n    span_singleton_generator (Submodule.span R {a, ψ ⟨y, hNO yN⟩})]\n  · obtain ⟨r₁, r₂, d_eq⟩ : ∃ r₁ r₂ : R, d = r₁ * a + r₂ * ψ ⟨y, hNO yN⟩ := by\n      obtain ⟨r₁, r₂', hr₂', hr₁⟩ :=\n        mem_span_insert.mp (IsPrincipal.generator_mem (Submodule.span R {a, ψ ⟨y, hNO yN⟩}))\n      obtain ⟨r₂, rfl⟩ := mem_span_singleton.mp hr₂'\n      exact ⟨r₁, r₂, hr₁⟩\n    let ψ' : O →ₗ[R] R := r₁ • ϕ + r₂ • ψ\n    have : span R {d} ≤ ψ'.submoduleImage N := by\n      rw [span_le, singleton_subset_iff, SetLike.mem_coe, LinearMap.mem_submoduleImage_of_le hNO]\n      refine ⟨y, yN, ?_⟩\n      change r₁ * ϕ ⟨y, hNO yN⟩ + r₂ * ψ ⟨y, hNO yN⟩ = d\n      rw [d_eq, ϕy_eq]\n    refine\n      le_antisymm (this.trans (le_of_eq ?_)) (Ideal.span_singleton_le_span_singleton.mpr d_dvd_left)\n    rw [span_singleton_generator]\n    apply (le_trans _ this).eq_of_not_gt (hϕ ψ')\n    rw [← span_singleton_generator (ϕ.submoduleImage N)]\n    exact Ideal.span_singleton_le_span_singleton.mpr d_dvd_left\n  · exact subset_span (mem_insert _ _)"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Ideal.mulGeneratorOfIsPrincipal",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+   "compilationAlias":
+   "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n"},
+  "goal":
+  "R : Type u_1\ninst✝ : CommRing R\nI : Ideal R\nhprinc : Submodule.IsPrincipal I\nx✝¹ x✝ : R\n⊢ Eq ({ toFun := fun r => ⟨HMul.hMul r (Submodule.IsPrincipal.generator I), ⋯⟩, map_add' := ⋯ }.toFun (HSMul.hSMul x✝¹ x✝)) (HSMul.hSMul ((RingHom.id R) x✝¹) ({ toFun := fun r => ⟨HMul.hMul r (Submodule.IsPrincipal.generator I), ⋯⟩, map_add' := ⋯ }.toFun x✝))",
+  "content_sorry":
+  "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := by sorry",
+  "annotation":
+  "/-- The linear map from R to a principal ideal I sending r to r * g where g is\n  the `generator` of `I`. -/\nnoncomputable def _root_.Ideal.mulGeneratorOfIsPrincipal (I : Ideal R) [hprinc : I.IsPrincipal] :\n    R →ₗ[R] I where\n  toFun r := ⟨r * hprinc.generator, I.mul_mem_left r <| hprinc.generator_mem⟩\n  map_add' _ _ := Subtype.ext <| add_mul _ _ _\n  map_smul' _ _ := Subtype.ext <| mul_assoc _ _ _\n\n-- should be elsewhere\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "Subtype.ext",
+    "module": "Init.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[ext]",
+    "compilationAlias": "@[ext]"},
+   {"name": "add_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias add_mul := right_distrib",
+    "compilationAlias": "alias add_mul := right_distrib"},
+   {"name": "Subtype.ext",
+    "module": "Init.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[ext]",
+    "compilationAlias": "@[ext]"},
+   {"name": "Ideal",
+    "module": "Mathlib.RingTheory.Ideal.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+    "compilationAlias":
+    "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+   {"name": "Module.Flat.torsion_eq_bot",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+    "compilationAlias":
+    "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Module.Torsion\n/-- Quotienting by the torsion submodule gives a torsion-free module. -/\n@[simp]\ntheorem torsion_eq_bot : torsion R (M ⧸ torsion R M) = ⊥ :=\n  eq_bot_iff.mpr fun z =>\n    Quotient.inductionOn' z fun x ⟨a, hax⟩ => by\n      rw [Quotient.mk''_eq_mk, ← Quotient.mk_smul, Quotient.mk_eq_zero] at hax\n      rw [mem_bot, Quotient.mk''_eq_mk, Quotient.mk_eq_zero]\n      cases' hax with b h\n      exact ⟨b * a, (mul_smul _ _ _).trans h⟩",
+   "--src: Mathlib.RingTheory.Flat.Basic\n/-- An `R`-module `M` is flat iff for all ideals `I` of `R`, the tensor product of the\ninclusion `I → R` and the identity `M → M` is injective. See `iff_rTensor_injective` to\nrestrict to finitely generated ideals `I`. --/\ntheorem iff_rTensor_injective' :\n    Flat R M ↔ ∀ I : Ideal R, Function.Injective (rTensor M I.subtype) := by\n  rewrite [Flat.iff_rTensor_injective]\n  refine ⟨fun h I => ?_, fun h I _ => h I⟩\n  rewrite [injective_iff_map_eq_zero]\n  intro x hx₀\n  obtain ⟨J, hfg, hle, y, rfl⟩ := Submodule.exists_fg_le_eq_rTensor_inclusion x\n  rewrite [← rTensor_comp_apply] at hx₀\n  rw [(injective_iff_map_eq_zero _).mp (h hfg) y hx₀, LinearMap.map_zero]",
+   "--src: Mathlib.Algebra.Module.Torsion\ntheorem mem_torsion_iff (x : M) : x ∈ torsion R M ↔ ∃ a : R⁰, a • x = 0 :=\n  Iff.rfl",
+   "--src: Mathlib.RingTheory.Flat.Basic\ninstance shrink [Small.{v'} M] [Module.Flat R M] : Module.Flat R (Shrink.{v'} M) :=\n  of_linearEquiv R M (Shrink.{v'} M) (Shrink.linearEquiv M R)\n-- Making this an instance causes an infinite sequence `M → Shrink M → Shrink (Shrink M) → ...`.",
+   "--src: Mathlib.Algebra.Module.Torsion\n@[simp]\ntheorem torsionBy_one : torsionBy R M 1 = ⊥ :=\n  eq_bot_iff.mpr fun _ h => by\n    rw [mem_torsionBy_iff, one_smul] at h\n    exact h",
+   "--src: Mathlib.Algebra.Module.Torsion\n/-- The torsion submodule of the torsion submodule (viewed as a module) is the full\ntorsion module. -/\ntheorem torsion_torsion_eq_top : torsion R (torsion R M) = ⊤ :=\n  torsion'_torsion'_eq_top R⁰",
+   "--src: Mathlib.RingTheory.Flat.Basic\nvariable {R} in\ninstance instSubalgebraToSubmodule {S : Type v} [Ring S] [Algebra R S]\n    (A : Subalgebra R S) [Flat R A] : Flat R (Subalgebra.toSubmodule A) := ‹Flat R A›",
+   "--src: Mathlib.RingTheory.Flat.FaithfullyFlat\n/--\nA module `M` over a commutative ring `R` is *faithfully flat* if it is flat and,\nfor all `R`-module homomorphism `f : N → N'` such that `id ⊗ f = 0`, we have `f = 0`.\n-/\n@[mk_iff] class FaithfullyFlat extends Module.Flat R M : Prop where\n  submodule_ne_top : ∀ ⦃m : Ideal R⦄ (_ : Ideal.IsMaximal m), m • (⊤ : Submodule R M) ≠ ⊤",
+   "--src: Mathlib.RingTheory.RingHom.Flat\nvariable (R) in\n/-- The identity of a ring is flat. -/\nlemma id : RingHom.Flat (RingHom.id R) :=\n  Module.Flat.self R",
+   "--src: Mathlib.RingTheory.Flat.Basic\ninstance of_free [Free R M] : Flat R M := of_linearEquiv R _ _ (Free.repr R M)"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Module.Flat.torsion_eq_bot",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n",
+   "compilationAlias":
+   "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n\n-- should be elsewhere\n"},
+  "goal":
+  "R : Type u\ninst✝² : CommRing R\nM : Type v\ninst✝¹ : AddCommGroup M\ninst✝ : Module R M\nhflat : Module.Flat R M\n⊢ Eq (Submodule.torsion R M) Bot.bot",
+  "content_sorry":
+  "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  sorry",
+  "annotation":
+  "open Module Submodule in\n/-- Flat modules have no torsion. -/\ntheorem torsion_eq_bot [hflat : Flat R M] : torsion R M = ⊥ := by\n  /-\n    R : Type u\n    inst✝² : CommRing R\n    M : Type v\n    inst✝¹ : AddCommGroup M\n    inst✝ : Module R M\n    hflat : Module.Flat R M\n    ⊢ Eq (Submodule.torsion R M) Bot.bot\n  -/\n  rw [eq_bot_iff]\n  -- indeed the definition of torsion means \"annihiliated by a nonzerodivisor\"\n  /-\n    R : Type u\n    inst✝² : CommRing R\n    M : Type v\n    inst✝¹ : AddCommGroup M\n    inst✝ : Module R M\n    hflat : Module.Flat R M\n    ⊢ LE.le (Submodule.torsion R M) Bot.bot\n  -/\n  rintro m ⟨⟨r, hr⟩, (h : r • m = 0)⟩\n  -- and we just showed that 0 is the only element with this property\n  /-\n    case intro.mk\n    R : Type u\n    inst✝² : CommRing R\n    M : Type v\n    inst✝¹ : AddCommGroup M\n    inst✝ : Module R M\n    hflat : Module.Flat R M\n    m : M\n    r : R\n    hr : Membership.mem (nonZeroDivisors R) r\n    h : Eq (HSMul.hSMul r m) 0\n    ⊢ Membership.mem Bot.bot m\n  -/\n  exact isSMulRegular_of_nonZeroDivisors hr (by simp [h])\n  /-\n    🎉 no goals\n  -/\n\n-- should be elsewhere\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "eq_bot_iff",
+    "module": "Mathlib.Order.BoundedOrder.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "theorem eq_bot_iff : a = ⊥ ↔ a ≤ ⊥ :=\n  le_bot_iff.symm",
+    "compilationAlias":
+    "theorem eq_bot_iff : a = ⊥ ↔ a ≤ ⊥ :=\n  le_bot_iff.symm"}],
+  "C0_dependencies":
+  [{"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+    "module": "FLT.HIMExperiments.flatness",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+    "compilationAlias":
+    "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Regular.IsSMulRegular\nlemma IsSMulRegular.rTensor : IsSMulRegular (M' ⊗[R] M) r :=\n  have h1 := congrArg DFunLike.coe (LinearMap.rTensor_smul_action M M' r)\n  h1.subst (Module.Flat.rTensor_preserves_injective_linearMap _ h)",
+   "--src: Mathlib.RingTheory.Regular.IsSMulRegular\nlemma isSMulRegular_iff_mem_nonZeroSMulDivisors :\n    IsSMulRegular M r ↔ r ∈ nonZeroSMulDivisors R M :=\n  isSMulRegular_iff_smul_eq_zero_imp_eq_zero M r",
+   "--src: Mathlib.RingTheory.Flat.FaithfullyFlat\ninstance self : FaithfullyFlat R R where\n  submodule_ne_top m h r := Ideal.eq_top_iff_one _ |>.not.1 h.ne_top <| by\n    simpa using show 1 ∈ (m • ⊤ : Ideal R) from r.symm ▸ ⟨⟩",
+   "--src: Mathlib.RingTheory.Flat.Basic\ninstance self (R : Type u) [CommRing R] : Flat R R :=\n  ⟨by\n    intro I _\n    rw [← Equiv.injective_comp (TensorProduct.rid R I).symm.toEquiv]\n    convert Subtype.coe_injective using 1\n    ext x\n    simp only [Function.comp_apply, LinearEquiv.coe_toEquiv, rid_symm_apply, comp_apply, mul_one,\n      lift.tmul, Submodule.subtype_apply, Algebra.id.smul_eq_mul, lsmul_apply]⟩",
+   "--src: Mathlib.RingTheory.Flat.FaithfullyFlat\n/-- Any free, nontrivial `R`-module is flat. -/\ninstance [Nontrivial M] [Module.Free R M] : FaithfullyFlat R M :=\n  of_linearEquiv _ _ (Free.repr R M)",
+   "--src: Mathlib.RingTheory.RingHom.Flat\nvariable (R) in\n/-- The identity of a ring is flat. -/\nlemma id : RingHom.Flat (RingHom.id R) :=\n  Module.Flat.self R",
+   "--src: Mathlib.RingTheory.Flat.Stability\n/-- If `S` is a flat `R`-algebra, then any flat `S`-Module is also `R`-flat. -/\ntheorem trans [Flat R S] [Flat S M] : Flat R M := by\n  rw [Flat.iff_lTensor_injective']\n  intro I\n  rw [← EquivLike.comp_injective _ (TensorProduct.rid R M)]\n  haveI h : TensorProduct.rid R M ∘ lTensor M I.subtype =\n    TensorProduct.rid R M ∘ₗ lTensor M I.subtype := rfl\n  simp only [h, ← auxLTensor_eq R S M, LinearMap.coe_restrictScalars, LinearMap.coe_comp,\n    LinearEquiv.coe_coe, EquivLike.comp_injective, EquivLike.injective_comp]\n  exact (Flat.iff_lTensor_injective' S M).mp inferInstance _",
+   "--src: Mathlib.RingTheory.Flat.FaithfullyFlat\n/--\nAn `R`-module `M` is faithfully flat iff it is flat and for all linear maps `f`, the map\n`id ⊗ f = 0`, if and only if `f = 0`. -/\nlemma iff_zero_iff_rTensor_zero :\n    FaithfullyFlat R M ↔\n    (Module.Flat R M ∧\n      (∀ {N : Type max u v} [AddCommGroup N] [Module R N]\n        {N' : Type max u v} [AddCommGroup N'] [Module R N']\n        (f : N →ₗ[R] N'), f.rTensor M = 0 ↔ (f = 0))) :=\n  ⟨fun fl => ⟨inferInstance, fun f => zero_iff_rTensor_zero R M f |>.symm⟩,\n    fun ⟨flat, Z⟩ => iff_flat_and_rTensor_reflects_triviality R M |>.2 ⟨flat, fun N _ _ _ => by\n      have := Z (LinearMap.id : N →ₗ[R] N) |>.1 (by ext; exact Subsingleton.elim _ _)\n      rw [subsingleton_iff_forall_eq 0]\n      exact fun y => congr($this y)⟩⟩",
+   "--src: Mathlib.RingTheory.Flat.Localization\ninstance Localization.flat : Module.Flat R (Localization p) := IsLocalization.flat _ p",
+   "--src: Mathlib.RingTheory.Flat.FaithfullyFlat\nlemma iff_flat_and_ideal_smul_eq_top :\n    FaithfullyFlat R M ↔\n    (Flat R M ∧ ∀ (I : Ideal R), I • (⊤ : Submodule R M) = ⊤ → I = ⊤) :=\n  iff_flat_and_proper_ideal R M |>.trans <| and_congr_right_iff.2 fun _ => iff_of_eq <|\n    forall_congr fun I => eq_iff_iff.2 <| by tauto"],
+  "prescopes":
+  "namespace Module.Flat\n\nopen Function renaming Injective → Injective\nopen Function renaming Surjective → Surjective\nopen LinearMap renaming lsmul → lsmul\nopen LinearMap renaming rTensor → rTensor\nopen LinearMap renaming lTensor → lTensor\nopen TensorProduct\n\nuniverse u v\n\nvariable {R : Type u} [CommRing R] {M : Type v} [AddCommGroup M] [Module R M]",
+  "postscopes": "end Module.Flat",
+  "id":
+  {"name": "Module.Flat.isSMulRegular_of_nonZeroDivisors",
+   "module": "FLT.HIMExperiments.flatness",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n",
+   "compilationAlias":
+   "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  rw [IsSMulRegular, h2]\n  simp [h, LinearEquiv.injective]\n\n"},
+  "goal":
+  "R : Type u_1\nS : Type u_5\nM : Type u_6\nM₂ : Type u_8\ninst✝³ : Semiring R\ninst✝² : Semiring S\ninst✝¹ : AddCommMonoid M\ninst✝ : AddCommMonoid M₂\nmodule_M : Module R M\nmodule_S_M₂ : Module S M₂\nσ : RingHom R S\nσ' : RingHom S R\nre₁ : RingHomInvPair σ σ'\nre₂ : RingHomInvPair σ' σ\ne : LinearEquiv σ M M₂\n⊢ Eq (Function.Injective ⇑e) True",
+  "content_sorry":
+  "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  sorry",
+  "annotation":
+  "open Module LinearMap in\n/-- Scalar multiplication `m ↦ r • m` by a nonzerodivisor `r` is injective on a flat module. -/\nlemma isSMulRegular_of_nonZeroDivisors {r : R} (hr : r ∈ R⁰) [Flat R M] : IsSMulRegular M r := by\n  -- `r ∈ R⁰` implies that `toSpanSingleton R R r`, i.e. `(r * ⬝) : R → R` is injective\n  -- Flatness implies that corresponding map `R ⊗[R] M →ₗ[R] R ⊗[R] M` is injective\n  have h := Flat.rTensor_preserves_injective_linearMap (M := M)\n    (toSpanSingleton R R r) <| (injective_iff_map_eq_zero _).mpr hr\n  -- But precomposing and postcomposing with the isomorphism `M ≃ₗ[R] (R ⊗[R] M)`\n  -- we get a map `M →ₗ[R] M` which is just `(r • ·)`.\n  have h2 : (fun (x : M) ↦ r • x) = ((TensorProduct.lid R M) ∘ₗ\n            (rTensor M (toSpanSingleton R R r)) ∘ₗ\n            (TensorProduct.lid R M).symm) := by ext; simp\n  -- Hence `(r • ·) : M → M` is also injective\n  /-\n    R : Type u\n    inst✝³ : CommRing R\n    M : Type v\n    inst✝² : AddCommGroup M\n    inst✝¹ : Module R M\n    r : R\n    hr : Membership.mem (nonZeroDivisors R) r\n    inst✝ : Module.Flat R M\n    h : Function.Injective ⇑(LinearMap.rTensor M (LinearMap.toSpanSingleton R R r))\n    h2 : Eq (fun x => HSMul.hSMul r x) ⇑((↑(TensorProduct.lid R M)).comp ((LinearM …\n    ⊢ IsSMulRegular M r\n  -/\n  rw [IsSMulRegular, h2]\n  /-\n    R : Type u\n    inst✝³ : CommRing R\n    M : Type v\n    inst✝² : AddCommGroup M\n    inst✝¹ : Module R M\n    r : R\n    hr : Membership.mem (nonZeroDivisors R) r\n    inst✝ : Module.Flat R M\n    h : Function.Injective ⇑(LinearMap.rTensor M (LinearMap.toSpanSingleton R R r))\n    h2 : Eq (fun x => HSMul.hSMul r x) ⇑((↑(TensorProduct.lid R M)).comp ((LinearM …\n    ⊢ Function.Injective ⇑((↑(TensorProduct.lid R M)).comp ((LinearMap.rTensor M ( …\n  -/\n  simp [h, LinearEquiv.injective]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LinearEquiv.injective",
+    "module": "Mathlib.Algebra.Module.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem injective : Function.Injective e :=\n  e.toEquiv.injective",
+    "compilationAlias":
+    "protected theorem injective : Function.Injective e :=\n  e.toEquiv.injective"},
+   {"name": "IsSMulRegular",
+    "module": "Mathlib.Algebra.Regular.SMul",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- An `M`-regular element is an element `c` such that multiplication on the left by `c` is an\ninjective map `M → M`. -/\ndef IsSMulRegular [SMul R M] (c : R) :=\n  Function.Injective ((c • ·) : M → M)",
+    "compilationAlias":
+    "/-- An `M`-regular element is an element `c` such that multiplication on the left by `c` is an\ninjective map `M → M`. -/\ndef IsSMulRegular [SMul R M] (c : R) :=\n  Function.Injective ((c • ·) : M → M)"},
+   {"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "TensorProduct.lid",
+    "module": "Mathlib.LinearAlgebra.TensorProduct.Associator",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The base ring is a left identity for the tensor product of modules, up to linear equivalence.\n-/\nprotected def lid : R ⊗[R] M ≃ₗ[R] M :=\n  LinearEquiv.ofLinear (lift <| LinearMap.lsmul R M) (mk R R M 1) (LinearMap.ext fun _ => by simp)\n    (ext' fun r m => by simp; rw [← tmul_smul, ← smul_tmul, smul_eq_mul, mul_one])",
+    "compilationAlias":
+    "/-- The base ring is a left identity for the tensor product of modules, up to linear equivalence.\n-/\nprotected def lid : R ⊗[R] M ≃ₗ[R] M :=\n  LinearEquiv.ofLinear (lift <| LinearMap.lsmul R M) (mk R R M 1) (LinearMap.ext fun _ => by simp)\n    (ext' fun r m => by simp; rw [← tmul_smul, ← smul_tmul, smul_eq_mul, mul_one])"},
+   {"name": "TensorProduct.lid",
+    "module": "Mathlib.LinearAlgebra.TensorProduct.Associator",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The base ring is a left identity for the tensor product of modules, up to linear equivalence.\n-/\nprotected def lid : R ⊗[R] M ≃ₗ[R] M :=\n  LinearEquiv.ofLinear (lift <| LinearMap.lsmul R M) (mk R R M 1) (LinearMap.ext fun _ => by simp)\n    (ext' fun r m => by simp; rw [← tmul_smul, ← smul_tmul, smul_eq_mul, mul_one])",
+    "compilationAlias":
+    "/-- The base ring is a left identity for the tensor product of modules, up to linear equivalence.\n-/\nprotected def lid : R ⊗[R] M ≃ₗ[R] M :=\n  LinearEquiv.ofLinear (lift <| LinearMap.lsmul R M) (mk R R M 1) (LinearMap.ext fun _ => by simp)\n    (ext' fun r m => by simp; rw [← tmul_smul, ← smul_tmul, smul_eq_mul, mul_one])"},
+   {"name": "injective_iff_map_eq_zero",
+    "module": "Mathlib.Algebra.Group.Hom.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive\n  \"A homomorphism from an additive group to an additive monoid is injective iff\n  its kernel is trivial. For the iff statement on the triviality of the kernel,\n  see `injective_iff_map_eq_zero'`.\"]",
+    "compilationAlias":
+    "@[to_additive\n  \"A homomorphism from an additive group to an additive monoid is injective iff\n  its kernel is trivial. For the iff statement on the triviality of the kernel,\n  see `injective_iff_map_eq_zero'`.\"]"},
+   {"name": "IsSMulRegular",
+    "module": "Mathlib.Algebra.Regular.SMul",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- An `M`-regular element is an element `c` such that multiplication on the left by `c` is an\ninjective map `M → M`. -/\ndef IsSMulRegular [SMul R M] (c : R) :=\n  Function.Injective ((c • ·) : M → M)",
+    "compilationAlias":
+    "/-- An `M`-regular element is an element `c` such that multiplication on the left by `c` is an\ninjective map `M → M`. -/\ndef IsSMulRegular [SMul R M] (c : R) :=\n  Function.Injective ((c • ·) : M → M)"}],
+  "C0_dependencies": []}]

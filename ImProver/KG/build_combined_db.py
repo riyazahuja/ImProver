@@ -13,6 +13,7 @@ def load_edges(path):
 
 
 def main(args):
+    print(f"[IMPROVER: Building combined database for {args.kg_id} @ {args.prompts_id}...]")
     os.makedirs(os.path.join("knowledge_graphs", args.kg_id), exist_ok=True)
     combined_path = os.path.join("knowledge_graphs", args.kg_id, "combined.duckdb")
     con = duckdb.connect(combined_path)
@@ -53,10 +54,10 @@ def main(args):
     # modules = set(f.replace(".lean", "").replace("/", ".") for f in files)
 
 
-    informal_path = os.path.join("knowledge_graphs", args.kg_id, "informal_data.duckdb")
+    informal_path = os.path.join("prompts", args.prompts_id, "informal_data.duckdb")
     informal_con = duckdb.connect(informal_path)
-
-    for root, _, files in os.walk("knowledge_graphs"):
+    src_dir = os.path.join("prompts", args.prompts_id, "src")
+    for root, _, files in os.walk(src_dir):
         for file in files:
             if not file.endswith(".json"):
                 continue
@@ -64,11 +65,15 @@ def main(args):
                 continue
             if "edges" in file:
                 continue
-            module_path = os.path.relpath(os.path.join(root, file), "knowledge_graphs")
+            print(f"Processing file: {file} in {root}")
+            module_path = os.path.relpath(os.path.join(root, file), src_dir)
+
             module = module_path.replace("/", ".").replace(".json", "")
             with open(os.path.join(root, file), "r") as f:
                 theorems = json.load(f)
+
             for thm in theorems:
+                # print(f"{thm} : {type(thm)}")
                 name = thm.get("id",{}).get("name")
                 is_orig = thm.get("id",{}).get("module", module) in modules
                 c0 = json.dumps(thm.get("C0_dependencies", []))
@@ -121,6 +126,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build combined KG database")
     parser.add_argument("dataset_path", type=str)
+    parser.add_argument("prompts_id", type=str)
     parser.add_argument("kg_id", type=str)
     parser.add_argument("--split", type=str, default="train")
     # parser.add_argument("--KG_dir", type=str, default=".knowledge_graphs")
