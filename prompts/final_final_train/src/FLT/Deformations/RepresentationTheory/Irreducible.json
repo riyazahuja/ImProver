@@ -1,0 +1,1086 @@
+[{"rag":
+  ["--src: Mathlib.Algebra.Module.Equiv.Basic\n/-- Each element of the group defines a module automorphism.\nThis is a stronger version of `DistribMulAction.toAddAut`. -/\n@[simps]\ndef toModuleAut : S →* M ≃ₗ[R] M where\n  toFun := toLinearEquiv R M\n  map_one' := LinearEquiv.ext <| one_smul _\n  map_mul' _ _ := LinearEquiv.ext <| mul_smul _ _",
+   "--src: Mathlib.LinearAlgebra.Dimension.LinearMap\ntheorem le_rank_iff_exists_linearIndependent {c : Cardinal} {f : V →ₗ[K] V'} :\n    c ≤ rank f ↔ ∃ s : Set V,\n    Cardinal.lift.{v'} #s = Cardinal.lift.{v} c ∧ LinearIndependent K (fun x : s => f x) := by\n  rcases f.rangeRestrict.exists_rightInverse_of_surjective f.range_rangeRestrict with ⟨g, hg⟩\n  have fg : LeftInverse f.rangeRestrict g := LinearMap.congr_fun hg\n  refine ⟨fun h => ?_, ?_⟩\n  · rcases _root_.le_rank_iff_exists_linearIndependent.1 h with ⟨s, rfl, si⟩\n    refine ⟨g '' s, Cardinal.mk_image_eq_lift _ _ fg.injective, ?_⟩\n    replace fg : ∀ x, f (g x) = x := by\n      intro x\n      convert congr_arg Subtype.val (fg x)\n    replace si : LinearIndependent K fun x : s => f (g x) := by\n      simpa only [fg] using si.map' _ (ker_subtype _)\n    exact si.image_of_comp s g f\n  · rintro ⟨s, hsc, si⟩\n    have : LinearIndependent K fun x : s => f.rangeRestrict x :=\n      LinearIndependent.of_comp f.range.subtype (by convert si)\n    convert this.image.cardinal_le_rank\n    rw [← Cardinal.lift_inj, ← hsc, Cardinal.mk_image_eq_of_injOn_lift]\n    exact injOn_iff_injective.2 this.injective",
+   "--src: Mathlib.Algebra.Algebra.Rat\ninstance _root_.RingHomClass.toLinearMapClassRat [FunLike F R S] [RingHomClass F R S] :\n    LinearMapClass F ℚ R S where\n  map_smulₛₗ f q a := by simp [smul_def, cast_id]",
+   "--src: Mathlib.Algebra.Ring.Equiv\n@[simp]\ntheorem mk_coe' (e : R ≃+* S) (f h₁ h₂ h₃ h₄) :\n    (⟨⟨f, ⇑e, h₁, h₂⟩, h₃, h₄⟩ : S ≃+* R) = e.symm :=\n  symm_bijective.injective <| ext fun _ => rfl",
+   "--src: Mathlib.Algebra.Field.Subfield.Defs\n@[simp]\ntheorem coe_set_mk (S : Subring K) (h) : ((⟨S, h⟩ : Subfield K) : Set K) = S :=\n  rfl",
+   "--src: Mathlib.Algebra.Module.Equiv.Basic\n/-- Any two modules that are subsingletons are isomorphic. -/\n@[simps]\ndef ofSubsingleton : M ≃ₗ[R] M₂ :=\n  { (0 : M →ₗ[R] M₂) with\n    toFun := fun _ ↦ 0\n    invFun := fun _ ↦ 0\n    left_inv := fun _ ↦ Subsingleton.elim _ _\n    right_inv := fun _ ↦ Subsingleton.elim _ _ }",
+   "--src: Mathlib.Algebra.Group.Invertible.Basic\n/-- If a function `f : R → S` has a left-inverse that is a monoid hom,\n  then `r : R` is invertible if `f r` is.\nThe inverse is computed as `g (⅟(f r))` -/\n@[simps! (config := .lemmasOnly)]\ndef Invertible.ofLeftInverse {R : Type*} {S : Type*} {G : Type*} [MulOneClass R] [MulOneClass S]\n    [FunLike G S R] [MonoidHomClass G S R] (f : R → S) (g : G) (r : R)\n    (h : Function.LeftInverse g f) [Invertible (f r)] : Invertible r :=\n  (Invertible.map g (f r)).copy _ (h r).symm",
+   "--src: Mathlib.LinearAlgebra.ExteriorPower.Basic\n/-- If `f` is an alternating map from `M` to `N`,\n`alternatingMapLinearEquiv f` is the corresponding linear map from `⋀[R]^n M` to `N`,\nand if `g` is a linear map from `N` to `N'`, then\nthe alternating map `g.compAlternatingMap f` from `M` to `N'` corresponds to the linear\nmap `g.comp (alternatingMapLinearEquiv f)` on `⋀[R]^n M`. -/\nlemma alternatingMapLinearEquiv_comp (g : N →ₗ[R] N') (f : M [⋀^Fin n]→ₗ[R] N) :\n    alternatingMapLinearEquiv (g.compAlternatingMap f) = g.comp (alternatingMapLinearEquiv f) := by\n  ext\n  simp only [alternatingMapLinearEquiv_comp_ιMulti, LinearMap.compAlternatingMap_apply,\n    LinearMap.coe_comp, comp_apply, alternatingMapLinearEquiv_apply_ιMulti]",
+   "--src: Mathlib.Algebra.Category.ModuleCat.ChangeOfRings\n/-- Semilinear maps `M →ₛₗ[f] N` identify to\nmorphisms `M ⟶ (ModuleCat.restrictScalars f).obj N`. -/\n@[simps]\ndef semilinearMapAddEquiv {R : Type u₁} {S : Type u₂} [Ring R] [Ring S] (f : R →+* S)\n    (M : ModuleCat.{v} R) (N : ModuleCat.{v} S) :\n    (M →ₛₗ[f] N) ≃+ (M ⟶ (ModuleCat.restrictScalars f).obj N) where\n  -- TODO: after https://github.com/leanprover-community/mathlib4/pull/19511 we need to hint `(Y := ...)`.\n  -- This suggests `restrictScalars` needs to be redesigned.\n  toFun g := ofHom (Y := (ModuleCat.restrictScalars f).obj N) <|\n    { toFun := g\n      map_add' := by simp\n      map_smul' := by simp }\n  invFun g :=\n    { toFun := g\n      map_add' := by simp\n      map_smul' := g.hom.map_smul }\n  left_inv _ := rfl\n  right_inv _ := rfl\n  map_add' _ _ := rfl",
+   "--src: Mathlib.Algebra.Module.Presentation.DirectSum\n/-- Given an `A`-module `N` and a family `relations : ι → Relations A`,\nthe data of a solution of `Relations.directSum relations` in `N`\nis equivalent to the data of a family of solutions of `relations i` in `N`\nfor all `i`. -/\n@[simps]\ndef directSumEquiv :\n    (Relations.directSum relations).Solution N ≃\n      ∀ i, (relations i).Solution N where\n  toFun s i :=\n    { var := fun g ↦ s.var ⟨i, g⟩\n      linearCombination_var_relation := fun r ↦ by\n        rw [← s.linearCombination_var_relation ⟨i, r⟩]\n        symm\n        apply Finsupp.linearCombination_embDomain }\n  invFun t :=\n    { var := fun ⟨i, g⟩ ↦ (t i).var g\n      linearCombination_var_relation := fun ⟨i, r⟩ ↦ by\n        rw [← (t i).linearCombination_var_relation r]\n        apply Finsupp.linearCombination_embDomain }\n  left_inv _ := rfl\n  right_inv _ := rfl"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsAbsolutelyIrreducible.noConfusion",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+   "compilationAlias":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nmotive : ρ.IsAbsolutelyIrreducible → Sort u\nt : ρ.IsAbsolutelyIrreducible\nmk : (absolutelyIrreducible : ∀ (k' : Type u_4) (x : Field k') (x_1 : Algebra k k'), (Representation.baseChange k' ρ).IsIrreducible) → motive ⋯\n⊢ motive t",
+  "content_sorry": "",
+  "annotation":
+  "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\n/-- If `E / F` is purely inseparable, then for any reduced `F`-algebra `L`, there exists at most one\n`F`-algebra homomorphism from `E` to `L`. -/\ninstance instSubsingletonAlgHomOfIsPurelyInseparable [IsPurelyInseparable F E] (L : Type w)\n    [CommRing L] [IsReduced L] [Algebra F L] : Subsingleton (E →ₐ[F] L) where\n  allEq f g := AlgHom.coe_ringHom_injective <|\n    IsPurelyInseparable.injective_comp_algebraMap F E L (by simp_rw [AlgHom.comp_algebraMap])",
+   "--src: Mathlib.FieldTheory.PolynomialGaloisGroup\nlemma galAction_isPretransitive [Fact (p.Splits (algebraMap F E))] (hp : Irreducible p) :\n    MulAction.IsPretransitive p.Gal (p.rootSet E) := by\n  refine ⟨fun x y ↦ ?_⟩\n  have hx := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm x).2).2\n  have hy := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm y).2).2\n  obtain ⟨g, hg⟩ := (Normal.minpoly_eq_iff_mem_orbit p.SplittingField).mp (hy.symm.trans hx)\n  exact ⟨g, (rootsEquivRoots p E).apply_eq_iff_eq_symm_apply.mpr (Subtype.ext hg)⟩",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma autEquivRootsOfUnity_apply_rootOfSplit [NeZero n] (σ : L ≃ₐ[K] L) :\n    σ (rootOfSplitsXPowSubC (NeZero.pos n) a L) =\n      autEquivRootsOfUnity hζ H L σ • (rootOfSplitsXPowSubC (NeZero.pos n) a L) := by\n  obtain ⟨η, rfl⟩ := (autEquivRootsOfUnity hζ H L).symm.surjective σ\n  rw [MulEquiv.apply_symm_apply, autEquivRootsOfUnity]\n  simp only [MulEquiv.symm_trans_apply, AlgEquiv.autCongr_symm, AlgEquiv.symm_symm,\n    MulEquiv.symm_symm, AlgEquiv.autCongr_apply, AlgEquiv.trans_apply,\n    adjoinRootXPowSubCEquiv_symm_eq_root, autAdjoinRootXPowSubCEquiv_root, map_smul,\n    adjoinRootXPowSubCEquiv_root]\n  rfl",
+   "--src: Mathlib.FieldTheory.Minpoly.Field\ntheorem eq_of_irreducible [Nontrivial B] {p : A[X]} (hp1 : Irreducible p)\n    (hp2 : Polynomial.aeval x p = 0) : p * C p.leadingCoeff⁻¹ = minpoly A x := by\n  have : p.leadingCoeff ≠ 0 := leadingCoeff_ne_zero.mpr hp1.ne_zero\n  apply eq_of_irreducible_of_monic\n  · exact Associated.irreducible ⟨⟨C p.leadingCoeff⁻¹, C p.leadingCoeff,\n      by rwa [← C_mul, inv_mul_cancel₀, C_1], by rwa [← C_mul, mul_inv_cancel₀, C_1]⟩, rfl⟩ hp1\n  · rw [aeval_mul, hp2, zero_mul]\n  · rwa [Polynomial.Monic, leadingCoeff_mul, leadingCoeff_C, mul_inv_cancel₀]",
+   "--src: Mathlib.FieldTheory.AbelRuffini\n/-- Inductive definition of solvable by radicals -/\ninductive IsSolvableByRad : E → Prop\n  | base (α : F) : IsSolvableByRad (algebraMap F E α)\n  | add (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α + β)\n  | neg (α : E) : IsSolvableByRad α → IsSolvableByRad (-α)\n  | mul (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α * β)\n  | inv (α : E) : IsSolvableByRad α → IsSolvableByRad α⁻¹\n  | rad (α : E) (n : ℕ) (hn : n ≠ 0) : IsSolvableByRad (α ^ n) → IsSolvableByRad α",
+   "--src: Mathlib.FieldTheory.Normal\ninstance normal_self : Normal F F where\n  isAlgebraic := fun _ => isIntegral_algebraMap.isAlgebraic\n  splits' := fun x => (minpoly.eq_X_sub_C' x).symm ▸ splits_X_sub_C _",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ntheorem perfectField_of_perfectClosure_eq_bot [h : PerfectField E] (eq : perfectClosure F E = ⊥) :\n    PerfectField F := by\n  let p := ringExpChar F\n  haveI := expChar_of_injective_algebraMap (algebraMap F E).injective p\n  haveI := PerfectRing.ofSurjective F p fun x ↦ by\n    obtain ⟨y, h⟩ := surjective_frobenius E p (algebraMap F E x)\n    have : y ∈ perfectClosure F E := ⟨1, x, by rw [← h, pow_one, frobenius_def, ringExpChar.eq F p]⟩\n    obtain ⟨z, rfl⟩ := eq ▸ this\n    exact ⟨z, (algebraMap F E).injective (by erw [RingHom.map_frobenius, h])⟩\n  exact PerfectRing.toPerfectField F p",
+   "--src: Mathlib.FieldTheory.Adjoin\n/-- If `F⟮x⟯` has dimension `1` over `F` for every `x ∈ E` then `F = E`. -/\ntheorem bot_eq_top_of_rank_adjoin_eq_one (h : ∀ x : E, Module.rank F F⟮x⟯ = 1) :\n    (⊥ : IntermediateField F E) = ⊤ := by\n  ext y\n  rw [iff_true_right IntermediateField.mem_top]\n  exact rank_adjoin_simple_eq_one_iff.mp (h y)",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem equivAdjoinSimple_symm_aeval (pb : PowerBasis K L) (f : K[X]) :\n    pb.equivAdjoinSimple.symm (aeval pb.gen f) = aeval (AdjoinSimple.gen K pb.gen) f := by\n  rw [equivAdjoinSimple, equivOfMinpoly_symm, equivOfMinpoly_aeval, adjoin.powerBasis_gen]"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsAbsolutelyIrreducible.casesOn",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+   "compilationAlias":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nmotive : ρ.IsAbsolutelyIrreducible → Sort u\nt : ρ.IsAbsolutelyIrreducible\nmk : (absolutelyIrreducible : ∀ (k' : Type u_4) (x : Field k') (x_1 : Algebra k k'), (Representation.baseChange k' ρ).IsIrreducible) → motive ⋯\n⊢ motive t",
+  "content_sorry": "",
+  "annotation":
+  "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Invariants\n@[simp]\ntheorem mem_invariants (v : V) : v ∈ invariants ρ ↔ ∀ g : G, ρ g v = v := by rfl",
+   "--src: Mathlib.RepresentationTheory.Basic\n/-- A predicate for representations that fix every element. -/\nclass IsTrivial (ρ : Representation k G V) : Prop where\n  out : ∀ g x, ρ g x = x := by aesop",
+   "--src: Mathlib.RepresentationTheory.Rep\ninstance {V : Type u} [AddCommGroup V] [Module k V] (ρ : Representation k G V) [ρ.IsTrivial] :\n    IsTrivial (Rep.of ρ) where\n-- Porting note: the two following instances were found automatically in mathlib3",
+   "--src: Mathlib.RepresentationTheory.Basic\n@[simp]\ntheorem linHom_apply (g : G) (f : V →ₗ[k] W) : (linHom ρV ρW) g f = ρW g ∘ₗ f ∘ₗ ρV g⁻¹ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem repOfTprodIso_inv_apply (x : TensorProduct k V W) : (repOfTprodIso ρ τ).inv.hom x = x :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Basic\n@[simp]\ntheorem asAlgebraHom_single (g : G) (r : k) : asAlgebraHom ρ (Finsupp.single g r) = r • ρ g := by\n  simp only [asAlgebraHom_def, MonoidAlgebra.lift_single]",
+   "--src: Mathlib.RepresentationTheory.FDRep\n/-- Lift an unbundled representation to `FDRep`. -/\n@[simps ρ]\ndef of {V : Type u} [AddCommGroup V] [Module k V] [FiniteDimensional k V]\n    (ρ : Representation k G V) : FDRep k G :=\n  ⟨FGModuleCat.of k V, ρ ≫ MonCat.ofHom (ModuleCat.endMulEquiv _).symm.toMonoidHom⟩",
+   "--src: Mathlib.RepresentationTheory.Character\n@[simp]\ntheorem char_linHom (V W : FDRep k G) (g : G) :\n    (of (linHom V.ρ W.ρ)).character g = V.character g⁻¹ * W.character g := by\n  rw [← char_iso (dualTensorIsoLinHom _ _), char_tensor, Pi.mul_apply, char_dual]",
+   "--src: Mathlib.RepresentationTheory.GroupCohomology.Resolution\ntheorem ofMulAction_free :\n    Module.Free (MonoidAlgebra k G) (ofMulAction k G (Fin (n + 1) → G)).asModule :=\n  Module.Free.of_basis (ofMulActionBasis k G n)",
+   "--src: Mathlib.RepresentationTheory.Basic\ntheorem trivial_def (g : G) (v : V) : trivial k (V := V) g v = v :=\n  rfl"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsAbsolutelyIrreducible",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "inductive",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+   "compilationAlias":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nmotive : ρ.IsAbsolutelyIrreducible → Sort u\nt : ρ.IsAbsolutelyIrreducible\nmk : (absolutelyIrreducible : ∀ (k' : Type u_4) (x : Field k') (x_1 : Algebra k k'), (Representation.baseChange k' ρ).IsIrreducible) → motive ⋯\n⊢ motive t",
+  "content_sorry": "",
+  "annotation":
+  "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.PurelyInseparable\ninstance [Field L] [PerfectField L] [Algebra F L] : Nonempty (E →ₐ[F] L) :=\n  nonempty_algHom_of_splits fun x ↦ ⟨IsPurelyInseparable.isIntegral' _ _,\n    have ⟨q, _⟩ := ExpChar.exists F\n    PerfectField.splits_of_natSepDegree_eq_one (algebraMap F L)\n      ((minpoly.natSepDegree_eq_one_iff_eq_X_pow_sub_C q).mpr <|\n        IsPurelyInseparable.minpoly_eq_X_pow_sub_C F q x)⟩",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ntheorem perfectField_of_perfectClosure_eq_bot [h : PerfectField E] (eq : perfectClosure F E = ⊥) :\n    PerfectField F := by\n  let p := ringExpChar F\n  haveI := expChar_of_injective_algebraMap (algebraMap F E).injective p\n  haveI := PerfectRing.ofSurjective F p fun x ↦ by\n    obtain ⟨y, h⟩ := surjective_frobenius E p (algebraMap F E x)\n    have : y ∈ perfectClosure F E := ⟨1, x, by rw [← h, pow_one, frobenius_def, ringExpChar.eq F p]⟩\n    obtain ⟨z, rfl⟩ := eq ▸ this\n    exact ⟨z, (algebraMap F E).injective (by erw [RingHom.map_frobenius, h])⟩\n  exact PerfectRing.toPerfectField F p",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\n/-- A field extension `E / F` is purely inseparable if and only if the relative perfect closure of\n`F` in `E` is equal to `E`. -/\ntheorem isPurelyInseparable_iff_perfectClosure_eq_top :\n    IsPurelyInseparable F E ↔ perfectClosure F E = ⊤ := by\n  rw [isPurelyInseparable_iff_pow_mem F (ringExpChar F)]\n  exact ⟨fun H ↦ top_unique fun x _ ↦ H x, fun H _ ↦ H.ge trivial⟩",
+   "--src: Mathlib.FieldTheory.Perfect\n/-- If `L / K` is an algebraic extension, `K` is a perfect field, then so is `L`. -/\ntheorem Algebra.IsAlgebraic.perfectField {K L : Type*} [Field K] [Field L] [Algebra K L]\n    [Algebra.IsAlgebraic K L] [PerfectField K] : PerfectField L := ⟨fun {f} hf ↦ by\n  obtain ⟨_, _, hi, h⟩ := hf.exists_dvd_monic_irreducible_of_isIntegral (K := K)\n  exact (PerfectField.separable_of_irreducible hi).map |>.of_dvd h⟩",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ninstance isPurelyInseparable_bot : IsPurelyInseparable F (⊥ : IntermediateField F E) :=\n  (botEquiv F E).symm.isPurelyInseparable",
+   "--src: Mathlib.RingTheory.Algebraic.Integral\ntheorem AlgHom.bijective [FiniteDimensional K L] (ϕ : L →ₐ[K] L) : Function.Bijective ϕ :=\n  (Algebra.IsAlgebraic.of_finite K L).algHom_bijective ϕ",
+   "--src: Mathlib.FieldTheory.IntermediateField.Basic\ninstance [SMul L X] [FaithfulSMul L X] (F : IntermediateField K L) : FaithfulSMul F X :=\n  inferInstanceAs (FaithfulSMul F.toSubfield X)",
+   "--src: Mathlib.RingTheory.Algebraic.Integral\n/-- A field extension is algebraic if it is finite. -/\n@[stacks 09GG \"first part\"]\ninstance Algebra.IsAlgebraic.of_finite [FiniteDimensional K A] : Algebra.IsAlgebraic K A :=\n  (IsIntegral.of_finite K A).isAlgebraic",
+   "--src: Mathlib.FieldTheory.Adjoin\nopen Module AdjoinRoot in\n/-- Let `f, g` be monic polynomials over `K`. If `f` is irreducible, and `g(x) - α` is irreducible\nin `K⟮α⟯` with `α` a root of `f`, then `f(g(x))` is irreducible. -/\ntheorem _root_.Polynomial.irreducible_comp {f g : K[X]} (hfm : f.Monic) (hgm : g.Monic)\n    (hf : Irreducible f)\n    (hg : ∀ (E : Type u) [Field E] [Algebra K E] (x : E) (_ : minpoly K x = f),\n      Irreducible (g.map (algebraMap _ _) - C (AdjoinSimple.gen K x))) :\n    Irreducible (f.comp g) := by\n  have hf' : natDegree f ≠ 0 :=\n    fun e ↦ not_irreducible_C (f.coeff 0) (eq_C_of_natDegree_eq_zero e ▸ hf)\n  have hg' : natDegree g ≠ 0 := by\n    have := Fact.mk hf\n    intro e\n    apply not_irreducible_C ((g.map (algebraMap _ _)).coeff 0 - AdjoinSimple.gen K (root f))\n    -- Needed to specialize `map_sub` to avoid a timeout https://github.com/leanprover-community/mathlib4/pull/8386\n    rw [RingHom.map_sub, coeff_map, ← map_C, ← eq_C_of_natDegree_eq_zero e]\n    apply hg (AdjoinRoot f)\n    rw [AdjoinRoot.minpoly_root hf.ne_zero, hfm, inv_one, map_one, mul_one]\n  have H₁ : f.comp g ≠ 0 := fun h ↦ by simpa [hf', hg', natDegree_comp] using congr_arg natDegree h\n  have H₂ : ¬ IsUnit (f.comp g) := fun h ↦\n    by simpa [hf', hg', natDegree_comp] using natDegree_eq_zero_of_isUnit h\n  have ⟨p, hp₁, hp₂⟩ := WfDvdMonoid.exists_irreducible_factor H₂ H₁\n  suffices natDegree p = natDegree f * natDegree g from (associated_of_dvd_of_natDegree_le hp₂ H₁\n    (this.trans natDegree_comp.symm).ge).irreducible hp₁\n  have := Fact.mk hp₁\n  let Kx := AdjoinRoot p\n  letI := (AdjoinRoot.powerBasis hp₁.ne_zero).finite\n  have key₁ : f = minpoly K (aeval (root p) g) := by\n    refine minpoly.eq_of_irreducible_of_monic hf ?_ hfm\n    rw [← aeval_comp]\n    exact aeval_eq_zero_of_dvd_aeval_eq_zero hp₂ (AdjoinRoot.eval₂_root p)\n  have key₁' : finrank K K⟮aeval (root p) g⟯ = natDegree f := by\n    rw [adjoin.finrank, ← key₁]\n    exact IsIntegral.of_finite _ _\n  have key₂ : g.map (algebraMap _ _) - C (AdjoinSimple.gen K (aeval (root p) g)) =\n      minpoly K⟮aeval (root p) g⟯ (root p) :=\n    minpoly.eq_of_irreducible_of_monic (hg _ _ key₁.symm) (by simp [AdjoinSimple.gen])\n      (Monic.sub_of_left (hgm.map _) (degree_lt_degree (by simpa [Nat.pos_iff_ne_zero] using hg')))\n  have key₂' : finrank K⟮aeval (root p) g⟯ Kx = natDegree g := by\n    trans natDegree (minpoly K⟮aeval (root p) g⟯ (root p))\n    · have : K⟮aeval (root p) g⟯⟮root p⟯ = ⊤ := by\n        apply restrictScalars_injective K\n        rw [restrictScalars_top, adjoin_adjoin_left, Set.union_comm, ← adjoin_adjoin_left,\n          adjoin_root_eq_top p, restrictScalars_adjoin]\n        simp\n      rw [← finrank_top', ← this, adjoin.finrank]\n      exact IsIntegral.of_finite _ _\n    · simp [← key₂]\n  have := Module.finrank_mul_finrank K K⟮aeval (root p) g⟯ Kx\n  rwa [key₁', key₂', (AdjoinRoot.powerBasis hp₁.ne_zero).finrank, powerBasis_dim, eq_comm] at this"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsAbsolutelyIrreducible.mk",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "constructor",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+   "compilationAlias":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nmotive : ρ.IsAbsolutelyIrreducible → Sort u\nt : ρ.IsAbsolutelyIrreducible\nmk : (absolutelyIrreducible : ∀ (k' : Type u_4) (x : Field k') (x_1 : Algebra k k'), (Representation.baseChange k' ρ).IsIrreducible) → motive ⋯\n⊢ motive t",
+  "content_sorry": "",
+  "annotation":
+  "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma autEquivRootsOfUnity_apply_rootOfSplit [NeZero n] (σ : L ≃ₐ[K] L) :\n    σ (rootOfSplitsXPowSubC (NeZero.pos n) a L) =\n      autEquivRootsOfUnity hζ H L σ • (rootOfSplitsXPowSubC (NeZero.pos n) a L) := by\n  obtain ⟨η, rfl⟩ := (autEquivRootsOfUnity hζ H L).symm.surjective σ\n  rw [MulEquiv.apply_symm_apply, autEquivRootsOfUnity]\n  simp only [MulEquiv.symm_trans_apply, AlgEquiv.autCongr_symm, AlgEquiv.symm_symm,\n    MulEquiv.symm_symm, AlgEquiv.autCongr_apply, AlgEquiv.trans_apply,\n    adjoinRootXPowSubCEquiv_symm_eq_root, autAdjoinRootXPowSubCEquiv_root, map_smul,\n    adjoinRootXPowSubCEquiv_root]\n  rfl",
+   "--src: Mathlib.FieldTheory.PolynomialGaloisGroup\nlemma galAction_isPretransitive [Fact (p.Splits (algebraMap F E))] (hp : Irreducible p) :\n    MulAction.IsPretransitive p.Gal (p.rootSet E) := by\n  refine ⟨fun x y ↦ ?_⟩\n  have hx := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm x).2).2\n  have hy := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm y).2).2\n  obtain ⟨g, hg⟩ := (Normal.minpoly_eq_iff_mem_orbit p.SplittingField).mp (hy.symm.trans hx)\n  exact ⟨g, (rootsEquivRoots p E).apply_eq_iff_eq_symm_apply.mpr (Subtype.ext hg)⟩",
+   "--src: Mathlib.FieldTheory.Adjoin\n/-- If `F⟮x⟯` has dimension `1` over `F` for every `x ∈ E` then `F = E`. -/\ntheorem bot_eq_top_of_rank_adjoin_eq_one (h : ∀ x : E, Module.rank F F⟮x⟯ = 1) :\n    (⊥ : IntermediateField F E) = ⊤ := by\n  ext y\n  rw [iff_true_right IntermediateField.mem_top]\n  exact rank_adjoin_simple_eq_one_iff.mp (h y)",
+   "--src: Mathlib.FieldTheory.AbelRuffini\n/-- Inductive definition of solvable by radicals -/\ninductive IsSolvableByRad : E → Prop\n  | base (α : F) : IsSolvableByRad (algebraMap F E α)\n  | add (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α + β)\n  | neg (α : E) : IsSolvableByRad α → IsSolvableByRad (-α)\n  | mul (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α * β)\n  | inv (α : E) : IsSolvableByRad α → IsSolvableByRad α⁻¹\n  | rad (α : E) (n : ℕ) (hn : n ≠ 0) : IsSolvableByRad (α ^ n) → IsSolvableByRad α",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ntheorem perfectField_of_perfectClosure_eq_bot [h : PerfectField E] (eq : perfectClosure F E = ⊥) :\n    PerfectField F := by\n  let p := ringExpChar F\n  haveI := expChar_of_injective_algebraMap (algebraMap F E).injective p\n  haveI := PerfectRing.ofSurjective F p fun x ↦ by\n    obtain ⟨y, h⟩ := surjective_frobenius E p (algebraMap F E x)\n    have : y ∈ perfectClosure F E := ⟨1, x, by rw [← h, pow_one, frobenius_def, ringExpChar.eq F p]⟩\n    obtain ⟨z, rfl⟩ := eq ▸ this\n    exact ⟨z, (algebraMap F E).injective (by erw [RingHom.map_frobenius, h])⟩\n  exact PerfectRing.toPerfectField F p",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\n/-- The relative perfect closure of `F` in `E` is purely inseparable over `F`. -/\ninstance perfectClosure.isPurelyInseparable : IsPurelyInseparable F (perfectClosure F E) := by\n  rw [isPurelyInseparable_iff_pow_mem F (ringExpChar F)]\n  exact fun ⟨_, n, y, h⟩ ↦ ⟨n, y, (algebraMap _ E).injective h⟩",
+   "--src: Mathlib.FieldTheory.Minpoly.Field\ntheorem eq_of_irreducible [Nontrivial B] {p : A[X]} (hp1 : Irreducible p)\n    (hp2 : Polynomial.aeval x p = 0) : p * C p.leadingCoeff⁻¹ = minpoly A x := by\n  have : p.leadingCoeff ≠ 0 := leadingCoeff_ne_zero.mpr hp1.ne_zero\n  apply eq_of_irreducible_of_monic\n  · exact Associated.irreducible ⟨⟨C p.leadingCoeff⁻¹, C p.leadingCoeff,\n      by rwa [← C_mul, inv_mul_cancel₀, C_1], by rwa [← C_mul, mul_inv_cancel₀, C_1]⟩, rfl⟩ hp1\n  · rw [aeval_mul, hp2, zero_mul]\n  · rwa [Polynomial.Monic, leadingCoeff_mul, leadingCoeff_C, mul_inv_cancel₀]",
+   "--src: Mathlib.RingTheory.Trace.Basic\ntheorem trace_gen_eq_sum_roots (x : L) (hf : (minpoly K x).Splits (algebraMap K F)) :\n    algebraMap K F (trace K K⟮x⟯ (AdjoinSimple.gen K x)) =\n      ((minpoly K x).aroots F).sum := by\n  have injKxL := (algebraMap K⟮x⟯ L).injective\n  by_cases hx : IsIntegral K x; swap\n  · simp [minpoly.eq_zero hx, trace_gen_eq_zero hx, aroots_def]\n  rw [← adjoin.powerBasis_gen hx, (adjoin.powerBasis hx).trace_gen_eq_sum_roots] <;>\n    rw [adjoin.powerBasis_gen hx, ← minpoly.algebraMap_eq injKxL] <;>\n    try simp only [AdjoinSimple.algebraMap_gen _ _]\n  exact hf",
+   "--src: Mathlib.FieldTheory.LinearDisjoint\n/-- If `A` and `L` are linearly disjoint, then any `F`-linearly independent family on `L` remains\nlinearly independent over `A`. -/\ntheorem linearIndependent_right' (H : A.LinearDisjoint L) {ι : Type*} {b : ι → L}\n    (hb : LinearIndependent F b) : LinearIndependent A (algebraMap L E ∘ b) := by\n  apply Subalgebra.LinearDisjoint.linearIndependent_right_of_flat H <| hb.map' _\n    (AlgEquiv.ofInjectiveField (IsScalarTower.toAlgHom F L E)).toLinearEquiv.ker"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsAbsolutelyIrreducible.rec",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "recursor",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+   "compilationAlias":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nmotive : ρ.IsAbsolutelyIrreducible → Sort u\nt : ρ.IsAbsolutelyIrreducible\nmk : (absolutelyIrreducible : ∀ (k' : Type u_4) (x : Field k') (x_1 : Algebra k k'), (Representation.baseChange k' ρ).IsIrreducible) → motive ⋯\n⊢ motive t",
+  "content_sorry": "",
+  "annotation":
+  "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsAbsolutelyIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+    "compilationAlias":
+    "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\n/-- If `E / F` is purely inseparable, then for any reduced `F`-algebra `L`, there exists at most one\n`F`-algebra homomorphism from `E` to `L`. -/\ninstance instSubsingletonAlgHomOfIsPurelyInseparable [IsPurelyInseparable F E] (L : Type w)\n    [CommRing L] [IsReduced L] [Algebra F L] : Subsingleton (E →ₐ[F] L) where\n  allEq f g := AlgHom.coe_ringHom_injective <|\n    IsPurelyInseparable.injective_comp_algebraMap F E L (by simp_rw [AlgHom.comp_algebraMap])",
+   "--src: Mathlib.FieldTheory.PolynomialGaloisGroup\nlemma galAction_isPretransitive [Fact (p.Splits (algebraMap F E))] (hp : Irreducible p) :\n    MulAction.IsPretransitive p.Gal (p.rootSet E) := by\n  refine ⟨fun x y ↦ ?_⟩\n  have hx := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm x).2).2\n  have hy := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm y).2).2\n  obtain ⟨g, hg⟩ := (Normal.minpoly_eq_iff_mem_orbit p.SplittingField).mp (hy.symm.trans hx)\n  exact ⟨g, (rootsEquivRoots p E).apply_eq_iff_eq_symm_apply.mpr (Subtype.ext hg)⟩",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma autEquivRootsOfUnity_apply_rootOfSplit [NeZero n] (σ : L ≃ₐ[K] L) :\n    σ (rootOfSplitsXPowSubC (NeZero.pos n) a L) =\n      autEquivRootsOfUnity hζ H L σ • (rootOfSplitsXPowSubC (NeZero.pos n) a L) := by\n  obtain ⟨η, rfl⟩ := (autEquivRootsOfUnity hζ H L).symm.surjective σ\n  rw [MulEquiv.apply_symm_apply, autEquivRootsOfUnity]\n  simp only [MulEquiv.symm_trans_apply, AlgEquiv.autCongr_symm, AlgEquiv.symm_symm,\n    MulEquiv.symm_symm, AlgEquiv.autCongr_apply, AlgEquiv.trans_apply,\n    adjoinRootXPowSubCEquiv_symm_eq_root, autAdjoinRootXPowSubCEquiv_root, map_smul,\n    adjoinRootXPowSubCEquiv_root]\n  rfl",
+   "--src: Mathlib.FieldTheory.Minpoly.Field\ntheorem eq_of_irreducible [Nontrivial B] {p : A[X]} (hp1 : Irreducible p)\n    (hp2 : Polynomial.aeval x p = 0) : p * C p.leadingCoeff⁻¹ = minpoly A x := by\n  have : p.leadingCoeff ≠ 0 := leadingCoeff_ne_zero.mpr hp1.ne_zero\n  apply eq_of_irreducible_of_monic\n  · exact Associated.irreducible ⟨⟨C p.leadingCoeff⁻¹, C p.leadingCoeff,\n      by rwa [← C_mul, inv_mul_cancel₀, C_1], by rwa [← C_mul, mul_inv_cancel₀, C_1]⟩, rfl⟩ hp1\n  · rw [aeval_mul, hp2, zero_mul]\n  · rwa [Polynomial.Monic, leadingCoeff_mul, leadingCoeff_C, mul_inv_cancel₀]",
+   "--src: Mathlib.FieldTheory.AbelRuffini\n/-- Inductive definition of solvable by radicals -/\ninductive IsSolvableByRad : E → Prop\n  | base (α : F) : IsSolvableByRad (algebraMap F E α)\n  | add (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α + β)\n  | neg (α : E) : IsSolvableByRad α → IsSolvableByRad (-α)\n  | mul (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α * β)\n  | inv (α : E) : IsSolvableByRad α → IsSolvableByRad α⁻¹\n  | rad (α : E) (n : ℕ) (hn : n ≠ 0) : IsSolvableByRad (α ^ n) → IsSolvableByRad α",
+   "--src: Mathlib.FieldTheory.Normal\ninstance normal_self : Normal F F where\n  isAlgebraic := fun _ => isIntegral_algebraMap.isAlgebraic\n  splits' := fun x => (minpoly.eq_X_sub_C' x).symm ▸ splits_X_sub_C _",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ntheorem perfectField_of_perfectClosure_eq_bot [h : PerfectField E] (eq : perfectClosure F E = ⊥) :\n    PerfectField F := by\n  let p := ringExpChar F\n  haveI := expChar_of_injective_algebraMap (algebraMap F E).injective p\n  haveI := PerfectRing.ofSurjective F p fun x ↦ by\n    obtain ⟨y, h⟩ := surjective_frobenius E p (algebraMap F E x)\n    have : y ∈ perfectClosure F E := ⟨1, x, by rw [← h, pow_one, frobenius_def, ringExpChar.eq F p]⟩\n    obtain ⟨z, rfl⟩ := eq ▸ this\n    exact ⟨z, (algebraMap F E).injective (by erw [RingHom.map_frobenius, h])⟩\n  exact PerfectRing.toPerfectField F p",
+   "--src: Mathlib.FieldTheory.Adjoin\n/-- If `F⟮x⟯` has dimension `1` over `F` for every `x ∈ E` then `F = E`. -/\ntheorem bot_eq_top_of_rank_adjoin_eq_one (h : ∀ x : E, Module.rank F F⟮x⟯ = 1) :\n    (⊥ : IntermediateField F E) = ⊤ := by\n  ext y\n  rw [iff_true_right IntermediateField.mem_top]\n  exact rank_adjoin_simple_eq_one_iff.mp (h y)",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem equivAdjoinSimple_symm_aeval (pb : PowerBasis K L) (f : K[X]) :\n    pb.equivAdjoinSimple.symm (aeval pb.gen f) = aeval (AdjoinSimple.gen K pb.gen) f := by\n  rw [equivAdjoinSimple, equivOfMinpoly_symm, equivOfMinpoly_aeval, adjoin.powerBasis_gen]"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsAbsolutelyIrreducible.recOn",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+   "compilationAlias":
+   "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nmotive : ρ.IsAbsolutelyIrreducible → Sort u\nt : ρ.IsAbsolutelyIrreducible\nmk : (absolutelyIrreducible : ∀ (k' : Type u_4) (x : Field k') (x_1 : Algebra k k'), (Representation.baseChange k' ρ).IsIrreducible) → motive ⋯\n⊢ motive t",
+  "content_sorry": "",
+  "annotation":
+  "class IsAbsolutelyIrreducible (ρ : Representation k G W) : Prop where\n  absolutelyIrreducible : ∀ k', ∀ _ : Field k', ∀ _ : Algebra k k', IsIrreducible (k' ⊗ᵣ' ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Invariants\n@[simp]\ntheorem mem_invariants (v : V) : v ∈ invariants ρ ↔ ∀ g : G, ρ g v = v := by rfl",
+   "--src: Mathlib.RepresentationTheory.Basic\n/-- A predicate for representations that fix every element. -/\nclass IsTrivial (ρ : Representation k G V) : Prop where\n  out : ∀ g x, ρ g x = x := by aesop",
+   "--src: Mathlib.RepresentationTheory.Rep\ninstance {V : Type u} [AddCommGroup V] [Module k V] (ρ : Representation k G V) [ρ.IsTrivial] :\n    IsTrivial (Rep.of ρ) where\n-- Porting note: the two following instances were found automatically in mathlib3",
+   "--src: Mathlib.RepresentationTheory.Basic\n@[simp]\ntheorem linHom_apply (g : G) (f : V →ₗ[k] W) : (linHom ρV ρW) g f = ρW g ∘ₗ f ∘ₗ ρV g⁻¹ :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Rep\ntheorem repOfTprodIso_inv_apply (x : TensorProduct k V W) : (repOfTprodIso ρ τ).inv.hom x = x :=\n  rfl",
+   "--src: Mathlib.RepresentationTheory.Basic\n@[simp]\ntheorem asAlgebraHom_single (g : G) (r : k) : asAlgebraHom ρ (Finsupp.single g r) = r • ρ g := by\n  simp only [asAlgebraHom_def, MonoidAlgebra.lift_single]",
+   "--src: Mathlib.RepresentationTheory.FDRep\n/-- Lift an unbundled representation to `FDRep`. -/\n@[simps ρ]\ndef of {V : Type u} [AddCommGroup V] [Module k V] [FiniteDimensional k V]\n    (ρ : Representation k G V) : FDRep k G :=\n  ⟨FGModuleCat.of k V, ρ ≫ MonCat.ofHom (ModuleCat.endMulEquiv _).symm.toMonoidHom⟩",
+   "--src: Mathlib.RepresentationTheory.Character\n@[simp]\ntheorem char_linHom (V W : FDRep k G) (g : G) :\n    (of (linHom V.ρ W.ρ)).character g = V.character g⁻¹ * W.character g := by\n  rw [← char_iso (dualTensorIsoLinHom _ _), char_tensor, Pi.mul_apply, char_dual]",
+   "--src: Mathlib.RepresentationTheory.GroupCohomology.Resolution\ntheorem ofMulAction_free :\n    Module.Free (MonoidAlgebra k G) (ofMulAction k G (Fin (n + 1) → G)).asModule :=\n  Module.Free.of_basis (ofMulActionBasis k G n)",
+   "--src: Mathlib.RepresentationTheory.Basic\ntheorem trivial_def (g : G) (v : V) : trivial k (V := V) g v = v :=\n  rfl"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsIrreducible",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "inductive",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+   "compilationAlias":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nP : Sort u\nv1 v2 : ρ.IsIrreducible\n⊢ Sort u",
+  "content_sorry": "",
+  "annotation":
+  "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.recOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.SimpleModule\ninstance : IsNoetherian R M := isNoetherian_iff'.mpr inferInstance",
+   "--src: Mathlib.FieldTheory.SplittingField.Construction\ntheorem irreducible_factor (f : K[X]) : Irreducible (factor f) := by\n  rw [factor]\n  split_ifs with H\n  · exact (Classical.choose_spec H).1\n  · exact irreducible_X",
+   "--src: Mathlib.Algebra.Algebra.Subalgebra.IsSimpleOrder\ntheorem Subalgebra.isSimpleOrder_of_finrank_prime (F A) [Field F] [Ring A] [IsDomain A]\n    [Algebra F A] (hp : (finrank F A).Prime) : IsSimpleOrder (Subalgebra F A) :=\n  { toNontrivial :=\n      ⟨⟨⊥, ⊤, fun he =>\n          Nat.not_prime_one ((Subalgebra.bot_eq_top_iff_finrank_eq_one.1 he).subst hp)⟩⟩\n    eq_bot_or_eq_top := fun K => by\n      haveI : FiniteDimensional _ _ := .of_finrank_pos hp.pos\n      letI := divisionRingOfFiniteDimensional F K\n      refine (hp.eq_one_or_self_of_dvd _ ⟨_, (finrank_mul_finrank F K A).symm⟩).imp ?_ fun h => ?_\n      · exact fun h' => Subalgebra.eq_bot_of_finrank_one h'\n      · exact\n          Algebra.toSubmodule_eq_top.1 (eq_top_of_finrank_eq <| K.finrank_toSubmodule.trans h) }\n-- TODO: `IntermediateField` version",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem rank_eq_one_iff : Module.rank F K = 1 ↔ K = ⊥ := by\n  rw [← toSubalgebra_inj, ← rank_eq_rank_subalgebra, Subalgebra.rank_eq_one_iff,\n    bot_toSubalgebra]",
+   "--src: Mathlib.FieldTheory.AbelRuffini\n/-- **Abel-Ruffini Theorem** (one direction): An irreducible polynomial with an\n`IsSolvableByRad` root has solvable Galois group -/\ntheorem isSolvable' {α : E} {q : F[X]} (q_irred : Irreducible q) (q_aeval : aeval α q = 0)\n    (hα : IsSolvableByRad F α) : IsSolvable q.Gal := by\n  have : _root_.IsSolvable (q * C q.leadingCoeff⁻¹).Gal := by\n    rw [minpoly.eq_of_irreducible q_irred q_aeval, ←\n      show minpoly F (⟨α, hα⟩ : solvableByRad F E) = minpoly F α from\n        (minpoly.algebraMap_eq (RingHom.injective _) _).symm]\n    exact isSolvable ⟨α, hα⟩\n  refine solvable_of_surjective (Gal.restrictDvd_surjective ⟨C q.leadingCoeff⁻¹, rfl⟩ ?_)\n  rw [mul_ne_zero_iff, Ne, Ne, C_eq_zero, inv_eq_zero]\n  exact ⟨q_irred.ne_zero, leadingCoeff_ne_zero.mpr q_irred.ne_zero⟩",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem AdjoinSimple.isIntegral_gen : IsIntegral F (AdjoinSimple.gen F α) ↔ IsIntegral F α := by\n  conv_rhs => rw [← AdjoinSimple.algebraMap_gen F α]\n  rw [isIntegral_algebraMap_iff (algebraMap F⟮α⟯ E).injective]",
+   "--src: Mathlib.CategoryTheory.Simple\n/-- If `X` has subobject lattice `{⊥, ⊤}`, then `X` is simple. -/\ntheorem simple_of_isSimpleOrder_subobject (X : C) [IsSimpleOrder (Subobject X)] : Simple X := by\n  constructor; intros Y f hf; constructor\n  · intro i\n    rw [Subobject.isIso_iff_mk_eq_top] at i\n    intro w\n    rw [← Subobject.mk_eq_bot_iff_zero] at w\n    exact IsSimpleOrder.bot_ne_top (w.symm.trans i)\n  · intro i\n    rcases IsSimpleOrder.eq_bot_or_eq_top (Subobject.mk f) with (h | h)\n    · rw [Subobject.mk_eq_bot_iff_zero] at h\n      exact False.elim (i h)\n    · exact (Subobject.isIso_iff_mk_eq_top _).mpr h",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem top_toSubfield : (⊤ : IntermediateField F E).toSubfield = ⊤ :=\n  rfl",
+   "--src: Mathlib.Algebra.CharP.IntermediateField\ninstance expChar [ExpChar F p] : ExpChar L p := RingHom.expChar _ (algebraMap _ F).injective p"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsIrreducible.recOn",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+   "compilationAlias":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nP : Sort u\nv1 v2 : ρ.IsIrreducible\n⊢ Sort u",
+  "content_sorry": "",
+  "annotation":
+  "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.noConfusion",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RepresentationTheory.Invariants\n@[simp]\ntheorem mem_invariants (v : V) : v ∈ invariants ρ ↔ ∀ g : G, ρ g v = v := by rfl",
+   "--src: Mathlib.RepresentationTheory.Invariants\ntheorem invariants_eq_top [ρ.IsTrivial] :\n    invariants ρ = ⊤ :=\neq_top_iff.2 (fun x _ g => ρ.apply_eq_self g x)",
+   "--src: Mathlib.LinearAlgebra.FiniteDimensional\n@[simp]\ntheorem linearEquivOfInjective_apply [FiniteDimensional K V] [FiniteDimensional K V₂]\n    {f : V →ₗ[K] V₂} (hf : Injective f) (hdim : finrank K V = finrank K V₂) (x : V) :\n    f.linearEquivOfInjective hf hdim x = f x :=\n  rfl",
+   "--src: Mathlib.Algebra.Module.Equiv.Basic\n/-- Each element of the group defines a module automorphism.\nThis is a stronger version of `DistribMulAction.toAddAut`. -/\n@[simps]\ndef toModuleAut : S →* M ≃ₗ[R] M where\n  toFun := toLinearEquiv R M\n  map_one' := LinearEquiv.ext <| one_smul _\n  map_mul' _ _ := LinearEquiv.ext <| mul_smul _ _",
+   "--src: Mathlib.LinearAlgebra.Dual\nlemma eq_of_ker_eq_of_apply_eq [FiniteDimensional K V₁] {f g : Module.Dual K V₁} (x : V₁)\n    (h : LinearMap.ker f = LinearMap.ker g) (h' : f x = g x) (hx : f x ≠ 0) :\n    f = g := by\n  let p := K ∙ x\n  have hp : p ≠ ⊥ := by aesop\n  have hpf : Disjoint (LinearMap.ker f) p := by\n    rw [disjoint_iff, Submodule.eq_bot_iff]\n    rintro y ⟨hfy : f y = 0, hpy : y ∈ p⟩\n    obtain ⟨t, rfl⟩ := Submodule.mem_span_singleton.mp hpy\n    have ht : t = 0 := by simpa [hx] using hfy\n    simp [ht]\n  have hf : f ≠ 0 := by aesop\n  ext v\n  obtain ⟨y, hy, z, hz, rfl⟩ : ∃ᵉ (y ∈ LinearMap.ker f) (z ∈ p), y + z = v := by\n    have : v ∈ (⊤ : Submodule K V₁) := Submodule.mem_top\n    rwa [← (isCompl_ker_of_disjoint_of_ne_bot hf hpf hp).sup_eq_top, Submodule.mem_sup] at this\n  have hy' : g y = 0 := by rwa [← LinearMap.mem_ker, ← h]\n  replace hy : f y = 0 := by rwa [LinearMap.mem_ker] at hy\n  obtain ⟨t, rfl⟩ := Submodule.mem_span_singleton.mp hz\n  simp [h', hy, hy']",
+   "--src: Mathlib.RepresentationTheory.Character\n@[simp]\ntheorem char_one (V : FDRep k G) : V.character 1 = Module.finrank k V := by\n  simp only [character, map_one, trace_one]",
+   "--src: Mathlib.LinearAlgebra.Dimension.DivisionRing\n/-- This is mostly an auxiliary lemma for `Submodule.rank_sup_add_rank_inf_eq`. -/\ntheorem rank_add_rank_split (db : V₂ →ₗ[K] V) (eb : V₃ →ₗ[K] V) (cd : V₁ →ₗ[K] V₂)\n    (ce : V₁ →ₗ[K] V₃) (hde : ⊤ ≤ LinearMap.range db ⊔ LinearMap.range eb) (hgd : ker cd = ⊥)\n    (eq : db.comp cd = eb.comp ce) (eq₂ : ∀ d e, db d = eb e → ∃ c, cd c = d ∧ ce c = e) :\n    Module.rank K V + Module.rank K V₁ = Module.rank K V₂ + Module.rank K V₃ := by\n  have hf : Surjective (coprod db eb) := by\n    rwa [← range_eq_top, range_coprod, eq_top_iff]\n  conv =>\n    rhs\n    rw [← rank_prod', rank_eq_of_surjective hf]\n  congr 1\n  apply LinearEquiv.rank_eq\n  let L : V₁ →ₗ[K] ker (coprod db eb) := by -- Porting note: this is needed to avoid a timeout\n    refine LinearMap.codRestrict _ (prod cd (-ce)) ?_\n    · intro c\n      simp only [add_eq_zero_iff_eq_neg, LinearMap.prod_apply, mem_ker, Pi.prod, coprod_apply,\n        neg_neg, map_neg, neg_apply]\n      exact LinearMap.ext_iff.1 eq c\n  refine LinearEquiv.ofBijective L ⟨?_, ?_⟩\n  · rw [← ker_eq_bot, ker_codRestrict, ker_prod, hgd, bot_inf_eq]\n  · rw [← range_eq_top, eq_top_iff, range_codRestrict, ← map_le_iff_le_comap,\n      Submodule.map_top, range_subtype]\n    rintro ⟨d, e⟩\n    have h := eq₂ d (-e)\n    simp only [add_eq_zero_iff_eq_neg, LinearMap.prod_apply, mem_ker, SetLike.mem_coe,\n      Prod.mk.inj_iff, coprod_apply, map_neg, neg_apply, LinearMap.mem_range, Pi.prod] at h ⊢\n    intro hde\n    rcases h hde with ⟨c, h₁, h₂⟩\n    refine ⟨c, h₁, ?_⟩\n    rw [h₂, _root_.neg_neg]",
+   "--src: Mathlib.RepresentationTheory.GroupCohomology.LowDegree\n@[simp] theorem H0LequivOfIsTrivial_symm_apply [A.IsTrivial] (x : A) :\n    (H0LequivOfIsTrivial A).symm x = x := rfl",
+   "--src: Mathlib.RepresentationTheory.Basic\n@[simp]\ntheorem ofModule_asModule_act (g : G) (x : RestrictScalars k (MonoidAlgebra k G) ρ.asModule) :\n    ofModule (k := k) (G := G) ρ.asModule g x = -- Porting note: more help with implicit\n      (RestrictScalars.addEquiv _ _ _).symm\n        (ρ.asModuleEquiv.symm (ρ g (ρ.asModuleEquiv (RestrictScalars.addEquiv _ _ _ x)))) := by\n  apply_fun RestrictScalars.addEquiv _ _ ρ.asModule using\n    (RestrictScalars.addEquiv _ _ ρ.asModule).injective\n  dsimp [ofModule, RestrictScalars.lsmul_apply_apply]\n  simp",
+   "--src: Mathlib.LinearAlgebra.Eigenspace.Basic\nlemma hasUnifEigenvalue_iff_mem_spectrum [FiniteDimensional K V] {f : End K V} {μ : K} :\n    f.HasUnifEigenvalue μ 1 ↔ μ ∈ spectrum K f := by\n  rw [spectrum.mem_iff, IsUnit.sub_iff, LinearMap.isUnit_iff_ker_eq_bot,\n    HasUnifEigenvalue, genEigenspace_one, ne_eq, not_iff_not]\n  simp [Submodule.ext_iff, LinearMap.mem_ker]"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsIrreducible.noConfusion",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+   "compilationAlias":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nP : Sort u\nv1 v2 : ρ.IsIrreducible\n⊢ Sort u",
+  "content_sorry": "",
+  "annotation":
+  "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.casesOn",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.SimpleModule\ninstance : IsNoetherian R M := isNoetherian_iff'.mpr inferInstance",
+   "--src: Mathlib.FieldTheory.SplittingField.Construction\ntheorem irreducible_factor (f : K[X]) : Irreducible (factor f) := by\n  rw [factor]\n  split_ifs with H\n  · exact (Classical.choose_spec H).1\n  · exact irreducible_X",
+   "--src: Mathlib.Algebra.Algebra.Subalgebra.IsSimpleOrder\ntheorem Subalgebra.isSimpleOrder_of_finrank_prime (F A) [Field F] [Ring A] [IsDomain A]\n    [Algebra F A] (hp : (finrank F A).Prime) : IsSimpleOrder (Subalgebra F A) :=\n  { toNontrivial :=\n      ⟨⟨⊥, ⊤, fun he =>\n          Nat.not_prime_one ((Subalgebra.bot_eq_top_iff_finrank_eq_one.1 he).subst hp)⟩⟩\n    eq_bot_or_eq_top := fun K => by\n      haveI : FiniteDimensional _ _ := .of_finrank_pos hp.pos\n      letI := divisionRingOfFiniteDimensional F K\n      refine (hp.eq_one_or_self_of_dvd _ ⟨_, (finrank_mul_finrank F K A).symm⟩).imp ?_ fun h => ?_\n      · exact fun h' => Subalgebra.eq_bot_of_finrank_one h'\n      · exact\n          Algebra.toSubmodule_eq_top.1 (eq_top_of_finrank_eq <| K.finrank_toSubmodule.trans h) }\n-- TODO: `IntermediateField` version",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem rank_eq_one_iff : Module.rank F K = 1 ↔ K = ⊥ := by\n  rw [← toSubalgebra_inj, ← rank_eq_rank_subalgebra, Subalgebra.rank_eq_one_iff,\n    bot_toSubalgebra]",
+   "--src: Mathlib.FieldTheory.AbelRuffini\n/-- **Abel-Ruffini Theorem** (one direction): An irreducible polynomial with an\n`IsSolvableByRad` root has solvable Galois group -/\ntheorem isSolvable' {α : E} {q : F[X]} (q_irred : Irreducible q) (q_aeval : aeval α q = 0)\n    (hα : IsSolvableByRad F α) : IsSolvable q.Gal := by\n  have : _root_.IsSolvable (q * C q.leadingCoeff⁻¹).Gal := by\n    rw [minpoly.eq_of_irreducible q_irred q_aeval, ←\n      show minpoly F (⟨α, hα⟩ : solvableByRad F E) = minpoly F α from\n        (minpoly.algebraMap_eq (RingHom.injective _) _).symm]\n    exact isSolvable ⟨α, hα⟩\n  refine solvable_of_surjective (Gal.restrictDvd_surjective ⟨C q.leadingCoeff⁻¹, rfl⟩ ?_)\n  rw [mul_ne_zero_iff, Ne, Ne, C_eq_zero, inv_eq_zero]\n  exact ⟨q_irred.ne_zero, leadingCoeff_ne_zero.mpr q_irred.ne_zero⟩",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem AdjoinSimple.isIntegral_gen : IsIntegral F (AdjoinSimple.gen F α) ↔ IsIntegral F α := by\n  conv_rhs => rw [← AdjoinSimple.algebraMap_gen F α]\n  rw [isIntegral_algebraMap_iff (algebraMap F⟮α⟯ E).injective]",
+   "--src: Mathlib.CategoryTheory.Simple\n/-- If `X` has subobject lattice `{⊥, ⊤}`, then `X` is simple. -/\ntheorem simple_of_isSimpleOrder_subobject (X : C) [IsSimpleOrder (Subobject X)] : Simple X := by\n  constructor; intros Y f hf; constructor\n  · intro i\n    rw [Subobject.isIso_iff_mk_eq_top] at i\n    intro w\n    rw [← Subobject.mk_eq_bot_iff_zero] at w\n    exact IsSimpleOrder.bot_ne_top (w.symm.trans i)\n  · intro i\n    rcases IsSimpleOrder.eq_bot_or_eq_top (Subobject.mk f) with (h | h)\n    · rw [Subobject.mk_eq_bot_iff_zero] at h\n      exact False.elim (i h)\n    · exact (Subobject.isIso_iff_mk_eq_top _).mpr h",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem top_toSubfield : (⊤ : IntermediateField F E).toSubfield = ⊤ :=\n  rfl",
+   "--src: Mathlib.Algebra.CharP.IntermediateField\ninstance expChar [ExpChar F p] : ExpChar L p := RingHom.expChar _ (algebraMap _ F).injective p"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsIrreducible.casesOn",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+   "compilationAlias":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nP : Sort u\nv1 v2 : ρ.IsIrreducible\n⊢ Sort u",
+  "content_sorry": "",
+  "annotation":
+  "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+   {"name": "Representation.IsIrreducible.mk",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.PurelyInseparable\n/-- A field extension `E / F` is purely inseparable if and only if the relative perfect closure of\n`F` in `E` is equal to `E`. -/\ntheorem isPurelyInseparable_iff_perfectClosure_eq_top :\n    IsPurelyInseparable F E ↔ perfectClosure F E = ⊤ := by\n  rw [isPurelyInseparable_iff_pow_mem F (ringExpChar F)]\n  exact ⟨fun H ↦ top_unique fun x _ ↦ H x, fun H _ ↦ H.ge trivial⟩",
+   "--src: Mathlib.RingTheory.SimpleModule\n/-- In general, the annihilator of a simple module is called a primitive ideal, and it is\nalways a two-sided prime ideal, but mathlib's `Ideal.IsPrime` is not the correct definition\nfor noncommutative rings. -/\ntheorem IsSimpleModule.annihilator_isMaximal {R} [CommRing R] [Module R M]\n    [simple : IsSimpleModule R M] : (Module.annihilator R M).IsMaximal := by\n  have ⟨I, max, ⟨e⟩⟩ := isSimpleModule_iff_quot_maximal.mp simple\n  rwa [e.annihilator_eq, I.annihilator_quotient]",
+   "--src: Mathlib.RingTheory.SimpleModule\ntheorem isSimpleModule_iff_finrank_eq_one {R} [DivisionRing R] [Module R M] :\n    IsSimpleModule R M ↔ Module.finrank R M = 1 :=\n  ⟨fun h ↦ have := h.nontrivial; have ⟨v, hv⟩ := exists_ne (0 : M)\n    (finrank_eq_one_iff_of_nonzero' v hv).mpr (IsSimpleModule.toSpanSingleton_surjective R hv),\n  is_simple_module_of_finrank_eq_one⟩",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem AdjoinSimple.isIntegral_gen : IsIntegral F (AdjoinSimple.gen F α) ↔ IsIntegral F α := by\n  conv_rhs => rw [← AdjoinSimple.algebraMap_gen F α]\n  rw [isIntegral_algebraMap_iff (algebraMap F⟮α⟯ E).injective]",
+   "--src: Mathlib.Algebra.Lie.Weights.RootSystem\ntheorem isReduced_rootSystem : (rootSystem H).IsReduced := by\n  intro ⟨α, hα⟩ ⟨β, hβ⟩ e\n  rw [LinearIndependent.pair_iff' ((rootSystem H).ne_zero _), not_forall] at e\n  simp only [Nat.succ_eq_add_one, Nat.reduceAdd, rootSystem_root_apply, ne_eq, not_not] at e\n  obtain ⟨u, hu⟩ := e\n  obtain (h | h) :=\n    eq_neg_or_eq_of_eq_smul α β (by simpa using hβ) u (by ext x; exact DFunLike.congr_fun hu.symm x)\n  · right; ext x; simpa [neg_eq_iff_eq_neg] using DFunLike.congr_fun h.symm x\n  · left; ext x; simpa using DFunLike.congr_fun h.symm x",
+   "--src: Mathlib.RingTheory.SimpleModule\nopen IsSimpleModule in\n/-- A module is simple iff it's isomorphic to the quotient of the ring by a maximal left ideal\n(not necessarily unique if the ring is not commutative). -/\ntheorem isSimpleModule_iff_quot_maximal :\n    IsSimpleModule R M ↔ ∃ I : Ideal R, I.IsMaximal ∧ Nonempty (M ≃ₗ[R] R ⧸ I) := by\n  refine ⟨fun h ↦ ?_, fun ⟨I, ⟨coatom⟩, ⟨equiv⟩⟩ ↦ ?_⟩\n  · have := IsSimpleModule.nontrivial R M\n    have ⟨m, hm⟩ := exists_ne (0 : M)\n    exact ⟨_, ker_toSpanSingleton_isMaximal R hm,\n      ⟨(LinearMap.quotKerEquivOfSurjective _ <| toSpanSingleton_surjective R hm).symm⟩⟩\n  · convert congr equiv; rwa [isSimpleModule_iff_isCoatom]",
+   "--src: Mathlib.FieldTheory.Adjoin\ntheorem finrank_adjoin_simple_eq_one_iff :\n    finrank F F⟮α⟯ = 1 ↔ α ∈ (⊥ : IntermediateField F E) := by\n  rw [finrank_adjoin_eq_one_iff]; exact Set.singleton_subset_iff",
+   "--src: Mathlib.RingTheory.SimpleModule\n@[simp]\ntheorem isAtom [IsSimpleModule R m] : IsAtom m :=\n  isSimpleModule_iff_isAtom.1 ‹_›",
+   "--src: Mathlib.Algebra.Algebra.Subalgebra.Basic\ntheorem bijective_algebraMap_iff {R A : Type*} [Field R] [Semiring A] [Nontrivial A]\n    [Algebra R A] : Function.Bijective (algebraMap R A) ↔ (⊤ : Subalgebra R A) = ⊥ :=\n  ⟨fun h => surjective_algebraMap_iff.1 h.2, fun h =>\n    ⟨(algebraMap R A).injective, surjective_algebraMap_iff.2 h⟩⟩",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Simple\n/-- Any `k`-algebra module which is 1-dimensional over `k` is simple. -/\ntheorem simple_of_finrank_eq_one {k : Type*} [Field k] [Algebra k R] {V : ModuleCat R}\n    (h : finrank k V = 1) : Simple V :=\n  (simple_iff_isSimpleModule' V).mpr (is_simple_module_of_finrank_eq_one h)"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsIrreducible.mk",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "constructor",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+   "compilationAlias":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nP : Sort u\nv1 v2 : ρ.IsIrreducible\n⊢ Sort u",
+  "content_sorry": "",
+  "annotation":
+  "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies":
+  [{"name": "Representation.IsIrreducible.rec",
+    "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+    "compilationAlias":
+    "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.AbelRuffini\n/-- Inductive definition of solvable by radicals -/\ninductive IsSolvableByRad : E → Prop\n  | base (α : F) : IsSolvableByRad (algebraMap F E α)\n  | add (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α + β)\n  | neg (α : E) : IsSolvableByRad α → IsSolvableByRad (-α)\n  | mul (α β : E) : IsSolvableByRad α → IsSolvableByRad β → IsSolvableByRad (α * β)\n  | inv (α : E) : IsSolvableByRad α → IsSolvableByRad α⁻¹\n  | rad (α : E) (n : ℕ) (hn : n ≠ 0) : IsSolvableByRad (α ^ n) → IsSolvableByRad α",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma irreducible_X_pow_sub_C_of_root_adjoin_eq_top\n    {a : K} {α : L} (ha : α ^ (finrank K L) = algebraMap K L a) (hα : K⟮α⟯ = ⊤) :\n    Irreducible (X ^ (finrank K L) - C a) := by\n  have : X ^ (finrank K L) - C a = minpoly K α := by\n    refine minpoly.unique _ _ (monic_X_pow_sub_C _ finrank_pos.ne.symm) ?_ ?_\n    · simp only [aeval_def, eval₂_sub, eval₂_X_pow, ha, eval₂_C, sub_self]\n    · intros q hq hq'\n      refine le_trans ?_ (degree_le_of_dvd (minpoly.dvd _ _ hq') hq.ne_zero)\n      rw [degree_X_pow_sub_C finrank_pos,\n        degree_eq_natDegree (minpoly.ne_zero (IsIntegral.of_finite K α)),\n        ← IntermediateField.adjoin.finrank (IsIntegral.of_finite K α), hα, Nat.cast_le]\n      exact (finrank_top K L).ge\n  exact this ▸ minpoly.irreducible (IsIntegral.of_finite K α)",
+   "--src: Mathlib.Order.Atoms\ntheorem isSimpleOrder_iff_isCoatom_bot [PartialOrder α] [BoundedOrder α] :\n    IsSimpleOrder α ↔ IsCoatom (⊥ : α) :=\n  isSimpleOrder_iff_isSimpleOrder_orderDual.trans isSimpleOrder_iff_isAtom_top",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\n/-- If an intermediate field of `E / F` is both purely inseparable and separable, then it is equal\nto `F`. -/\ntheorem IntermediateField.eq_bot_of_isPurelyInseparable_of_isSeparable\n    {F : Type u} {E : Type v} [Field F] [Field E] [Algebra F E] (L : IntermediateField F E)\n    [IsPurelyInseparable F L] [Algebra.IsSeparable F L] : L = ⊥ := bot_unique fun x hx ↦ by\n  obtain ⟨y, hy⟩ := IsPurelyInseparable.surjective_algebraMap_of_isSeparable F L ⟨x, hx⟩\n  exact ⟨y, congr_arg (algebraMap L E) hy⟩",
+   "--src: Mathlib.FieldTheory.Adjoin\ntheorem bot_eq_top_of_finrank_adjoin_eq_one (h : ∀ x : E, finrank F F⟮x⟯ = 1) :\n    (⊥ : IntermediateField F E) = ⊤ := by\n  ext y\n  rw [iff_true_right IntermediateField.mem_top]\n  exact finrank_adjoin_simple_eq_one_iff.mp (h y)",
+   "--src: Mathlib.FieldTheory.PolynomialGaloisGroup\nlemma galAction_isPretransitive [Fact (p.Splits (algebraMap F E))] (hp : Irreducible p) :\n    MulAction.IsPretransitive p.Gal (p.rootSet E) := by\n  refine ⟨fun x y ↦ ?_⟩\n  have hx := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm x).2).2\n  have hy := minpoly.eq_of_irreducible hp (mem_rootSet.mp ((rootsEquivRoots p E).symm y).2).2\n  obtain ⟨g, hg⟩ := (Normal.minpoly_eq_iff_mem_orbit p.SplittingField).mp (hy.symm.trans hx)\n  exact ⟨g, (rootsEquivRoots p E).apply_eq_iff_eq_symm_apply.mpr (Subtype.ext hg)⟩",
+   "--src: Mathlib.RingTheory.SimpleModule\ntheorem sSup_simples_eq_top : sSup { m : Submodule R M | IsSimpleModule R m } = ⊤ := by\n  simpa only [isSimpleModule_iff_isAtom] using sSup_atoms_eq_top",
+   "--src: Mathlib.Algebra.Lie.Weights.Killing\n/-- Given a splitting Cartan subalgebra `H` of a finite-dimensional Lie algebra with non-singular\nKilling form, the corresponding roots span the dual space of `H`. -/\n@[simp]\nlemma span_weight_eq_top :\n    span K (range (Weight.toLinear K H L)) = ⊤ := by\n  refine eq_top_iff.mpr (le_trans ?_ (LieModule.range_traceForm_le_span_weight K H L))\n  rw [← traceForm_flip K H L, ← LinearMap.dualAnnihilator_ker_eq_range_flip,\n    ker_traceForm_eq_bot_of_isCartanSubalgebra, Submodule.dualAnnihilator_bot]",
+   "--src: Mathlib.FieldTheory.KummerExtension\nlemma autEquivRootsOfUnity_apply_rootOfSplit [NeZero n] (σ : L ≃ₐ[K] L) :\n    σ (rootOfSplitsXPowSubC (NeZero.pos n) a L) =\n      autEquivRootsOfUnity hζ H L σ • (rootOfSplitsXPowSubC (NeZero.pos n) a L) := by\n  obtain ⟨η, rfl⟩ := (autEquivRootsOfUnity hζ H L).symm.surjective σ\n  rw [MulEquiv.apply_symm_apply, autEquivRootsOfUnity]\n  simp only [MulEquiv.symm_trans_apply, AlgEquiv.autCongr_symm, AlgEquiv.symm_symm,\n    MulEquiv.symm_symm, AlgEquiv.autCongr_apply, AlgEquiv.trans_apply,\n    adjoinRootXPowSubCEquiv_symm_eq_root, autAdjoinRootXPowSubCEquiv_root, map_smul,\n    adjoinRootXPowSubCEquiv_root]\n  rfl",
+   "--src: Mathlib.Order.Atoms\ntheorem isSimpleOrder_iff_isSimpleOrder_orderDual [LE α] [BoundedOrder α] :\n    IsSimpleOrder α ↔ IsSimpleOrder αᵒᵈ := by\n  constructor <;> intro i <;> haveI := i\n  · exact\n      { exists_pair_ne := @exists_pair_ne α _\n        eq_bot_or_eq_top := fun a => Or.symm (eq_bot_or_eq_top (OrderDual.ofDual a) : _ ∨ _) }\n  · exact\n      { exists_pair_ne := @exists_pair_ne αᵒᵈ _\n        eq_bot_or_eq_top := fun a => Or.symm (eq_bot_or_eq_top (OrderDual.toDual a)) }"],
+  "prescopes":
+  "namespace Representation\n\nvariable {G : Type*} [Group G] {k : Type*} [Field k] {W : Type*} [AddCommMonoid W] [Module k W]",
+  "postscopes": "end Representation",
+  "id":
+  {"name": "Representation.IsIrreducible.rec",
+   "module": "FLT.Deformations.RepresentationTheory.Irreducible",
+   "kind": "recursor",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+   "compilationAlias":
+   "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n"},
+  "goal":
+  "G : Type u_1\ninst✝³ : Group G\nk : Type u_2\ninst✝² : Field k\nW : Type u_3\ninst✝¹ : AddCommMonoid W\ninst✝ : Module k W\nρ : Representation k G W\nP : Sort u\nv1 v2 : ρ.IsIrreducible\n⊢ Sort u",
+  "content_sorry": "",
+  "annotation":
+  "class IsIrreducible (ρ : Representation k G W) : Prop where\n  irreducible : IsSimpleOrder (Subrepresentation ρ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Representation",
+    "module": "Mathlib.RepresentationTheory.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+    "compilationAlias":
+    "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"}],
+  "C0_dependencies": []}]

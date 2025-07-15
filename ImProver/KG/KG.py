@@ -91,44 +91,50 @@ def main(args):
     
 
     
-    # Build vector DB
-    print("[IMPROVER: Building vector database...]")
-    vec_args = argparse.Namespace(
-        prompts_id=args.prompts_id,
-        kg_id=args.kg_id,
-        # prompts_dir=args.prompts_dir,
-        # KG_dir=args.KG_dir,
-        model=args.embedding_model
-    )
-    vec_main(vec_args)
+    # # Build vector DB
+    # print("[IMPROVER: Building vector database...]")
+    # vec_args = argparse.Namespace(
+    #     prompts_id=args.prompts_id,
+    #     kg_id=args.kg_id,
+    #     # prompts_dir=args.prompts_dir,
+    #     # KG_dir=args.KG_dir,
+    #     embedding_model=args.embedding_model
+    # )
+    # vec_main(vec_args)
     
-    # Build combined DB
-    print("[IMPROVER: Building combined database...]")
-    combined_args = argparse.Namespace(
-        dataset_path=args.dataset_path,
-        kg_id=args.kg_id,
-        split=args.split,
-        # KG_dir=args.KG_dir
-    )
-    combined_main(combined_args)
+    # # Compute class 3 edges
+    # print("[IMPROVER: Computing class 3 edges...]")
+    # c3_args = argparse.Namespace(
+    #     prompts_id=args.prompts_id,
+
+    #     kg_id=args.kg_id,
+    #     # KG_dir=args.KG_dir,
+    #     embedding_model=args.embedding_model,
+    #     k=args.k,
+    #     threshold=args.threshold
+    # )
+    # c3_main(c3_args)
     
-    # Compute class 3 edges
-    print("[IMPROVER: Computing class 3 edges...]")
-    c3_args = argparse.Namespace(
-        kg_id=args.kg_id,
-        # KG_dir=args.KG_dir,
-        model=args.embedding_model,
-        k=args.k,
-        threshold=args.threshold
-    )
-    c3_main(c3_args)
+    # # Build combined DB
+    # print("[IMPROVER: Building combined database...]")
+    # combined_args = argparse.Namespace(
+        
+
+    #     dataset_path=args.dataset_path,
+    #     prompts_id=args.prompts_id,
+    #     kg_id=args.kg_id,
+    #     split=args.split,
+    #     # KG_dir=args.KG_dir
+    # )
+    
+    # combined_main(combined_args)
     
     # Apply heuristic filter
     print("[IMPROVER: Applying heuristic filtering...]")
     filter_args = argparse.Namespace(
         kg_id=args.kg_id,
         # KG_dir=args.KG_dir,
-        model=args.heuristic_model,
+        heuristic_model=args.heuristic_model,
         cpus=args.cpus,
         gpus=args.gpus,
         n=args.n,

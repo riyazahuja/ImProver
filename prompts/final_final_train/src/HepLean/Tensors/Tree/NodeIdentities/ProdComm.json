@@ -1,0 +1,417 @@
+[{"rag":
+  ["--src: Mathlib.LinearAlgebra.TensorPower\ntheorem gOne_def : ₜ1 = tprod R (@Fin.elim0 M) :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n/-- A product space `α × β` is equivalent to the space `Π i : Fin 2, γ i`, where\n`γ = Fin.cons α (Fin.cons β finZeroElim)`. See also `piFinTwoEquiv` and\n`finTwoArrowEquiv`. -/\n@[simps! (config := .asFn)]\ndef prodEquivPiFinTwo (α β : Type u) : α × β ≃ ∀ i : Fin 2, ![α, β] i :=\n  (piFinTwoEquiv (Fin.cons α (Fin.cons β finZeroElim))).symm",
+   "--src: Mathlib.LinearAlgebra.TensorAlgebra.ToTensorPower\n@[simp]\ntheorem toTensorAlgebra_tprod {n} (x : Fin n → M) :\n    TensorPower.toTensorAlgebra (PiTensorProduct.tprod R x) = TensorAlgebra.tprod R M n x :=\n  PiTensorProduct.lift.tprod _",
+   "--src: Mathlib.LinearAlgebra.TensorPower\ntheorem mul_assoc {na nb nc} (a : (⨂[R]^na) M) (b : (⨂[R]^nb) M) (c : (⨂[R]^nc) M) :\n    cast R M (add_assoc _ _ _) (a ₜ* b ₜ* c) = a ₜ* (b ₜ* c) := by\n  let mul : ∀ n m : ℕ, ⨂[R]^n M →ₗ[R] (⨂[R]^m) M →ₗ[R] (⨂[R]^(n + m)) M := fun n m =>\n    (TensorProduct.mk R _ _).compr₂ ↑(mulEquiv : _ ≃ₗ[R] (⨂[R]^(n + m)) M)\n  -- replace `a`, `b`, `c` with `tprod R a`, `tprod R b`, `tprod R c`\n  let e : (⨂[R]^(na + nb + nc)) M ≃ₗ[R] (⨂[R]^(na + (nb + nc))) M := cast R M (add_assoc _ _ _)\n  let lhs : (⨂[R]^na) M →ₗ[R] (⨂[R]^nb) M →ₗ[R] (⨂[R]^nc) M →ₗ[R] (⨂[R]^(na + (nb + nc))) M :=\n    (LinearMap.llcomp R _ _ _ ((mul _ nc).compr₂ e.toLinearMap)).comp (mul na nb)\n  have lhs_eq : ∀ a b c, lhs a b c = e (a ₜ* b ₜ* c) := fun _ _ _ => rfl\n  let rhs : (⨂[R]^na) M →ₗ[R] (⨂[R]^nb) M →ₗ[R] (⨂[R]^nc) M →ₗ[R] (⨂[R]^(na + (nb + nc))) M :=\n    (LinearMap.llcomp R _ _ _ (LinearMap.lflip (R := R)) <|\n        (LinearMap.llcomp R _ _ _ (mul na _).flip).comp (mul nb nc)).flip\n  have rhs_eq : ∀ a b c, rhs a b c = a ₜ* (b ₜ* c) := fun _ _ _ => rfl\n  suffices lhs = rhs from\n    LinearMap.congr_fun (LinearMap.congr_fun (LinearMap.congr_fun this a) b) c\n  ext a b c\n  -- clean up\n  simp only [e, LinearMap.compMultilinearMap_apply, lhs_eq, rhs_eq, tprod_mul_tprod, cast_tprod]\n  congr with j\n  rw [Fin.append_assoc]\n  refine congr_arg (Fin.append a (Fin.append b c)) (Fin.ext ?_)\n  rw [Fin.coe_cast, Fin.coe_cast]\n-- for now we just use the default for the `gnpow` field as it's easier.",
+   "--src: Mathlib.Algebra.BigOperators.Fin\n@[to_additive]\ntheorem partialProd_succ (f : Fin n → α) (j : Fin n) :\n    partialProd f j.succ = partialProd f (Fin.castSucc j) * f j := by\n  simp [partialProd, List.take_succ, List.ofFnNthVal, dif_pos j.is_lt]",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\ntheorem tprod_eq_tprodCoeff_one :\n    ⇑(tprod R : MultilinearMap R s (⨂[R] i, s i)) = tprodCoeff R 1 := rfl",
+   "--src: Mathlib.Data.Fin.Tuple.Curry\n@[simp low]\ntheorem uncurry_apply_succ {n : ℕ} {p : Fin (n + 1) → Type u} {τ : Type u}\n    (f : Function.FromTypes p τ) (args : (i : Fin (n + 1)) → p i) :\n    uncurry f args = uncurry (f (args 0)) (Fin.tail args) :=\n  @uncurry_apply_cons n (p 0) (vecTail p) τ f (args 0) (Fin.tail args)",
+   "--src: Mathlib.Logic.Equiv.Fin\n/-- The equiv version of `Fin.predAbove_zero`. -/\ntheorem finSuccEquiv'_zero : finSuccEquiv' (0 : Fin (n + 1)) = finSuccEquiv n :=\n  rfl",
+   "--src: Mathlib.Order.RelSeries\n@[simp] lemma head_cons (p : RelSeries r) (newHead : α) (rel : r newHead p.head) :\n    (p.cons newHead rel).head = newHead := rfl",
+   "--src: Mathlib.Data.Vector.Basic\n@[simp]\ntheorem head_ofFn {n : ℕ} (f : Fin n.succ → α) : head (ofFn f) = f 0 := by\n  rw [← get_zero, get_ofFn]"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n2 : ℕ} (c : Fin n → S.C) (c2 : Fin n2 → S.C)",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.prod_comm",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The arguments of a `prod` node can be commuted using braiding. -/\ntheorem prod_comm (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod t t2).tensor = (perm (braidPerm c c2) (prod t2 t)).tensor := by\n  rw [perm_tensor]\n  nth_rewrite 2 [prod_tensor]\n  change _ = (S.F.map (equivToIso finSumFinEquiv).hom ≫ S.F.map (braidPerm c c2)).hom\n    ((Functor.LaxMonoidal.μ S.F (OverColor.mk c2) (OverColor.mk c)).hom\n    (t2.tensor ⊗ₜ[S.k] t.tensor))\n  rw [← S.F.map_comp]\n  rw [finSumFinEquiv_comp_braidPerm]\n  rw [S.F.map_comp]\n  rw [Functor.map_braiding]\n  simp only [Category.assoc, Action.comp_hom,\n    Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    ModuleCat.hom_comp, Function.comp_apply]\n  rw [prod_tensor]\n  apply congrArg\n  apply congrArg\n  change _ = (β_ (S.F.obj (OverColor.mk c2)) (S.F.obj (OverColor.mk c))).hom.hom\n    ((inv (lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom).hom\n    ((lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom.hom (t2.tensor ⊗ₜ[S.k] t.tensor)))\n  simp only [Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    lift.objObj'_V_carrier, instMonoidalCategoryStruct_tensorObj_left,\n    instMonoidalCategoryStruct_tensorObj_hom, mk_hom, IsIso.Iso.inv_hom]\n  change _ = (β_ (S.F.obj (OverColor.mk c2)) (S.F.obj (OverColor.mk c))).hom.hom\n    (((lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom ≫\n    (lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).inv).hom ((t2.tensor ⊗ₜ[S.k] t.tensor)))\n  simp only [Action.instMonoidalCategory_tensorObj_V, Iso.hom_inv_id, Action.id_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, lift.objObj'_V_carrier, mk_hom,\n    ModuleCat.id_apply]\n  rfl\n\n",
+   "compilationAlias":
+   "/-- The arguments of a `prod` node can be commuted using braiding. -/\ntheorem prod_comm (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod t t2).tensor = (perm (braidPerm c c2) (prod t2 t)).tensor := by\n  rw [perm_tensor]\n  nth_rewrite 2 [prod_tensor]\n  change _ = (S.F.map (equivToIso finSumFinEquiv).hom ≫ S.F.map (braidPerm c c2)).hom\n    ((Functor.LaxMonoidal.μ S.F (OverColor.mk c2) (OverColor.mk c)).hom\n    (t2.tensor ⊗ₜ[S.k] t.tensor))\n  rw [← S.F.map_comp]\n  rw [finSumFinEquiv_comp_braidPerm]\n  rw [S.F.map_comp]\n  rw [Functor.map_braiding]\n  simp only [Category.assoc, Action.comp_hom,\n    Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    ModuleCat.hom_comp, Function.comp_apply]\n  rw [prod_tensor]\n  apply congrArg\n  apply congrArg\n  change _ = (β_ (S.F.obj (OverColor.mk c2)) (S.F.obj (OverColor.mk c))).hom.hom\n    ((inv (lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom).hom\n    ((lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom.hom (t2.tensor ⊗ₜ[S.k] t.tensor)))\n  simp only [Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    lift.objObj'_V_carrier, instMonoidalCategoryStruct_tensorObj_left,\n    instMonoidalCategoryStruct_tensorObj_hom, mk_hom, IsIso.Iso.inv_hom]\n  change _ = (β_ (S.F.obj (OverColor.mk c2)) (S.F.obj (OverColor.mk c))).hom.hom\n    (((lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom ≫\n    (lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).inv).hom ((t2.tensor ⊗ₜ[S.k] t.tensor)))\n  simp only [Action.instMonoidalCategory_tensorObj_V, Iso.hom_inv_id, Action.id_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, lift.objObj'_V_carrier, mk_hom,\n    ModuleCat.id_apply]\n  rfl\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n2 : Nat\nc : Fin n → S.C\nc2 : Fin n2 → S.C\nt : TensorTree S c\nt2 : TensorTree S c2\n⊢ Eq (t.prod t2).tensor (TensorTree.perm (TensorTree.braidPerm c c2) (t2.prod t)).tensor",
+  "content_sorry":
+  "/-- The arguments of a `prod` node can be commuted using braiding. -/\ntheorem prod_comm (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod t t2).tensor = (perm (braidPerm c c2) (prod t2 t)).tensor := by\n  sorry",
+  "annotation":
+  "/-- The arguments of a `prod` node can be commuted using braiding. -/\ntheorem prod_comm (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod t t2).tensor = (perm (braidPerm c c2) (prod t2 t)).tensor := by\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor (TensorTree.perm (TensorTree.braidPerm c c2) (t2.prod  …\n  -/\n  rw [perm_tensor]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor ((CategoryTheory.ConcreteCategory.hom (S.F.map (Tensor …\n  -/\n  nth_rewrite 2 [prod_tensor]\n  change _ = (S.F.map (equivToIso finSumFinEquiv).hom ≫ S.F.map (braidPerm c c2)).hom\n    ((Functor.LaxMonoidal.μ S.F (OverColor.mk c2) (OverColor.mk c)).hom\n    (t2.tensor ⊗ₜ[S.k] t.tensor))\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor ((CategoryTheory.ConcreteCategory.hom (CategoryTheory. …\n  -/\n  rw [← S.F.map_comp]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor ((CategoryTheory.ConcreteCategory.hom (S.F.map (Catego …\n  -/\n  rw [finSumFinEquiv_comp_braidPerm]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor ((CategoryTheory.ConcreteCategory.hom (S.F.map (Catego …\n  -/\n  rw [S.F.map_comp]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor ((CategoryTheory.ConcreteCategory.hom (CategoryTheory. …\n  -/\n  rw [Functor.map_braiding]\n  simp only [Category.assoc, Action.comp_hom,\n    Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    ModuleCat.hom_comp, Function.comp_apply]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (t.prod t2).tensor (((((ModuleCat.Hom.hom (S.F.map (IndexNotation.OverCol …\n  -/\n  rw [prod_tensor]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (S.F.map (IndexNotation.OverColor.e …\n  -/\n  apply congrArg\n  /-\n    case h\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.Functor.LaxMonoidal …\n  -/\n  apply congrArg\n  change _ = (β_ (S.F.obj (OverColor.mk c2)) (S.F.obj (OverColor.mk c))).hom.hom\n    ((inv (lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom).hom\n    ((lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom.hom (t2.tensor ⊗ₜ[S.k] t.tensor)))\n  simp only [Action.instMonoidalCategory_tensorObj_V, Equivalence.symm_inverse,\n    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,\n    lift.objObj'_V_carrier, instMonoidalCategoryStruct_tensorObj_left,\n    instMonoidalCategoryStruct_tensorObj_hom, mk_hom, IsIso.Iso.inv_hom]\n  change _ = (β_ (S.F.obj (OverColor.mk c2)) (S.F.obj (OverColor.mk c))).hom.hom\n    (((lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).hom ≫\n    (lift.μ S.FD (OverColor.mk c2) (OverColor.mk c)).inv).hom ((t2.tensor ⊗ₜ[S.k] t.tensor)))\n  simp only [Action.instMonoidalCategory_tensorObj_V, Iso.hom_inv_id, Action.id_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, lift.objObj'_V_carrier, mk_hom,\n    ModuleCat.id_apply]\n  /-\n    case h.h\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq (TensorProduct.tmul S.k t.tensor t2.tensor) ((CategoryTheory.ConcreteCate …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ModuleCat.id_apply",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma id_apply (M : ModuleCat.{v} R) (x : M) :\n    (𝟙 M : M ⟶ M) x = x := by simp",
+    "compilationAlias":
+    "lemma id_apply (M : ModuleCat.{v} R) (x : M) :\n    (𝟙 M : M ⟶ M) x = x := by simp"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.id_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem id_hom (M : Action V G) : (𝟙 M : Hom M M).hom = 𝟙 M.V :=\n  rfl"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "ModuleCat.hom_comp",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl",
+    "compilationAlias":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "Action.comp_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.braidPerm",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.braidPerm_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n"},
+   {"name": "TensorTree.finSumFinEquiv_comp_braidPerm",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma finSumFinEquiv_comp_braidPerm :\n    (equivToIso finSumFinEquiv).hom ≫ braidPerm c c2 =\n    (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n    ≫ (equivToIso finSumFinEquiv).hom := by\n  rw [braidPerm]\n  simp only [Functor.id_obj, mk_hom, Iso.hom_inv_id_assoc]\n\n",
+    "compilationAlias":
+    "lemma finSumFinEquiv_comp_braidPerm :\n    (equivToIso finSumFinEquiv).hom ≫ braidPerm c c2 =\n    (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n    ≫ (equivToIso finSumFinEquiv).hom := by\n  rw [braidPerm]\n  simp only [Functor.id_obj, mk_hom, Iso.hom_inv_id_assoc]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.CategoryTheory.Monoidal.Bimon_\n@[simp]\ntheorem toComon_forget : toComon_ C ⋙ Comon_.forget C = forget C := rfl",
+   "--src: Mathlib.CategoryTheory.Monoidal.Braided.Basic\n@[reassoc]\ntheorem tensorμ_natural {X₁ X₂ Y₁ Y₂ U₁ U₂ V₁ V₂ : C} (f₁ : X₁ ⟶ Y₁) (f₂ : X₂ ⟶ Y₂) (g₁ : U₁ ⟶ V₁)\n    (g₂ : U₂ ⟶ V₂) :\n    ((f₁ ⊗ f₂) ⊗ g₁ ⊗ g₂) ≫ tensorμ Y₁ Y₂ V₁ V₂ =\n      tensorμ X₁ X₂ U₁ U₂ ≫ ((f₁ ⊗ g₁) ⊗ f₂ ⊗ g₂) := by\n  dsimp only [tensorμ]\n  simp_rw [← id_tensorHom, ← tensorHom_id]\n  slice_lhs 1 2 => rw [associator_naturality]\n  slice_lhs 2 3 =>\n    rw [← tensor_comp, comp_id f₁, ← id_comp f₁, associator_inv_naturality, tensor_comp]\n  slice_lhs 3 4 =>\n    rw [← tensor_comp, ← tensor_comp, comp_id f₁, ← id_comp f₁, comp_id g₂, ← id_comp g₂,\n      braiding_naturality, tensor_comp, tensor_comp]\n  slice_lhs 4 5 => rw [← tensor_comp, comp_id f₁, ← id_comp f₁, associator_naturality, tensor_comp]\n  slice_lhs 5 6 => rw [associator_inv_naturality]\n  simp only [assoc]",
+   "--src: Mathlib.CategoryTheory.Monoidal.Bimon_\n@[reassoc (attr := simp)]\ntheorem mul_comul (M : C) [Bimon_Class M] :\n    μ[M] ≫ Δ[M] = (Δ[M] ⊗ Δ[M]) ≫ tensorμ M M M M ≫ (μ[M] ⊗ μ[M]) :=\n  mul_comul'",
+   "--src: Mathlib.CategoryTheory.Monoidal.Bimon_\n@[reassoc (attr := simp)]\ntheorem one_comul (M : C) [Bimon_Class M] : η[M] ≫ Δ[M] = η[M ⊗ M] := one_comul'",
+   "--src: Mathlib.CategoryTheory.Monoidal.Mon_\ntheorem mul_associator {M N P : Mon_ C} :\n    (tensorμ (M.X ⊗ N.X) P.X (M.X ⊗ N.X) P.X ≫\n          (tensorμ M.X N.X M.X N.X ≫ (M.mul ⊗ N.mul) ⊗ P.mul)) ≫\n        (α_ M.X N.X P.X).hom =\n      ((α_ M.X N.X P.X).hom ⊗ (α_ M.X N.X P.X).hom) ≫\n        tensorμ M.X (N.X ⊗ P.X) M.X (N.X ⊗ P.X) ≫\n          (M.mul ⊗ tensorμ N.X P.X N.X P.X ≫ (N.mul ⊗ P.mul)) := by\n  simp only [tensor_obj, prodMonoidal_tensorObj, Category.assoc]\n  slice_lhs 2 3 => rw [← Category.id_comp P.mul, tensor_comp]\n  slice_lhs 3 4 => rw [associator_naturality]\n  slice_rhs 3 4 => rw [← Category.id_comp M.mul, tensor_comp]\n  simp only [tensorHom_id, id_tensorHom]\n  slice_lhs 1 3 => rw [associator_monoidal]\n  simp only [Category.assoc]",
+   "--src: Mathlib.CategoryTheory.Monoidal.Mon_\n@[simps tensorObj_X tensorHom_hom]\ninstance monMonoidalStruct : MonoidalCategoryStruct (Mon_ C) :=\n  let tensorObj (M N : Mon_ C) : Mon_ C :=\n    { X := M.X ⊗ N.X\n      one := (λ_ (\u0000\u0000_ C)).inv ≫ (M.one ⊗ N.one)\n      mul := tensorμ M.X N.X M.X N.X ≫ (M.mul ⊗ N.mul)\n      one_mul := Mon_tensor_one_mul M N\n      mul_one := Mon_tensor_mul_one M N\n      mul_assoc := Mon_tensor_mul_assoc M N }\n  let tensorHom {X₁ Y₁ X₂ Y₂ : Mon_ C} (f : X₁ ⟶ Y₁) (g : X₂ ⟶ Y₂) :\n      tensorObj _ _ ⟶ tensorObj _ _ :=\n    { hom := f.hom ⊗ g.hom\n      one_hom := by\n        dsimp [tensorObj]\n        slice_lhs 2 3 => rw [← tensor_comp, Hom.one_hom f, Hom.one_hom g]\n      mul_hom := by\n        dsimp [tensorObj]\n        slice_rhs 1 2 => rw [tensorμ_natural]\n        slice_lhs 2 3 => rw [← tensor_comp, Hom.mul_hom f, Hom.mul_hom g, tensor_comp]\n        simp only [Category.assoc] }\n  { tensorObj := tensorObj\n    tensorHom := tensorHom\n    whiskerRight := fun f Y => tensorHom f (\u0000\u0000 Y)\n    whiskerLeft := fun X _ _ g => tensorHom (\u0000\u0000 X) g\n    tensorUnit := trivial C\n    associator := fun M N P ↦ mkIso (α_ M.X N.X P.X) one_associator mul_associator\n    leftUnitor := fun M ↦ mkIso (λ_ M.X) one_leftUnitor mul_leftUnitor\n    rightUnitor := fun M ↦ mkIso (ρ_ M.X) one_rightUnitor mul_rightUnitor }",
+   "--src: Mathlib.CategoryTheory.Monoidal.Hopf_\ntheorem mul_antipode (A : Hopf_ C) :\n    A.X.X.mul ≫ A.antipode = (A.antipode ⊗ A.antipode) ≫ (β_ _ _).hom ≫ A.X.X.mul := by\n  -- Again, it is a \"left inverse equals right inverse\" argument in the convolution monoid.\n  apply left_inv_eq_right_inv\n    (M := Conv (((Bimon_.toComon_ C).obj A.X) ⊗ ((Bimon_.toComon_ C).obj A.X)) A.X.X)\n    (a := A.X.X.mul)\n  · -- Unfold the algebra structure in the convolution monoid,\n    -- then `simp?, simp only [tensor_μ], simp?`.\n    erw [Conv.mul_eq, Conv.one_eq]\n    simp only [Monoidal.transportStruct_tensorObj, Equivalence.symm_functor,\n      Comon_.Comon_EquivMon_OpOp_inverse, Equivalence.symm_inverse,\n      Comon_.Comon_EquivMon_OpOp_functor, Comon_.Comon_ToMon_OpOp_obj, Comon_.Mon_OpOpToComon__obj,\n      unop_tensorObj, Comon_.Mon_OpOpToComon_obj'_X, Mon_.monMonoidalStruct_tensorObj_X,\n      Comon_.Comon_ToMon_OpOp_obj'_X, Bimon_.toComon__obj_X, Comon_.Mon_OpOpToComon_obj'_comul,\n      Mon_.tensorObj_mul, Comon_.Comon_ToMon_OpOp_obj'_mul, Bimon_.toComon__obj_comul, unop_comp,\n      unop_tensorHom, Quiver.Hom.unop_op, whiskerRight_tensor, comp_whiskerRight, Category.assoc,\n      Comon_.Mon_OpOpToComon_obj'_counit, Mon_.tensorObj_one, Comon_.Comon_ToMon_OpOp_obj'_one,\n      Bimon_.toComon__obj_counit, unop_tensorUnit, unop_inv_leftUnitor]\n    simp only [tensorμ]\n    simp only [unop_comp, unop_tensorObj, unop_inv_associator, unop_whiskerLeft,\n      unop_hom_associator, unop_whiskerRight, unop_hom_braiding, Category.assoc,\n      pentagon_hom_inv_inv_inv_inv_assoc]\n    exact mul_antipode₁ A\n  · erw [Conv.mul_eq, Conv.one_eq]\n    simp only [Monoidal.transportStruct_tensorObj, Equivalence.symm_functor,\n      Comon_.Comon_EquivMon_OpOp_inverse, Equivalence.symm_inverse,\n      Comon_.Comon_EquivMon_OpOp_functor, Comon_.Comon_ToMon_OpOp_obj, Comon_.Mon_OpOpToComon__obj,\n      unop_tensorObj, Comon_.Mon_OpOpToComon_obj'_X, Mon_.monMonoidalStruct_tensorObj_X,\n      Comon_.Comon_ToMon_OpOp_obj'_X, Bimon_.toComon__obj_X, Comon_.Mon_OpOpToComon_obj'_comul,\n      Mon_.tensorObj_mul, Comon_.Comon_ToMon_OpOp_obj'_mul, Bimon_.toComon__obj_comul, unop_comp,\n      unop_tensorHom, Quiver.Hom.unop_op, whiskerRight_tensor,\n      BraidedCategory.braiding_naturality_assoc, MonoidalCategory.whiskerLeft_comp, Category.assoc,\n      Comon_.Mon_OpOpToComon_obj'_counit, Mon_.tensorObj_one, Comon_.Comon_ToMon_OpOp_obj'_one,\n      Bimon_.toComon__obj_counit, unop_tensorUnit, unop_inv_leftUnitor]\n    simp only [tensorμ]\n    simp only [unop_comp, unop_tensorObj, unop_inv_associator, unop_whiskerLeft,\n      unop_hom_associator, unop_whiskerRight, unop_hom_braiding, Category.assoc,\n      pentagon_hom_inv_inv_inv_inv_assoc]\n    exact mul_antipode₂ A",
+   "--src: Mathlib.CategoryTheory.Monoidal.Bimon_\n@[reassoc] theorem hom_comul_hom {M N : Bimon_ C} (f : M ⟶ N) :\n    f.hom.hom ≫ N.comul.hom = M.comul.hom ≫ (f.hom.hom ⊗ f.hom.hom) := by\n  simpa [- Comon_.Hom.hom_comul] using congr_arg Mon_.Hom.hom f.hom_comul",
+   "--src: Mathlib.CategoryTheory.Monoidal.Comon_\ntheorem tensorObj_X (A B : Comon_ C) : (A ⊗ B).X = A.X ⊗ B.X := rfl",
+   "--src: Mathlib.CategoryTheory.Monoidal.Mon_\n@[simps tensorObj_X tensorHom_hom]\ninstance monMonoidalStruct : MonoidalCategoryStruct (Mon_ C) :=\n  let tensorObj (M N : Mon_ C) : Mon_ C :=\n    { X := M.X ⊗ N.X\n      one := (λ_ (\u0000\u0000_ C)).inv ≫ (M.one ⊗ N.one)\n      mul := tensorμ M.X N.X M.X N.X ≫ (M.mul ⊗ N.mul)\n      one_mul := Mon_tensor_one_mul M N\n      mul_one := Mon_tensor_mul_one M N\n      mul_assoc := Mon_tensor_mul_assoc M N }\n  let tensorHom {X₁ Y₁ X₂ Y₂ : Mon_ C} (f : X₁ ⟶ Y₁) (g : X₂ ⟶ Y₂) :\n      tensorObj _ _ ⟶ tensorObj _ _ :=\n    { hom := f.hom ⊗ g.hom\n      one_hom := by\n        dsimp [tensorObj]\n        slice_lhs 2 3 => rw [← tensor_comp, Hom.one_hom f, Hom.one_hom g]\n      mul_hom := by\n        dsimp [tensorObj]\n        slice_rhs 1 2 => rw [tensorμ_natural]\n        slice_lhs 2 3 => rw [← tensor_comp, Hom.mul_hom f, Hom.mul_hom g, tensor_comp]\n        simp only [Category.assoc] }\n  { tensorObj := tensorObj\n    tensorHom := tensorHom\n    whiskerRight := fun f Y => tensorHom f (\u0000\u0000 Y)\n    whiskerLeft := fun X _ _ g => tensorHom (\u0000\u0000 X) g\n    tensorUnit := trivial C\n    associator := fun M N P ↦ mkIso (α_ M.X N.X P.X) one_associator mul_associator\n    leftUnitor := fun M ↦ mkIso (λ_ M.X) one_leftUnitor mul_leftUnitor\n    rightUnitor := fun M ↦ mkIso (ρ_ M.X) one_rightUnitor mul_rightUnitor }"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n2 : ℕ} (c : Fin n → S.C) (c2 : Fin n2 → S.C)",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.finSumFinEquiv_comp_braidPerm",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma finSumFinEquiv_comp_braidPerm :\n    (equivToIso finSumFinEquiv).hom ≫ braidPerm c c2 =\n    (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n    ≫ (equivToIso finSumFinEquiv).hom := by\n  rw [braidPerm]\n  simp only [Functor.id_obj, mk_hom, Iso.hom_inv_id_assoc]\n\n",
+   "compilationAlias":
+   "lemma finSumFinEquiv_comp_braidPerm :\n    (equivToIso finSumFinEquiv).hom ≫ braidPerm c c2 =\n    (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n    ≫ (equivToIso finSumFinEquiv).hom := by\n  rw [braidPerm]\n  simp only [Functor.id_obj, mk_hom, Iso.hom_inv_id_assoc]\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n2 : Nat\nc : Fin n → S.C\nc2 : Fin n2 → S.C\n⊢ Eq (CategoryTheory.CategoryStruct.comp (IndexNotation.OverColor.equivToIso finSumFinEquiv).hom (TensorTree.braidPerm c c2)) (CategoryTheory.CategoryStruct.comp (CategoryTheory.BraidedCategory.braiding (IndexNotation.OverColor.mk c2) (IndexNotation.OverColor.mk c)).hom (IndexNotation.OverColor.equivToIso finSumFinEquiv).hom)",
+  "content_sorry":
+  "lemma finSumFinEquiv_comp_braidPerm :\n    (equivToIso finSumFinEquiv).hom ≫ braidPerm c c2 =\n    (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n    ≫ (equivToIso finSumFinEquiv).hom := by\n  sorry",
+  "annotation":
+  "lemma finSumFinEquiv_comp_braidPerm :\n    (equivToIso finSumFinEquiv).hom ≫ braidPerm c c2 =\n    (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n    ≫ (equivToIso finSumFinEquiv).hom := by\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    ⊢ Eq (CategoryTheory.CategoryStruct.comp (IndexNotation.OverColor.equivToIso f …\n  -/\n  rw [braidPerm]\n  /-\n    S : TensorSpecies\n    n n2 : Nat\n    c : Fin n → S.C\n    c2 : Fin n2 → S.C\n    ⊢ Eq (CategoryTheory.CategoryStruct.comp (IndexNotation.OverColor.equivToIso f …\n  -/\n  simp only [Functor.id_obj, mk_hom, Iso.hom_inv_id_assoc]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.braidPerm",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.braidPerm_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Fin.Basic\n@[simp]\ntheorem revPerm_symm : (@revPerm n).symm = revPerm :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSuccEquiv'_symm_some (i : Fin (n + 1)) (j : Fin n) :\n    (finSuccEquiv' i).symm (some j) = i.succAbove j :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_apply_left (i : Fin m) :\n    (finSumFinEquiv (Sum.inl i) : Fin (m + n)) = Fin.castAdd n i :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- Reindexing by the composition of two equivalences is the same as reindexing twice. -/\n@[simp]\ntheorem reindex_trans {n₁ n₂ n₃ : ℕ} (e₁₂ : Fin (n₁ + 1) ≃ Fin (n₂ + 1))\n    (e₂₃ : Fin (n₂ + 1) ≃ Fin (n₃ + 1)) (s : Simplex k P n₁) :\n    s.reindex (e₁₂.trans e₂₃) = (s.reindex e₁₂).reindex e₂₃ :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_symm_last : finSumFinEquiv.symm (Fin.last n) = Sum.inr 0 :=\n  finSumFinEquiv_symm_apply_natAdd 0",
+   "--src: Mathlib.Data.Fin.Basic\n/-- The 'identity' equivalence between `Fin m` and `Fin n` when `m = n`. -/\n@[simps]\ndef _root_.finCongr (eq : n = m) : Fin n ≃ Fin m where\n  toFun := cast eq\n  invFun := cast eq.symm\n  left_inv := leftInverse_cast eq\n  right_inv := rightInverse_cast eq",
+   "--src: Mathlib.Order.Fin.Basic\n/-- `Fin.rev n` as an order-reversing isomorphism. -/\n@[simps! apply toEquiv]\ndef revOrderIso : (Fin n)ᵒᵈ ≃o Fin n := ⟨OrderDual.ofDual.trans revPerm, rev_le_rev⟩",
+   "--src: Mathlib.Order.Fin.Tuple\nlemma finSuccAboveOrderIso_symm_apply_ne_last {p : Fin (n + 1)} (h : p ≠ Fin.last n)\n    (x : { x : Fin (n + 1) // x ≠ p }) :\n    (finSuccAboveEquiv p).symm x = (p.castLT (Fin.val_lt_last h)).predAbove x := by\n  rw [← Option.some_inj]\n  simpa [finSuccAboveEquiv, OrderIso.symm] using finSuccEquiv'_ne_last_apply h x.property",
+   "--src: Mathlib.Order.Fin.Basic\n/-- `Fin.cast` as an `OrderIso`.\n`castOrderIso eq i` embeds `i` into an equal `Fin` type. -/\n@[simps]\ndef castOrderIso (eq : n = m) : Fin n ≃o Fin m where\n  toEquiv := ⟨cast eq, cast eq.symm, leftInverse_cast eq, rightInverse_cast eq⟩\n  map_rel_iff' := cast_le_cast eq",
+   "--src: Mathlib.GroupTheory.Perm.Fin\n@[simp]\ntheorem Equiv.Perm.decomposeFin_symm_apply_zero {n : ℕ} (p : Fin (n + 1)) (e : Perm (Fin n)) :\n    Equiv.Perm.decomposeFin.symm (p, e) 0 = p := by simp [Equiv.Perm.decomposeFin]"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n2 : ℕ} (c : Fin n → S.C) (c2 : Fin n2 → S.C)",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.braidPerm_toEquiv",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n2 : Nat\nc : Fin n → S.C\nc2 : Fin n2 → S.C\n⊢ Eq (IndexNotation.OverColor.Hom.toEquiv (TensorTree.braidPerm c c2)) (finSumFinEquiv.symm.trans ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv))",
+  "content_sorry":
+  "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := by sorry",
+  "annotation":
+  "@[simp]\nlemma braidPerm_toEquiv : Hom.toEquiv (braidPerm c c2) = finSumFinEquiv.symm.trans\n    ((Equiv.sumComm (Fin n2) (Fin n)).trans finSumFinEquiv) := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"},
+   {"name": "Equiv.sumComm",
+    "module": "Mathlib.Logic.Equiv.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Sum of types is commutative up to an equivalence. This is `Sum.swap` as an equivalence. -/\n@[simps (config := .asFn) apply]\ndef sumComm (α β) : α ⊕ β ≃ β ⊕ α :=\n  ⟨Sum.swap, Sum.swap, Sum.swap_swap, Sum.swap_swap⟩",
+    "compilationAlias":
+    "/-- Sum of types is commutative up to an equivalence. This is `Sum.swap` as an equivalence. -/\n@[simps (config := .asFn) apply]\ndef sumComm (α β) : α ⊕ β ≃ β ⊕ α :=\n  ⟨Sum.swap, Sum.swap, Sum.swap_swap, Sum.swap_swap⟩"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.braidPerm",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_symm_apply_natAdd (x : Fin n) :\n    finSumFinEquiv.symm (Fin.natAdd m x) = Sum.inr x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inr x)",
+   "--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- Reindexing by the composition of two equivalences is the same as reindexing twice. -/\n@[simp]\ntheorem reindex_trans {n₁ n₂ n₃ : ℕ} (e₁₂ : Fin (n₁ + 1) ≃ Fin (n₂ + 1))\n    (e₂₃ : Fin (n₂ + 1) ≃ Fin (n₃ + 1)) (s : Simplex k P n₁) :\n    s.reindex (e₁₂.trans e₂₃) = (s.reindex e₁₂).reindex e₂₃ :=\n  rfl",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem sum_elim_comp_relabelAux {m : ℕ} {g : α → β ⊕ (Fin n)} {v : β → M}\n    {xs : Fin (n + m) → M} : Sum.elim v xs ∘ relabelAux g m =\n    Sum.elim (Sum.elim v (xs ∘ castAdd m) ∘ g) (xs ∘ natAdd n) := by\n  ext x\n  cases' x with x x\n  · simp only [BoundedFormula.relabelAux, Function.comp_apply, Sum.map_inl, Sum.elim_inl]\n    cases' g x with l r <;> simp\n  · simp [BoundedFormula.relabelAux]",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSuccEquiv'_symm_some (i : Fin (n + 1)) (j : Fin n) :\n    (finSuccEquiv' i).symm (some j) = i.succAbove j :=\n  rfl",
+   "--src: Mathlib.Data.Fin.Basic\n/-- The 'identity' equivalence between `Fin m` and `Fin n` when `m = n`. -/\n@[simps]\ndef _root_.finCongr (eq : n = m) : Fin n ≃ Fin m where\n  toFun := cast eq\n  invFun := cast eq.symm\n  left_inv := leftInverse_cast eq\n  right_inv := rightInverse_cast eq",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\n@[simp]\ntheorem reindex_tprod (e : ι ≃ ι₂) (f : Π i, s i) :\n    reindex R s e (tprod R f) = tprod R fun i ↦ f (e.symm i) := by\n  dsimp [reindex]\n  exact liftAux_tprod _ f",
+   "--src: Mathlib.LinearAlgebra.TensorPower\ntheorem tprod_mul_tprod {na nb} (a : Fin na → M) (b : Fin nb → M) :\n    tprod R a ₜ* tprod R b = tprod R (Fin.append a b) := by\n  dsimp [gMul_def, mulEquiv]\n  rw [tmulEquiv_apply R M a b]\n  refine (reindex_tprod _ _).trans ?_\n  congr 1\n  dsimp only [Fin.append, finSumFinEquiv, Equiv.coe_fn_symm_mk]\n  apply funext\n  apply Fin.addCases <;> simp",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem relabel_falsum (g : α → β ⊕ (Fin n)) {k} :\n    (falsum : L.BoundedFormula α k).relabel g = falsum :=\n  rfl",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_toFormula (φ : L.BoundedFormula α n) (v : α ⊕ (Fin n) → M) :\n    φ.toFormula.Realize v ↔ φ.Realize (v ∘ Sum.inl) (v ∘ Sum.inr) := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [BoundedFormula.Realize]\n  | rel => simp [BoundedFormula.Realize]\n  | imp _ _ ih1 ih2 =>\n    rw [toFormula, Formula.Realize, realize_imp, ← Formula.Realize, ih1, ← Formula.Realize, ih2,\n      realize_imp]\n  | all _ ih3 =>\n    rw [toFormula, Formula.Realize, realize_all, realize_all]\n    refine forall_congr' fun a => ?_\n    have h := ih3 (Sum.elim (v ∘ Sum.inl) (snoc (v ∘ Sum.inr) a))\n    simp only [Sum.elim_comp_inl, Sum.elim_comp_inr] at h\n    rw [← h, realize_relabel, Formula.Realize, iff_iff_eq]\n    simp only [Function.comp_def]\n    congr with x\n    · cases' x with _ x\n      · simp\n      · refine Fin.lastCases ?_ ?_ x\n        · rw [Sum.elim_inr, Sum.elim_inr,\n            finSumFinEquiv_symm_last, Sum.map_inr, Sum.elim_inr]\n          simp [Fin.snoc]\n        · simp only [castSucc, Function.comp_apply, Sum.elim_inr,\n            finSumFinEquiv_symm_apply_castAdd, Sum.map_inl, Sum.elim_inl]\n          rw [← castSucc]\n          simp\n    · exact Fin.elim0 x",
+   "--src: Mathlib.Data.Fin.Tuple.Basic\n@[simp]\ntheorem snoc_comp_nat_add {n m : ℕ} {α : Sort*} (f : Fin (m + n) → α) (a : α) :\n    (snoc f a : Fin _ → α) ∘ (natAdd m : Fin (n + 1) → Fin (m + n + 1)) =\n      snoc (f ∘ natAdd m) a := by\n  ext i\n  refine Fin.lastCases ?_ (fun i ↦ ?_) i\n  · simp only [Function.comp_apply]\n    rw [snoc_last, natAdd_last, snoc_last]\n  · simp only [comp_apply, snoc_castSucc]\n    rw [natAdd_castSucc, snoc_castSucc]"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n2 : ℕ} (c : Fin n → S.C) (c2 : Fin n2 → S.C)",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.braidPerm",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.ProdComm",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+   "compilationAlias":
+   "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n2 : Nat\nc : Fin n → S.C\nc2 : Fin n2 → S.C\n⊢ Quiver.Hom (IndexNotation.OverColor.mk (Function.comp (Sum.elim c2 c) ⇑finSumFinEquiv.symm)) (IndexNotation.OverColor.mk (Function.comp (Sum.elim c c2) ⇑finSumFinEquiv.symm))",
+  "content_sorry":
+  "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) := by sorry",
+  "annotation":
+  "/-- The permutation that arises when moving a commuting terms in a `prod` node.\n  This permutation is defined using braiding and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef braidPerm : OverColor.mk (Sum.elim c2 c ∘ ⇑finSumFinEquiv.symm) ⟶\n    OverColor.mk (Sum.elim c c2 ∘ ⇑finSumFinEquiv.symm) :=\n  (equivToIso finSumFinEquiv).inv ≫\n  (β_ (OverColor.mk c2) (OverColor.mk c)).hom\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "Sum.elim",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g",
+    "compilationAlias":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g"},
+   {"name": "Sum.elim",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g",
+    "compilationAlias":
+    "/-- Define a function on `α ⊕ β` by giving separate definitions on `α` and `β`. -/\nprotected def elim {α β γ} (f : α → γ) (g : β → γ) : α ⊕ β → γ :=\n  fun x => Sum.casesOn x f g"}],
+  "C0_dependencies": []}]

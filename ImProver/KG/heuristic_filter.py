@@ -1,19 +1,15 @@
-import ray
 from packaging.version import Version
-from ray.data.llm import build_llm_processor, vLLMEngineProcessorConfig
-from ray.data import DataContext
 import os
 # HuggingFace tokenizer fork‑safety
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
-import torch
+
 import pandas as pd
 import json
 import datetime
 import multiprocessing
 import argparse
 import duckdb
-from transformers import AutoTokenizer
 import re
 
 
@@ -32,12 +28,16 @@ def _parse_json(val):
 
 
 def run_inference(df, args):
+    import ray
+
+    from ray.data.llm import build_llm_processor, vLLMEngineProcessorConfig
+    from ray.data import DataContext
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
     os.environ["NCCL_P2P_DISABLE"] = "1"
     ray.init(
         num_cpus=args.cpus, num_gpus=args.gpus
-    )  # , _temp_dir='/home/riyaza/ray_tmp')
+    , _temp_dir="/tmp/ray/test",)
     DataContext.get_current().wait_for_min_actors_s = 1800
     ctx = DataContext.get_current()
     # ctx.progress_bar = True
@@ -81,7 +81,7 @@ def run_inference(df, args):
     # ctx.execution_options = ExecutionOptions(task_extra_resources={"CPU": 0.25})
 
     config = vLLMEngineProcessorConfig(
-        model_source=args.model,
+        model_source=args.heuristic_model,
         engine_resources={"CPU": args.cpus // args.gpus, "GPU": 1},
         concurrency=args.gpus,
         engine_kwargs={
@@ -121,7 +121,7 @@ def run_inference(df, args):
         # "dataset": args.dataset_path,
         # "split": args.split,
         "n": args.n,
-        "model": args.model,
+        "model": args.heuristic_model,
     }
 
     config_path = os.path.join(run_output_dir, "config.json")
@@ -532,9 +532,10 @@ def get_training_dataset(con, args):
 
 
 def main(args):
-  
     MAX_PROMPT_TOKENS = 16384 - 512   # model context minus generation tokens
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+    from transformers import AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(args.heuristic_model, use_fast=True)
 
 
     if args.run_inference:
@@ -548,7 +549,7 @@ def main(args):
       
       prompts = []
       truncation_count = 0
-      for _,row in df_raw.iterrows():
+      for i,(_,row) in enumerate(df_raw.iterrows()):
         thm_prompt = get_thm_prompt(row.to_dict())
         if thm_prompt is None:
           continue
@@ -557,6 +558,7 @@ def main(args):
         # Token‑level truncation / filtering
         tokens = tokenizer.encode(thm_prompt["raw_prompt"],
                                   add_special_tokens=False)
+        
         if len(tokens) > MAX_PROMPT_TOKENS:
             # ----- OPTION A: truncate to last MAX_PROMPT_TOKENS tokens
             tokens = tokens[-MAX_PROMPT_TOKENS:]
@@ -565,8 +567,10 @@ def main(args):
 
             # ----- OPTION B: drop the prompt entirely instead
             # continue    # ← uncomment this line & delete the two lines above to drop
-
+        if i % 100 == 0:
+          print(f"tokenized {i / len(list(df_raw.iterrows()))}%.")
         prompts.append(thm_prompt)
+      
 
       # Convert the list of prompts to a pandas DataFrame
       print(f"Total prompts: {len(prompts)}")
@@ -617,6 +621,7 @@ if __name__ == "__main__":
     )
 
     try:
+        import torch
         available_gpus = torch.cuda.device_count()
     except (ImportError, AttributeError):
         available_gpus = 0

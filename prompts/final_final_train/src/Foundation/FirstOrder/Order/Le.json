@@ -1,0 +1,193 @@
+[{"rag":
+  ["--src: Mathlib.ModelTheory.Complexity\n/-- An existential formula is a formula defined by applying only existential quantifiers to a\nquantifier-free formula. -/\ninductive IsExistential : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsExistential φ\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsExistential φ) : IsExistential φ.ex",
+   "--src: Mathlib.ModelTheory.Complexity\ntheorem IsQF.induction_on_inf_not {P : L.BoundedFormula α n → Prop} {φ : L.BoundedFormula α n}\n    (h : IsQF φ) (hf : P (⊥ : L.BoundedFormula α n))\n    (ha : ∀ ψ : L.BoundedFormula α n, IsAtomic ψ → P ψ)\n    (hinf : ∀ {φ₁ φ₂}, P φ₁ → P φ₂ → P (φ₁ ⊓ φ₂)) (hnot : ∀ {φ}, P φ → P φ.not)\n    (hse :\n      ∀ {φ₁ φ₂ : L.BoundedFormula α n}, (φ₁ ⇔[∅] φ₂) → (P φ₁ ↔ P φ₂)) :\n    P φ :=\n  h.induction_on_sup_not hf ha\n    (fun {φ₁ φ₂} h1 h2 =>\n      (hse (φ₁.sup_iff_not_inf_not φ₂)).2 (hnot (hinf (hnot h1) (hnot h2))))\n    (fun {_} => hnot) fun {_ _} => hse",
+   "--src: Mathlib.ModelTheory.ElementaryMaps\n/-- An elementary embedding of first-order structures is an embedding that commutes with the\n  realizations of formulas. -/\nstructure ElementaryEmbedding where\n  toFun : M → N\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_formula' :\n    ∀ ⦃n⦄ (φ : L.Formula (Fin n)) (x : Fin n → M), φ.Realize (toFun ∘ x) ↔ φ.Realize x := by\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Types\n/-- A complete type over a given theory in a certain type of variables is a maximally\n  consistent (with the theory) set of formulas in that type. -/\nstructure CompleteType where\n  toTheory : L[[α]].Theory\n  subset' : (L.lhomWithConstants α).onTheory T ⊆ toTheory\n  isMaximal' : toTheory.IsMaximal",
+   "--src: Mathlib.ModelTheory.Complexity\n/-- Indicates that a bounded formula is in prenex normal form - that is, it consists of quantifiers\n  applied to a quantifier-free formula. -/\ninductive IsPrenex : ∀ {n}, L.BoundedFormula α n → Prop\n  | of_isQF {n} {φ : L.BoundedFormula α n} (h : IsQF φ) : IsPrenex φ\n  | all {n} {φ : L.BoundedFormula α (n + 1)} (h : IsPrenex φ) : IsPrenex φ.all\n  | ex {n} {φ : L.BoundedFormula α (n + 1)} (h : IsPrenex φ) : IsPrenex φ.ex",
+   "--src: Mathlib.ModelTheory.Semantics\ntheorem realize_mapTermRel_id [L'.Structure M]\n    {ft : ∀ n, L.Term (α ⊕ (Fin n)) → L'.Term (β ⊕ (Fin n))}\n    {fr : ∀ n, L.Relations n → L'.Relations n} {n} {φ : L.BoundedFormula α n} {v : α → M}\n    {v' : β → M} {xs : Fin n → M}\n    (h1 :\n      ∀ (n) (t : L.Term (α ⊕ (Fin n))) (xs : Fin n → M),\n        (ft n t).realize (Sum.elim v' xs) = t.realize (Sum.elim v xs))\n    (h2 : ∀ (n) (R : L.Relations n) (x : Fin n → M), RelMap (fr n R) x = RelMap R x) :\n    (φ.mapTermRel ft fr fun _ => id).Realize v' xs ↔ φ.Realize v xs := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [mapTermRel, Realize, h1]\n  | rel => simp [mapTermRel, Realize, h1, h2]\n  | imp _ _ ih1 ih2 => simp [mapTermRel, Realize, ih1, ih2]\n  | all _ ih => simp only [mapTermRel, Realize, ih, id]",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- A language equivalence maps the symbols of one language to symbols of another bijectively. -/\nstructure LEquiv (L L' : Language) where\n  toLHom : L →ᴸ L'\n  invLHom : L' →ᴸ L\n  left_inv : invLHom.comp toLHom = LHom.id L\n  right_inv : toLHom.comp invLHom = LHom.id L'",
+   "--src: Mathlib.ModelTheory.Basic\n/-- An embedding of first-order structures is an embedding that commutes with the\n  interpretations of functions and relations. -/\nstructure Embedding extends M ↪ N where\n  map_fun' : ∀ {n} (f : L.Functions n) (x), toFun (funMap f x) = funMap f (toFun ∘ x) := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial\n  map_rel' : ∀ {n} (r : L.Relations n) (x), RelMap r (toFun ∘ x) ↔ RelMap r x := by\n    -- Porting note: see porting note on `Hom.map_fun'`\n    intros; trivial",
+   "--src: Mathlib.ModelTheory.Ultraproducts\n/-- **Łoś's Theorem**: A sentence is true in an ultraproduct if and only if the set of structures\nit is true in is in the ultrafilter. -/\ntheorem sentence_realize (φ : L.Sentence) :\n    (u : Filter α).Product M ⊨ φ ↔ ∀ᶠ a : α in u, M a ⊨ φ := by\n  simp_rw [Sentence.Realize]\n  rw [← realize_formula_cast φ, iff_eq_eq]\n  exact congr rfl (Subsingleton.elim _ _)",
+   "--src: Mathlib.ModelTheory.ElementaryMaps\n/-- An elementary embedding of first-order structures is an embedding that commutes with the\n  realizations of formulas. -/\nstructure ElementaryEmbedding where\n  toFun : M → N\n  -- Porting note:\n  -- The autoparam here used to be `obviously`. We would like to replace it with `aesop`\n  -- but that isn't currently sufficient.\n  -- See https://leanprover.zulipchat.com/#narrow/stream/287929-mathlib4/topic/Aesop.20and.20cases\n  -- If that can be improved, we should change this to `by aesop` and remove the proofs below.\n  map_formula' :\n    ∀ ⦃n⦄ (φ : L.Formula (Fin n)) (x : Fin n → M), φ.Realize (toFun ∘ x) ↔ φ.Realize x := by\n    intros; trivial"],
+  "prescopes":
+  "namespace LO.FirstOrder.Order\n\nopen LO.FirstOrder.Semiformula\n\nvariable {L : Language.{u}} [Semiformula.Operator.Eq L] [Semiformula.Operator.LT L] {T : Theory L} [𝐄𝐐 ≼ T]",
+  "postscopes": "end LO.FirstOrder.Order",
+  "id":
+  {"name": "LO.FirstOrder.Order.provOf",
+   "module": "Foundation.FirstOrder.Order.Le",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M] [LT M]\n         [Structure L M] [Structure.Eq L M] [Structure.LT L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := consequence_iff_consequence.{u, w}.mp <| consequence_iff_eq.mpr fun M _ _ _ hT =>\n  letI : (Structure.Model L M) ⊧ₘ* T :=\n    ((Structure.ElementaryEquiv.modelsTheory (Structure.Model.elementaryEquiv L M)).mp hT)\n  (Structure.ElementaryEquiv.models (Structure.Model.elementaryEquiv L M)).mpr (H (Structure.Model L M))\n\n",
+   "compilationAlias":
+   "lemma provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M] [LT M]\n         [Structure L M] [Structure.Eq L M] [Structure.LT L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := consequence_iff_consequence.{u, w}.mp <| consequence_iff_eq.mpr fun M _ _ _ hT =>\n  letI : (Structure.Model L M) ⊧ₘ* T :=\n    ((Structure.ElementaryEquiv.modelsTheory (Structure.Model.elementaryEquiv L M)).mp hT)\n  (Structure.ElementaryEquiv.models (Structure.Model.elementaryEquiv L M)).mpr (H (Structure.Model L M))\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\ninst✝² : LO.FirstOrder.Semiformula.Operator.Eq L\ninst✝¹ : LO.FirstOrder.Semiformula.Operator.LT L\nT : LO.FirstOrder.Theory L\ninst✝ : LO.System.Subtheory LO.FirstOrder.Theory.eqAxiom T\nφ : LO.FirstOrder.SyntacticFormula L\nH : ∀ (M : Type (max u w)) [inst : Nonempty M] [inst_1 : LT M] [inst_2 : LO.FirstOrder.Structure L M] [inst_3 : LO.FirstOrder.Structure.Eq L M] [inst_4 : LO.FirstOrder.Structure.LT L M] [inst_5 : LO.FirstOrder.ModelsTheory M T], LO.FirstOrder.Models M φ\n⊢ LO.FirstOrder.Consequence T φ",
+  "content_sorry":
+  "lemma provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M] [LT M]\n         [Structure L M] [Structure.Eq L M] [Structure.LT L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := by sorry",
+  "annotation":
+  "lemma provOf (φ : SyntacticFormula L)\n  (H : ∀ (M : Type (max u w))\n         [Nonempty M] [LT M]\n         [Structure L M] [Structure.Eq L M] [Structure.LT L M]\n         [M ⊧ₘ* T],\n         M ⊧ₘ φ) :\n    T ⊨ φ := consequence_iff_consequence.{u, w}.mp <| consequence_iff_eq.mpr fun M _ _ _ hT =>\n  letI : (Structure.Model L M) ⊧ₘ* T :=\n    ((Structure.ElementaryEquiv.modelsTheory (Structure.Model.elementaryEquiv L M)).mp hT)\n  (Structure.ElementaryEquiv.models (Structure.Model.elementaryEquiv L M)).mpr (H (Structure.Model L M))\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.LT.le",
+    "module": "Foundation.FirstOrder.Order.Le",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n",
+    "compilationAlias":
+    "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n"},
+   {"name": "LO.FirstOrder.le_eq",
+    "module": "Foundation.FirstOrder.Order.Le",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n\n",
+    "compilationAlias":
+    "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n\n"},
+   {"name": "LO.FirstOrder.Order.leIffEqOrLt",
+    "module": "Foundation.FirstOrder.Order.Le",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "noncomputable def leIffEqOrLt : T ⊢! “∀ x y, x ≤ y ↔ x = y ∨ x < y” :=\n  complete\n    (consequence_iff.mpr $ fun _ _ _ _ => by simp[models_def, Semiformula.Operator.LE.def_of_Eq_of_LT])\n\n",
+    "compilationAlias":
+    "noncomputable def leIffEqOrLt : T ⊢! “∀ x y, x ≤ y ↔ x = y ∨ x < y” :=\n  complete\n    (consequence_iff.mpr $ fun _ _ _ _ => by simp[models_def, Semiformula.Operator.LE.def_of_Eq_of_LT])\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel₁ {R : L.Relations 1} {t : L.Term _} :\n    (R.boundedFormula₁ t).Realize v xs ↔ RelMap R ![t.realize (Sum.elim v xs)] := by\n  rw [Relations.boundedFormula₁, realize_rel, iff_eq_eq]\n  refine congr rfl (funext fun _ => ?_)\n  simp only [Matrix.cons_val_fin_one]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_total : M ⊨ r.total ↔ Total fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => realize_sup.trans (or_congr realize_rel₂ realize_rel₂)",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_antisymmetric :\n    M ⊨ r.antisymmetric ↔ AntiSymmetric fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => imp_congr realize_rel₂ (imp_congr realize_rel₂ Iff.rfl)",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_functions_apply₁ {f : L.Functions 1} {t : L.Term α} {v : α → M} :\n    (f.apply₁ t).realize v = funMap f ![t.realize v] := by\n  rw [Functions.apply₁, Term.realize]\n  refine congr rfl (funext fun i => ?_)\n  simp only [Matrix.cons_val_fin_one]",
+   "--src: Mathlib.ModelTheory.Definability\ntheorem definable_iff_exists_formula_sum :\n    A.Definable L s ↔ ∃ φ : L.Formula (A ⊕ α), s = {v | φ.Realize (Sum.elim (↑) v)} := by\n  rw [Definable, Equiv.exists_congr_left (BoundedFormula.constantsVarsEquiv)]\n  refine exists_congr (fun φ => iff_iff_eq.2 (congr_arg (s = ·) ?_))\n  ext\n  simp only [BoundedFormula.constantsVarsEquiv, constantsOn,\n    BoundedFormula.mapTermRelEquiv_symm_apply, mem_setOf_eq, Formula.Realize]\n  refine BoundedFormula.realize_mapTermRel_id ?_ (fun _ _ _ => rfl)\n  intros\n  simp only [Term.constantsVarsEquivLeft_symm_apply, Term.realize_varsToConstants,\n    coe_con, Term.realize_relabel]\n  congr\n  ext a\n  rcases a with (_ | _) | _ <;> rfl",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_ex : θ.ex.Realize v xs ↔ ∃ a : M, θ.Realize v (Fin.snoc xs a) := by\n  rw [BoundedFormula.ex, realize_not, realize_all, not_forall]\n  simp_rw [realize_not, Classical.not_not]",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem all_iff_not_ex_not (φ : L.BoundedFormula α (n + 1)) :\n    φ.all ⇔[T] φ.not.ex.not := fun M v xs => by simp",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_iExs [Finite γ] {φ : L.Formula (α ⊕ γ)} {v : α → M} {v' : Fin 0 → M} :\n    BoundedFormula.Realize (φ.iExs γ) v v' ↔\n      ∃ (i : γ → M), φ.Realize (Sum.elim v i) := by\n  rw [← Formula.realize_iExs, iff_iff_eq]; congr; simp [eq_iff_true_of_subsingleton]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_subst {φ : L.BoundedFormula α n} {tf : α → L.Term β} {v : β → M} {xs : Fin n → M} :\n    (φ.subst tf).Realize v xs ↔ φ.Realize (fun a => (tf a).realize v) xs :=\n  realize_mapTermRel_id\n    (fun n t x => by\n      rw [Term.realize_subst]\n      rcongr a\n      cases a\n      · simp only [Sum.elim_inl, Function.comp_apply, Term.realize_relabel, Sum.elim_comp_inl]\n      · rfl)\n    (by simp)",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_all_liftAt : φ ⇔[T] (φ.liftAt 1 n).all :=\n  fun M v xs => by\n  rw [realize_iff, realize_all_liftAt_one_self]"],
+  "prescopes":
+  "namespace LO.FirstOrder.Order\n\nopen LO.FirstOrder.Semiformula\n\nvariable {L : Language.{u}} [Semiformula.Operator.Eq L] [Semiformula.Operator.LT L] {T : Theory L} [𝐄𝐐 ≼ T]",
+  "postscopes": "end LO.FirstOrder.Order",
+  "id":
+  {"name": "LO.FirstOrder.Order.leIffEqOrLt",
+   "module": "Foundation.FirstOrder.Order.Le",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "noncomputable def leIffEqOrLt : T ⊢! “∀ x y, x ≤ y ↔ x = y ∨ x < y” :=\n  complete\n    (consequence_iff.mpr $ fun _ _ _ _ => by simp[models_def, Semiformula.Operator.LE.def_of_Eq_of_LT])\n\n",
+   "compilationAlias":
+   "noncomputable def leIffEqOrLt : T ⊢! “∀ x y, x ≤ y ↔ x = y ∨ x < y” :=\n  complete\n    (consequence_iff.mpr $ fun _ _ _ _ => by simp[models_def, Semiformula.Operator.LE.def_of_Eq_of_LT])\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\ninst✝¹ : LO.FirstOrder.Semiformula.Operator.Eq L\ninst✝ : LO.FirstOrder.Semiformula.Operator.LT L\nT : LO.FirstOrder.Theory L\n⊢ LO.System.Provable T (LO.UnivQuantifier.univ (LO.UnivQuantifier.univ (LO.LogicalConnective.iff (LO.FirstOrder.Semiformula.Operator.LE.le.operator (Matrix.vecCons (LO.FirstOrder.Semiterm.bvar 1) (Matrix.vecCons (LO.FirstOrder.Semiterm.bvar 0) Matrix.vecEmpty))) (LO.Vee.vee (LO.FirstOrder.Semiformula.Operator.Eq.eq.operator (Matrix.vecCons (LO.FirstOrder.Semiterm.bvar 1) (Matrix.vecCons (LO.FirstOrder.Semiterm.bvar 0) Matrix.vecEmpty))) (LO.FirstOrder.Semiformula.Operator.LT.lt.operator (Matrix.vecCons (LO.FirstOrder.Semiterm.bvar 1) (Matrix.vecCons (LO.FirstOrder.Semiterm.bvar 0) Matrix.vecEmpty)))))))",
+  "content_sorry":
+  "noncomputable def leIffEqOrLt : T ⊢! “∀ x y, x ≤ y ↔ x = y ∨ x < y” :=\n  complete\n    (consequence_iff.mpr $ fun _ _ _ _ => by sorry",
+  "annotation":
+  "noncomputable def leIffEqOrLt : T ⊢! “∀ x y, x ≤ y ↔ x = y ∨ x < y” :=\n  complete\n                                             /-\n                                               L : LO.FirstOrder.Language\n                                               inst✝² : LO.FirstOrder.Semiformula.Operator.Eq L\n                                               inst✝¹ : LO.FirstOrder.Semiformula.Operator.LT L\n                                               T : LO.FirstOrder.Theory L\n                                               inst✝ : LO.System.Subtheory LO.FirstOrder.Theory.eqAxiom T\n                                               x✝³ : Type u\n                                               x✝² : Nonempty x✝³\n                                               x✝¹ : LO.FirstOrder.Structure L x✝³\n                                               x✝ : LO.FirstOrder.ModelsTheory x✝³ T\n                                               ⊢ LO.FirstOrder.Models x✝³ (LO.UnivQuantifier.univ (LO.UnivQuantifier.univ (LO …\n                                             -/\n    (consequence_iff.mpr $ fun _ _ _ _ => by simp[models_def, Semiformula.Operator.LE.def_of_Eq_of_LT])\n                                             /-\n                                               🎉 no goals\n                                             -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.LT.le",
+    "module": "Foundation.FirstOrder.Order.Le",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n",
+    "compilationAlias":
+    "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n"},
+   {"name": "LO.FirstOrder.le_eq",
+    "module": "Foundation.FirstOrder.Order.Le",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n\n",
+    "compilationAlias":
+    "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_rel₂ {R : L.Relations 2} {t₁ t₂ : L.Term _} :\n    (R.boundedFormula₂ t₁ t₂).Realize v xs ↔\n      RelMap R ![t₁.realize (Sum.elim v xs), t₂.realize (Sum.elim v xs)] := by\n  rw [Relations.boundedFormula₂, realize_rel, iff_eq_eq]\n  refine congr rfl (funext (Fin.cases ?_ ?_))\n  · simp only [Matrix.cons_val_zero]\n  · simp only [Matrix.cons_val_succ, Matrix.cons_val_fin_one, forall_const]",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_antisymmetric :\n    M ⊨ r.antisymmetric ↔ AntiSymmetric fun x y : M => RelMap r ![x, y] :=\n  forall_congr' fun _ =>\n    forall_congr' fun _ => imp_congr realize_rel₂ (imp_congr realize_rel₂ Iff.rfl)",
+   "--src: Mathlib.ModelTheory.Semantics\n@[simp]\ntheorem realize_functions_apply₁ {f : L.Functions 1} {t : L.Term α} {v : α → M} :\n    (f.apply₁ t).realize v = funMap f ![t.realize v] := by\n  rw [Functions.apply₁, Term.realize]\n  refine congr rfl (funext fun i => ?_)\n  simp only [Matrix.cons_val_fin_one]",
+   "--src: Mathlib.ModelTheory.Order\n@[simp]\ntheorem Term.realize_lt {t₁ t₂ : L.Term (α ⊕ (Fin n))}\n    {v : α → M} {xs : Fin n → M} :\n    (t₁.lt t₂).Realize v xs ↔ t₁.realize (Sum.elim v xs) < t₂.realize (Sum.elim v xs) := by\n  simp [Term.lt, lt_iff_le_not_le]",
+   "--src: Mathlib.ModelTheory.Graph\n/-- Any model of the theory of simple graphs represents a simple graph. -/\n@[simps]\ndef simpleGraphOfStructure [Language.graph.Structure V] [V ⊨ Theory.simpleGraph] :\n    SimpleGraph V where\n  Adj x y := RelMap adj ![x, y]\n  symm :=\n    Relations.realize_symmetric.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph\n        (Set.mem_insert_of_mem _ (Set.mem_singleton _)))\n  loopless :=\n    Relations.realize_irreflexive.1\n      (Theory.realize_sentence_of_mem Theory.simpleGraph (Set.mem_insert _ _))",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem all_iff_not_ex_not (φ : L.BoundedFormula α (n + 1)) :\n    φ.all ⇔[T] φ.not.ex.not := fun M v xs => by simp",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem relabel_imp (g : α → β ⊕ (Fin n)) {k} (φ ψ : L.BoundedFormula α k) :\n    (φ.imp ψ).relabel g = (φ.relabel g).imp (ψ.relabel g) :=\n  rfl",
+   "--src: Mathlib.ModelTheory.Syntax\n/-- `BoundedFormula α n` is the type of formulas with free variables indexed by `α` and up to `n`\n  additional free variables. -/\ninductive BoundedFormula : ℕ → Type max u v u'\n  | falsum {n} : BoundedFormula n\n  | equal {n} (t₁ t₂ : L.Term (α ⊕ (Fin n))) : BoundedFormula n\n  | rel {n l : ℕ} (R : L.Relations l) (ts : Fin l → L.Term (α ⊕ (Fin n))) : BoundedFormula n\n  | imp {n} (f₁ f₂ : BoundedFormula n) : BoundedFormula n\n  | all {n} (f : BoundedFormula (n + 1)) : BoundedFormula n",
+   "--src: Mathlib.ModelTheory.Equivalence\ntheorem iff_all_liftAt : φ ⇔[T] (φ.liftAt 1 n).all :=\n  fun M v xs => by\n  rw [realize_iff, realize_all_liftAt_one_self]",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma bot_imp (φ : L.BoundedFormula α n) : ⊥ ⟹[T] φ := fun M v xs => by\n  simp only [BoundedFormula.realize_imp, BoundedFormula.realize_bot, false_implies]"],
+  "prescopes":
+  "namespace LO.FirstOrder\n\nopen LO.FirstOrder.Semiformula\n\nvariable {L : Language.{u}} [Semiformula.Operator.Eq L] [Semiformula.Operator.LT L]",
+  "postscopes": "end LO.FirstOrder",
+  "id":
+  {"name": "LO.FirstOrder.le_eq",
+   "module": "Foundation.FirstOrder.Order.Le",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n\n",
+   "compilationAlias":
+   "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n\n"},
+  "goal":
+  "L : outParam LO.FirstOrder.Language\nξ₁ : outParam (Type u_1)\nF₁ : Nat → Type u_2\nξ₂ : Type u_3\nF₂ : outParam (Nat → Type u_4)\nξ₃ : Type u_5\nF₃ : outParam (Nat → Type u_6)\ninst✝⁵ : LO.LCWQ F₁\ninst✝⁴ : LO.LCWQ F₂\ninst✝³ : LO.LCWQ F₃\ninst✝² : LO.FirstOrder.Rewriting L ξ₁ F₁ ξ₂ F₂\ninst✝¹ : LO.FirstOrder.Rewriting L ξ₂ F₂ ξ₃ F₃\ninst✝ : LO.FirstOrder.Rewriting L ξ₁ F₁ ξ₃ F₃\nself : LO.FirstOrder.TransitiveRewriting L ξ₁ F₁ ξ₂ F₂ ξ₃ F₃\nn₁ n₂ n₃ : Nat\nω₁₂ : LO.FirstOrder.Rew L ξ₁ n₁ ξ₂ n₂\nω₂₃ : LO.FirstOrder.Rew L ξ₂ n₂ ξ₃ n₃\nφ : F₁ n₁\n⊢ Eq ((LO.FirstOrder.Rewriting.app ω₂₃) ((LO.FirstOrder.Rewriting.app ω₁₂) φ)) ((LO.FirstOrder.Rewriting.app (ω₂₃.comp ω₁₂)) φ)",
+  "content_sorry":
+  "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  sorry",
+  "annotation":
+  "lemma le_eq (t₁ t₂ : Semiterm L μ n) : LT.le.operator ![t₁, t₂] = “!!t₁ = !!t₂ ∨ !!t₁ < !!t₂” := by\n  /-\n    L : LO.FirstOrder.Language\n    inst✝¹ : LO.FirstOrder.Semiformula.Operator.Eq L\n    inst✝ : LO.FirstOrder.Semiformula.Operator.LT L\n    μ : Type u_1\n    n : Nat\n    t₁ t₂ : LO.FirstOrder.Semiterm L μ n\n    ⊢ Eq (LO.FirstOrder.LT.le.operator (Matrix.vecCons t₁ (Matrix.vecCons t₂ Matri …\n  -/\n  simp [Operator.operator, Operator.or, LT.le, ←TransitiveRewriting.comp_app, ←Matrix.fun_eq_vec₂]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Matrix.fun_eq_vec₂",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma fun_eq_vec₂ {v : Fin 2 → α} : v = ![v 0, v 1] := by\n  funext x; cases x using Fin.cases <;> simp [Fin.eq_zero]",
+    "compilationAlias":
+    "lemma fun_eq_vec₂ {v : Fin 2 → α} : v = ![v 0, v 1] := by\n  funext x; cases x using Fin.cases <;> simp [Fin.eq_zero]"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.LT.le",
+    "module": "Foundation.FirstOrder.Order.Le",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n",
+    "compilationAlias":
+    "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.ModelTheory.Algebra.Ring.Basic\n@[simp]\ntheorem card_ring : card Language.ring = 5 := by\n  have : Fintype.card Language.ring.Symbols = 5 := rfl\n  simp [Language.card, this]",
+   "--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-categorical. -/\ntheorem aleph0_categorical_dlo : (ℵ₀).Categorical Language.order.dlo := fun M₁ M₂ h₁ h₂ => by\n  obtain ⟨_⟩ := denumerable_iff.2 h₁\n  obtain ⟨_⟩ := denumerable_iff.2 h₂\n  exact (isFraisseLimit_of_countable_nonempty_dlo M₁).nonempty_equiv\n    (isFraisseLimit_of_countable_nonempty_dlo M₂)",
+   "--src: Mathlib.ModelTheory.Order\nlemma order.relation_eq_leSymb : (R : Language.order.Relations 2) → R = leSymb\n  | .le => rfl",
+   "--src: Mathlib.ModelTheory.Syntax\n@[simp]\ntheorem castLE_rfl {n} (h : n ≤ n) (φ : L.BoundedFormula α n) : φ.castLE h = φ := by\n  induction φ with\n  | falsum => rfl\n  | equal => simp [Fin.castLE_of_eq]\n  | rel => simp [Fin.castLE_of_eq]\n  | imp _ _ ih1 ih2 => simp [Fin.castLE_of_eq, ih1, ih2]\n  | all _ ih3 => simp [Fin.castLE_of_eq, ih3]",
+   "--src: Mathlib.ModelTheory.Equivalence\nlemma bot_imp (φ : L.BoundedFormula α n) : ⊥ ⟹[T] φ := fun M v xs => by\n  simp only [BoundedFormula.realize_imp, BoundedFormula.realize_bot, false_implies]",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- The language map removing an empty constant set. -/\n@[simps]\ndef LEquiv.addEmptyConstants [ie : IsEmpty α] : L ≃ᴸ L[[α]] where\n  toLHom := lhomWithConstants L α\n  invLHom := LHom.sumElim (LHom.id L) (LHom.ofIsEmpty (constantsOn α) L)\n  left_inv := by rw [lhomWithConstants, LHom.sumElim_comp_inl]\n  right_inv := by\n    simp only [LHom.comp_sumElim, lhomWithConstants, LHom.comp_id]\n    exact _root_.trans (congr rfl (Subsingleton.elim _ _)) LHom.sumElim_inl_inr",
+   "--src: Mathlib.ModelTheory.LanguageMap\n/-- The composition of equivalences of first-order languages. -/\n@[simps, trans]\nprotected def trans (e : L ≃ᴸ L') (e' : L' ≃ᴸ L'') : L ≃ᴸ L'' :=\n  ⟨e'.toLHom.comp e.toLHom, e.invLHom.comp e'.invLHom, by\n    rw [LHom.comp_assoc, ← LHom.comp_assoc e'.invLHom, e'.left_inv, LHom.id_comp, e.left_inv], by\n    rw [LHom.comp_assoc, ← LHom.comp_assoc e.toLHom, e.right_inv, LHom.id_comp, e'.right_inv]⟩",
+   "--src: Mathlib.ModelTheory.Syntax\ntheorem equivSentence_inf (φ ψ : L.Formula α) :\n    equivSentence (φ ⊓ ψ) = equivSentence φ ⊓ equivSentence ψ :=\n  rfl",
+   "--src: Mathlib.ModelTheory.LanguageMap\ntheorem sumInl_injective : (LHom.sumInl : L →ᴸ L.sum L').Injective :=\n  ⟨fun h => Sum.inl_injective h, fun h => Sum.inl_injective h⟩",
+   "--src: Mathlib.ModelTheory.Order\n/-- The theory of dense linear orders is `ℵ₀`-complete. -/\ntheorem dlo_isComplete : Language.order.dlo.IsComplete :=\n  aleph0_categorical_dlo.{0}.isComplete ℵ₀ _ le_rfl (by simp [one_le_aleph0])\n    ⟨by\n      letI : Language.order.Structure ℚ := orderStructure ℚ\n      exact Theory.ModelType.of _ ℚ⟩\n    fun _ => inferInstance"],
+  "prescopes":
+  "namespace LO.FirstOrder\n\nopen LO.FirstOrder.Semiformula\n\nvariable {L : Language.{u}} [Semiformula.Operator.Eq L] [Semiformula.Operator.LT L]",
+  "postscopes": "end LO.FirstOrder",
+  "id":
+  {"name": "LO.FirstOrder.LT.le",
+   "module": "Foundation.FirstOrder.Order.Le",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n",
+   "compilationAlias":
+   "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n"},
+  "goal": "",
+  "content_sorry": "def LT.le : Operator L 2 := by sorry",
+  "annotation":
+  "def LT.le : Operator L 2 := Semiformula.Operator.Eq.eq.or Semiformula.Operator.LT.lt\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies": []}]

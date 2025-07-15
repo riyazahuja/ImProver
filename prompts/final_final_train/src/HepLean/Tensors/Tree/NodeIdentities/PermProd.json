@@ -1,0 +1,658 @@
+[{"rag":
+  ["--src: Mathlib.CategoryTheory.Monoidal.Comon_\n/-- Composition of morphisms of monoid objects. -/\n@[simps]\ndef comp {M N O : Comon_ C} (f : Hom M N) (g : Hom N O) : Hom M O where\n  hom := f.hom ≫ g.hom",
+   "--src: Mathlib.RepresentationTheory.Rep\n/-- Porting note: if we generate this with `@[simps]` the linter complains some types in the LHS\nsimplify. -/\ntheorem homEquiv_apply_hom (f : A ⊗ B ⟶ C) :\n    (homEquiv A B C f).hom = ModuleCat.ofHom (TensorProduct.curry f.hom.hom).flip := rfl",
+   "--src: Mathlib.Algebra.Category.ModuleCat.Monoidal.Basic\ntheorem tensor_comp {X₁ Y₁ Z₁ X₂ Y₂ Z₂ : ModuleCat R} (f₁ : X₁ ⟶ Y₁) (f₂ : X₂ ⟶ Y₂) (g₁ : Y₁ ⟶ Z₁)\n    (g₂ : Y₂ ⟶ Z₂) : tensorHom (f₁ ≫ g₁) (f₂ ≫ g₂) = tensorHom f₁ f₂ ≫ tensorHom g₁ g₂ := by\n  ext : 1\n  -- Porting note (https://github.com/leanprover-community/mathlib4/pull/11041): even with high priority `ext` fails to find this.\n  apply TensorProduct.ext\n  rfl",
+   "--src: Mathlib.CategoryTheory.Monoidal.Mon_\n/-- A morphism of monoid objects. -/\n@[ext]\nstructure Hom (M N : Mon_ C) where\n  hom : M.X ⟶ N.X\n  one_hom : M.one ≫ hom = N.one := by aesop_cat\n  mul_hom : M.mul ≫ hom = (hom ⊗ hom) ≫ N.mul := by aesop_cat",
+   "--src: Mathlib.CategoryTheory.Monoidal.Braided.Basic\n@[reassoc]\ntheorem tensorμ_natural {X₁ X₂ Y₁ Y₂ U₁ U₂ V₁ V₂ : C} (f₁ : X₁ ⟶ Y₁) (f₂ : X₂ ⟶ Y₂) (g₁ : U₁ ⟶ V₁)\n    (g₂ : U₂ ⟶ V₂) :\n    ((f₁ ⊗ f₂) ⊗ g₁ ⊗ g₂) ≫ tensorμ Y₁ Y₂ V₁ V₂ =\n      tensorμ X₁ X₂ U₁ U₂ ≫ ((f₁ ⊗ g₁) ⊗ f₂ ⊗ g₂) := by\n  dsimp only [tensorμ]\n  simp_rw [← id_tensorHom, ← tensorHom_id]\n  slice_lhs 1 2 => rw [associator_naturality]\n  slice_lhs 2 3 =>\n    rw [← tensor_comp, comp_id f₁, ← id_comp f₁, associator_inv_naturality, tensor_comp]\n  slice_lhs 3 4 =>\n    rw [← tensor_comp, ← tensor_comp, comp_id f₁, ← id_comp f₁, comp_id g₂, ← id_comp g₂,\n      braiding_naturality, tensor_comp, tensor_comp]\n  slice_lhs 4 5 => rw [← tensor_comp, comp_id f₁, ← id_comp f₁, associator_naturality, tensor_comp]\n  slice_lhs 5 6 => rw [associator_inv_naturality]\n  simp only [assoc]",
+   "--src: Mathlib.Algebra.Category.CoalgebraCat.ComonEquivalence\ntheorem tensorObj_comul (K L : CoalgebraCat R) :\n    Coalgebra.comul (R := R) (A := (K ⊗ L : CoalgebraCat R))\n      = (TensorProduct.tensorTensorTensorComm R K K L L).toLinearMap\n      ∘ₗ TensorProduct.map Coalgebra.comul Coalgebra.comul := by\n  rw [ofComonObjCoalgebraStruct_comul]\n  dsimp only [Equivalence.symm_inverse, comonEquivalence_functor, toComon_obj]\n  simp only [Comon_.monoidal_tensorObj_comul, toComonObj_X, ModuleCat.of_coe, toComonObj_comul,\n    tensorμ_eq_tensorTensorTensorComm]\n  rfl",
+   "--src: Mathlib.CategoryTheory.Monoidal.Category\n@[simp]\ntheorem rightAssocTensor_map {X Y} (f : X ⟶ Y) : (rightAssocTensor C).map f = f.1 ⊗ f.2.1 ⊗ f.2.2 :=\n  rfl",
+   "--src: Mathlib.CategoryTheory.Monoidal.Category\n@[reassoc]\ntheorem tensor_id_comp_id_tensor (f : W ⟶ X) (g : Y ⟶ Z) : (g ⊗ \u0000\u0000 W) ≫ (\u0000\u0000 Z ⊗ f) = g ⊗ f := by\n  rw [← tensor_comp]\n  simp",
+   "--src: Mathlib.CategoryTheory.Action.Monoidal\n@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]\ninstance instMonoidalCategory : MonoidalCategory (Action V G) :=\n  Monoidal.transport (Action.functorCategoryEquivalence _ _).symm\n/- Adding this solves `simpNF` linter report at `tensorUnit_ρ` -/",
+   "--src: Mathlib.Algebra.Category.CoalgebraCat.Monoidal\n@[simps]\nnoncomputable instance instMonoidalCategoryStruct :\n    MonoidalCategoryStruct.{u} (CoalgebraCat R) where\n  tensorObj X Y := of R (X ⊗[R] Y)\n  whiskerLeft X _ _ f := ofHom (f.1.lTensor X)\n  whiskerRight f X := ofHom (f.1.rTensor X)\n  tensorHom f g := ofHom (Coalgebra.TensorProduct.map f.1 g.1)\n  tensorUnit := CoalgebraCat.of R R\n  associator X Y Z := (Coalgebra.TensorProduct.assoc R X Y Z).toCoalgebraCatIso\n  leftUnitor X := (Coalgebra.TensorProduct.lid R X).toCoalgebraCatIso\n  rightUnitor X := (Coalgebra.TensorProduct.rid R X).toCoalgebraCatIso"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n' n2 : ℕ} {c : Fin n → S.C} {c' : Fin n' → S.C} (c2 : Fin n2 → S.C)\n  (σ : OverColor.mk c ⟶ OverColor.mk c')",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.prod_perm_right",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- When a `prod` acts on a `perm` node in the right entry, the `perm` node can be moved through\n  the `prod` node via left-whiskering. -/\ntheorem prod_perm_right (t2 : TensorTree S c2) (t : TensorTree S c) :\n    (prod t2 (perm σ t)).tensor = (perm (permProdRight c2 σ) (prod t2 t)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.obj (OverColor.mk c2) ◁ S.F.map σ) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c2) (OverColor.mk c')).hom\n    (t2.tensor ⊗ₜ[S.k] t.tensor)) = _\n  rw [Functor.LaxMonoidal.μ_natural_right]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  change (S.F.map (OverColor.mk c2 ◁ σ) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp]\n  have hx : OverColor.mk c2 ◁ σ ≫ (equivToIso finSumFinEquiv).hom =\n    (equivToIso finSumFinEquiv).hom ≫ (permProdRight c2 σ) := by\n    simp only [Functor.id_obj, mk_hom, permProdRight, Iso.hom_inv_id_assoc]\n  rw [hx, S.F.map_comp]\n  rfl\n\n",
+   "compilationAlias":
+   "/-- When a `prod` acts on a `perm` node in the right entry, the `perm` node can be moved through\n  the `prod` node via left-whiskering. -/\ntheorem prod_perm_right (t2 : TensorTree S c2) (t : TensorTree S c) :\n    (prod t2 (perm σ t)).tensor = (perm (permProdRight c2 σ) (prod t2 t)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.obj (OverColor.mk c2) ◁ S.F.map σ) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c2) (OverColor.mk c')).hom\n    (t2.tensor ⊗ₜ[S.k] t.tensor)) = _\n  rw [Functor.LaxMonoidal.μ_natural_right]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  change (S.F.map (OverColor.mk c2 ◁ σ) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp]\n  have hx : OverColor.mk c2 ◁ σ ≫ (equivToIso finSumFinEquiv).hom =\n    (equivToIso finSumFinEquiv).hom ≫ (permProdRight c2 σ) := by\n    simp only [Functor.id_obj, mk_hom, permProdRight, Iso.hom_inv_id_assoc]\n  rw [hx, S.F.map_comp]\n  rfl\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n' n2 : Nat\nc : Fin n → S.C\nc' : Fin n' → S.C\nc2 : Fin n2 → S.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\nt2 : TensorTree S c2\nt : TensorTree S c\n⊢ Eq (t2.prod (TensorTree.perm σ t)).tensor (TensorTree.perm (TensorTree.permProdRight c2 σ) (t2.prod t)).tensor",
+  "content_sorry":
+  "/-- When a `prod` acts on a `perm` node in the right entry, the `perm` node can be moved through\n  the `prod` node via left-whiskering. -/\ntheorem prod_perm_right (t2 : TensorTree S c2) (t : TensorTree S c) :\n    (prod t2 (perm σ t)).tensor = (perm (permProdRight c2 σ) (prod t2 t)).tensor := by\n  sorry",
+  "annotation":
+  "/-- When a `prod` acts on a `perm` node in the right entry, the `perm` node can be moved through\n  the `prod` node via left-whiskering. -/\ntheorem prod_perm_right (t2 : TensorTree S c2) (t : TensorTree S c) :\n    (prod t2 (perm σ t)).tensor = (perm (permProdRight c2 σ) (prod t2 t)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.obj (OverColor.mk c2) ◁ S.F.map σ) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c2) (OverColor.mk c')).hom\n    (t2.tensor ⊗ₜ[S.k] t.tensor)) = _\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t2 : TensorTree S c2\n    t : TensorTree S c\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (S.F.map (IndexNotation.OverColor.e …\n  -/\n  rw [Functor.LaxMonoidal.μ_natural_right]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t2 : TensorTree S c2\n    t : TensorTree S c\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (S.F.map (IndexNotation.OverColor.e …\n  -/\n  change (S.F.map (OverColor.mk c2 ◁ σ) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t2 : TensorTree S c2\n    t : TensorTree S c\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.CategoryStruct.comp …\n  -/\n  rw [← S.F.map_comp]\n  have hx : OverColor.mk c2 ◁ σ ≫ (equivToIso finSumFinEquiv).hom =\n    (equivToIso finSumFinEquiv).hom ≫ (permProdRight c2 σ) := by\n    simp only [Functor.id_obj, mk_hom, permProdRight, Iso.hom_inv_id_assoc]\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t2 : TensorTree S c2\n    t : TensorTree S c\n    hx : Eq (CategoryTheory.CategoryStruct.comp (CategoryTheory.MonoidalCategorySt …\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (S.F.map (CategoryTheory.CategorySt …\n  -/\n  rw [hx, S.F.map_comp]\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t2 : TensorTree S c2\n    t : TensorTree S c\n    hx : Eq (CategoryTheory.CategoryStruct.comp (CategoryTheory.MonoidalCategorySt …\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.CategoryStruct.comp …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "ModuleCat.hom_comp",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl",
+    "compilationAlias":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.comp_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.permProdLeft",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.permProdLeft_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n"},
+   {"name": "TensorTree.permProdRight",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.permProdRight_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n"},
+   {"name": "TensorTree.prod_perm_left",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- When a `prod` acts on a `perm` node in the left entry, the `perm` node can be moved through\n  the `prod` node via right-whiskering. -/\ntheorem prod_perm_left (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod (perm σ t) t2).tensor = (perm (permProdLeft c2 σ) (prod t t2)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.map (σ) ▷ S.F.obj (OverColor.mk c2)) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c') (OverColor.mk c2)).hom\n    (t.tensor ⊗ₜ[S.k] t2.tensor)) = _\n  rw [Functor.LaxMonoidal.μ_natural_left]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  change (S.F.map (σ ▷ OverColor.mk c2) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp, ← (Iso.hom_inv_id_assoc (equivToIso finSumFinEquiv)\n      (σ ▷ OverColor.mk c2 ≫ (equivToIso finSumFinEquiv).hom)), S.F.map_comp]\n  rfl\n\n",
+    "compilationAlias":
+    "/-- When a `prod` acts on a `perm` node in the left entry, the `perm` node can be moved through\n  the `prod` node via right-whiskering. -/\ntheorem prod_perm_left (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod (perm σ t) t2).tensor = (perm (permProdLeft c2 σ) (prod t t2)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.map (σ) ▷ S.F.obj (OverColor.mk c2)) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c') (OverColor.mk c2)).hom\n    (t.tensor ⊗ₜ[S.k] t2.tensor)) = _\n  rw [Functor.LaxMonoidal.μ_natural_left]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  change (S.F.map (σ ▷ OverColor.mk c2) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp, ← (Iso.hom_inv_id_assoc (equivToIso finSumFinEquiv)\n      (σ ▷ OverColor.mk c2 ≫ (equivToIso finSumFinEquiv).hom)), S.F.map_comp]\n  rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.CategoryTheory.Comma.Over\n@[simp]\nlemma toOver_comp_forget (F : S ⥤ T) (X : T) (f : (Y : S) → F.obj Y ⟶ X)\n    (h : ∀ {Y Z : S} (g : Y ⟶ Z), F.map g ≫ f Z = f Y) : F.toOver X f h ⋙ Over.forget _ = F :=\n  rfl",
+   "--src: Mathlib.CategoryTheory.Comma.OverClass\n/-- Bundle a morphism `f : X ⟶ Y` with `HomIsOver f S` into a morphism in `Over S`. -/\n@[simps! left]\ndef OverClass.asOverHom [OverClass X S] [OverClass Y S] (f : X ⟶ Y) [HomIsOver f S] :\n    OverClass.asOver X S ⟶ OverClass.asOver Y S :=\n  Over.homMk f (comp_over f S)",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- To give a morphism in the over category, it suffices to give an arrow fitting in a commutative\n    triangle. -/\n@[simps!]\ndef homMk {U V : Over X} (f : U.left ⟶ V.left) (w : f ≫ V.hom = U.hom := by aesop_cat) : U ⟶ V :=\n  CostructuredArrow.homMk f w\n-- Porting note: simp solves this; simpNF still sees them after `-simp` (?)",
+   "--src: Mathlib.CategoryTheory.Limits.Constructions.Over.Products\n/-- (Impl) A preliminary definition to avoid timeouts. -/\n@[simps]\ndef conesEquivFunctor (B : C) {J : Type w} (F : Discrete J ⥤ Over B) :\n    Cone (widePullbackDiagramOfDiagramOver B F) ⥤ Cone F where\n  obj c :=\n    { pt := Over.mk (c.π.app none)\n      π :=\n        { app := fun ⟨j⟩ => Over.homMk (c.π.app (some j)) (c.w (WidePullbackShape.Hom.term j))\n          -- Porting note (https://github.com/leanprover-community/mathlib4/issues/10888): added proof for `naturality`\n          naturality := fun ⟨X⟩ ⟨Y⟩ ⟨⟨f⟩⟩ => by dsimp at f ⊢; aesop_cat } }\n  map f := { hom := Over.homMk f.hom }\n-- Porting note: unfortunately `aesop` can't cope with a `cases` rule here for the type synonym\n-- `WidePullbackShape`.\n-- attribute [local aesop safe cases (rule_sets := [CategoryTheory])] WidePullbackShape\n-- If this worked we could avoid the `rintro` in `conesEquivUnitIso`.",
+   "--src: Mathlib.CategoryTheory.Limits.ConeCategory\n@[simp]\nlemma Cone.toStructuredArrow_comp_toUnder_comp_forget {F : J ⥤ C} (c : Cone F) :\n    c.toStructuredArrow ⋙ StructuredArrow.toUnder _ _ ⋙ Under.forget _ = F :=\n  rfl",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The morphism between augmented Čech conerves associated to a morphism of arrows. -/\n@[simps]\ndef mapAugmentedCechConerve {f g : Arrow C}\n    [∀ n : ℕ, HasWidePushout f.left (fun _ : Fin (n + 1) => f.right) fun _ => f.hom]\n    [∀ n : ℕ, HasWidePushout g.left (fun _ : Fin (n + 1) => g.right) fun _ => g.hom] (F : f ⟶ g) :\n    f.augmentedCechConerve ⟶ g.augmentedCechConerve where\n  left := F.left\n  right := mapCechConerve F",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- The inverse functor of `ofDiagEquivalence.functor`. -/\n@[simps!]\ndef ofDiagEquivalence.inverse (X : T × T) :\n    StructuredArrow X.2 (Under.forget X.1) ⥤ StructuredArrow X (Functor.diag _) :=\n  Functor.toStructuredArrow (StructuredArrow.proj _ _ ⋙ Under.forget _) _ _\n    (fun f => (f.right.hom, f.hom)) (fun m => by have := m.w; aesop_cat)",
+   "--src: Mathlib.CategoryTheory.Enriched.FunctorCategory\n/-- Given functors `F₁` and `F₂` in `J ⥤ C`, where `C` is a category enriched in `V`,\nthis is the enriched hom functor from `F₁` to `F₂` in `J ⥤ V`. -/\n@[simps!]\nnoncomputable def functorEnrichedHom : J ⥤ V where\n  obj j := enrichedHom V (Under.forget j ⋙ F₁) (Under.forget j ⋙ F₂)\n  map f := precompEnrichedHom V (Under.forget _ ⋙ F₁) (Under.forget _ ⋙ F₂) (Under.map f)\n  map_id X := by\n    dsimp\n    ext j\n    dsimp\n    simp only [end_.lift_π, id_comp]\n    congr 1\n    simp [Under.map, Comma.mapLeft]\n    rfl\n  map_comp f g := by\n    dsimp\n    ext j\n    rw [end_.lift_π, assoc]\n    erw [end_.lift_π, end_.lift_π]\n    congr 1\n    simp [Under.map, Comma.mapLeft]",
+   "--src: Mathlib.CategoryTheory.Monoidal.Comon_\n/-- Composition of morphisms of monoid objects. -/\n@[simps]\ndef comp {M N O : Comon_ C} (f : Hom M N) (g : Hom N O) : Hom M O where\n  hom := f.hom ≫ g.hom",
+   "--src: Mathlib.CategoryTheory.Comma.Presheaf.Basic\n/-- Functoriality of `restrictedYonedaObj η` in `η`. -/\n@[simps]\ndef restrictedYonedaObjMap₁ {F G : Cᵒᵖ ⥤ Type v} {η : F ⟶ A} {μ : G ⟶ A} (ε : F ⟶ G)\n    (hε : ε ≫ μ = η) : restrictedYonedaObj η ⟶ restrictedYonedaObj μ where\n  app _ u := u.map₁ ε hε"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n' n2 : ℕ} {c : Fin n → S.C} {c' : Fin n' → S.C} (c2 : Fin n2 → S.C)\n  (σ : OverColor.mk c ⟶ OverColor.mk c')",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.prod_perm_left",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- When a `prod` acts on a `perm` node in the left entry, the `perm` node can be moved through\n  the `prod` node via right-whiskering. -/\ntheorem prod_perm_left (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod (perm σ t) t2).tensor = (perm (permProdLeft c2 σ) (prod t t2)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.map (σ) ▷ S.F.obj (OverColor.mk c2)) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c') (OverColor.mk c2)).hom\n    (t.tensor ⊗ₜ[S.k] t2.tensor)) = _\n  rw [Functor.LaxMonoidal.μ_natural_left]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  change (S.F.map (σ ▷ OverColor.mk c2) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp, ← (Iso.hom_inv_id_assoc (equivToIso finSumFinEquiv)\n      (σ ▷ OverColor.mk c2 ≫ (equivToIso finSumFinEquiv).hom)), S.F.map_comp]\n  rfl\n\n",
+   "compilationAlias":
+   "/-- When a `prod` acts on a `perm` node in the left entry, the `perm` node can be moved through\n  the `prod` node via right-whiskering. -/\ntheorem prod_perm_left (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod (perm σ t) t2).tensor = (perm (permProdLeft c2 σ) (prod t t2)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.map (σ) ▷ S.F.obj (OverColor.mk c2)) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c') (OverColor.mk c2)).hom\n    (t.tensor ⊗ₜ[S.k] t2.tensor)) = _\n  rw [Functor.LaxMonoidal.μ_natural_left]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  change (S.F.map (σ ▷ OverColor.mk c2) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp, ← (Iso.hom_inv_id_assoc (equivToIso finSumFinEquiv)\n      (σ ▷ OverColor.mk c2 ≫ (equivToIso finSumFinEquiv).hom)), S.F.map_comp]\n  rfl\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n' n2 : Nat\nc : Fin n → S.C\nc' : Fin n' → S.C\nc2 : Fin n2 → S.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\nt : TensorTree S c\nt2 : TensorTree S c2\n⊢ Eq ((TensorTree.perm σ t).prod t2).tensor (TensorTree.perm (TensorTree.permProdLeft c2 σ) (t.prod t2)).tensor",
+  "content_sorry":
+  "/-- When a `prod` acts on a `perm` node in the left entry, the `perm` node can be moved through\n  the `prod` node via right-whiskering. -/\ntheorem prod_perm_left (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod (perm σ t) t2).tensor = (perm (permProdLeft c2 σ) (prod t t2)).tensor := by\n  sorry",
+  "annotation":
+  "/-- When a `prod` acts on a `perm` node in the left entry, the `perm` node can be moved through\n  the `prod` node via right-whiskering. -/\ntheorem prod_perm_left (t : TensorTree S c) (t2 : TensorTree S c2) :\n    (prod (perm σ t) t2).tensor = (perm (permProdLeft c2 σ) (prod t t2)).tensor := by\n  simp only [prod_tensor, Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, perm_tensor]\n  change (S.F.map (equivToIso finSumFinEquiv).hom).hom\n    (((S.F.map (σ) ▷ S.F.obj (OverColor.mk c2)) ≫\n    Functor.LaxMonoidal.μ S.F (OverColor.mk c') (OverColor.mk c2)).hom\n    (t.tensor ⊗ₜ[S.k] t2.tensor)) = _\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (S.F.map (IndexNotation.OverColor.e …\n  -/\n  rw [Functor.LaxMonoidal.μ_natural_left]\n  simp only [Functor.id_obj, mk_hom, Action.instMonoidalCategory_tensorObj_V, Action.comp_hom,\n    Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,\n    Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, Function.comp_apply]\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (S.F.map (IndexNotation.OverColor.e …\n  -/\n  change (S.F.map (σ ▷ OverColor.mk c2) ≫ S.F.map (equivToIso finSumFinEquiv).hom).hom _ = _\n  rw [← S.F.map_comp, ← (Iso.hom_inv_id_assoc (equivToIso finSumFinEquiv)\n      (σ ▷ OverColor.mk c2 ≫ (equivToIso finSumFinEquiv).hom)), S.F.map_comp]\n  /-\n    S : TensorSpecies\n    n n' n2 : Nat\n    c : Fin n → S.C\n    c' : Fin n' → S.C\n    c2 : Fin n2 → S.C\n    σ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n    t : TensorTree S c\n    t2 : TensorTree S c2\n    ⊢ Eq ((CategoryTheory.ConcreteCategory.hom (CategoryTheory.CategoryStruct.comp …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "ModuleCat.hom_comp",
+    "module": "Mathlib.Algebra.Category.ModuleCat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl",
+    "compilationAlias":
+    "@[simp]\nlemma hom_comp {M N O : ModuleCat.{v} R} (f : M ⟶ N) (g : N ⟶ O) :\n    (f ≫ g).hom = g.hom.comp f.hom := rfl"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.comp_hom",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem comp_hom {M N K : Action V G} (f : M ⟶ N) (g : N ⟶ K) :\n    (f ≫ g : Hom M K).hom = f.hom ≫ g.hom :=\n  rfl"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "Action.FunctorCategoryEquivalence.functor_obj_obj",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.functorCategoryEquivalence_functor",
+    "module": "Mathlib.CategoryTheory.Action.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Action.instMonoidalCategory_tensorObj_V",
+    "module": "Mathlib.CategoryTheory.Action.Monoidal",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]",
+    "compilationAlias":
+    "@[simps! tensorUnit_V tensorObj_V tensorHom_hom whiskerLeft_hom whiskerRight_hom\n  associator_hom_hom associator_inv_hom leftUnitor_hom_hom leftUnitor_inv_hom\n  rightUnitor_hom_hom rightUnitor_inv_hom]"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.permProdLeft",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.permProdLeft_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n"},
+   {"name": "TensorTree.permProdRight",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.permProdRight_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- Reindexing by the composition of two equivalences is the same as reindexing twice. -/\n@[simp]\ntheorem reindex_trans {n₁ n₂ n₃ : ℕ} (e₁₂ : Fin (n₁ + 1) ≃ Fin (n₂ + 1))\n    (e₂₃ : Fin (n₂ + 1) ≃ Fin (n₃ + 1)) (s : Simplex k P n₁) :\n    s.reindex (e₁₂.trans e₂₃) = (s.reindex e₁₂).reindex e₂₃ :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Defs\n@[simp] theorem symm_trans_apply (f : α ≃ β) (g : β ≃ γ) (a : γ) :\n    (f.trans g).symm a = f.symm (g.symm a) := rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSuccEquiv'_symm_some (i : Fin (n + 1)) (j : Fin n) :\n    (finSuccEquiv' i).symm (some j) = i.succAbove j :=\n  rfl",
+   "--src: Mathlib.Data.Fin.Basic\n/-- `Fin.rev` as an `Equiv.Perm`, the antitone involution `Fin n → Fin n` given by\n`i ↦ n-(i+1)`. -/\n@[simps! apply symm_apply]\ndef revPerm : Equiv.Perm (Fin n) :=\n  Involutive.toPerm rev rev_involutive",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_symm_apply_castAdd (x : Fin m) :\n    finSumFinEquiv.symm (Fin.castAdd n x) = Sum.inl x :=\n  finSumFinEquiv.symm_apply_apply (Sum.inl x)",
+   "--src: Mathlib.Logic.Equiv.Basic\n@[simp]\ntheorem sumCongr_refl {α β} :\n    Equiv.sumCongr (Equiv.refl α) (Equiv.refl β) = Equiv.refl (α ⊕ β) := by\n  ext i\n  cases i <;> rfl",
+   "--src: Mathlib.Data.Matrix.Defs\n@[simp]\ntheorem reindex_trans {l₂ o₂ : Type*} (eₘ : m ≃ l) (eₙ : n ≃ o) (eₘ₂ : l ≃ l₂) (eₙ₂ : o ≃ o₂) :\n    (reindex eₘ eₙ).trans (reindex eₘ₂ eₙ₂) =\n      (reindex (eₘ.trans eₘ₂) (eₙ.trans eₙ₂) : Matrix m n α ≃ _) :=\n  Equiv.ext fun A => (A.submatrix_submatrix eₘ.symm eₙ.symm eₘ₂.symm eₙ₂.symm : _)",
+   "--src: Mathlib.Logic.Equiv.Defs\ntheorem permCongr_trans (p p' : Equiv.Perm α') :\n    (e.permCongr p).trans (e.permCongr p') = e.permCongr (p.trans p') := by\n  ext; simp only [trans_apply, comp_apply, permCongr_apply, symm_apply_apply]",
+   "--src: Mathlib.GroupTheory.Perm.Fin\n@[simp]\ntheorem Equiv.Perm.decomposeFin_symm_of_refl {n : ℕ} (p : Fin (n + 1)) :\n    Equiv.Perm.decomposeFin.symm (p, Equiv.refl _) = swap 0 p := by\n  simp [Equiv.Perm.decomposeFin, Equiv.permCongr_def]",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\ntheorem reindex_reindex (e : ι ≃ ι₂) (e' : ι₂ ≃ ι₃) (x : ⨂[R] i, s i) :\n    reindex R _ e' (reindex R s e x) = reindex R s (e.trans e') x :=\n  LinearEquiv.congr_fun (reindex_trans e e' : _ = reindex R s (e.trans e')) x"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n' n2 : ℕ} {c : Fin n → S.C} {c' : Fin n' → S.C} (c2 : Fin n2 → S.C)\n  (σ : OverColor.mk c ⟶ OverColor.mk c')",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.permProdRight_toEquiv",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n' n2 : Nat\nc : Fin n → S.C\nc' : Fin n' → S.C\nc2 : Fin n2 → S.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n⊢ Eq (IndexNotation.OverColor.Hom.toEquiv (TensorTree.permProdRight c2 σ)) (finSumFinEquiv.symm.trans (((Equiv.refl (Fin n2)).sumCongr (IndexNotation.OverColor.Hom.toEquiv σ)).trans finSumFinEquiv))",
+  "content_sorry":
+  "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := by sorry",
+  "annotation":
+  "@[simp]\nlemma permProdRight_toEquiv : Hom.toEquiv (permProdRight c2 σ) = finSumFinEquiv.symm.trans\n    (((Equiv.refl (Fin n2)).sumCongr (Hom.toEquiv σ)).trans finSumFinEquiv) := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"},
+   {"name": "Equiv.refl",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Any type is equivalent to itself. -/\n@[refl] protected def refl (α : Sort*) : α ≃ α := ⟨id, id, fun _ => rfl, fun _ => rfl⟩",
+    "compilationAlias":
+    "/-- Any type is equivalent to itself. -/\n@[refl] protected def refl (α : Sort*) : α ≃ α := ⟨id, id, fun _ => rfl, fun _ => rfl⟩"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.permProdLeft",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.permProdLeft_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n"},
+   {"name": "TensorTree.permProdRight",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.CategoryTheory.Comma.Over\n@[simp]\ntheorem map_obj_hom : ((map f).obj U).hom = U.hom ≫ f :=\n  rfl",
+   "--src: Mathlib.CategoryTheory.FinCategory.AsType\n@[simps (config := .lemmasOnly) id comp]\nnoncomputable instance categoryAsType : SmallCategory (AsType α) where\n  Hom i j := Fin (Fintype.card (@Quiver.Hom (ObjAsType α) _ i j))\n  id _ := Fintype.equivFin _ (\u0000\u0000 _)\n  comp f g := Fintype.equivFin _ ((Fintype.equivFin _).symm f ≫ (Fintype.equivFin _).symm g)",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- If `f = g`, then `map f` is naturally isomorphic to `map g`. -/\n@[simps!]\ndef mapCongr {X Y : T} (f g : X ⟶ Y) (h : f = g) :\n    map f ≅ map g :=\n  NatIso.ofComponents (fun A ↦ eqToIso (by rw [h]))",
+   "--src: Mathlib.CategoryTheory.Limits.Constructions.Over.Products\n/-- (Impl) Establish an equivalence between the category of cones for `F` and for the \"grown\" `F`.\n-/\n@[simps]\ndef conesEquiv (B : C) (F : Discrete J ⥤ Over B) :\n    Cone (widePullbackDiagramOfDiagramOver B F) ≌ Cone F where\n  functor := conesEquivFunctor B F\n  inverse := conesEquivInverse B F\n  unitIso := conesEquivUnitIso B F\n  counitIso := conesEquivCounitIso B F",
+   "--src: Mathlib.CategoryTheory.Adjunction.Over\n/-- In a category with pullbacks, a morphism `f : X ⟶ Y` induces a functor `Over Y ⥤ Over X`,\nby pulling back a morphism along `f`. -/\n@[simps! (config := { simpRhs := true}) obj_left obj_hom map_left]\ndef pullback {X Y : C} (f : X ⟶ Y) : Over Y ⥤ Over X where\n  obj g := Over.mk (pullback.snd g.hom f)\n  map := fun g {h} {k} =>\n    Over.homMk (pullback.lift (pullback.fst _ _ ≫ k.left) (pullback.snd _ _)\n      (by simp [pullback.condition]))",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- Given f : Y ⟶ X, this is the obvious functor from T/Y to (T/X)/f -/\n@[simps]\ndef iteratedSliceBackward : Over f.left ⥤ Over f where\n  obj g := mk (homMk g.hom : mk (g.hom ≫ f.hom) ⟶ f)\n  map α := homMk (homMk α.left (w_assoc α f.hom)) (OverMorphism.ext (w α))",
+   "--src: Mathlib.CategoryTheory.Comma.Over\nvariable (T) in\n/-- The functor defined by the over categories.-/\n@[simps] def mapFunctor : T ⥤ Cat where\n  obj X := Cat.of (Over X)\n  map := map\n  map_id := mapId_eq\n  map_comp := mapComp_eq",
+   "--src: Mathlib.CategoryTheory.Monad.Products\n/-- The equivalence from coalgebras for the product comonad to the over category. -/\n@[simps]\ndef coalgebraEquivOver : Coalgebra (prodComonad X) ≌ Over X where\n  functor := coalgebraToOver X\n  inverse := overToCoalgebra X\n  unitIso := NatIso.ofComponents fun A =>\n    Coalgebra.isoMk (Iso.refl _) (Limits.prod.hom_ext (by simp) (by simpa using A.counit))\n  counitIso := NatIso.ofComponents fun f => Over.isoMk (Iso.refl _)",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The morphism between Čech conerves associated to a morphism of arrows. -/\n@[simps]\ndef mapCechConerve {f g : Arrow C}\n    [∀ n : ℕ, HasWidePushout f.left (fun _ : Fin (n + 1) => f.right) fun _ => f.hom]\n    [∀ n : ℕ, HasWidePushout g.left (fun _ : Fin (n + 1) => g.right) fun _ => g.hom] (F : f ⟶ g) :\n    f.cechConerve ⟶ g.cechConerve where\n  app n := WidePushout.desc (F.left ≫ WidePushout.head _)\n    (fun i => F.right ≫ (by apply WidePushout.ι _ i))\n    (fun i => (by rw [← Arrow.w_assoc F, ← WidePushout.arrow_ι]))",
+   "--src: Mathlib.CategoryTheory.Comma.OverClass\ninstance [OverClass X S] [OverClass Y S] [OverClass Z S]\n    (f : X ⟶ Y) (g : Y ⟶ Z) [HomIsOver f S] [HomIsOver g S] :\n    HomIsOver (f ≫ g) S where"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n' n2 : ℕ} {c : Fin n → S.C} {c' : Fin n' → S.C} (c2 : Fin n2 → S.C)\n  (σ : OverColor.mk c ⟶ OverColor.mk c')",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.permProdRight",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+   "compilationAlias":
+   "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n' n2 : Nat\nc : Fin n → S.C\nc' : Fin n' → S.C\nc2 : Fin n2 → S.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n⊢ Quiver.Hom (IndexNotation.OverColor.mk (Function.comp (Sum.elim (IndexNotation.OverColor.mk c2).hom (IndexNotation.OverColor.mk c).hom) ⇑finSumFinEquiv.symm)) (IndexNotation.OverColor.mk (Function.comp (Sum.elim (IndexNotation.OverColor.mk c2).hom (IndexNotation.OverColor.mk c').hom) ⇑finSumFinEquiv.symm))",
+  "content_sorry":
+  "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := by sorry",
+  "annotation":
+  "/-- The permutation that arises when moving a `perm` node in the right entry through a `prod` node.\n  This permutation is defined using left-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdRight := (equivToIso finSumFinEquiv).inv ≫ OverColor.mk c2 ◁ σ\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.permProdLeft",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+   {"name": "TensorTree.permProdLeft_toEquiv",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.AffineSpace.Independent\n/-- Reindexing by the composition of two equivalences is the same as reindexing twice. -/\n@[simp]\ntheorem reindex_trans {n₁ n₂ n₃ : ℕ} (e₁₂ : Fin (n₁ + 1) ≃ Fin (n₂ + 1))\n    (e₂₃ : Fin (n₂ + 1) ≃ Fin (n₃ + 1)) (s : Simplex k P n₁) :\n    s.reindex (e₁₂.trans e₂₃) = (s.reindex e₁₂).reindex e₂₃ :=\n  rfl",
+   "--src: Mathlib.Data.Fin.Basic\n/-- The 'identity' equivalence between `Fin m` and `Fin n` when `m = n`. -/\n@[simps]\ndef _root_.finCongr (eq : n = m) : Fin n ≃ Fin m where\n  toFun := cast eq\n  invFun := cast eq.symm\n  left_inv := leftInverse_cast eq\n  right_inv := rightInverse_cast eq",
+   "--src: Mathlib.Logic.Equiv.Defs\n@[simp] theorem symm_trans_apply (f : α ≃ β) (g : β ≃ γ) (a : γ) :\n    (f.trans g).symm a = f.symm (g.symm a) := rfl",
+   "--src: Mathlib.Data.Fin.Basic\n@[simp]\ntheorem revPerm_symm : (@revPerm n).symm = revPerm :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSuccEquiv'_symm_some (i : Fin (n + 1)) (j : Fin n) :\n    (finSuccEquiv' i).symm (some j) = i.succAbove j :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Defs\ntheorem permCongr_trans (p p' : Equiv.Perm α') :\n    (e.permCongr p).trans (e.permCongr p') = e.permCongr (p.trans p') := by\n  ext; simp only [trans_apply, comp_apply, permCongr_apply, symm_apply_apply]",
+   "--src: Mathlib.Logic.Equiv.Basic\n@[simp]\ntheorem sumCongr_refl {α β} :\n    Equiv.sumCongr (Equiv.refl α) (Equiv.refl β) = Equiv.refl (α ⊕ β) := by\n  ext i\n  cases i <;> rfl",
+   "--src: Mathlib.Logic.Equiv.Fin\n@[simp]\ntheorem finSumFinEquiv_apply_left (i : Fin m) :\n    (finSumFinEquiv (Sum.inl i) : Fin (m + n)) = Fin.castAdd n i :=\n  rfl",
+   "--src: Mathlib.LinearAlgebra.PiTensorProduct\ntheorem reindex_reindex (e : ι ≃ ι₂) (e' : ι₂ ≃ ι₃) (x : ⨂[R] i, s i) :\n    reindex R _ e' (reindex R s e x) = reindex R s (e.trans e') x :=\n  LinearEquiv.congr_fun (reindex_trans e e' : _ = reindex R s (e.trans e')) x",
+   "--src: Mathlib.GroupTheory.Perm.Fin\n@[simp]\ntheorem Equiv.Perm.decomposeFin_symm_of_refl {n : ℕ} (p : Fin (n + 1)) :\n    Equiv.Perm.decomposeFin.symm (p, Equiv.refl _) = swap 0 p := by\n  simp [Equiv.Perm.decomposeFin, Equiv.permCongr_def]"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n' n2 : ℕ} {c : Fin n → S.C} {c' : Fin n' → S.C} (c2 : Fin n2 → S.C)\n  (σ : OverColor.mk c ⟶ OverColor.mk c')",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.permProdLeft_toEquiv",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n"},
+  "goal":
+  "S : TensorSpecies\nn n' n2 : Nat\nc : Fin n → S.C\nc' : Fin n' → S.C\nc2 : Fin n2 → S.C\nσ : Quiver.Hom (IndexNotation.OverColor.mk c) (IndexNotation.OverColor.mk c')\n⊢ Eq (IndexNotation.OverColor.Hom.toEquiv (TensorTree.permProdLeft c2 σ)) (finSumFinEquiv.symm.trans (((IndexNotation.OverColor.Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv))",
+  "content_sorry":
+  "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := by sorry",
+  "annotation":
+  "@[simp]\nlemma permProdLeft_toEquiv : Hom.toEquiv (permProdLeft c2 σ) = finSumFinEquiv.symm.trans\n    (((Hom.toEquiv σ).sumCongr (Equiv.refl (Fin n2))).trans finSumFinEquiv) := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "trans",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+    "compilationAlias":
+    "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"},
+   {"name": "Equiv.refl",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Any type is equivalent to itself. -/\n@[refl] protected def refl (α : Sort*) : α ≃ α := ⟨id, id, fun _ => rfl, fun _ => rfl⟩",
+    "compilationAlias":
+    "/-- Any type is equivalent to itself. -/\n@[refl] protected def refl (α : Sort*) : α ≃ α := ⟨id, id, fun _ => rfl, fun _ => rfl⟩"}],
+  "C0_dependencies":
+  [{"name": "TensorTree.permProdLeft",
+    "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+    "compilationAlias":
+    "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.CategoryTheory.Comma.Over\n@[simp]\ntheorem map_obj_hom : ((map f).obj U).hom = U.hom ≫ f :=\n  rfl",
+   "--src: Mathlib.CategoryTheory.FinCategory.AsType\n@[simps (config := .lemmasOnly) id comp]\nnoncomputable instance categoryAsType : SmallCategory (AsType α) where\n  Hom i j := Fin (Fintype.card (@Quiver.Hom (ObjAsType α) _ i j))\n  id _ := Fintype.equivFin _ (\u0000\u0000 _)\n  comp f g := Fintype.equivFin _ ((Fintype.equivFin _).symm f ≫ (Fintype.equivFin _).symm g)",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- If `f = g`, then `map f` is naturally isomorphic to `map g`. -/\n@[simps!]\ndef mapCongr {X Y : T} (f g : X ⟶ Y) (h : f = g) :\n    map f ≅ map g :=\n  NatIso.ofComponents (fun A ↦ eqToIso (by rw [h]))",
+   "--src: Mathlib.CategoryTheory.Limits.Constructions.Over.Products\n/-- (Impl) Establish an equivalence between the category of cones for `F` and for the \"grown\" `F`.\n-/\n@[simps]\ndef conesEquiv (B : C) (F : Discrete J ⥤ Over B) :\n    Cone (widePullbackDiagramOfDiagramOver B F) ≌ Cone F where\n  functor := conesEquivFunctor B F\n  inverse := conesEquivInverse B F\n  unitIso := conesEquivUnitIso B F\n  counitIso := conesEquivCounitIso B F",
+   "--src: Mathlib.CategoryTheory.Comma.Over\n/-- Given f : Y ⟶ X, this is the obvious functor from T/Y to (T/X)/f -/\n@[simps]\ndef iteratedSliceBackward : Over f.left ⥤ Over f where\n  obj g := mk (homMk g.hom : mk (g.hom ≫ f.hom) ⟶ f)\n  map α := homMk (homMk α.left (w_assoc α f.hom)) (OverMorphism.ext (w α))",
+   "--src: Mathlib.CategoryTheory.Adjunction.Over\n/-- In a category with pullbacks, a morphism `f : X ⟶ Y` induces a functor `Over Y ⥤ Over X`,\nby pulling back a morphism along `f`. -/\n@[simps! (config := { simpRhs := true}) obj_left obj_hom map_left]\ndef pullback {X Y : C} (f : X ⟶ Y) : Over Y ⥤ Over X where\n  obj g := Over.mk (pullback.snd g.hom f)\n  map := fun g {h} {k} =>\n    Over.homMk (pullback.lift (pullback.fst _ _ ≫ k.left) (pullback.snd _ _)\n      (by simp [pullback.condition]))",
+   "--src: Mathlib.CategoryTheory.Comma.Over\nvariable (T) in\n/-- The functor defined by the over categories.-/\n@[simps] def mapFunctor : T ⥤ Cat where\n  obj X := Cat.of (Over X)\n  map := map\n  map_id := mapId_eq\n  map_comp := mapComp_eq",
+   "--src: Mathlib.CategoryTheory.Monad.Products\n/-- The equivalence from coalgebras for the product comonad to the over category. -/\n@[simps]\ndef coalgebraEquivOver : Coalgebra (prodComonad X) ≌ Over X where\n  functor := coalgebraToOver X\n  inverse := overToCoalgebra X\n  unitIso := NatIso.ofComponents fun A =>\n    Coalgebra.isoMk (Iso.refl _) (Limits.prod.hom_ext (by simp) (by simpa using A.counit))\n  counitIso := NatIso.ofComponents fun f => Over.isoMk (Iso.refl _)",
+   "--src: Mathlib.CategoryTheory.Comma.OverClass\ninstance [OverClass X S] [OverClass Y S] [OverClass Z S]\n    (f : X ⟶ Y) (g : Y ⟶ Z) [HomIsOver f S] [HomIsOver g S] :\n    HomIsOver (f ≫ g) S where",
+   "--src: Mathlib.AlgebraicTopology.CechNerve\n/-- The morphism between Čech conerves associated to a morphism of arrows. -/\n@[simps]\ndef mapCechConerve {f g : Arrow C}\n    [∀ n : ℕ, HasWidePushout f.left (fun _ : Fin (n + 1) => f.right) fun _ => f.hom]\n    [∀ n : ℕ, HasWidePushout g.left (fun _ : Fin (n + 1) => g.right) fun _ => g.hom] (F : f ⟶ g) :\n    f.cechConerve ⟶ g.cechConerve where\n  app n := WidePushout.desc (F.left ≫ WidePushout.head _)\n    (fun i => F.right ≫ (by apply WidePushout.ι _ i))\n    (fun i => (by rw [← Arrow.w_assoc F, ← WidePushout.arrow_ι]))"],
+  "prescopes":
+  "namespace TensorTree\n\nopen IndexNotation CategoryTheory CategoryTheory.MonoidalCategory IndexNotation.OverColor HepLean.Fin\n\nvariable {S : TensorSpecies} {n n' n2 : ℕ} {c : Fin n → S.C} {c' : Fin n' → S.C} (c2 : Fin n2 → S.C)\n  (σ : OverColor.mk c ⟶ OverColor.mk c')",
+  "postscopes": "end TensorTree",
+  "id":
+  {"name": "TensorTree.permProdLeft",
+   "module": "HepLean.Tensors.Tree.NodeIdentities.PermProd",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+   "compilationAlias":
+   "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n"},
+  "goal": "",
+  "content_sorry":
+  "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := by sorry",
+  "annotation":
+  "/-- The permutation that arises when moving a `perm` node in the left entry through a `prod` node.\n  This permutation is defined using right-whiskering and composition with `finSumFinEquiv`\n  based-isomorphisms. -/\ndef permProdLeft := (equivToIso finSumFinEquiv).inv ≫ σ ▷ OverColor.mk c2\n  ≫ (equivToIso finSumFinEquiv).hom\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"},
+   {"name": "finSumFinEquiv",
+    "module": "Mathlib.Logic.Equiv.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp",
+    "compilationAlias":
+    "/-- Equivalence between `Fin m ⊕ Fin n` and `Fin (m + n)` -/\ndef finSumFinEquiv : Fin m ⊕ Fin n ≃ Fin (m + n) where\n  toFun := Sum.elim (Fin.castAdd n) (Fin.natAdd m)\n  invFun i := @Fin.addCases m n (fun _ => Fin m ⊕ Fin n) Sum.inl Sum.inr i\n  left_inv x := by rcases x with y | y <;> dsimp <;> simp\n  right_inv x := by refine Fin.addCases (fun i => ?_) (fun i => ?_) x <;> simp"}],
+  "C0_dependencies": []}]

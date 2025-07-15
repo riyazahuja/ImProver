@@ -1,0 +1,1161 @@
+[{"rag":
+  ["--src: Mathlib.AlgebraicGeometry.AffineScheme\nopen IsLocalRing in\ntheorem primeIdealOf_eq_map_closedPoint (x : U) :\n    hU.primeIdealOf x = (Spec.map (X.presheaf.germ _ x x.2)).base (closedPoint _) :=\n  hU.isoSpec_hom_base_apply _",
+   "--src: Mathlib.AlgebraicGeometry.Scheme\nlemma toOpen_eq (U) :\n    (by exact StructureSheaf.toOpen R U) =\n    (ΓSpecIso R).inv ≫ (Spec R).presheaf.map (homOfLE le_top).op := rfl",
+   "--src: Mathlib.AlgebraicGeometry.Spec\n/-- The counit (`SpecΓIdentity.inv.op`) of the adjunction `Γ ⊣ Spec` is an isomorphism. -/\n@[simps! hom_app inv_app]\ndef LocallyRingedSpace.SpecΓIdentity : Spec.toLocallyRingedSpace.rightOp ⋙ Γ ≅ \u0000\u0000 _ :=\n  Iso.symm <| NatIso.ofComponents.{u,u,u+1,u+1} (fun R =>\n    -- Porting note: In Lean3, this `IsIso` is synthesized automatically\n    letI : IsIso (toSpecΓ R) := StructureSheaf.isIso_to_global _\n    asIso (toSpecΓ R)) fun {X Y} f => by convert Spec_Γ_naturality (R := X) (S := Y) f",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem comap_id' (U : Opens (PrimeSpectrum.Top R)) :\n    (comap (RingHom.id R) U U fun p hpU => by rwa [PrimeSpectrum.comap_id]) = RingHom.id _ := by\n  rw [comap_id rfl]; rfl",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\ninstance (x : PrimeSpectrum R) : IsLocalHom (stalkToFiberRingHom R x).hom :=\n  isLocalHom_of_isIso _",
+   "--src: Mathlib.RingTheory.Valuation.ValuationSubring\n/-- The equivalence between coarsenings of a valuation ring and its prime ideals. -/\n@[simps]\ndef primeSpectrumEquiv : PrimeSpectrum A ≃ {S // A ≤ S} where\n  toFun P := ⟨ofPrime A P.asIdeal, le_ofPrime _ _⟩\n  invFun S := ⟨idealOfLE _ S S.2, inferInstance⟩\n  left_inv P := by ext1; simp\n  right_inv S := by ext1; simp",
+   "--src: Mathlib.RingTheory.Valuation.LocalSubring\nlemma IsLocalRing.exists_factor_valuationRing [IsLocalRing R] (f : R →+* K) :\n    ∃ (A : ValuationSubring K) (h : _), IsLocalHom (f.codRestrict A.toSubring h) := by\n  obtain ⟨B, hB⟩  := (LocalSubring.range f).exists_le_valuationSubring\n  refine ⟨B, fun x ↦ hB.1 ⟨x, rfl⟩, ?_⟩\n  exact @RingHom.isLocalHom_comp _ _ _ _ _ _ _ _\n    hB.2 (.of_surjective _ f.rangeRestrict_surjective)",
+   "--src: Mathlib.AlgebraicGeometry.Spec\n/-- The counit morphism `R ⟶ Γ(Spec R)` given by `AlgebraicGeometry.StructureSheaf.toOpen`. -/\n@[simps!]\ndef toSpecΓ (R : CommRingCat.{u}) : R ⟶ Γ.obj (op (Spec.toLocallyRingedSpace.obj (op R))) :=\n  StructureSheaf.toOpen R ⊤\n-- These lemmas have always been bad (https://github.com/leanprover-community/mathlib4/issues/7657), but https://github.com/leanprover/lean4/pull/2644 made `simp` start noticing",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\ntheorem const_zero (f : R) (U hu) : const R 0 f U hu = 0 :=\n  Subtype.eq <| funext fun x => IsLocalization.mk'_eq_iff_eq_mul.2 <| by\n    rw [RingHom.map_zero]\n    exact (mul_eq_zero_of_left rfl ((algebraMap R (Localizations R x)) _)).symm",
+   "--src: Mathlib.RingTheory.PrimeSpectrum\n@[simp]\ntheorem specComap_asIdeal (y : PrimeSpectrum S) :\n    (f.specComap y).asIdeal = Ideal.comap f y.asIdeal :=\n  rfl"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeOrder_timeContract_neq_time",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma timeOrder_timeContract_neq_time {φ ψ : 𝓕.FieldOp}\n    (h1 : ¬ (timeOrderRel φ ψ ∧ timeOrderRel ψ φ)) :\n    𝓣(timeContract φ ψ) = 0 := by\n  by_cases h2 : timeOrderRel φ ψ\n  · simp_all only [true_and]\n    rw [timeContract_of_timeOrderRel _ _ h2]\n    simp only\n    rw [ofFieldOp_eq_sum]\n    simp only [map_sum]\n    apply Finset.sum_eq_zero\n    intro x hx\n    match φ with\n    | .inAsymp φ =>\n      simp\n    | .position φ =>\n      simp only [anPart_position, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    | .outAsymp φ =>\n      simp only [anPart_posAsymp, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n  · rw [timeContract_of_not_timeOrderRel_expand _ _ h2]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    right\n    rw [ofFieldOp_eq_sum]\n    simp only [map_sum]\n    apply Finset.sum_eq_zero\n    intro x hx\n    match ψ with\n    | .inAsymp ψ =>\n      simp\n    | .position ψ =>\n      simp only [anPart_position, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    | .outAsymp ψ =>\n      simp only [anPart_posAsymp, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n\n",
+   "compilationAlias":
+   "lemma timeOrder_timeContract_neq_time {φ ψ : 𝓕.FieldOp}\n    (h1 : ¬ (timeOrderRel φ ψ ∧ timeOrderRel ψ φ)) :\n    𝓣(timeContract φ ψ) = 0 := by\n  by_cases h2 : timeOrderRel φ ψ\n  · simp_all only [true_and]\n    rw [timeContract_of_timeOrderRel _ _ h2]\n    simp only\n    rw [ofFieldOp_eq_sum]\n    simp only [map_sum]\n    apply Finset.sum_eq_zero\n    intro x hx\n    match φ with\n    | .inAsymp φ =>\n      simp\n    | .position φ =>\n      simp only [anPart_position, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    | .outAsymp φ =>\n      simp only [anPart_posAsymp, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n  · rw [timeContract_of_not_timeOrderRel_expand _ _ h2]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    right\n    rw [ofFieldOp_eq_sum]\n    simp only [map_sum]\n    apply Finset.sum_eq_zero\n    intro x hx\n    match ψ with\n    | .inAsymp ψ =>\n      simp\n    | .position ψ =>\n      simp only [anPart_position, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    | .outAsymp ψ =>\n      simp only [anPart_posAsymp, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nψ : 𝓕.FieldOp\nmotive : (φ : 𝓕.FieldOp) → Not (FieldSpecification.timeOrderRel ψ φ) → FieldSpecification.timeOrderRel φ ψ → Prop\nφ✝ : 𝓕.FieldOp\nh1 : Not (FieldSpecification.timeOrderRel ψ φ✝)\nh2 : FieldSpecification.timeOrderRel φ✝ ψ\nh_1 : ∀ (φ : Prod (Sigma fun f => 𝓕.AsymptoticLabel f) (Fin 3 → Real)) (h1 : Not (FieldSpecification.timeOrderRel ψ (FieldSpecification.FieldOp.inAsymp φ))) (h2 : FieldSpecification.timeOrderRel (FieldSpecification.FieldOp.inAsymp φ) ψ), motive (FieldSpecification.FieldOp.inAsymp φ) h1 h2\nh_2 : ∀ (φ : Prod (Sigma fun f => 𝓕.PositionLabel f) SpaceTime) (h1 : Not (FieldSpecification.timeOrderRel ψ (FieldSpecification.FieldOp.position φ))) (h2 : FieldSpecification.timeOrderRel (FieldSpecification.FieldOp.position φ) ψ), motive (FieldSpecification.FieldOp.position φ) h1 h2\nh_3 : ∀ (φ : Prod (Sigma fun f => 𝓕.AsymptoticLabel f) (Fin 3 → Real)) (h1 : Not (FieldSpecification.timeOrderRel ψ (FieldSpecification.FieldOp.outAsymp φ))) (h2 : FieldSpecification.timeOrderRel (FieldSpecification.FieldOp.outAsymp φ) ψ), motive (FieldSpecification.FieldOp.outAsymp φ) h1 h2\n⊢ motive φ✝ h1 h2",
+  "content_sorry":
+  "lemma timeOrder_timeContract_neq_time {φ ψ : 𝓕.FieldOp}\n    (h1 : ¬ (timeOrderRel φ ψ ∧ timeOrderRel ψ φ)) :\n    𝓣(timeContract φ ψ) = 0 := by\n  sorry",
+  "annotation":
+  "lemma timeOrder_timeContract_neq_time {φ ψ : 𝓕.FieldOp}\n    (h1 : ¬ (timeOrderRel φ ψ ∧ timeOrderRel ψ φ)) :\n    𝓣(timeContract φ ψ) = 0 := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (FieldSpecification.FieldOpA …\n  -/\n  by_cases h2 : timeOrderRel φ ψ\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (FieldSpecification.FieldOpA …\n    -/\n  · simp_all only [true_and]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (FieldSpecification.timeOrderRel ψ φ)\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (FieldSpecification.FieldOpA …\n    -/\n    rw [timeContract_of_timeOrderRel _ _ h2]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (FieldSpecification.timeOrderRel ψ φ)\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder ((FieldSpecification.FieldOp …\n    -/\n    simp only\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (FieldSpecification.timeOrderRel ψ φ)\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder ((FieldSpecification.FieldOp …\n    -/\n    rw [ofFieldOp_eq_sum]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (FieldSpecification.timeOrderRel ψ φ)\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder ((FieldSpecification.FieldOp …\n    -/\n    simp only [map_sum]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (FieldSpecification.timeOrderRel ψ φ)\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (Finset.univ.sum fun x => FieldSpecification.FieldOpAlgebra.timeOrder ((F …\n    -/\n    apply Finset.sum_eq_zero\n    /-\n      case pos.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (FieldSpecification.timeOrderRel ψ φ)\n      h2 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ ∀ (x : 𝓕.fieldOpToCrAnType ψ), Membership.mem Finset.univ x → Eq (FieldSpeci …\n    -/\n    intro x hx\n    match φ with\n    | .inAsymp φ =>\n      simp\n    | .position φ =>\n      simp only [anPart_position, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    | .outAsymp φ =>\n      simp only [anPart_posAsymp, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (FieldSpecification.FieldOpA …\n    -/\n  · rw [timeContract_of_not_timeOrderRel_expand _ _ h2]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HSMul.hSMul ((FieldStatisti …\n    -/\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Or (Eq ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fieldOpStati …\n    -/\n    right\n    /-\n      case neg.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder ((FieldSpecification.FieldOp …\n    -/\n    rw [ofFieldOp_eq_sum]\n    /-\n      case neg.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder ((FieldSpecification.FieldOp …\n    -/\n    simp only [map_sum]\n    /-\n      case neg.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (Finset.univ.sum fun x => FieldSpecification.FieldOpAlgebra.timeOrder ((F …\n    -/\n    apply Finset.sum_eq_zero\n    /-\n      case neg.h.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h1 : Not (And (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOr …\n      h2 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ ∀ (x : 𝓕.fieldOpToCrAnType φ), Membership.mem Finset.univ x → Eq (FieldSpeci …\n    -/\n    intro x hx\n    match ψ with\n    | .inAsymp ψ =>\n      simp\n    | .position ψ =>\n      simp only [anPart_position, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n    | .outAsymp ψ =>\n      simp only [anPart_posAsymp, instCommGroup.eq_1]\n      apply timeOrder_superCommute_neq_time\n      simp_all [crAnTimeOrderRel]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Finset.sum_eq_zero",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "map_sum",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "smul_eq_zero",
+    "module": "Mathlib.Algebra.NoZeroSMulDivisors.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem smul_eq_zero : c • x = 0 ↔ c = 0 ∨ x = 0 :=\n  ⟨eq_zero_or_eq_zero_of_smul_eq_zero, fun h =>\n    h.elim (fun h => h.symm ▸ zero_smul R x) fun h => h.symm ▸ smul_zero c⟩",
+    "compilationAlias":
+    "@[simp]\ntheorem smul_eq_zero : c • x = 0 ↔ c = 0 ∨ x = 0 :=\n  ⟨eq_zero_or_eq_zero_of_smul_eq_zero, fun h =>\n    h.elim (fun h => h.symm ▸ zero_smul R x) fun h => h.symm ▸ smul_zero c⟩"},
+   {"name": "map_smul",
+    "module": "Mathlib.GroupTheory.GroupAction.Hom",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem map_smul {F M X Y : Type*} [SMul M X] [SMul M Y]\n    [FunLike F X Y] [MulActionHomClass F M X Y]\n    (f : F) (c : M) (x : X) : f (c • x) = c • f x :=\n  map_smulₛₗ f c x",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem map_smul {F M X Y : Type*} [SMul M X] [SMul M Y]\n    [FunLike F X Y] [MulActionHomClass F M X Y]\n    (f : F) (c : M) (x : X) : f (c • x) = c • f x :=\n  map_smulₛₗ f c x"},
+   {"name": "Finset.sum_eq_zero",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "map_sum",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "true_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩",
+    "compilationAlias":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_mem_center",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_zero_of_diff_grade",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.normalOrder_timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n",
+    "compilationAlias":
+    "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeOrder_timeContract_eq_time_mid",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  rw [ofFieldOp_eq_sum]\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  congr\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n",
+    "compilationAlias":
+    "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  rw [ofFieldOp_eq_sum]\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  congr\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeOrder_timeContract_eq_time_left",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeOrder_timeContract_eq_time_left {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (b : 𝓕.FieldOpAlgebra) :\n    𝓣(timeContract φ ψ * b) = timeContract φ ψ * 𝓣(b) := by\n  trans 𝓣(1 * timeContract φ ψ * b)\n  simp only [one_mul]\n  rw [timeOrder_timeContract_eq_time_mid h1 h2]\n  simp\n\n",
+    "compilationAlias":
+    "lemma timeOrder_timeContract_eq_time_left {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (b : 𝓕.FieldOpAlgebra) :\n    𝓣(timeContract φ ψ * b) = timeContract φ ψ * 𝓣(b) := by\n  trans 𝓣(1 * timeContract φ ψ * b)\n  simp only [one_mul]\n  rw [timeOrder_timeContract_eq_time_mid h1 h2]\n  simp\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Field.Defs\n/-- A `Field` is a `CommRing` with multiplicative inverses for nonzero elements.\nAn instance of `Field K` includes maps `ratCast : ℚ → K` and `qsmul : ℚ → K → K`.\nThose two fields are needed to implement the `DivisionRing K → Algebra ℚ K` instance since we need\nto control the specific definitions for some special cases of `K` (in particular `K = ℚ` itself).\nSee also note [forgetful inheritance].\nIf the field has positive characteristic `p`, our division by zero convention forces\n`ratCast (1 / p) = 1 / 0 = 0`. -/\n@[stacks 09FD \"first part\"]\nclass Field (K : Type u) extends CommRing K, DivisionRing K\n-- see Note [lower instance priority]",
+   "--src: Mathlib.RingTheory.MvPowerSeries.Inverse\n@[simp]\nprotected theorem mul_inv_rev (φ ψ : MvPowerSeries σ k) :\n    (φ * ψ)⁻¹ = ψ⁻¹ * φ⁻¹ := by\n  by_cases h : constantCoeff σ k (φ * ψ) = 0\n  · rw [inv_eq_zero.mpr h]\n    simp only [map_mul, mul_eq_zero] at h\n    -- we don't have `NoZeroDivisors (MvPowerSeries σ k)` yet,\n    cases' h with h h <;> simp [inv_eq_zero.mpr h]\n  · rw [MvPowerSeries.inv_eq_iff_mul_eq_one h]\n    simp only [not_or, map_mul, mul_eq_zero] at h\n    rw [← mul_assoc, mul_assoc _⁻¹, MvPowerSeries.inv_mul_cancel _ h.left, mul_one,\n      MvPowerSeries.inv_mul_cancel _ h.right]",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma hom_ofHom {R S : Type u} [Ring R] [Ring S] (f : R →+* S) : (ofHom f).hom = f := rfl",
+   "--src: Mathlib.Algebra.Ring.Hom.Defs\nlemma mul_def (f g : α →+* α) : f * g = f.comp g := rfl",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem openAlgebra_map (U : (Opens (PrimeSpectrum R))ᵒᵖ) (r : R) :\n    algebraMap R ((structureSheaf R).val.obj U) r = toOpen R (unop U) r :=\n  rfl",
+   "--src: Mathlib.FieldTheory.Relrank\nvariable {A B} in\ntheorem relrank_inf_mul_relrank_of_le (h : A ≤ B) :\n    A.relrank (B ⊓ C) * B.relrank C = A.relrank C := by\n  simpa only [inf_of_le_left h] using relrank_inf_mul_relrank A B C",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem germ_toOpen\n    (U : Opens (PrimeSpectrum.Top R)) (x : PrimeSpectrum.Top R) (hx : x ∈ U) (f : R) :\n    (structureSheaf R).presheaf.germ U x hx (toOpen R U f) = toStalk R x f := by\n  rw [← toOpen_germ]; rfl",
+   "--src: Mathlib.AlgebraicGeometry.Scheme\nlemma Spec.map_app (U) :\n    (Spec.map f).app U =\n      CommRingCat.ofHom (StructureSheaf.comap f.hom U (Spec.map f ⁻¹ᵁ U) le_rfl) := rfl",
+   "--src: Mathlib.RingTheory.Valuation.ValuationSubring\n/-- An ordered variant of `primeSpectrumEquiv`. -/\n@[simps!]\ndef primeSpectrumOrderEquiv : (PrimeSpectrum A)ᵒᵈ ≃o {S // A ≤ S} :=\n  { primeSpectrumEquiv A with\n    map_rel_iff' :=\n      ⟨fun h => by\n        dsimp at h\n        have := idealOfLE_le_of_le A _ _ ?_ ?_ h\n        iterate 2 erw [idealOfLE_ofPrime] at this\n        · exact this\n        all_goals exact le_ofPrime A (PrimeSpectrum.asIdeal _),\n      fun h => by apply ofPrime_le_of_le; exact h⟩ }",
+   "--src: Mathlib.Deprecated.Ring\n/-- Predicate for ring homomorphisms (deprecated -- use the bundled `RingHom` version). -/\nstructure IsRingHom {α : Type u} {β : Type v} [Ring α] [Ring β] (f : α → β) : Prop where\n  /-- The proposition that `f` preserves the multiplicative identity. -/\n  map_one : f 1 = 1\n  /-- The proposition that `f` preserves multiplication. -/\n  map_mul : ∀ x y, f (x * y) = f x * f y\n  /-- The proposition that `f` preserves addition. -/\n  map_add : ∀ x y, f (x + y) = f x + f y"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name":
+   "FieldSpecification.FieldOpAlgebra.timeOrder_timeContract_eq_time_left",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma timeOrder_timeContract_eq_time_left {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (b : 𝓕.FieldOpAlgebra) :\n    𝓣(timeContract φ ψ * b) = timeContract φ ψ * 𝓣(b) := by\n  trans 𝓣(1 * timeContract φ ψ * b)\n  simp only [one_mul]\n  rw [timeOrder_timeContract_eq_time_mid h1 h2]\n  simp\n\n",
+   "compilationAlias":
+   "lemma timeOrder_timeContract_eq_time_left {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (b : 𝓕.FieldOpAlgebra) :\n    𝓣(timeContract φ ψ * b) = timeContract φ ψ * 𝓣(b) := by\n  trans 𝓣(1 * timeContract φ ψ * b)\n  simp only [one_mul]\n  rw [timeOrder_timeContract_eq_time_mid h1 h2]\n  simp\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\nh1 : FieldSpecification.timeOrderRel φ ψ\nh2 : FieldSpecification.timeOrderRel ψ φ\nb : 𝓕.FieldOpAlgebra\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) b)) (HMul.hMul (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (FieldSpecification.FieldOpAlgebra.timeOrder b))",
+  "content_sorry":
+  "lemma timeOrder_timeContract_eq_time_left {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (b : 𝓕.FieldOpAlgebra) :\n    𝓣(timeContract φ ψ * b) = timeContract φ ψ * 𝓣(b) := by\n  sorry",
+  "annotation":
+  "lemma timeOrder_timeContract_eq_time_left {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (b : 𝓕.FieldOpAlgebra) :\n    𝓣(timeContract φ ψ * b) = timeContract φ ψ * 𝓣(b) := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (FieldSpecificati …\n  -/\n  trans 𝓣(1 * timeContract φ ψ * b)\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (FieldSpecificati …\n  -/\n  simp only [one_mul]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (HMul.hMul 1 (Fie …\n  -/\n  rw [timeOrder_timeContract_eq_time_mid h1 h2]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (HMul.hMul (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (FieldSpe …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "one_mul",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_mem_center",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_zero_of_diff_grade",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.normalOrder_timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n",
+    "compilationAlias":
+    "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeOrder_timeContract_eq_time_mid",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  rw [ofFieldOp_eq_sum]\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  congr\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n",
+    "compilationAlias":
+    "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  rw [ofFieldOp_eq_sum]\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  congr\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Ring.Hom.Defs\n/-- Ring homomorphisms preserve multiplication. -/\nprotected theorem map_mul (f : α →+* β) : ∀ a b, f (a * b) = f a * f b :=\n  map_mul f",
+   "--src: Mathlib.RingTheory.MvPowerSeries.Inverse\n@[simp]\nprotected theorem mul_inv_rev (φ ψ : MvPowerSeries σ k) :\n    (φ * ψ)⁻¹ = ψ⁻¹ * φ⁻¹ := by\n  by_cases h : constantCoeff σ k (φ * ψ) = 0\n  · rw [inv_eq_zero.mpr h]\n    simp only [map_mul, mul_eq_zero] at h\n    -- we don't have `NoZeroDivisors (MvPowerSeries σ k)` yet,\n    cases' h with h h <;> simp [inv_eq_zero.mpr h]\n  · rw [MvPowerSeries.inv_eq_iff_mul_eq_one h]\n    simp only [not_or, map_mul, mul_eq_zero] at h\n    rw [← mul_assoc, mul_assoc _⁻¹, MvPowerSeries.inv_mul_cancel _ h.left, mul_one,\n      MvPowerSeries.inv_mul_cancel _ h.right]",
+   "--src: Mathlib.Analysis.Normed.Field.Basic\n/-- A normed field is a field with a norm satisfying ‖x y‖ = ‖x‖ ‖y‖. -/\nclass NormedField (α : Type*) extends Norm α, Field α, MetricSpace α where\n  /-- The distance is induced by the norm. -/\n  dist_eq : ∀ x y, dist x y = norm (x - y)\n  /-- The norm is multiplicative. -/\n  norm_mul' : ∀ a b, norm (a * b) = norm a * norm b",
+   "--src: Mathlib.Algebra.Field.IsField\n/-- A predicate to express that a (semi)ring is a (semi)field.\nThis is mainly useful because such a predicate does not contain data,\nand can therefore be easily transported along ring isomorphisms.\nAdditionally, this is useful when trying to prove that\na particular ring structure extends to a (semi)field. -/\nstructure IsField (R : Type u) [Semiring R] : Prop where\n  /-- For a semiring to be a field, it must have two distinct elements. -/\n  exists_pair_ne : ∃ x y : R, x ≠ y\n  /-- Fields are commutative. -/\n  mul_comm : ∀ x y : R, x * y = y * x\n  /-- Nonzero elements have multiplicative inverses. -/\n  mul_inv_cancel : ∀ {a : R}, a ≠ 0 → ∃ b, a * b = 1",
+   "--src: Mathlib.Algebra.Group.Hom.Defs\n/-- `MulHomClass F M N` states that `F` is a type of multiplication-preserving homomorphisms.\nYou should declare an instance of this typeclass when you extend `MulHom`.\n-/\n@[to_additive]\nclass MulHomClass (F : Type*) (M N : outParam Type*) [Mul M] [Mul N] [FunLike F M N] : Prop where\n  /-- The proposition that the function preserves multiplication -/\n  map_mul : ∀ (f : F) (x y : M), f (x * y) = f x * f y",
+   "--src: Mathlib.GroupTheory.Congruence.Defs\n/-- The coercion to the quotient of a congruence relation commutes with multiplication (by\n    definition). -/\n@[to_additive (attr := simp) \"The coercion to the quotient of an additive congruence relation\ncommutes with addition (by definition).\"]\ntheorem coe_mul (x y : M) : (↑(x * y) : c.Quotient) = ↑x * ↑y :=\n  rfl",
+   "--src: Mathlib.FieldTheory.Relrank\ntheorem relrank_inf_mul_relrank : A.relrank (B ⊓ C) * B.relrank C = (A ⊓ B).relrank C := by\n  rw [← inf_relrank_right A (B ⊓ C), ← inf_relrank_right B C, ← inf_relrank_right (A ⊓ B) C,\n    inf_assoc, relrank_mul_relrank inf_le_right inf_le_right]",
+   "--src: Mathlib.Algebra.Field.Defs\n/-- A `DivisionRing` is a `Ring` with multiplicative inverses for nonzero elements.\nAn instance of `DivisionRing K` includes maps `ratCast : ℚ → K` and `qsmul : ℚ → K → K`.\nThose two fields are needed to implement the `DivisionRing K → Algebra ℚ K` instance since we need\nto control the specific definitions for some special cases of `K` (in particular `K = ℚ` itself).\nSee also note [forgetful inheritance]. Similarly, there are maps `nnratCast ℚ≥0 → K` and\n`nnqsmul : ℚ≥0 → K → K` to implement the `DivisionSemiring K → Algebra ℚ≥0 K` instance.\nIf the division ring has positive characteristic `p`, our division by zero convention forces\n`ratCast (1 / p) = 1 / 0 = 0`. -/\nclass DivisionRing (K : Type*)\n  extends Ring K, DivInvMonoid K, Nontrivial K, NNRatCast K, RatCast K where\n  /-- For a nonzero `a`, `a⁻¹` is a right multiplicative inverse. -/\n  protected mul_inv_cancel : ∀ (a : K), a ≠ 0 → a * a⁻¹ = 1\n  /-- The inverse of `0` is `0` by convention. -/\n  protected inv_zero : (0 : K)⁻¹ = 0\n  protected nnratCast := NNRat.castRec\n  /-- However `NNRat.cast` is defined, it must be equal to `a / b`.\n  Do not use this lemma directly. Use `NNRat.cast_def` instead. -/\n  protected nnratCast_def (q : ℚ≥0) : (NNRat.cast q : K) = q.num / q.den := by intros; rfl\n  /-- Scalar multiplication by a nonnegative rational number.\n  Unless there is a risk of a `Module ℚ≥0 _` instance diamond, write `nnqsmul := _`. This will set\n  `nnqsmul` to `(NNRat.cast · * ·)` thanks to unification in the default proof of `nnqsmul_def`.\n  Do not use directly. Instead use the `•` notation. -/\n  protected nnqsmul : ℚ≥0 → K → K\n  /-- However `qsmul` is defined, it must be propositionally equal to multiplication by `Rat.cast`.\n  Do not use this lemma directly. Use `NNRat.smul_def` instead. -/\n  protected nnqsmul_def (q : ℚ≥0) (a : K) : nnqsmul q a = NNRat.cast q * a := by intros; rfl\n  protected ratCast := Rat.castRec\n  /-- However `Rat.cast q` is defined, it must be propositionally equal to `q.num / q.den`.\n  Do not use this lemma directly. Use `Rat.cast_def` instead. -/\n  protected ratCast_def (q : ℚ) : (Rat.cast q : K) = q.num / q.den := by intros; rfl\n  /-- Scalar multiplication by a rational number.\n  Unless there is a risk of a `Module ℚ _` instance diamond, write `qsmul := _`. This will set\n  `qsmul` to `(Rat.cast · * ·)` thanks to unification in the default proof of `qsmul_def`.\n  Do not use directly. Instead use the `•` notation. -/\n  protected qsmul : ℚ → K → K\n  /-- However `qsmul` is defined, it must be propositionally equal to multiplication by `Rat.cast`.\n  Do not use this lemma directly. Use `Rat.cast_def` instead. -/\n  protected qsmul_def (a : ℚ) (x : K) : qsmul a x = Rat.cast a * x := by intros; rfl\n-- see Note [lower instance priority]",
+   "--src: Mathlib.AlgebraicGeometry.Spec\n/-- The counit morphism `R ⟶ Γ(Spec R)` given by `AlgebraicGeometry.StructureSheaf.toOpen`. -/\n@[simps!]\ndef toSpecΓ (R : CommRingCat.{u}) : R ⟶ Γ.obj (op (Spec.toLocallyRingedSpace.obj (op R))) :=\n  StructureSheaf.toOpen R ⊤\n-- These lemmas have always been bad (https://github.com/leanprover-community/mathlib4/issues/7657), but https://github.com/leanprover/lean4/pull/2644 made `simp` start noticing",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma hom_ofHom {R S : Type u} [Ring R] [Ring S] (f : R →+* S) : (ofHom f).hom = f := rfl"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name":
+   "FieldSpecification.FieldOpAlgebra.timeOrder_timeContract_eq_time_mid",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  rw [ofFieldOp_eq_sum]\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  congr\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n",
+   "compilationAlias":
+   "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  rw [ofFieldOp_eq_sum]\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  congr\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\nh1 : FieldSpecification.timeOrderRel φ ψ\nh2 : FieldSpecification.timeOrderRel ψ φ\na b : 𝓕.FieldOpAlgebra\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (HMul.hMul a (FieldSpecification.FieldOpAlgebra.timeContract φ ψ)) b)) (HMul.hMul (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul a b)))",
+  "content_sorry":
+  "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  sorry",
+  "annotation":
+  "lemma timeOrder_timeContract_eq_time_mid {φ ψ : 𝓕.FieldOp}\n    (h1 : timeOrderRel φ ψ) (h2 : timeOrderRel ψ φ) (a b : 𝓕.FieldOpAlgebra) :\n    𝓣(a * timeContract φ ψ * b) = timeContract φ ψ * 𝓣(a * b) := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    a b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (HMul.hMul a (Fie …\n  -/\n  rw [timeContract_of_timeOrderRel _ _ h1]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    a b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (HMul.hMul a ((Fi …\n  -/\n  rw [ofFieldOp_eq_sum]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    a b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (HMul.hMul a ((Fi …\n  -/\n  simp only [map_sum, Finset.mul_sum, Finset.sum_mul]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    a b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (Finset.univ.sum fun x => FieldSpecification.FieldOpAlgebra.timeOrder (HM …\n  -/\n  congr\n  /-\n    case e_f\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h1 : FieldSpecification.timeOrderRel φ ψ\n    h2 : FieldSpecification.timeOrderRel ψ φ\n    a b : 𝓕.FieldOpAlgebra\n    ⊢ Eq (fun x => FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (HMul.hM …\n  -/\n  funext x\n  match φ with\n  | .inAsymp φ =>\n    simp\n  | .position φ =>\n    simp only [anPart_position, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n  | .outAsymp φ =>\n    simp only [anPart_posAsymp, instCommGroup.eq_1]\n    apply timeOrder_superCommute_eq_time_mid _ _\n    simp only [crAnTimeOrderRel, h1]\n    simp [crAnTimeOrderRel, h2]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Finset.sum_mul",
+    "module": "Mathlib.Algebra.BigOperators.Ring.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_mul (s : Finset ι) (f : ι → α) (a : α) :\n    (∑ i ∈ s, f i) * a = ∑ i ∈ s, f i * a := map_sum (AddMonoidHom.mulRight a) _ s",
+    "compilationAlias":
+    "lemma sum_mul (s : Finset ι) (f : ι → α) (a : α) :\n    (∑ i ∈ s, f i) * a = ∑ i ∈ s, f i * a := map_sum (AddMonoidHom.mulRight a) _ s"},
+   {"name": "Finset.mul_sum",
+    "module": "Mathlib.Algebra.BigOperators.Ring.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mul_sum (s : Finset ι) (f : ι → α) (a : α) :\n    a * ∑ i ∈ s, f i = ∑ i ∈ s, a * f i := map_sum (AddMonoidHom.mulLeft a) _ s",
+    "compilationAlias":
+    "lemma mul_sum (s : Finset ι) (f : ι → α) (a : α) :\n    a * ∑ i ∈ s, f i = ∑ i ∈ s, a * f i := map_sum (AddMonoidHom.mulLeft a) _ s"},
+   {"name": "map_sum",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_mem_center",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_zero_of_diff_grade",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.normalOrder_timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n",
+    "compilationAlias":
+    "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.IsAlgClosed.AlgebraicClosure\ninstance {p : ℕ} [CharP k p] : CharP (AlgebraicClosure k) p :=\n  charP_of_injective_algebraMap (RingHom.injective (algebraMap k (AlgebraicClosure k))) p",
+   "--src: Mathlib.Algebra.CharP.Basic\nlemma RingHom.charP_iff_charP {K L : Type*} [DivisionRing K] [Semiring L] [Nontrivial L]\n    (f : K →+* L) (p : ℕ) : CharP K p ↔ CharP L p := by\n  simp only [charP_iff, ← f.injective.eq_iff, map_natCast f, map_zero f]",
+   "--src: Mathlib.Algebra.CharP.Defs\n/-- The exponential characteristic is one if the characteristic is zero. -/\nlemma char_zero_of_expChar_one (p : ℕ) [hp : CharP R p] [hq : ExpChar R 1] : p = 0 := by\n  cases hq\n  · exact CharP.eq R hp inferInstance\n  · exact False.elim (CharP.char_ne_one R 1 rfl)\n-- This could be an instance, but there are no `ExpChar R 1` instances in mathlib.",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\ntheorem const_zero (f : R) (U hu) : const R 0 f U hu = 0 :=\n  Subtype.eq <| funext fun x => IsLocalization.mk'_eq_iff_eq_mul.2 <| by\n    rw [RingHom.map_zero]\n    exact (mul_eq_zero_of_left rfl ((algebraMap R (Localizations R x)) _)).symm",
+   "--src: Mathlib.AlgebraicGeometry.Spec\n/-- The counit (`SpecΓIdentity.inv.op`) of the adjunction `Γ ⊣ Spec` is an isomorphism. -/\n@[simps! hom_app inv_app]\ndef LocallyRingedSpace.SpecΓIdentity : Spec.toLocallyRingedSpace.rightOp ⋙ Γ ≅ \u0000\u0000 _ :=\n  Iso.symm <| NatIso.ofComponents.{u,u,u+1,u+1} (fun R =>\n    -- Porting note: In Lean3, this `IsIso` is synthesized automatically\n    letI : IsIso (toSpecΓ R) := StructureSheaf.isIso_to_global _\n    asIso (toSpecΓ R)) fun {X Y} f => by convert Spec_Γ_naturality (R := X) (S := Y) f",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem stalkAlgebra_map (p : PrimeSpectrum R) (r : R) :\n    algebraMap R ((structureSheaf R).presheaf.stalk p) r = toStalk R p r :=\n  rfl",
+   "--src: Mathlib.Algebra.CharP.Invertible\ntheorem not_ringChar_dvd_of_invertible {t : ℕ} [Invertible (t : K)] : ¬ringChar K ∣ t := by\n  rw [← ringChar.spec, ← Ne]\n  exact Invertible.ne_zero (t : K)",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma ofHom_apply {R S : Type u} [Ring R] [Ring S]\n    (f : R →+* S) (r : R) : ofHom f r = f r := rfl",
+   "--src: Mathlib.RingTheory.MvPowerSeries.Inverse\n@[simp]\ntheorem zero_inv : (0 : MvPowerSeries σ k)⁻¹ = 0 := by\n  rw [inv_eq_zero, constantCoeff_zero]",
+   "--src: Mathlib.AlgebraicGeometry.Scheme\nlemma toOpen_eq (U) :\n    (by exact StructureSheaf.toOpen R U) =\n    (ΓSpecIso R).inv ≫ (Spec R).presheaf.map (homOfLE le_top).op := rfl"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.normalOrder_timeContract",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n",
+   "compilationAlias":
+   "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    simp\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    simp\n\n"},
+  "goal":
+  "R : Type u_1\nM : Type u_2\ninst✝³ : Zero R\ninst✝² : Zero M\ninst✝¹ : SMulWithZero R M\ninst✝ : NoZeroSMulDivisors R M\nc : R\nx : M\n⊢ Eq (Eq (HSMul.hSMul c x) 0) (Or (Eq c 0) (Eq x 0))",
+  "content_sorry":
+  "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  sorry",
+  "annotation":
+  "lemma normalOrder_timeContract (φ ψ : 𝓕.FieldOp) :\n    𝓝(timeContract φ ψ) = 0 := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.normalOrder (FieldSpecification.FieldO …\n  -/\n  by_cases h : timeOrderRel φ ψ\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.normalOrder (FieldSpecification.FieldO …\n    -/\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.normalOrder ((FieldSpecification.Field …\n    -/\n    simp\n    /-\n      🎉 no goals\n    -/\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.normalOrder (FieldSpecification.FieldO …\n    -/\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.normalOrder (HSMul.hSMul ((FieldStatis …\n    -/\n    simp only [instCommGroup.eq_1, map_smul, smul_eq_zero]\n    have h1 : timeOrderRel ψ φ := by\n      have ht : timeOrderRel φ ψ ∨ timeOrderRel ψ φ := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n      simp_all\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      h1 : FieldSpecification.timeOrderRel ψ φ\n      ⊢ Or (Eq ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fieldOpStati …\n    -/\n    rw [timeContract_of_timeOrderRel _ _ h1]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      h1 : FieldSpecification.timeOrderRel ψ φ\n      ⊢ Or (Eq ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fieldOpStati …\n    -/\n    simp\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsTotal.total",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  total : ∀ a b, r a b ∨ r b a",
+    "compilationAlias": "  total : ∀ a b, r a b ∨ r b a"},
+   {"name": "smul_eq_zero",
+    "module": "Mathlib.Algebra.NoZeroSMulDivisors.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem smul_eq_zero : c • x = 0 ↔ c = 0 ∨ x = 0 :=\n  ⟨eq_zero_or_eq_zero_of_smul_eq_zero, fun h =>\n    h.elim (fun h => h.symm ▸ zero_smul R x) fun h => h.symm ▸ smul_zero c⟩",
+    "compilationAlias":
+    "@[simp]\ntheorem smul_eq_zero : c • x = 0 ↔ c = 0 ∨ x = 0 :=\n  ⟨eq_zero_or_eq_zero_of_smul_eq_zero, fun h =>\n    h.elim (fun h => h.symm ▸ zero_smul R x) fun h => h.symm ▸ smul_zero c⟩"},
+   {"name": "map_smul",
+    "module": "Mathlib.GroupTheory.GroupAction.Hom",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem map_smul {F M X Y : Type*} [SMul M X] [SMul M Y]\n    [FunLike F X Y] [MulActionHomClass F M X Y]\n    (f : F) (c : M) (x : X) : f (c • x) = c • f x :=\n  map_smulₛₗ f c x",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem map_smul {F M X Y : Type*} [SMul M X] [SMul M Y]\n    [FunLike F X Y] [MulActionHomClass F M X Y]\n    (f : F) (c : M) (x : X) : f (c • x) = c • f x :=\n  map_smulₛₗ f c x"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_mem_center",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_zero_of_diff_grade",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.MvPowerSeries.Inverse\n@[simp]\nprotected theorem inv_mul_cancel (φ : MvPowerSeries σ k) (h : constantCoeff σ k φ ≠ 0) :\n    φ⁻¹ * φ = 1 := by rw [mul_comm, φ.mul_inv_cancel h]",
+   "--src: Mathlib.RingTheory.PowerSeries.Inverse\ntheorem zero_inv : (0 : k⟦X⟧)⁻¹ = 0 :=\n  MvPowerSeries.zero_inv",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem prime_of_degree_eq_one (hp1 : degree p = 1) : Prime p := by\n  classical\n  have : Prime (normalize p) :=\n    Monic.prime_of_degree_eq_one (hp1 ▸ degree_normalize)\n      (monic_normalize fun hp0 => absurd hp1 (hp0.symm ▸ by simp [degree_zero]))\n  exact (normalize_associated _).prime this",
+   "--src: Mathlib.Algebra.Ring.Hom.Defs\n/-- `f : α →+* β` doesn't map `1` to `0` if `β` is nontrivial -/\ntheorem map_one_ne_zero [Nontrivial β] : f 1 ≠ 0 :=\n  mt f.codomain_trivial_iff_map_one_eq_zero.mpr zero_ne_one",
+   "--src: Mathlib.Algebra.CharP.Basic\nlemma RingHom.charP_iff_charP {K L : Type*} [DivisionRing K] [Semiring L] [Nontrivial L]\n    (f : K →+* L) (p : ℕ) : CharP K p ↔ CharP L p := by\n  simp only [charP_iff, ← f.injective.eq_iff, map_natCast f, map_zero f]",
+   "--src: Mathlib.Algebra.Ring.Hom.Defs\ninstance instRingHomClass : RingHomClass (α →+* β) α β where\n  map_add := RingHom.map_add'\n  map_zero := RingHom.map_zero'\n  map_mul f := f.map_mul'\n  map_one f := f.map_one'",
+   "--src: Mathlib.Algebra.Field.Defs\n/-- A `Field` is a `CommRing` with multiplicative inverses for nonzero elements.\nAn instance of `Field K` includes maps `ratCast : ℚ → K` and `qsmul : ℚ → K → K`.\nThose two fields are needed to implement the `DivisionRing K → Algebra ℚ K` instance since we need\nto control the specific definitions for some special cases of `K` (in particular `K = ℚ` itself).\nSee also note [forgetful inheritance].\nIf the field has positive characteristic `p`, our division by zero convention forces\n`ratCast (1 / p) = 1 / 0 = 0`. -/\n@[stacks 09FD \"first part\"]\nclass Field (K : Type u) extends CommRing K, DivisionRing K\n-- see Note [lower instance priority]",
+   "--src: Mathlib.RingTheory.PowerSeries.Inverse\ntheorem ker_coeff_eq_max_ideal : RingHom.ker (constantCoeff k) = maximalIdeal _ :=\n  Ideal.ext fun _ ↦ by\n    rw [RingHom.mem_ker, maximalIdeal_eq_span_X, Ideal.mem_span_singleton, X_dvd_iff]",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n/-- For an inclusion `i : V ⟶ U` between open sets of the prime spectrum of `R`, the comap of the\nidentity from OO_X(U) to OO_X(V) equals as the restriction map of the structure sheaf.\nThis is a generalization of the fact that, for fixed `U`, the comap of the identity from OO_X(U)\nto OO_X(U) is the identity.\n-/\ntheorem comap_id_eq_map (U V : Opens (PrimeSpectrum.Top R)) (iVU : V ⟶ U) :\n    (comap (RingHom.id R) U V fun _ hpV => leOfHom iVU <| hpV) =\n      ((structureSheaf R).1.map iVU.op).hom :=\n  RingHom.ext fun s => Subtype.eq <| funext fun p => by\n    rw [comap_apply]\n    -- Unfortunately, we cannot use `Localization.localRingHom_id` here, because\n    -- `PrimeSpectrum.comap (RingHom.id R) p` is not *definitionally* equal to `p`. Instead, we use\n    -- that we can write `s` as a fraction `a/b` in a small neighborhood around `p`. Since\n    -- `PrimeSpectrum.comap (RingHom.id R) p` equals `p`, it is also contained in the same\n    -- neighborhood, hence `s` equals `a/b` there too.\n    obtain ⟨W, hpW, iWU, h⟩ := s.2 (iVU p)\n    obtain ⟨a, b, h'⟩ := h.eq_mk'\n    obtain ⟨hb₁, s_eq₁⟩ := h' ⟨p, hpW⟩\n    obtain ⟨hb₂, s_eq₂⟩ :=\n      h' ⟨PrimeSpectrum.comap (RingHom.id _) p.1, hpW⟩\n    dsimp only at s_eq₁ s_eq₂\n    erw [s_eq₂, Localization.localRingHom_mk', ← s_eq₁, ← res_apply _ _ _ iVU]",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem isCoprime_map [Field k] (f : R →+* k) : IsCoprime (p.map f) (q.map f) ↔ IsCoprime p q := by\n  classical\n  rw [← EuclideanDomain.gcd_isUnit_iff, ← EuclideanDomain.gcd_isUnit_iff, gcd_map, isUnit_map]"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeContract_zero_of_diff_grade",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+   "compilationAlias":
+   "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  by_cases h1 : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    exact h\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    rw [timeContract_of_timeOrderRel _ _ _]\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    simp only [instCommGroup.eq_1, smul_zero]\n    exact h.symm\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\nh : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) 0",
+  "content_sorry":
+  "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  sorry",
+  "annotation":
+  "lemma timeContract_zero_of_diff_grade (φ ψ : 𝓕.FieldOp) (h : (𝓕 |>ₛ φ) ≠ (𝓕 |>ₛ ψ)) :\n    timeContract φ ψ = 0 := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) 0\n  -/\n  by_cases h1 : timeOrderRel φ ψ\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) 0\n    -/\n  · rw [timeContract_of_timeOrderRel _ _ h1]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Eq ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fiel …\n    -/\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    /-\n      case pos.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n    -/\n    exact h\n    /-\n      🎉 no goals\n    -/\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) 0\n    -/\n  · rw [timeContract_of_not_timeOrderRel _ _ h1]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fie …\n    -/\n    rw [timeContract_of_timeOrderRel _ _ _]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fie …\n    -/\n    rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Eq (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fie …\n    -/\n    simp only [instCommGroup.eq_1, smul_zero]\n    /-\n      case neg.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Ne (𝓕.fieldOpStatistic ψ) (𝓕.fieldOpStatistic φ)\n    -/\n    exact h.symm\n    /-\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ FieldSpecification.timeOrderRel ψ φ\n    -/\n    have ht := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    /-\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Ne (𝓕.fieldOpStatistic φ) (𝓕.fieldOpStatistic ψ)\n      h1 : Not (FieldSpecification.timeOrderRel φ ψ)\n      ht : Or (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOrderRel …\n      ⊢ FieldSpecification.timeOrderRel ψ φ\n    -/\n    simp_all\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsTotal.total",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  total : ∀ a b, r a b ∨ r b a",
+    "compilationAlias": "  total : ∀ a b, r a b ∨ r b a"},
+   {"name": "smul_zero",
+    "module": "Mathlib.Algebra.GroupWithZero.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem smul_zero (a : M) : a • (0 : A) = 0 :=\n  SMulZeroClass.smul_zero _",
+    "compilationAlias":
+    "@[simp]\ntheorem smul_zero (a : M) : a • (0 : A) = 0 :=\n  SMulZeroClass.smul_zero _"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_mem_center",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Valuation.ValuationSubring\n@[simp]\ntheorem mem_comap {A : ValuationSubring L} {f : K →+* L} {x : K} : x ∈ A.comap f ↔ f x ∈ A :=\n  Iff.rfl",
+   "--src: Mathlib.RingTheory.LocalRing.Subring\ninstance : IsLocalization.AtPrime (ofPrime A P).toSubring P :=\n  IsLocalization.isLocalization_of_algEquiv _ (ofPrimeEquiv A P)",
+   "--src: Mathlib.NumberTheory.NumberField.Embeddings\n@[simp]\nlemma comap_mk (φ : K →+* ℂ) (f : k →+* K) : (mk φ).comap f = mk (φ.comp f) := rfl",
+   "--src: Mathlib.RingTheory.Valuation.ValuationSubring\n/-- The equivalence between coarsenings of a valuation ring and its prime ideals. -/\n@[simps]\ndef primeSpectrumEquiv : PrimeSpectrum A ≃ {S // A ≤ S} where\n  toFun P := ⟨ofPrime A P.asIdeal, le_ofPrime _ _⟩\n  invFun S := ⟨idealOfLE _ S S.2, inferInstance⟩\n  left_inv P := by ext1; simp\n  right_inv S := by ext1; simp",
+   "--src: Mathlib.Algebra.Ring.Subsemiring.Basic\n@[simp]\ntheorem codRestrict_apply (f : R →+* S) (s : σS) (h : ∀ x, f x ∈ s) (x : R) :\n    (f.codRestrict s h x : S) = f x :=\n  rfl",
+   "--src: Mathlib.NumberTheory.NumberField.Embeddings\ntheorem place_conjugate (φ : K →+* ℂ) : place (conjugate φ) = place φ := by\n  ext; simp only [place_apply, norm_eq_abs, abs_conj, conjugate_coe_eq]",
+   "--src: Mathlib.NumberTheory.NumberField.Embeddings\nlemma isConj_one_iff : IsConj φ (1 : K ≃ₐ[k] K) ↔ IsReal φ := Iff.rfl",
+   "--src: Mathlib.RingTheory.Valuation.LocalSubring\nlemma IsLocalRing.exists_factor_valuationRing [IsLocalRing R] (f : R →+* K) :\n    ∃ (A : ValuationSubring K) (h : _), IsLocalHom (f.codRestrict A.toSubring h) := by\n  obtain ⟨B, hB⟩  := (LocalSubring.range f).exists_le_valuationSubring\n  refine ⟨B, fun x ↦ hB.1 ⟨x, rfl⟩, ?_⟩\n  exact @RingHom.isLocalHom_comp _ _ _ _ _ _ _ _\n    hB.2 (.of_surjective _ f.rangeRestrict_surjective)",
+   "--src: Mathlib.RingTheory.SimpleRing.Field\nopen TwoSidedIdeal in\nlemma isField_center (A : Type*) [Ring A] [IsSimpleRing A] : IsField (Subring.center A) where\n  exists_pair_ne := ⟨0, 1, zero_ne_one⟩\n  mul_comm := mul_comm\n  mul_inv_cancel := by\n    rintro ⟨x, hx1⟩ hx2\n    rw [Subring.mem_center_iff] at hx1\n    replace hx2 : x ≠ 0 := by simpa [Subtype.ext_iff] using hx2\n    -- Todo: golf the following `let` once `TwoSidedIdeal.span` is defined\n    let I := TwoSidedIdeal.mk' (Set.range (x * ·)) ⟨0, by simp⟩\n      (by rintro _ _ ⟨x, rfl⟩ ⟨y, rfl⟩; exact ⟨x + y, mul_add _ _ _⟩)\n      (by rintro _ ⟨x, rfl⟩; exact ⟨-x, by simp⟩)\n      (by rintro a _ ⟨c, rfl⟩; exact ⟨a * c, by dsimp; rw [← mul_assoc, ← hx1, mul_assoc]⟩)\n      (by rintro _ b ⟨a, rfl⟩; exact ⟨a * b, by dsimp; rw [← mul_assoc, ← hx1, mul_assoc]⟩)\n    have mem : 1 ∈ I := one_mem_of_ne_zero_mem I hx2 (by simpa [I, mem_mk'] using ⟨1, by simp⟩)\n    simp only [TwoSidedIdeal.mem_mk', Set.mem_range, I] at mem\n    obtain ⟨y, hy⟩ := mem\n    refine ⟨⟨y, Subring.mem_center_iff.2 fun a ↦ ?_⟩, by ext; exact hy⟩\n    calc a * y\n      _ = (x * y) * a * y := by rw [hy, one_mul]\n      _ = (y * x) * a * y := by rw [hx1]\n      _ = y * (x * a) * y := by rw [mul_assoc y x a]\n      _ = y * (a * x) * y := by rw [hx1]\n      _ = y * ((a * x) * y) := by rw [mul_assoc]\n      _ = y * (a * (x * y)) := by rw [mul_assoc a x y]\n      _ = y * a := by rw [hy, mul_one]",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ntheorem mem_perfectClosure_iff {x : E} :\n    x ∈ perfectClosure F E ↔ ∃ n : ℕ, x ^ (ringExpChar F) ^ n ∈ (algebraMap F E).range := Iff.rfl"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeContract_mem_center",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n",
+   "compilationAlias":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  by_cases h : timeOrderRel φ ψ\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    rw [timeContract_of_timeOrderRel]\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    simp_all\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\n⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) (FieldSpecification.FieldOpAlgebra.timeContract φ ψ)",
+  "content_sorry":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  sorry",
+  "annotation":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, then\n  `timeContract φ ψ` is in the center of `𝓕.FieldOpAlgebra`. -/\nlemma timeContract_mem_center (φ ψ : 𝓕.FieldOp) :\n    timeContract φ ψ ∈ Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) (FieldSpecificat …\n  -/\n  by_cases h : timeOrderRel φ ψ\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) (FieldSpecificat …\n    -/\n  · rw [timeContract_of_timeOrderRel _ _ h]\n    /-\n      case pos\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : FieldSpecification.timeOrderRel φ ψ\n      ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) ((FieldSpecifica …\n    -/\n    exact superCommute_anPart_ofFieldOp_mem_center φ ψ\n    /-\n      🎉 no goals\n    -/\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) (FieldSpecificat …\n    -/\n  · rw [timeContract_of_not_timeOrderRel _ _ h]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) (HSMul.hSMul ((F …\n    -/\n    refine Subalgebra.smul_mem (Subalgebra.center ℂ _) ?_ 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ)\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) (FieldSpecificat …\n    -/\n    rw [timeContract_of_timeOrderRel]\n    /-\n      case neg\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) ((FieldSpecifica …\n    -/\n    exact superCommute_anPart_ofFieldOp_mem_center _ _\n    /-\n      case neg.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      ⊢ FieldSpecification.timeOrderRel ψ φ\n    -/\n    have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n    /-\n      case neg.h\n      𝓕 : FieldSpecification\n      φ ψ : 𝓕.FieldOp\n      h : Not (FieldSpecification.timeOrderRel φ ψ)\n      h1 : Or (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOrderRel …\n      ⊢ FieldSpecification.timeOrderRel ψ φ\n    -/\n    simp_all\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsTotal.total",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  total : ∀ a b, r a b ∨ r b a",
+    "compilationAlias": "  total : ∀ a b, r a b ∨ r b a"},
+   {"name": "Subalgebra.center",
+    "module": "Mathlib.Algebra.Algebra.Subalgebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The center of an algebra is the set of elements which commute with every element. They form a\nsubalgebra. -/\n@[simps! coe toSubsemiring]\ndef center : Subalgebra R A :=\n  { Subsemiring.center A with algebraMap_mem' := Set.algebraMap_mem_center }",
+    "compilationAlias":
+    "/-- The center of an algebra is the set of elements which commute with every element. They form a\nsubalgebra. -/\n@[simps! coe toSubsemiring]\ndef center : Subalgebra R A :=\n  { Subsemiring.center A with algebraMap_mem' := Set.algebraMap_mem_center }"},
+   {"name": "Subalgebra.smul_mem",
+    "module": "Mathlib.Algebra.Algebra.Subalgebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem smul_mem {x : A} (hx : x ∈ S) (r : R) : r • x ∈ S :=\n  SMulMemClass.smul_mem r hx",
+    "compilationAlias":
+    "theorem smul_mem {x : A} (hx : x ∈ S) (r : R) : r • x ∈ S :=\n  SMulMemClass.smul_mem r hx"},
+   {"name": "Subalgebra.center",
+    "module": "Mathlib.Algebra.Algebra.Subalgebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The center of an algebra is the set of elements which commute with every element. They form a\nsubalgebra. -/\n@[simps! coe toSubsemiring]\ndef center : Subalgebra R A :=\n  { Subsemiring.center A with algebraMap_mem' := Set.algebraMap_mem_center }",
+    "compilationAlias":
+    "/-- The center of an algebra is the set of elements which commute with every element. They form a\nsubalgebra. -/\n@[simps! coe toSubsemiring]\ndef center : Subalgebra R A :=\n  { Subsemiring.center A with algebraMap_mem' := Set.algebraMap_mem_center }"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_smul (a : F) (p : F[X]) (d : ℕ) :\n    hilbertPoly (a • p) d = a • hilbertPoly p d := by\n  delta hilbertPoly\n  induction d with\n  | zero => simp only [smul_zero]\n  | succ d _ =>\n      simp only\n      rw [← sum_def _ fun _ r => r • _, ← sum_def _ fun _ r => r • _, Polynomial.smul_sum,\n        sum_smul_index' _ _ _ fun i => zero_smul F (preHilbertPoly F d i)]\n      simp only [smul_assoc]",
+   "--src: Mathlib.Algebra.Star.SelfAdjoint\n@[simp, norm_cast] lemma val_qsmul (q : ℚ) (x : selfAdjoint R) : ↑(q • x) = q • (x : R) := rfl",
+   "--src: Mathlib.NumberTheory.NumberField.Embeddings\n@[simp]\ntheorem conjugate_coe_eq (φ : K →+* ℂ) (x : K) : (conjugate φ) x = conj (φ x) := rfl",
+   "--src: Mathlib.FieldTheory.PerfectClosure\n@[simp]\ntheorem mk_inv (x : ℕ × K) : (mk K p x)⁻¹ = mk K p (x.1, x.2⁻¹) :=\n  rfl\n-- Porting note: added to avoid \"unknown free variable\" error",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma ofHom_apply {R S : Type u} [Ring R] [Ring S]\n    (f : R →+* S) (r : R) : ofHom f r = f r := rfl",
+   "--src: Mathlib.Algebra.CharP.Invertible\ntheorem not_ringChar_dvd_of_invertible {t : ℕ} [Invertible (t : K)] : ¬ringChar K ∣ t := by\n  rw [← ringChar.spec, ← Ne]\n  exact Invertible.ne_zero (t : K)",
+   "--src: Mathlib.Algebra.CharP.IntermediateField\ninstance expChar [ExpChar F p] : ExpChar L p := RingHom.expChar _ (algebraMap _ F).injective p",
+   "--src: Mathlib.FieldTheory.RatFunc.AsPolynomial\n@[simp]\ntheorem eval_C {c : K} : eval f a (C c) = f c := by simp [eval]",
+   "--src: Mathlib.Algebra.CharP.Basic\nlemma RingHom.charP_iff_charP {K L : Type*} [DivisionRing K] [Semiring L] [Nontrivial L]\n    (f : K →+* L) (p : ℕ) : CharP K p ↔ CharP L p := by\n  simp only [charP_iff, ← f.injective.eq_iff, map_natCast f, map_zero f]",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem irreducible_of_degree_eq_one (hp1 : degree p = 1) : Irreducible p :=\n  (prime_of_degree_eq_one hp1).irreducible"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name":
+   "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel_expand",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n",
+   "compilationAlias":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  rw [timeContract_of_timeOrderRel _ _ _]\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  simp_all\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\nh : Not (FieldSpecification.timeOrderRel φ ψ)\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fieldOpStatistic ψ)) ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.FieldOpAlgebra.anPart ψ)) (FieldSpecification.FieldOpAlgebra.ofFieldOp φ)))",
+  "content_sorry":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  sorry",
+  "annotation":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are not time-ordered then\n\n  `timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ`. -/\nlemma timeContract_of_not_timeOrderRel_expand (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • [anPart ψ, ofFieldOp φ]ₛ := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HSMul.hSMul ((Field …\n  -/\n  rw [timeContract_of_not_timeOrderRel _ _ h]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fie …\n  -/\n  rw [timeContract_of_timeOrderRel _ _ _]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ FieldSpecification.timeOrderRel ψ φ\n  -/\n  have h1 := IsTotal.total (r := 𝓕.timeOrderRel) φ ψ\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    h1 : Or (FieldSpecification.timeOrderRel φ ψ) (FieldSpecification.timeOrderRel …\n    ⊢ FieldSpecification.timeOrderRel ψ φ\n  -/\n  simp_all\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "IsTotal.total",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  total : ∀ a b, r a b ∨ r b a",
+    "compilationAlias": "  total : ∀ a b, r a b ∨ r b a"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+   {"name":
+    "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+    "compilationAlias":
+    "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Category.Ring.Basic\nlemma ofHom_apply {R S : Type u} [Ring R] [Ring S]\n    (f : R →+* S) (r : R) : ofHom f r = f r := rfl",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_smul (a : F) (p : F[X]) (d : ℕ) :\n    hilbertPoly (a • p) d = a • hilbertPoly p d := by\n  delta hilbertPoly\n  induction d with\n  | zero => simp only [smul_zero]\n  | succ d _ =>\n      simp only\n      rw [← sum_def _ fun _ r => r • _, ← sum_def _ fun _ r => r • _, Polynomial.smul_sum,\n        sum_smul_index' _ _ _ fun i => zero_smul F (preHilbertPoly F d i)]\n      simp only [smul_assoc]",
+   "--src: Mathlib.LinearAlgebra.LinearIndependent\n/-- Also see `LinearIndependent.pair_iff` for the version over arbitrary rings. -/\ntheorem LinearIndependent.pair_iff' {x y : V} (hx : x ≠ 0) :\n    LinearIndependent K ![x, y] ↔ ∀ a : K, a • x ≠ y := by\n  rw [LinearIndependent.pair_iff]\n  constructor\n  · intro H a ha\n    have := (H a (-1) (by simpa [← sub_eq_add_neg, sub_eq_zero])).2\n    simp only [neg_eq_zero, one_ne_zero] at this\n  · intro H s t hst\n    by_cases ht : t = 0\n    · exact ⟨by simpa [ht, hx] using hst, ht⟩\n    apply_fun (t⁻¹ • ·) at hst\n    simp only [smul_add, smul_smul, inv_mul_cancel₀ ht] at hst\n    cases H (-(t⁻¹ * s)) <| by linear_combination (norm := match_scalars <;> noncomm_ring) -hst",
+   "--src: Mathlib.Algebra.CharP.IntermediateField\ninstance charP [CharP F p] : CharP L p := RingHom.charP _ (algebraMap _ F).injective p",
+   "--src: Mathlib.Algebra.Polynomial.AlgebraMap\ntheorem algEquivCMulXAddC_symm_eq {R : Type*} [CommRing R] (a b : R) [Invertible a] :\n    (algEquivCMulXAddC a b).symm =  algEquivCMulXAddC (⅟ a) (- ⅟ a * b) := by\n  ext p : 1\n  simp only [algEquivCMulXAddC_symm_apply, neg_mul, algEquivCMulXAddC_apply, map_neg, map_mul]\n  congr\n  simp [mul_add, sub_eq_add_neg]",
+   "--src: Mathlib.Algebra.Algebra.Defs\ntheorem compHom_smul_def (s : S) (x : A) :\n    letI := compHom A f\n    s • x = f s • x := rfl",
+   "--src: Mathlib.Algebra.Field.Defs\n/-- A `Field` is a `CommRing` with multiplicative inverses for nonzero elements.\nAn instance of `Field K` includes maps `ratCast : ℚ → K` and `qsmul : ℚ → K → K`.\nThose two fields are needed to implement the `DivisionRing K → Algebra ℚ K` instance since we need\nto control the specific definitions for some special cases of `K` (in particular `K = ℚ` itself).\nSee also note [forgetful inheritance].\nIf the field has positive characteristic `p`, our division by zero convention forces\n`ratCast (1 / p) = 1 / 0 = 0`. -/\n@[stacks 09FD \"first part\"]\nclass Field (K : Type u) extends CommRing K, DivisionRing K\n-- see Note [lower instance priority]",
+   "--src: Mathlib.Algebra.CharP.Invertible\ntheorem not_ringChar_dvd_of_invertible {t : ℕ} [Invertible (t : K)] : ¬ringChar K ∣ t := by\n  rw [← ringChar.spec, ← Ne]\n  exact Invertible.ne_zero (t : K)",
+   "--src: Mathlib.FieldTheory.Fixed\ntheorem coe_algebraMap :\n    algebraMap (FixedPoints.subfield M F) F = Subfield.subtype (FixedPoints.subfield M F) :=\n  rfl",
+   "--src: Mathlib.FieldTheory.PerfectClosure\n@[simp]\ntheorem mk_inv (x : ℕ × K) : (mk K p x)⁻¹ = mk K p (x.1, x.2⁻¹) :=\n  rfl\n-- Porting note: added to avoid \"unknown free variable\" error"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_not_timeOrderRel",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n",
+   "compilationAlias":
+   "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  rw [timeContract_eq_smul]\n  simp only [Int.reduceNeg, one_smul, map_add]\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  rw [timeContract_eq_smul]\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  rw [smul_smul, smul_smul, mul_comm]\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\nh : Not (FieldSpecification.timeOrderRel φ ψ)\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (𝓕.fieldOpStatistic ψ)) (FieldSpecification.FieldOpAlgebra.timeContract ψ φ))",
+  "content_sorry":
+  "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  sorry",
+  "annotation":
+  "lemma timeContract_of_not_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : ¬ timeOrderRel φ ψ) :\n    timeContract φ ψ = 𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ψ) • timeContract ψ φ := by\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HSMul.hSMul ((Field …\n  -/\n  rw [timeContract_eq_smul]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HAdd.hAdd (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (Field …\n  -/\n  simp only [Int.reduceNeg, one_smul, map_add]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HAdd.hAdd (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (Field …\n  -/\n  rw [normalOrder_ofFieldOp_ofFieldOp_swap]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HAdd.hAdd (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (Field …\n  -/\n  rw [timeOrder_ofFieldOp_ofFieldOp_not_ordered_eq_timeOrder h]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HAdd.hAdd (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic …\n  -/\n  rw [timeContract_eq_smul]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HAdd.hAdd (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic …\n  -/\n  simp only [instCommGroup.eq_1, map_smul, map_add, smul_add]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : Not (FieldSpecification.timeOrderRel φ ψ)\n    ⊢ Eq (HAdd.hAdd (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic …\n  -/\n  rw [smul_smul, smul_smul, mul_comm]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "smul_smul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\nlemma smul_smul (a₁ a₂ : M) (b : α) : a₁ • a₂ • b = (a₁ * a₂) • b := (mul_smul _ _ _).symm",
+    "compilationAlias":
+    "@[to_additive]\nlemma smul_smul (a₁ a₂ : M) (b : α) : a₁ • a₂ • b = (a₁ * a₂) • b := (mul_smul _ _ _).symm"},
+   {"name": "smul_smul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\nlemma smul_smul (a₁ a₂ : M) (b : α) : a₁ • a₂ • b = (a₁ * a₂) • b := (mul_smul _ _ _).symm",
+    "compilationAlias":
+    "@[to_additive]\nlemma smul_smul (a₁ a₂ : M) (b : α) : a₁ • a₂ • b = (a₁ * a₂) • b := (mul_smul _ _ _).symm"},
+   {"name": "smul_add",
+    "module": "Mathlib.Algebra.GroupWithZero.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem smul_add (a : M) (b₁ b₂ : A) : a • (b₁ + b₂) = a • b₁ + a • b₂ :=\n  DistribSMul.smul_add _ _ _",
+    "compilationAlias":
+    "theorem smul_add (a : M) (b₁ b₂ : A) : a • (b₁ + b₂) = a • b₁ + a • b₂ :=\n  DistribSMul.smul_add _ _ _"},
+   {"name": "map_add",
+    "module": "Mathlib.Algebra.Group.Hom.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp low)]",
+    "compilationAlias": "@[to_additive (attr := simp low)]"},
+   {"name": "map_smul",
+    "module": "Mathlib.GroupTheory.GroupAction.Hom",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem map_smul {F M X Y : Type*} [SMul M X] [SMul M Y]\n    [FunLike F X Y] [MulActionHomClass F M X Y]\n    (f : F) (c : M) (x : X) : f (c • x) = c • f x :=\n  map_smulₛₗ f c x",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem map_smul {F M X Y : Type*} [SMul M X] [SMul M Y]\n    [FunLike F X Y] [MulActionHomClass F M X Y]\n    (f : F) (c : M) (x : X) : f (c • x) = c • f x :=\n  map_smulₛₗ f c x"},
+   {"name": "map_add",
+    "module": "Mathlib.Algebra.Group.Hom.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp low)]",
+    "compilationAlias": "@[to_additive (attr := simp low)]"},
+   {"name": "one_smul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\nlemma one_smul (b : α) : (1 : M) • b = b := MulAction.one_smul _",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\nlemma one_smul (b : α) : (1 : M) • b = b := MulAction.one_smul _"},
+   {"name": "Int.reduceNeg",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Int",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceNeg ((- _ : Int)) := fun e => do\n  let_expr Neg.neg _ _ arg ← e | return .continue\n  if arg.isAppOfArity ``OfNat.ofNat 3 then\n    -- We return .done to ensure `Neg.neg` is not unfolded even when `ground := true`.\n    return .done e\n  else\n    let some v ← fromExpr? arg | return .continue\n    return .done <| toExpr (- v)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceNeg ((- _ : Int)) := fun e => do\n  let_expr Neg.neg _ _ arg ← e | return .continue\n  if arg.isAppOfArity ``OfNat.ofNat 3 then\n    -- We return .done to ensure `Neg.neg` is not unfolded even when `ground := true`.\n    return .done e\n  else\n    let some v ← fromExpr? arg | return .continue\n    return .done <| toExpr (- v)"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Valuation.ValuationSubring\n/-- The equivalence between coarsenings of a valuation ring and its prime ideals. -/\n@[simps]\ndef primeSpectrumEquiv : PrimeSpectrum A ≃ {S // A ≤ S} where\n  toFun P := ⟨ofPrime A P.asIdeal, le_ofPrime _ _⟩\n  invFun S := ⟨idealOfLE _ S S.2, inferInstance⟩\n  left_inv P := by ext1; simp\n  right_inv S := by ext1; simp",
+   "--src: Mathlib.Algebra.CharP.IntermediateField\ninstance expChar [ExpChar F p] : ExpChar L p := RingHom.expChar _ (algebraMap _ F).injective p",
+   "--src: Mathlib.FieldTheory.Adjoin\n@[simp]\ntheorem AdjoinSimple.coe_gen : (AdjoinSimple.gen F α : E) = α :=\n  rfl",
+   "--src: Mathlib.NumberTheory.NumberField.Embeddings\n@[simp]\nlemma comap_mk (φ : K →+* ℂ) (f : k →+* K) : (mk φ).comap f = mk (φ.comp f) := rfl",
+   "--src: Mathlib.FieldTheory.IsAlgClosed.AlgebraicClosure\ninstance {p : ℕ} [CharP k p] : CharP (AlgebraicClosure k) p :=\n  charP_of_injective_algebraMap (RingHom.injective (algebraMap k (AlgebraicClosure k))) p",
+   "--src: Mathlib.FieldTheory.PerfectClosure\n@[simp]\ntheorem mk_inv (x : ℕ × K) : (mk K p x)⁻¹ = mk K p (x.1, x.2⁻¹) :=\n  rfl\n-- Porting note: added to avoid \"unknown free variable\" error",
+   "--src: Mathlib.Algebra.CharP.IntermediateField\ninstance charP' [CharP E p] : CharP L p := Subfield.charP L.toSubfield p",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem stalkAlgebra_map (p : PrimeSpectrum R) (r : R) :\n    algebraMap R ((structureSheaf R).presheaf.stalk p) r = toStalk R p r :=\n  rfl",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma hom_ofHom {R S : Type u} [Ring R] [Ring S] (f : R →+* S) : (ofHom f).hom = f := rfl",
+   "--src: Mathlib.RingTheory.Valuation.LocalSubring\n@[stacks 00IA]\nlemma LocalSubring.exists_le_valuationSubring (A : LocalSubring K) :\n    ∃ B : ValuationSubring K, A ≤ B.toLocalSubring := by\n  suffices ∃ B, A ≤ B ∧ IsMax B by\n    obtain ⟨B, hB, hB'⟩ := this\n    obtain ⟨B, rfl⟩ := B.exists_valuationRing_of_isMax hB'\n    exact ⟨B, hB⟩\n  refine zorn_le_nonempty_Ici₀ _ ?_ _ le_rfl\n  intro s hs H y hys\n  have inst : Nonempty s := ⟨⟨y, hys⟩⟩\n  have hdir := H.directed.mono_comp _ LocalSubring.toSubring_mono\n  refine ⟨@LocalSubring.mk _ _ (⨆ i : s, i.1.toSubring) ⟨?_⟩, ?_⟩\n  · intro ⟨a, ha⟩ ⟨b, hb⟩ e\n    obtain ⟨A, haA : a ∈ A.1.toSubring⟩ := (Subring.mem_iSup_of_directed hdir).mp ha\n    obtain ⟨B, hbB : b ∈ B.1.toSubring⟩ := (Subring.mem_iSup_of_directed hdir).mp hb\n    obtain ⟨C, hCA, hCB⟩ := hdir A B\n    refine (C.1.2.2 (a := ⟨a, hCA haA⟩) (b := ⟨b, hCB hbB⟩) (Subtype.ext congr(($e).1))).imp ?_ ?_\n    · exact fun h ↦ h.map (Subring.inclusion (le_iSup (fun i : s ↦ i.1.toSubring) C))\n    · exact fun h ↦ h.map (Subring.inclusion (le_iSup (fun i : s ↦ i.1.toSubring) C))\n  · intro A hA\n    refine ⟨le_iSup (fun i : s ↦ i.1.toSubring) ⟨A, hA⟩, ⟨?_⟩⟩\n    rintro ⟨a, haA⟩ h\n    obtain ⟨⟨b, hb⟩, e⟩ := isUnit_iff_exists_inv.mp h\n    obtain ⟨B, hbB : b ∈ B.1.toSubring⟩ := (Subring.mem_iSup_of_directed hdir).mp hb\n    obtain ⟨C, hCA, hCB⟩ := H.directed ⟨A, hA⟩ B\n    apply hCA.2.1\n    exact isUnit_iff_exists_inv.mpr ⟨⟨b, hCB.1 hbB⟩, Subtype.ext congr(($e).1)⟩"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeContract_of_timeOrderRel",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n",
+   "compilationAlias":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  simp only [instCommGroup.eq_1]\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  simp only [mul_add, add_mul]\n  abel_nf\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\nh : FieldSpecification.timeOrderRel φ ψ\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.FieldOpAlgebra.anPart φ)) (FieldSpecification.FieldOpAlgebra.ofFieldOp ψ))",
+  "content_sorry":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  sorry",
+  "annotation":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, if\n  `φ` and `ψ` are time-ordered then\n\n  `timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ`. -/\nlemma timeContract_of_timeOrderRel (φ ψ : 𝓕.FieldOp) (h : timeOrderRel φ ψ) :\n    timeContract φ ψ = [anPart φ, ofFieldOp ψ]ₛ := by\n  conv_rhs =>\n    rw [ofFieldOp_eq_crPart_add_anPart]\n    rw [map_add, superCommute_anPart_anPart, superCommute_anPart_crPart]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HAdd.hAdd (HSub.hSu …\n  -/\n  simp only [timeContract, instCommGroup.eq_1, Algebra.smul_mul_assoc, add_zero]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (HSub.hSub (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (Field …\n  -/\n  rw [timeOrder_ofFieldOp_ofFieldOp_ordered h]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (HSub.hSub (HMul.hMul (FieldSpecification.FieldOpAlgebra.ofFieldOp φ) (Fi …\n  -/\n  rw [normalOrder_ofFieldOp_mul_ofFieldOp]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (HSub.hSub (HMul.hMul (FieldSpecification.FieldOpAlgebra.ofFieldOp φ) (Fi …\n  -/\n  simp only [instCommGroup.eq_1]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (HSub.hSub (HMul.hMul (FieldSpecification.FieldOpAlgebra.ofFieldOp φ) (Fi …\n  -/\n  rw [ofFieldOp_eq_crPart_add_anPart, ofFieldOp_eq_crPart_add_anPart]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (HSub.hSub (HMul.hMul (HAdd.hAdd (FieldSpecification.FieldOpAlgebra.crPar …\n  -/\n  simp only [mul_add, add_mul]\n  /-\n    𝓕 : FieldSpecification\n    φ ψ : 𝓕.FieldOp\n    h : FieldSpecification.timeOrderRel φ ψ\n    ⊢ Eq (HSub.hSub (HAdd.hAdd (HAdd.hAdd (HMul.hMul (FieldSpecification.FieldOpAl …\n  -/\n  abel_nf\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "add_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias add_mul := right_distrib",
+    "compilationAlias": "alias add_mul := right_distrib"},
+   {"name": "mul_add",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias mul_add := left_distrib",
+    "compilationAlias": "alias mul_add := left_distrib"},
+   {"name": "add_zero",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Algebra.smul_mul_assoc",
+    "module": "Mathlib.Algebra.Algebra.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- This is just a special case of the global `smul_mul_assoc` lemma that requires less typeclass\nsearch (and was here first). -/\n@[simp]\nprotected theorem smul_mul_assoc (r : R) (x y : A) : r • x * y = r • (x * y) :=\n  smul_mul_assoc r x y",
+    "compilationAlias":
+    "/-- This is just a special case of the global `smul_mul_assoc` lemma that requires less typeclass\nsearch (and was here first). -/\n@[simp]\nprotected theorem smul_mul_assoc (r : R) (x y : A) : r • x * y = r • (x * y) :=\n  smul_mul_assoc r x y"},
+   {"name": "map_add",
+    "module": "Mathlib.Algebra.Group.Hom.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp low)]",
+    "compilationAlias": "@[to_additive (attr := simp low)]"}],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+   {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+    "compilationAlias":
+    "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Algebra.Category.Ring.Basic\nlemma ofHom_apply {R S : Type u} [Ring R] [Ring S]\n    (f : R →+* S) (r : R) : ofHom f r = f r := rfl",
+   "--src: Mathlib.Algebra.Ring.Hom.Defs\n/-- Ring homomorphisms preserve multiplication. -/\nprotected theorem map_mul (f : α →+* β) : ∀ a b, f (a * b) = f a * f b :=\n  map_mul f",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem stalkAlgebra_map (p : PrimeSpectrum R) (r : R) :\n    algebraMap R ((structureSheaf R).presheaf.stalk p) r = toStalk R p r :=\n  rfl",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n/-- For an inclusion `i : V ⟶ U` between open sets of the prime spectrum of `R`, the comap of the\nidentity from OO_X(U) to OO_X(V) equals as the restriction map of the structure sheaf.\nThis is a generalization of the fact that, for fixed `U`, the comap of the identity from OO_X(U)\nto OO_X(U) is the identity.\n-/\ntheorem comap_id_eq_map (U V : Opens (PrimeSpectrum.Top R)) (iVU : V ⟶ U) :\n    (comap (RingHom.id R) U V fun _ hpV => leOfHom iVU <| hpV) =\n      ((structureSheaf R).1.map iVU.op).hom :=\n  RingHom.ext fun s => Subtype.eq <| funext fun p => by\n    rw [comap_apply]\n    -- Unfortunately, we cannot use `Localization.localRingHom_id` here, because\n    -- `PrimeSpectrum.comap (RingHom.id R) p` is not *definitionally* equal to `p`. Instead, we use\n    -- that we can write `s` as a fraction `a/b` in a small neighborhood around `p`. Since\n    -- `PrimeSpectrum.comap (RingHom.id R) p` equals `p`, it is also contained in the same\n    -- neighborhood, hence `s` equals `a/b` there too.\n    obtain ⟨W, hpW, iWU, h⟩ := s.2 (iVU p)\n    obtain ⟨a, b, h'⟩ := h.eq_mk'\n    obtain ⟨hb₁, s_eq₁⟩ := h' ⟨p, hpW⟩\n    obtain ⟨hb₂, s_eq₂⟩ :=\n      h' ⟨PrimeSpectrum.comap (RingHom.id _) p.1, hpW⟩\n    dsimp only at s_eq₁ s_eq₂\n    erw [s_eq₂, Localization.localRingHom_mk', ← s_eq₁, ← res_apply _ _ _ iVU]",
+   "--src: Mathlib.AlgebraicGeometry.AffineScheme\ntheorem Scheme.isoSpec_Spec (R : CommRingCat.{u}) :\n    (Spec R).isoSpec = Scheme.Spec.mapIso (Scheme.ΓSpecIso R).op :=\n  Iso.ext (SpecMap_ΓSpecIso_hom R).symm",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma coe_of (R : Type u) [CommRing R] : (of R : Type u) = R :=\n  rfl",
+   "--src: Mathlib.AlgebraicGeometry.StructureSheaf\n@[simp]\ntheorem toOpen_germ (U : Opens (PrimeSpectrum.Top R)) (x : PrimeSpectrum.Top R) (hx : x ∈ U) :\n    toOpen R U ≫ (structureSheaf R).presheaf.germ U x hx = toStalk R x := by\n  rw [← toOpen_res R ⊤ U (homOfLE le_top : U ⟶ ⊤), Category.assoc, Presheaf.germ_res]; rfl",
+   "--src: Mathlib.Algebra.Ring.Hom.Defs\n/-- Ring homomorphisms preserve addition. -/\nprotected theorem map_add (f : α →+* β) : ∀ a b, f (a + b) = f a + f b :=\n  map_add f",
+   "--src: Mathlib.Algebra.Category.Ring.Basic\nlemma ofHom_apply {R S : Type u} [CommSemiring R] [CommSemiring S]\n    (f : R →+* S) (r : R) : ofHom f r = f r := rfl",
+   "--src: Mathlib.AlgebraicGeometry.Scheme\n@[reassoc, simp]\ntheorem Spec.map_comp {R S T : CommRingCat} (f : R ⟶ S) (g : S ⟶ T) :\n    Spec.map (f ≫ g) = Spec.map g ≫ Spec.map f :=\n  Scheme.Hom.ext' <| Spec.locallyRingedSpaceMap_comp f g"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeContract_eq_smul",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n",
+   "compilationAlias":
+   "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\n⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HAdd.hAdd (FieldSpecification.FieldOpAlgebra.timeOrder (HMul.hMul (FieldSpecification.FieldOpAlgebra.ofFieldOp φ) (FieldSpecification.FieldOpAlgebra.ofFieldOp ψ))) (HSMul.hSMul (-1) (FieldSpecification.FieldOpAlgebra.normalOrder (HMul.hMul (FieldSpecification.FieldOpAlgebra.ofFieldOp φ) (FieldSpecification.FieldOpAlgebra.ofFieldOp ψ)))))",
+  "content_sorry":
+  "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by sorry",
+  "annotation":
+  "lemma timeContract_eq_smul (φ ψ : 𝓕.FieldOp) : timeContract φ ψ =\n                                                                                 /-\n                                                                                   𝓕 : FieldSpecification\n                                                                                   φ ψ : 𝓕.FieldOp\n                                                                                   ⊢ Eq (FieldSpecification.FieldOpAlgebra.timeContract φ ψ) (HAdd.hAdd (FieldSpe …\n                                                                                 -/\n    𝓣(ofFieldOp φ * ofFieldOp ψ) + (-1 : ℂ) • 𝓝(ofFieldOp φ * ofFieldOp ψ) := by rfl\n                                                                                 /-\n                                                                                   🎉 no goals\n                                                                                 -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+    "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.FieldTheory.IsAlgClosed.Basic\ntheorem algebraMap_surjective_of_isIntegral' {k K : Type*} [Field k] [CommRing K] [IsDomain K]\n    [IsAlgClosed k] (f : k →+* K) (hf : f.IsIntegral) : Function.Surjective f :=\n  let _ : Algebra k K := f.toAlgebra\n  have : Algebra.IsIntegral k K := ⟨hf⟩\n  algebraMap_surjective_of_isIntegral",
+   "--src: Mathlib.RingTheory.AdjoinRoot\ntheorem coe_injective (h : degree f ≠ 0) : Function.Injective ((↑) : K → AdjoinRoot f) :=\n  have := AdjoinRoot.nontrivial f h\n  (of f).injective",
+   "--src: Mathlib.FieldTheory.IsAlgClosed.Basic\nnoncomputable instance (priority := 100) perfectField [IsAlgClosed k] : PerfectField k := by\n  obtain _ | ⟨p, _, _⟩ := CharP.exists' k\n  exacts [.ofCharZero, PerfectRing.toPerfectField k p]",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\ntheorem bijective_comp_algebraMap [Field L] [PerfectField L] :\n    Function.Bijective fun f : E →+* L ↦ f.comp (algebraMap F E) :=\n  ⟨injective_comp_algebraMap F E L, fun g ↦ let _ := g.toAlgebra\n    ⟨_, (Classical.arbitrary <| E →ₐ[F] L).comp_algebraMap⟩⟩",
+   "--src: Mathlib.AlgebraicGeometry.AffineScheme\ntheorem Scheme.isoSpec_Spec (R : CommRingCat.{u}) :\n    (Spec R).isoSpec = Scheme.Spec.mapIso (Scheme.ΓSpecIso R).op :=\n  Iso.ext (SpecMap_ΓSpecIso_hom R).symm",
+   "--src: Mathlib.FieldTheory.IsAlgClosed.AlgebraicClosure\ninstance : IsAlgClosure k (AlgebraicClosure k) := .of_splits fun f hf _ ↦ by\n  rw [show f = (⟨f, hf⟩ : Monics k) from rfl, ← splits_id_iff_splits, Monics.map_eq_prod]\n  exact splits_prod _ fun _ _ ↦ (splits_id_iff_splits _).mpr (splits_X_sub_C _)",
+   "--src: Mathlib.RingTheory.RingHom.Injective\nlemma _root_.RingHom.injective_respectsIso :\n    RingHom.RespectsIso (fun f ↦ Function.Injective f) := by\n  apply RingHom.injective_stableUnderComposition.respectsIso\n  intro R S _ _ e\n  exact e.bijective.injective",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem isUnit_map [Field k] (f : R →+* k) : IsUnit (p.map f) ↔ IsUnit p := by\n  simp_rw [isUnit_iff_degree_eq_zero, degree_map]",
+   "--src: Mathlib.FieldTheory.PurelyInseparable\n/-- If `i` is an `F`-algebra homomorphism from `E` to `K`, then `i x` is contained in\n`perfectClosure F K` if and only if `x` is contained in `perfectClosure F E`. -/\ntheorem map_mem_perfectClosure_iff (i : E →ₐ[F] K) {x : E} :\n    i x ∈ perfectClosure F K ↔ x ∈ perfectClosure F E := by\n  simp_rw [mem_perfectClosure_iff]\n  refine ⟨fun ⟨n, y, h⟩ ↦ ⟨n, y, ?_⟩, fun ⟨n, y, h⟩ ↦ ⟨n, y, ?_⟩⟩\n  · apply_fun i using i.injective\n    rwa [AlgHom.commutes, map_pow]\n  simpa only [AlgHom.commutes, map_pow] using congr_arg i h",
+   "--src: Mathlib.FieldTheory.RatFunc.AsPolynomial\n@[simp]\ntheorem eval_algebraMap {S : Type*} [CommSemiring S] [Algebra S K[X]] (p : S) :\n    eval f a (algebraMap _ _ p) = (algebraMap _ K[X] p).eval₂ f a := by\n  simp [eval, IsScalarTower.algebraMap_apply S K[X] (RatFunc K)]"],
+  "prescopes":
+  "noncomputable section\n\nnamespace FieldSpecification.FieldOpAlgebra\n\nopen FieldSpecification.FieldOpFreeAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end\n\nend FieldSpecification.FieldOpAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpAlgebra.timeContract",
+   "module": "HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+   "compilationAlias":
+   "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n"},
+  "goal": "𝓕 : FieldSpecification\nφ ψ : 𝓕.FieldOp\n⊢ 𝓕.FieldOpAlgebra",
+  "content_sorry":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra := by sorry",
+  "annotation":
+  "/-- For a field specification `𝓕`, and `φ` and `ψ` elements of `𝓕.FieldOp`, the element of\n  `𝓕.FieldOpAlgebra`, `timeContract φ ψ` is defined to be `𝓣(φψ) - 𝓝(φψ)`. -/\ndef timeContract (φ ψ : 𝓕.FieldOp) : 𝓕.FieldOpAlgebra :=\n    𝓣(ofFieldOp φ * ofFieldOp ψ) - 𝓝(ofFieldOp φ * ofFieldOp ψ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies": []}]

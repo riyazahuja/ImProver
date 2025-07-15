@@ -1,0 +1,516 @@
+[{"rag":
+  ["--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.Series\nlemma cosh_le_exp_half_sq (x : ℝ) : cosh x ≤ exp (x ^ 2 / 2) := by\n  rw [cosh_eq_tsum, exp_eq_exp_ℝ, exp_eq_tsum]\n  refine tsum_le_tsum (fun i ↦ ?_) x.hasSum_cosh.summable <| expSeries_summable' (x ^ 2 / 2)\n  simp only [div_pow, pow_mul, smul_eq_mul, inv_mul_eq_div, div_div]\n  gcongr\n  norm_cast\n  exact Nat.two_pow_mul_factorial_le_factorial_two_mul _",
+   "--src: Mathlib.Data.Complex.Exponential\ntheorem exp_bound' {x : ℝ} (h1 : 0 ≤ x) (h2 : x ≤ 1) {n : ℕ} (hn : 0 < n) :\n    Real.exp x ≤ (∑ m ∈ Finset.range n, x ^ m / m.factorial) +\n      x ^ n * (n + 1) / (n.factorial * n) := by\n  have h3 : |x| = x := by simpa\n  have h4 : |x| ≤ 1 := by rwa [h3]\n  have h' := Real.exp_bound h4 hn\n  rw [h3] at h'\n  have h'' := (abs_sub_le_iff.1 h').1\n  have t := sub_le_iff_le_add'.1 h''\n  simpa [mul_div_assoc] using t",
+   "--src: Mathlib.Analysis.SpecialFunctions.Stirling\n/-- For any `n`, we have `log_stirlingSeq 1 - log_stirlingSeq n ≤ 1/4 * ∑' 1/k^2`  -/\ntheorem log_stirlingSeq_bounded_aux :\n    ∃ c : ℝ, ∀ n : ℕ, log (stirlingSeq 1) - log (stirlingSeq (n + 1)) ≤ c := by\n  let d : ℝ := ∑' k : ℕ, (1 : ℝ) / (↑(k + 1) : ℝ) ^ 2\n  use 1 / 4 * d\n  let log_stirlingSeq' : ℕ → ℝ := fun k => log (stirlingSeq (k + 1))\n  intro n\n  have h₁ k : log_stirlingSeq' k - log_stirlingSeq' (k + 1) ≤ 1 / 4 * (1 / (↑(k + 1) : ℝ) ^ 2) := by\n    convert log_stirlingSeq_sub_log_stirlingSeq_succ k using 1; field_simp\n  have h₂ : (∑ k ∈ range n, 1 / (↑(k + 1) : ℝ) ^ 2) ≤ d := by\n    have := (summable_nat_add_iff 1).mpr <| Real.summable_one_div_nat_pow.mpr one_lt_two\n    exact sum_le_tsum (range n) (fun k _ => by positivity) this\n  calc\n    log (stirlingSeq 1) - log (stirlingSeq (n + 1)) = log_stirlingSeq' 0 - log_stirlingSeq' n :=\n      rfl\n    _ = ∑ k ∈ range n, (log_stirlingSeq' k - log_stirlingSeq' (k + 1)) := by\n      rw [← sum_range_sub' log_stirlingSeq' n]\n    _ ≤ ∑ k ∈ range n, 1 / 4 * (1 / ↑((k + 1)) ^ 2) := sum_le_sum fun k _ => h₁ k\n    _ = 1 / 4 * ∑ k ∈ range n, 1 / ↑((k + 1)) ^ 2 := by rw [mul_sum]\n    _ ≤ 1 / 4 * d := by gcongr",
+   "--src: Mathlib.Data.Real.Pi.Wallis\ntheorem W_eq_factorial_ratio (n : ℕ) :\n    W n = 2 ^ (4 * n) * n ! ^ 4 / ((2 * n)! ^ 2 * (2 * n + 1)) := by\n  induction' n with n IH\n  · simp only [W, prod_range_zero, Nat.factorial_zero, mul_zero, pow_zero,\n      algebraMap.coe_one, one_pow, mul_one, algebraMap.coe_zero, zero_add, div_self, Ne,\n      one_ne_zero, not_false_iff]\n    norm_num\n  · unfold W at IH ⊢\n    rw [prod_range_succ, IH, _root_.div_mul_div_comm, _root_.div_mul_div_comm]\n    refine (div_eq_div_iff ?_ ?_).mpr ?_\n    any_goals exact ne_of_gt (by positivity)\n    simp_rw [Nat.mul_succ, Nat.factorial_succ, pow_succ]\n    push_cast\n    ring_nf",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Deriv\n/-- Expansion of `log (1 + a⁻¹)` as a series in powers of `1 / (2 * a + 1)`. -/\ntheorem hasSum_log_one_add_inv {a : ℝ} (h : 0 < a) :\n    HasSum (fun k : ℕ => (2 : ℝ) * (1 / (2 * k + 1)) * (1 / (2 * a + 1)) ^ (2 * k + 1))\n      (log (1 + a⁻¹)) := by\n  have h₁ : |1 / (2 * a + 1)| < 1 := by\n    rw [abs_of_pos, div_lt_one]\n    · linarith\n    · linarith\n    · exact div_pos one_pos (by linarith)\n  convert hasSum_log_sub_log_of_abs_lt_one h₁ using 1\n  have h₂ : (2 : ℝ) * a + 1 ≠ 0 := by linarith\n  have h₃ := h.ne'\n  rw [← log_div]\n  · congr\n    field_simp\n    linarith\n  · field_simp\n    linarith\n  · field_simp",
+   "--src: Mathlib.Combinatorics.Extremal.RuzsaSzemeredi\n/-- Explicit lower bound on the **Ruzsa-Szemerédi problem**.\nThere exists a graph with `n` vertices and\n`(n / 3 - 2) * (n - 3) / 6 * exp (-4 * sqrt (log ((n - 3) / 6)))` edges such that each edge belongs\nto exactly one triangle. -/\ntheorem ruzsaSzemerediNumberNat_lower_bound (n : ℕ) :\n    (n / 3 - 2 : ℝ) * ↑((n - 3) / 6) * exp (-4 * sqrt (log ↑((n - 3) / 6))) ≤\n      ruzsaSzemerediNumberNat n := by\n  rw [mul_assoc]\n  obtain hn | hn := le_total (n / 3 - 2 : ℝ) 0\n  · exact (mul_nonpos_of_nonpos_of_nonneg hn <| by positivity).trans (Nat.cast_nonneg _)\n  exact\n    (mul_le_mul_of_nonneg_left Behrend.roth_lower_bound hn).trans\n      (rothNumberNat_le_ruzsaSzemerediNumberNat' _)",
+   "--src: Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral\nopen scoped Nat in\n/-- The special-value formula `Γ(k + 1/2) = (2 * k - 1)‼ * √π / (2 ^ k))` for half-integer\nvalues of the gamma function in terms of `Nat.doubleFactorial`. -/\nlemma Real.Gamma_nat_add_half (k : ℕ) :\n    Gamma (k + 1 / 2) = (2 * k - 1 : ℕ)‼ * √π / (2 ^ k) := by\n  cases k with\n  | zero => simp [- one_div, Gamma_one_half_eq]\n  | succ k => simpa [-one_div, mul_add] using Gamma_nat_add_one_add_half k",
+   "--src: Mathlib.Data.Complex.Exponential\ntheorem exp_bound' {x : ℂ} {n : ℕ} (hx : abs x / n.succ ≤ 1 / 2) :\n    abs (exp x - ∑ m ∈ range n, x ^ m / m.factorial) ≤ abs x ^ n / n.factorial * 2 := by\n  rw [← lim_const (abv := Complex.abs) (∑ m ∈ range n, _),\n    exp, sub_eq_add_neg, ← lim_neg, lim_add, ← lim_abs]\n  refine lim_le (CauSeq.le_of_exists ⟨n, fun j hj => ?_⟩)\n  simp_rw [← sub_eq_add_neg]\n  show abs ((∑ m ∈ range j, x ^ m / m.factorial) - ∑ m ∈ range n, x ^ m / m.factorial) ≤\n    abs x ^ n / n.factorial * 2\n  let k := j - n\n  have hj : j = n + k := (add_tsub_cancel_of_le hj).symm\n  rw [hj, sum_range_add_sub_sum_range]\n  calc\n    abs (∑ i ∈ range k, x ^ (n + i) / ((n + i).factorial : ℂ)) ≤\n        ∑ i ∈ range k, abs (x ^ (n + i) / ((n + i).factorial : ℂ)) :=\n      IsAbsoluteValue.abv_sum _ _ _\n    _ ≤ ∑ i ∈ range k, abs x ^ (n + i) / (n + i).factorial := by\n      simp [Complex.abs_natCast, map_div₀, abv_pow abs]\n    _ ≤ ∑ i ∈ range k, abs x ^ (n + i) / ((n.factorial : ℝ) * (n.succ : ℝ) ^ i) := ?_\n    _ = ∑ i ∈ range k, abs x ^ n / n.factorial * (abs x ^ i / (n.succ : ℝ) ^ i) := ?_\n    _ ≤ abs x ^ n / ↑n.factorial * 2 := ?_\n  · gcongr\n    exact mod_cast Nat.factorial_mul_pow_le_factorial\n  · refine Finset.sum_congr rfl fun _ _ => ?_\n    simp only [pow_add, div_eq_inv_mul, mul_inv, mul_left_comm, mul_assoc]\n  · rw [← mul_sum]\n    gcongr\n    simp_rw [← div_pow]\n    rw [geom_sum_eq, div_le_iff_of_neg]\n    · trans (-1 : ℝ)\n      · linarith\n      · simp only [neg_le_sub_iff_le_add, div_pow, Nat.cast_succ, le_add_iff_nonneg_left]\n        positivity\n    · linarith\n    · linarith",
+   "--src: Mathlib.Analysis.SpecificLimits.FloorPow\ntheorem mul_pow_le_nat_floor_pow {c : ℝ} (hc : 1 < c) (i : ℕ) : (1 - c⁻¹) * c ^ i ≤ ⌊c ^ i⌋₊ := by\n  have cpos : 0 < c := zero_lt_one.trans hc\n  rcases eq_or_ne i 0 with (rfl | hi)\n  · simp only [pow_zero, Nat.floor_one, Nat.cast_one, mul_one, sub_le_self_iff, inv_nonneg, cpos.le]\n  calc\n    (1 - c⁻¹) * c ^ i = c ^ i - c ^ i * c⁻¹ := by ring\n    _ ≤ c ^ i - 1 := by\n      gcongr\n      simpa only [← div_eq_mul_inv, one_le_div cpos, pow_one] using le_self_pow₀ hc.le hi\n    _ ≤ ⌊c ^ i⌋₊ := (Nat.sub_one_lt_floor _).le",
+   "--src: Mathlib.NumberTheory.Transcendental.Liouville.LiouvilleNumber\ntheorem aux_calc (n : ℕ) {m : ℝ} (hm : 2 ≤ m) :\n    (1 - 1 / m)⁻¹ * (1 / m ^ (n + 1)!) ≤ 1 / (m ^ n !) ^ n :=\n  calc\n    (1 - 1 / m)⁻¹ * (1 / m ^ (n + 1)!) ≤ 2 * (1 / m ^ (n + 1)!) :=\n      -- the second factors coincide (and are non-negative),\n      -- the first factors satisfy the inequality `sub_one_div_inv_le_two`\n      mul_le_mul_of_nonneg_right (sub_one_div_inv_le_two hm) (by positivity)\n    _ = 2 / m ^ (n + 1)! := mul_one_div 2 _\n    _ = 2 / m ^ (n ! * (n + 1)) := (congr_arg (2 / ·) (congr_arg (Pow.pow m) (mul_comm _ _)))\n    _ ≤ 1 / m ^ (n ! * n) := by\n      -- [NB: in this block, I do not follow the brace convention for subgoals -- I wait until\n      -- I solve all extraneous goals at once with `exact pow_pos (zero_lt_two.trans_le hm) _`.]\n      -- Clear denominators and massage*\n      apply (div_le_div_iff₀ _ _).mpr\n      focus\n        conv_rhs => rw [one_mul, mul_add, pow_add, mul_one, pow_mul, mul_comm, ← pow_mul]\n        -- the second factors coincide, so we prove the inequality of the first factors*\n        refine (mul_le_mul_right ?_).mpr ?_\n      -- solve all the inequalities `0 < m ^ ??`\n      any_goals exact pow_pos (zero_lt_two.trans_le hm) _\n      -- `2 ≤ m ^ n!` is a consequence of monotonicity of exponentiation at `2 ≤ m`.\n      exact _root_.trans (_root_.trans hm (pow_one _).symm.le)\n        (pow_right_mono₀ (one_le_two.trans hm) n.factorial_pos)\n    _ = 1 / (m ^ n !) ^ n := congr_arg (1 / ·) (pow_mul m n ! n)"],
+  "prescopes": "open Real MeasureTheory",
+  "postscopes": "",
+  "id":
+  {"name": "sum_Iic_pow_mul_two_pow_neg_le",
+   "module": "Carleson.Discrete.SumEstimates",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma sum_Iic_pow_mul_two_pow_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * (2 : ℝ) ^ (- (c * i))\n      ≤ 2 ^ c * k ! / (Real.log 2 * c) ^ (k + 1) := by\n  have A (i : ℕ) : (2 : ℝ) ^ (- (c * i)) = rexp (- (Real.log 2 * c) * i) := by\n    conv_lhs => rw [← exp_log zero_lt_two, ← exp_mul]\n    congr 1\n    ring\n  simp only [A, neg_mul]\n  apply (sum_Iic_pow_mul_exp_neg_le (by positivity)).trans_eq\n  rw [exp_mul, exp_log zero_lt_two]\n",
+   "compilationAlias":
+   "lemma sum_Iic_pow_mul_two_pow_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * (2 : ℝ) ^ (- (c * i))\n      ≤ 2 ^ c * k ! / (Real.log 2 * c) ^ (k + 1) := by\n  have A (i : ℕ) : (2 : ℝ) ^ (- (c * i)) = rexp (- (Real.log 2 * c) * i) := by\n    conv_lhs => rw [← exp_log zero_lt_two, ← exp_mul]\n    congr 1\n    ring\n  simp only [A, neg_mul]\n  apply (sum_Iic_pow_mul_exp_neg_le (by positivity)).trans_eq\n  rw [exp_mul, exp_log zero_lt_two]\n"},
+  "goal":
+  "k M : Nat\nc : Real\nhc : LT.lt 0 c\n⊢ LE.le ((Finset.Iic M).sum fun i => HMul.hMul (HPow.hPow (↑i) k) (HPow.hPow 2 (Neg.neg (HMul.hMul c ↑i)))) (HDiv.hDiv (HMul.hMul (HPow.hPow 2 c) ↑k.factorial) (HPow.hPow (HMul.hMul (Real.log 2) c) (HAdd.hAdd k 1)))",
+  "content_sorry":
+  "lemma sum_Iic_pow_mul_two_pow_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * (2 : ℝ) ^ (- (c * i))\n      ≤ 2 ^ c * k ! / (Real.log 2 * c) ^ (k + 1) := by\n  sorry",
+  "annotation":
+  "lemma sum_Iic_pow_mul_two_pow_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * (2 : ℝ) ^ (- (c * i))\n      ≤ 2 ^ c * k ! / (Real.log 2 * c) ^ (k + 1) := by\n  have A (i : ℕ) : (2 : ℝ) ^ (- (c * i)) = rexp (- (Real.log 2 * c) * i) := by\n    conv_lhs => rw [← exp_log zero_lt_two, ← exp_mul]\n    congr 1\n    ring\n  /-\n    k M : Nat\n    c : Real\n    hc : LT.lt 0 c\n    A : ∀ (i : Nat), Eq (HPow.hPow 2 (Neg.neg (HMul.hMul c ↑i))) (Real.exp (HMul.h …\n    ⊢ LE.le ((Finset.Iic M).sum fun i => HMul.hMul (HPow.hPow (↑i) k) (HPow.hPow 2 …\n  -/\n  simp only [A, neg_mul]\n  /-\n    k M : Nat\n    c : Real\n    hc : LT.lt 0 c\n    A : ∀ (i : Nat), Eq (HPow.hPow 2 (Neg.neg (HMul.hMul c ↑i))) (Real.exp (HMul.h …\n    ⊢ LE.le ((Finset.Iic M).sum fun x => HMul.hMul (HPow.hPow (↑x) k) (Real.exp (N …\n  -/\n  apply (sum_Iic_pow_mul_exp_neg_le (by positivity)).trans_eq\n  /-\n    k M : Nat\n    c : Real\n    hc : LT.lt 0 c\n    A : ∀ (i : Nat), Eq (HPow.hPow 2 (Neg.neg (HMul.hMul c ↑i))) (Real.exp (HMul.h …\n    ⊢ Eq (HDiv.hDiv (HMul.hMul (Real.exp (HMul.hMul (Real.log 2) c)) ↑k.factorial) …\n  -/\n  rw [exp_mul, exp_log zero_lt_two]\n  /-\n    🎉 no goals\n  -/\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "zero_lt_two",
+    "module": "Mathlib.Algebra.Order.Monoid.NatCast",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- See `zero_lt_two'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_two : (0 : α) < 2 := zero_lt_one.trans_le one_le_two",
+    "compilationAlias":
+    "/-- See `zero_lt_two'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_two : (0 : α) < 2 := zero_lt_one.trans_le one_le_two"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "zero_lt_two",
+    "module": "Mathlib.Algebra.Order.Monoid.NatCast",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- See `zero_lt_two'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_two : (0 : α) < 2 := zero_lt_one.trans_le one_le_two",
+    "compilationAlias":
+    "/-- See `zero_lt_two'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_two : (0 : α) < 2 := zero_lt_one.trans_le one_le_two"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Finset.Iic",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The finset $(-∞, b]$ of elements `x` such that `x ≤ b`. Basically `Set.Iic b` as a finset. -/\ndef Iic (b : α) : Finset α :=\n  LocallyFiniteOrderBot.finsetIic b",
+    "compilationAlias":
+    "/-- The finset $(-∞, b]$ of elements `x` such that `x ≤ b`. Basically `Set.Iic b` as a finset. -/\ndef Iic (b : α) : Finset α :=\n  LocallyFiniteOrderBot.finsetIic b"}],
+  "C0_dependencies":
+  [{"name": "intervalIntegral_pow_mul_exp_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n",
+    "compilationAlias":
+    "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n"},
+   {"name": "sum_Ico_pow_mul_exp_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n    · exact Nat.zero_le M\n    · intro x hx y hy hxy\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n    · intro x hx y hy hxy\n      apply exp_monotone\n      simp only [neg_le_neg_iff]\n      gcongr\n    · simp\n    · apply exp_nonneg\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    rw [intervalIntegral.integral_mul_const]\n    gcongr\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n  _ = _ := by ring\n\n",
+    "compilationAlias":
+    "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n    · exact Nat.zero_le M\n    · intro x hx y hy hxy\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n    · intro x hx y hy hxy\n      apply exp_monotone\n      simp only [neg_le_neg_iff]\n      gcongr\n    · simp\n    · apply exp_nonneg\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    rw [intervalIntegral.integral_mul_const]\n    gcongr\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n  _ = _ := by ring\n\n"},
+   {"name": "sum_Iic_pow_mul_exp_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_Iic_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) :=\n  sum_Ico_pow_mul_exp_neg_le (M := M + 1) hc\n\n",
+    "compilationAlias":
+    "lemma sum_Iic_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) :=\n  sum_Ico_pow_mul_exp_neg_le (M := M + 1) hc\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Complex.Exponential\ntheorem exp_bound' {x : ℝ} (h1 : 0 ≤ x) (h2 : x ≤ 1) {n : ℕ} (hn : 0 < n) :\n    Real.exp x ≤ (∑ m ∈ Finset.range n, x ^ m / m.factorial) +\n      x ^ n * (n + 1) / (n.factorial * n) := by\n  have h3 : |x| = x := by simpa\n  have h4 : |x| ≤ 1 := by rwa [h3]\n  have h' := Real.exp_bound h4 hn\n  rw [h3] at h'\n  have h'' := (abs_sub_le_iff.1 h').1\n  have t := sub_le_iff_le_add'.1 h''\n  simpa [mul_div_assoc] using t",
+   "--src: Mathlib.Analysis.SpecialFunctions.Stirling\n/-- **Stirling's Formula**, formulated in terms of `Asymptotics.IsEquivalent`. -/\nlemma factorial_isEquivalent_stirling :\n    (fun n ↦ n ! : ℕ → ℝ) ~[atTop] fun n ↦ Real.sqrt (2 * n * π) * (n / exp 1) ^ n := by\n  refine Asymptotics.isEquivalent_of_tendsto_one ?_ ?_\n  · filter_upwards [eventually_ne_atTop 0] with n hn h\n    exact absurd h (by positivity)\n  · have : sqrt π ≠ 0 := by positivity\n    nth_rewrite 2 [← div_self this]\n    convert tendsto_stirlingSeq_sqrt_pi.div tendsto_const_nhds this using 1\n    ext n\n    field_simp [stirlingSeq, mul_right_comm]",
+   "--src: Mathlib.Analysis.SpecificLimits.Normed\n@[deprecated \"`Real.tendsto_pow_div_factorial_atTop` has been deprecated, use\n`FloorSemiring.tendsto_pow_div_factorial_atTop` instead\" (since := \"2024-10-05\")]\ntheorem Real.tendsto_pow_div_factorial_atTop (x : ℝ) :\n    Tendsto (fun n ↦ x ^ n / n ! : ℕ → ℝ) atTop (\u0000\u0000 0) :=\n  (Real.summable_pow_div_factorial x).tendsto_atTop_zero",
+   "--src: Mathlib.Combinatorics.Derangements.Exponential\ntheorem numDerangements_tendsto_inv_e :\n    Tendsto (fun n => (numDerangements n : ℝ) / n.factorial) atTop (\u0000\u0000 (Real.exp (-1))) := by\n  -- we show that d(n)/n! is the partial sum of exp(-1), but offset by 1.\n  -- this isn't entirely obvious, since we have to ensure that asc_factorial and\n  -- factorial interact in the right way, e.g., that k ≤ n always\n  let s : ℕ → ℝ := fun n => ∑ k ∈ Finset.range n, (-1 : ℝ) ^ k / k.factorial\n  suffices ∀ n : ℕ, (numDerangements n : ℝ) / n.factorial = s (n + 1) by\n    simp_rw [this]\n    -- shift the function by 1, and then use the fact that the partial sums\n    -- converge to the infinite sum\n    rw [tendsto_add_atTop_iff_nat\n      (f := fun n => ∑ k ∈ Finset.range n, (-1 : ℝ) ^ k / k.factorial) 1]\n    apply HasSum.tendsto_sum_nat\n    -- there's no specific lemma for ℝ that ∑ x^k/k! sums to exp(x), but it's\n    -- true in more general fields, so use that lemma\n    rw [Real.exp_eq_exp_ℝ]\n    exact expSeries_div_hasSum_exp ℝ (-1 : ℝ)\n  intro n\n  rw [← Int.cast_natCast, numDerangements_sum]\n  push_cast\n  rw [Finset.sum_div]\n  -- get down to individual terms\n  refine Finset.sum_congr (refl _) ?_\n  intro k hk\n  have h_le : k ≤ n := Finset.mem_range_succ_iff.mp hk\n  rw [Nat.ascFactorial_eq_div, add_tsub_cancel_of_le h_le]\n  push_cast [Nat.factorial_dvd_factorial h_le]\n  field_simp [Nat.factorial_ne_zero]\n  ring",
+   "--src: Mathlib.Probability.Distributions.Exponential\n/-- The exponential pdf is nonnegative -/\nlemma exponentialPDFReal_nonneg {r : ℝ} (hr : 0 < r) (x : ℝ) :\n    0 ≤ exponentialPDFReal r x := gammaPDFReal_nonneg zero_lt_one hr x",
+   "--src: Mathlib.Analysis.SpecialFunctions.Exp\nlemma exp_sub_sum_range_isBigO_pow (n : ℕ) :\n    (fun x ↦ exp x - ∑ i ∈ Finset.range n, x ^ i / i !) =O[\u0000\u0000 0] (· ^ n) := by\n  rcases (zero_le n).eq_or_lt with rfl | hn\n  · simpa using continuous_exp.continuousAt.norm.isBoundedUnder_le\n  · refine .of_bound (n.succ / (n ! * n)) ?_\n    rw [NormedAddCommGroup.nhds_zero_basis_norm_lt.eventually_iff]\n    refine ⟨1, one_pos, fun x hx ↦ ?_⟩\n    convert exp_bound hx.out.le hn using 1\n    field_simp [mul_comm]",
+   "--src: Mathlib.Data.Complex.Exponential\n/-- The definition of `cosh` in terms of `exp`. -/\ntheorem cosh_eq (x : ℝ) : cosh x = (exp x + exp (-x)) / 2 :=\n  eq_div_of_mul_eq two_ne_zero <| by\n    rw [cosh, exp, exp, Complex.ofReal_neg, Complex.cosh, mul_two, ← Complex.add_re, ← mul_two,\n      div_mul_cancel₀ _ (two_ne_zero' ℂ), Complex.add_re]",
+   "--src: Mathlib.Analysis.SpecialFunctions.Stirling\n/-- For any `n`, we have `log_stirlingSeq 1 - log_stirlingSeq n ≤ 1/4 * ∑' 1/k^2`  -/\ntheorem log_stirlingSeq_bounded_aux :\n    ∃ c : ℝ, ∀ n : ℕ, log (stirlingSeq 1) - log (stirlingSeq (n + 1)) ≤ c := by\n  let d : ℝ := ∑' k : ℕ, (1 : ℝ) / (↑(k + 1) : ℝ) ^ 2\n  use 1 / 4 * d\n  let log_stirlingSeq' : ℕ → ℝ := fun k => log (stirlingSeq (k + 1))\n  intro n\n  have h₁ k : log_stirlingSeq' k - log_stirlingSeq' (k + 1) ≤ 1 / 4 * (1 / (↑(k + 1) : ℝ) ^ 2) := by\n    convert log_stirlingSeq_sub_log_stirlingSeq_succ k using 1; field_simp\n  have h₂ : (∑ k ∈ range n, 1 / (↑(k + 1) : ℝ) ^ 2) ≤ d := by\n    have := (summable_nat_add_iff 1).mpr <| Real.summable_one_div_nat_pow.mpr one_lt_two\n    exact sum_le_tsum (range n) (fun k _ => by positivity) this\n  calc\n    log (stirlingSeq 1) - log (stirlingSeq (n + 1)) = log_stirlingSeq' 0 - log_stirlingSeq' n :=\n      rfl\n    _ = ∑ k ∈ range n, (log_stirlingSeq' k - log_stirlingSeq' (k + 1)) := by\n      rw [← sum_range_sub' log_stirlingSeq' n]\n    _ ≤ ∑ k ∈ range n, 1 / 4 * (1 / ↑((k + 1)) ^ 2) := sum_le_sum fun k _ => h₁ k\n    _ = 1 / 4 * ∑ k ∈ range n, 1 / ↑((k + 1)) ^ 2 := by rw [mul_sum]\n    _ ≤ 1 / 4 * d := by gcongr",
+   "--src: Mathlib.Analysis.SpecialFunctions.Log.Deriv\n/-- Expansion of `log (1 + a⁻¹)` as a series in powers of `1 / (2 * a + 1)`. -/\ntheorem hasSum_log_one_add_inv {a : ℝ} (h : 0 < a) :\n    HasSum (fun k : ℕ => (2 : ℝ) * (1 / (2 * k + 1)) * (1 / (2 * a + 1)) ^ (2 * k + 1))\n      (log (1 + a⁻¹)) := by\n  have h₁ : |1 / (2 * a + 1)| < 1 := by\n    rw [abs_of_pos, div_lt_one]\n    · linarith\n    · linarith\n    · exact div_pos one_pos (by linarith)\n  convert hasSum_log_sub_log_of_abs_lt_one h₁ using 1\n  have h₂ : (2 : ℝ) * a + 1 ≠ 0 := by linarith\n  have h₃ := h.ne'\n  rw [← log_div]\n  · congr\n    field_simp\n    linarith\n  · field_simp\n    linarith\n  · field_simp",
+   "--src: Mathlib.Data.Complex.Exponential\ntheorem exp_bound' {x : ℂ} {n : ℕ} (hx : abs x / n.succ ≤ 1 / 2) :\n    abs (exp x - ∑ m ∈ range n, x ^ m / m.factorial) ≤ abs x ^ n / n.factorial * 2 := by\n  rw [← lim_const (abv := Complex.abs) (∑ m ∈ range n, _),\n    exp, sub_eq_add_neg, ← lim_neg, lim_add, ← lim_abs]\n  refine lim_le (CauSeq.le_of_exists ⟨n, fun j hj => ?_⟩)\n  simp_rw [← sub_eq_add_neg]\n  show abs ((∑ m ∈ range j, x ^ m / m.factorial) - ∑ m ∈ range n, x ^ m / m.factorial) ≤\n    abs x ^ n / n.factorial * 2\n  let k := j - n\n  have hj : j = n + k := (add_tsub_cancel_of_le hj).symm\n  rw [hj, sum_range_add_sub_sum_range]\n  calc\n    abs (∑ i ∈ range k, x ^ (n + i) / ((n + i).factorial : ℂ)) ≤\n        ∑ i ∈ range k, abs (x ^ (n + i) / ((n + i).factorial : ℂ)) :=\n      IsAbsoluteValue.abv_sum _ _ _\n    _ ≤ ∑ i ∈ range k, abs x ^ (n + i) / (n + i).factorial := by\n      simp [Complex.abs_natCast, map_div₀, abv_pow abs]\n    _ ≤ ∑ i ∈ range k, abs x ^ (n + i) / ((n.factorial : ℝ) * (n.succ : ℝ) ^ i) := ?_\n    _ = ∑ i ∈ range k, abs x ^ n / n.factorial * (abs x ^ i / (n.succ : ℝ) ^ i) := ?_\n    _ ≤ abs x ^ n / ↑n.factorial * 2 := ?_\n  · gcongr\n    exact mod_cast Nat.factorial_mul_pow_le_factorial\n  · refine Finset.sum_congr rfl fun _ _ => ?_\n    simp only [pow_add, div_eq_inv_mul, mul_inv, mul_left_comm, mul_assoc]\n  · rw [← mul_sum]\n    gcongr\n    simp_rw [← div_pow]\n    rw [geom_sum_eq, div_le_iff_of_neg]\n    · trans (-1 : ℝ)\n      · linarith\n      · simp only [neg_le_sub_iff_le_add, div_pow, Nat.cast_succ, le_add_iff_nonneg_left]\n        positivity\n    · linarith\n    · linarith"],
+  "prescopes": "open Real MeasureTheory",
+  "postscopes": "",
+  "id":
+  {"name": "sum_Iic_pow_mul_exp_neg_le",
+   "module": "Carleson.Discrete.SumEstimates",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma sum_Iic_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) :=\n  sum_Ico_pow_mul_exp_neg_le (M := M + 1) hc\n\n",
+   "compilationAlias":
+   "lemma sum_Iic_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) :=\n  sum_Ico_pow_mul_exp_neg_le (M := M + 1) hc\n\n"},
+  "goal":
+  "k M : Nat\nc : Real\nhc : LT.lt 0 c\n⊢ LE.le ((Finset.Iic M).sum fun i => HMul.hMul (HPow.hPow (↑i) k) (Real.exp (Neg.neg (HMul.hMul c ↑i)))) (HDiv.hDiv (HMul.hMul (Real.exp c) ↑k.factorial) (HPow.hPow c (HAdd.hAdd k 1)))",
+  "content_sorry":
+  "lemma sum_Iic_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := by sorry",
+  "annotation":
+  "lemma sum_Iic_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) :=\n  sum_Ico_pow_mul_exp_neg_le (M := M + 1) hc\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Finset.Iic",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The finset $(-∞, b]$ of elements `x` such that `x ≤ b`. Basically `Set.Iic b` as a finset. -/\ndef Iic (b : α) : Finset α :=\n  LocallyFiniteOrderBot.finsetIic b",
+    "compilationAlias":
+    "/-- The finset $(-∞, b]$ of elements `x` such that `x ≤ b`. Basically `Set.Iic b` as a finset. -/\ndef Iic (b : α) : Finset α :=\n  LocallyFiniteOrderBot.finsetIic b"}],
+  "C0_dependencies":
+  [{"name": "intervalIntegral_pow_mul_exp_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n",
+    "compilationAlias":
+    "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n"},
+   {"name": "sum_Ico_pow_mul_exp_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n    · exact Nat.zero_le M\n    · intro x hx y hy hxy\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n    · intro x hx y hy hxy\n      apply exp_monotone\n      simp only [neg_le_neg_iff]\n      gcongr\n    · simp\n    · apply exp_nonneg\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    rw [intervalIntegral.integral_mul_const]\n    gcongr\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n  _ = _ := by ring\n\n",
+    "compilationAlias":
+    "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n    · exact Nat.zero_le M\n    · intro x hx y hy hxy\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n    · intro x hx y hy hxy\n      apply exp_monotone\n      simp only [neg_le_neg_iff]\n      gcongr\n    · simp\n    · apply exp_nonneg\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    rw [intervalIntegral.integral_mul_const]\n    gcongr\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n  _ = _ := by ring\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Data.Complex.Exponential\ntheorem sum_le_exp_of_nonneg {x : ℝ} (hx : 0 ≤ x) (n : ℕ) : ∑ i ∈ range n, x ^ i / i ! ≤ exp x :=\n  calc\n    ∑ i ∈ range n, x ^ i / i ! ≤ lim (⟨_, isCauSeq_re (exp' x)⟩ : CauSeq ℝ abs) := by\n      refine le_lim (CauSeq.le_of_exists ⟨n, fun j hj => ?_⟩)\n      simp only [exp', const_apply, re_sum]\n      norm_cast\n      refine sum_le_sum_of_subset_of_nonneg (range_mono hj) fun _ _ _ ↦ ?_\n      positivity\n    _ = exp x := by rw [exp, Complex.exp, ← cauSeqRe, lim_re]",
+   "--src: Mathlib.Analysis.SpecialFunctions.Exp\nlemma exp_sub_sum_range_succ_isLittleO_pow (n : ℕ) :\n    (fun x ↦ exp x - ∑ i ∈ Finset.range (n + 1), x ^ i / i !) =o[\u0000\u0000 0] (· ^ n) :=\n  (exp_sub_sum_range_isBigO_pow (n + 1)).trans_isLittleO <| isLittleO_pow_pow n.lt_succ_self",
+   "--src: Mathlib.Analysis.SpecialFunctions.Stirling\n/-- **Stirling's Formula**, formulated in terms of `Asymptotics.IsEquivalent`. -/\nlemma factorial_isEquivalent_stirling :\n    (fun n ↦ n ! : ℕ → ℝ) ~[atTop] fun n ↦ Real.sqrt (2 * n * π) * (n / exp 1) ^ n := by\n  refine Asymptotics.isEquivalent_of_tendsto_one ?_ ?_\n  · filter_upwards [eventually_ne_atTop 0] with n hn h\n    exact absurd h (by positivity)\n  · have : sqrt π ≠ 0 := by positivity\n    nth_rewrite 2 [← div_self this]\n    convert tendsto_stirlingSeq_sqrt_pi.div tendsto_const_nhds this using 1\n    ext n\n    field_simp [stirlingSeq, mul_right_comm]",
+   "--src: Mathlib.Combinatorics.Derangements.Exponential\ntheorem numDerangements_tendsto_inv_e :\n    Tendsto (fun n => (numDerangements n : ℝ) / n.factorial) atTop (\u0000\u0000 (Real.exp (-1))) := by\n  -- we show that d(n)/n! is the partial sum of exp(-1), but offset by 1.\n  -- this isn't entirely obvious, since we have to ensure that asc_factorial and\n  -- factorial interact in the right way, e.g., that k ≤ n always\n  let s : ℕ → ℝ := fun n => ∑ k ∈ Finset.range n, (-1 : ℝ) ^ k / k.factorial\n  suffices ∀ n : ℕ, (numDerangements n : ℝ) / n.factorial = s (n + 1) by\n    simp_rw [this]\n    -- shift the function by 1, and then use the fact that the partial sums\n    -- converge to the infinite sum\n    rw [tendsto_add_atTop_iff_nat\n      (f := fun n => ∑ k ∈ Finset.range n, (-1 : ℝ) ^ k / k.factorial) 1]\n    apply HasSum.tendsto_sum_nat\n    -- there's no specific lemma for ℝ that ∑ x^k/k! sums to exp(x), but it's\n    -- true in more general fields, so use that lemma\n    rw [Real.exp_eq_exp_ℝ]\n    exact expSeries_div_hasSum_exp ℝ (-1 : ℝ)\n  intro n\n  rw [← Int.cast_natCast, numDerangements_sum]\n  push_cast\n  rw [Finset.sum_div]\n  -- get down to individual terms\n  refine Finset.sum_congr (refl _) ?_\n  intro k hk\n  have h_le : k ≤ n := Finset.mem_range_succ_iff.mp hk\n  rw [Nat.ascFactorial_eq_div, add_tsub_cancel_of_le h_le]\n  push_cast [Nat.factorial_dvd_factorial h_le]\n  field_simp [Nat.factorial_ne_zero]\n  ring",
+   "--src: Mathlib.Analysis.SpecialFunctions.Stirling\n/-- For any `n`, we have `log_stirlingSeq 1 - log_stirlingSeq n ≤ 1/4 * ∑' 1/k^2`  -/\ntheorem log_stirlingSeq_bounded_aux :\n    ∃ c : ℝ, ∀ n : ℕ, log (stirlingSeq 1) - log (stirlingSeq (n + 1)) ≤ c := by\n  let d : ℝ := ∑' k : ℕ, (1 : ℝ) / (↑(k + 1) : ℝ) ^ 2\n  use 1 / 4 * d\n  let log_stirlingSeq' : ℕ → ℝ := fun k => log (stirlingSeq (k + 1))\n  intro n\n  have h₁ k : log_stirlingSeq' k - log_stirlingSeq' (k + 1) ≤ 1 / 4 * (1 / (↑(k + 1) : ℝ) ^ 2) := by\n    convert log_stirlingSeq_sub_log_stirlingSeq_succ k using 1; field_simp\n  have h₂ : (∑ k ∈ range n, 1 / (↑(k + 1) : ℝ) ^ 2) ≤ d := by\n    have := (summable_nat_add_iff 1).mpr <| Real.summable_one_div_nat_pow.mpr one_lt_two\n    exact sum_le_tsum (range n) (fun k _ => by positivity) this\n  calc\n    log (stirlingSeq 1) - log (stirlingSeq (n + 1)) = log_stirlingSeq' 0 - log_stirlingSeq' n :=\n      rfl\n    _ = ∑ k ∈ range n, (log_stirlingSeq' k - log_stirlingSeq' (k + 1)) := by\n      rw [← sum_range_sub' log_stirlingSeq' n]\n    _ ≤ ∑ k ∈ range n, 1 / 4 * (1 / ↑((k + 1)) ^ 2) := sum_le_sum fun k _ => h₁ k\n    _ = 1 / 4 * ∑ k ∈ range n, 1 / ↑((k + 1)) ^ 2 := by rw [mul_sum]\n    _ ≤ 1 / 4 * d := by gcongr",
+   "--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.Series\n/-- The power series expansion of `Real.cosh`. -/\nlemma hasSum_cosh (r : ℝ) : HasSum (fun n  ↦ r ^ (2 * n) / ↑(2 * n)!) (cosh r) :=\n  mod_cast Complex.hasSum_cosh r",
+   "--src: Mathlib.Data.Complex.Exponential\ntheorem add_one_le_exp (x : ℝ) : x + 1 ≤ Real.exp x := by\n  obtain rfl | hx := eq_or_ne x 0\n  · simp\n  · exact (add_one_lt_exp hx).le",
+   "--src: Mathlib.NumberTheory.Transcendental.Liouville.LiouvilleNumber\ntheorem remainder_summable {m : ℝ} (hm : 1 < m) (k : ℕ) :\n    Summable fun i : ℕ => 1 / m ^ (i + (k + 1))! := by\n  convert (summable_nat_add_iff (k + 1)).2 (LiouvilleNumber.summable hm)",
+   "--src: Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics\n/-- `x ^ k = o(exp(b * x))` as `x → ∞` for any natural `k` and positive `b`. -/\ntheorem isLittleO_pow_exp_pos_mul_atTop (k : ℕ) {b : ℝ} (hb : 0 < b) :\n    (fun x : ℝ => x ^ k) =o[atTop] fun x => exp (b * x) := by\n  simpa using isLittleO_zpow_exp_pos_mul_atTop k hb",
+   "--src: Mathlib.Data.Complex.Exponential\nlemma exp_nsmul (x : ℝ) (n : ℕ) : exp (n • x) = exp x ^ n :=\n  @MonoidHom.map_pow (Multiplicative ℝ) ℝ _ _  expMonoidHom _ _"],
+  "prescopes": "open Real MeasureTheory",
+  "postscopes": "",
+  "id":
+  {"name": "sum_Ico_pow_mul_exp_neg_le",
+   "module": "Carleson.Discrete.SumEstimates",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n    · exact Nat.zero_le M\n    · intro x hx y hy hxy\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n    · intro x hx y hy hxy\n      apply exp_monotone\n      simp only [neg_le_neg_iff]\n      gcongr\n    · simp\n    · apply exp_nonneg\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    rw [intervalIntegral.integral_mul_const]\n    gcongr\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n  _ = _ := by ring\n\n",
+   "compilationAlias":
+   "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n    · exact Nat.zero_le M\n    · intro x hx y hy hxy\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n    · intro x hx y hy hxy\n      apply exp_monotone\n      simp only [neg_le_neg_iff]\n      gcongr\n    · simp\n    · apply exp_nonneg\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    rw [intervalIntegral.integral_mul_const]\n    gcongr\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n  _ = _ := by ring\n\n"},
+  "goal":
+  "α : Type u\ninst✝³ : AddGroup α\ninst✝² : LE α\ninst✝¹ : AddLeftMono α\na b : α\ninst✝ : AddRightMono α\n⊢ Eq (LE.le (Neg.neg a) (Neg.neg b)) (LE.le b a)",
+  "content_sorry":
+  "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    sorry",
+  "annotation":
+  "lemma sum_Ico_pow_mul_exp_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i)) ≤ rexp c * k ! / c ^ (k + 1) := calc\n  ∑ i ∈ Finset.Ico 0 M, i ^ k * rexp (- (c * i))\n  _ ≤ ∫ x in (0 : ℕ).. M, x ^ k * rexp (- (c * (x - 1))) := by\n    apply sum_mul_Ico_le_integral_of_monotone_antitone\n      (f := fun x ↦ x ^ k) (g := fun x ↦ rexp (- (c * x)))\n      /-\n        case hab\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        ⊢ LE.le 0 M\n      -/\n    · exact Nat.zero_le M\n      /-\n        🎉 no goals\n      -/\n      /-\n        case hf\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        ⊢ MonotoneOn (fun x => HPow.hPow x k) (Set.Icc ↑0 ↑M)\n      -/\n    · intro x hx y hy hxy\n      /-\n        case hf\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        x : Real\n        hx : Membership.mem (Set.Icc ↑0 ↑M) x\n        y : Real\n        hy : Membership.mem (Set.Icc ↑0 ↑M) y\n        hxy : LE.le x y\n        ⊢ LE.le ((fun x => HPow.hPow x k) x) ((fun x => HPow.hPow x k) y)\n      -/\n      apply pow_le_pow_left₀ (by simpa using hx.1) hxy\n      /-\n        🎉 no goals\n      -/\n      /-\n        case hg\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        ⊢ AntitoneOn (fun x => Real.exp (Neg.neg (HMul.hMul c x))) (Set.Icc (HSub.hSub …\n      -/\n    · intro x hx y hy hxy\n      /-\n        case hg\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        x : Real\n        hx : Membership.mem (Set.Icc (HSub.hSub (↑0) 1) (HSub.hSub (↑M) 1)) x\n        y : Real\n        hy : Membership.mem (Set.Icc (HSub.hSub (↑0) 1) (HSub.hSub (↑M) 1)) y\n        hxy : LE.le x y\n        ⊢ LE.le ((fun x => Real.exp (Neg.neg (HMul.hMul c x))) y) ((fun x => Real.exp  …\n      -/\n      apply exp_monotone\n      /-\n        case hg.a\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        x : Real\n        hx : Membership.mem (Set.Icc (HSub.hSub (↑0) 1) (HSub.hSub (↑M) 1)) x\n        y : Real\n        hy : Membership.mem (Set.Icc (HSub.hSub (↑0) 1) (HSub.hSub (↑M) 1)) y\n        hxy : LE.le x y\n        ⊢ LE.le (Neg.neg (HMul.hMul c y)) (Neg.neg (HMul.hMul c x))\n      -/\n      simp only [neg_le_neg_iff]\n      /-\n        case hg.a\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        x : Real\n        hx : Membership.mem (Set.Icc (HSub.hSub (↑0) 1) (HSub.hSub (↑M) 1)) x\n        y : Real\n        hy : Membership.mem (Set.Icc (HSub.hSub (↑0) 1) (HSub.hSub (↑M) 1)) y\n        hxy : LE.le x y\n        ⊢ LE.le (HMul.hMul c x) (HMul.hMul c y)\n      -/\n      gcongr\n      /-\n        🎉 no goals\n      -/\n      /-\n        case fpos\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        ⊢ LE.le 0 (HPow.hPow (↑0) k)\n      -/\n    · simp\n      /-\n        🎉 no goals\n      -/\n      /-\n        case gpos\n        k M : Nat\n        c : Real\n        hc : LT.lt 0 c\n        ⊢ LE.le 0 (Real.exp (Neg.neg (HMul.hMul c (HSub.hSub (↑M) 1))))\n      -/\n    · apply exp_nonneg\n      /-\n        🎉 no goals\n      -/\n  _ ≤ (k ! / c ^ (k + 1)) * rexp c := by\n    /-\n      k M : Nat\n      c : Real\n      hc : LT.lt 0 c\n      ⊢ LE.le (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg.n …\n    -/\n    simp only [mul_sub, mul_one, neg_sub, CharP.cast_eq_zero]\n    /-\n      k M : Nat\n      c : Real\n      hc : LT.lt 0 c\n      ⊢ LE.le (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (HSub. …\n    -/\n    simp only [sub_eq_add_neg, Real.exp_add, mul_comm (rexp c), ← mul_assoc]\n    /-\n      k M : Nat\n      c : Real\n      hc : LT.lt 0 c\n      ⊢ LE.le (intervalIntegral (fun x => HMul.hMul (HMul.hMul (HPow.hPow x k) (Real …\n    -/\n    rw [intervalIntegral.integral_mul_const]\n    /-\n      k M : Nat\n      c : Real\n      hc : LT.lt 0 c\n      ⊢ LE.le (HMul.hMul (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real …\n    -/\n    gcongr\n    /-\n      case h\n      k M : Nat\n      c : Real\n      hc : LT.lt 0 c\n      ⊢ LE.le (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg.n …\n    -/\n    exact intervalIntegral_pow_mul_exp_neg_le (by simp) hc\n    /-\n      🎉 no goals\n    -/\n              /-\n                k M : Nat\n                c : Real\n                hc : LT.lt 0 c\n                ⊢ Eq (HMul.hMul (HDiv.hDiv (↑k.factorial) (HPow.hPow c (HAdd.hAdd k 1))) (Real …\n              -/\n  _ = _ := by ring\n              /-\n                🎉 no goals\n              -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "intervalIntegral.integral_mul_const",
+    "module": "Mathlib.MeasureTheory.Integral.IntervalIntegral",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem integral_mul_const {𝕜 : Type*} [RCLike 𝕜] (r : 𝕜) (f : ℝ → 𝕜) :\n    ∫ x in a..b, f x * r ∂μ = (∫ x in a..b, f x ∂μ) * r := by\n  simpa only [mul_comm r] using integral_const_mul r f",
+    "compilationAlias":
+    "@[simp]\ntheorem integral_mul_const {𝕜 : Type*} [RCLike 𝕜] (r : 𝕜) (f : ℝ → 𝕜) :\n    ∫ x in a..b, f x * r ∂μ = (∫ x in a..b, f x ∂μ) * r := by\n  simpa only [mul_comm r] using integral_const_mul r f"},
+   {"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "Real.exp_add",
+    "module": "Mathlib.Data.Complex.Exponential",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "nonrec theorem exp_add : exp (x + y) = exp x * exp y := by simp [exp_add, exp]",
+    "compilationAlias":
+    "nonrec theorem exp_add : exp (x + y) = exp x * exp y := by simp [exp_add, exp]"},
+   {"name": "sub_eq_add_neg",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive \"Subtracting an element is the same as adding by its negative.\nThis is a duplicate of `SubNegMonoid.sub_eq_add_neg` ensuring that the types unfold better.\"]",
+    "compilationAlias":
+    "@[to_additive \"Subtracting an element is the same as adding by its negative.\nThis is a duplicate of `SubNegMonoid.sub_eq_add_neg` ensuring that the types unfold better.\"]"},
+   {"name": "CharP.cast_eq_zero",
+    "module": "Mathlib.Algebra.CharP.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma cast_eq_zero : (p : R) = 0 := (cast_eq_zero_iff R p p).2 dvd_rfl",
+    "compilationAlias":
+    "@[simp] lemma cast_eq_zero : (p : R) = 0 := (cast_eq_zero_iff R p p).2 dvd_rfl"},
+   {"name": "neg_sub",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "mul_sub",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias mul_sub := mul_sub_left_distrib",
+    "compilationAlias": "alias mul_sub := mul_sub_left_distrib"},
+   {"name": "neg_le_neg_iff",
+    "module": "Mathlib.Algebra.Order.Group.Unbundled.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "pow_le_pow_left₀",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[mono, gcongr, bound]\ntheorem pow_le_pow_left₀ (ha : 0 ≤ a) (hab : a ≤ b) : ∀ n, a ^ n ≤ b ^ n\n  | 0 => by simp\n  | n + 1 => by simpa only [pow_succ']\n      using mul_le_mul hab (pow_le_pow_left₀ ha hab _) (pow_nonneg ha _) (ha.trans hab)",
+    "compilationAlias":
+    "@[mono, gcongr, bound]\ntheorem pow_le_pow_left₀ (ha : 0 ≤ a) (hab : a ≤ b) : ∀ n, a ^ n ≤ b ^ n\n  | 0 => by simp\n  | n + 1 => by simpa only [pow_succ']\n      using mul_le_mul hab (pow_le_pow_left₀ ha hab _) (pow_nonneg ha _) (ha.trans hab)"},
+   {"name": "Nat.zero_le",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Nat.zero_le : (n : Nat) → LE.le 0 n\n  | zero   => Nat.le.refl\n  | succ n => Nat.le.step (zero_le n)",
+    "compilationAlias":
+    "theorem Nat.zero_le : (n : Nat) → LE.le 0 n\n  | zero   => Nat.le.refl\n  | succ n => Nat.le.step (zero_le n)"},
+   {"name": "sum_mul_Ico_le_integral_of_monotone_antitone",
+    "module": "Mathlib.Analysis.SumIntegralComparisons",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_mul_Ico_le_integral_of_monotone_antitone\n    (hab : a ≤ b) (hf : MonotoneOn f (Icc a b)) (hg : AntitoneOn g (Icc (a - 1) (b - 1)))\n    (fpos : 0 ≤ f a) (gpos : 0 ≤ g (b - 1)) :\n    ∑ i ∈ Finset.Ico a b, f i * g i ≤ ∫ x in a..b, f x * g (x - 1) := by\n  apply sum_Ico_le_integral_of_le (f := fun x ↦ f x * g x) hab\n  · intro i hi x hx\n    simp only [Nat.cast_add, Nat.cast_one, mem_Ico] at hx hi\n    have I0 : (i : ℝ) ≤ b - 1 := by\n      simp only [le_sub_iff_add_le]\n      norm_cast\n      omega\n    have I1 : (i : ℝ) ∈ Icc (a - 1 : ℝ) (b - 1) := by\n      simp only [mem_Icc, tsub_le_iff_right]\n      exact ⟨by norm_cast; omega, I0⟩\n    have I2 : x ∈ Icc (a : ℝ) b := by\n      refine ⟨le_trans (mod_cast hi.1) hx.1, hx.2.le.trans ?_⟩\n      norm_cast\n      omega\n    apply mul_le_mul\n    · apply hf\n      · simp only [mem_Icc, Nat.cast_le]\n        exact ⟨hi.1, hi.2.le⟩\n      · exact I2\n      · exact hx.1\n    · apply hg\n      · simp only [mem_Icc, tsub_le_iff_right, sub_add_cancel]\n        refine ⟨le_trans (mod_cast hi.1) hx.1, hx.2.le.trans ?_⟩\n        norm_cast\n        omega\n      · exact I1\n      · simpa [sub_le_iff_le_add] using hx.2.le\n    · apply gpos.trans\n      apply hg I1 (by simp [hab]) I0\n    · apply fpos.trans\n      apply hf (by simp [hab]) I2\n      exact le_trans (mod_cast hi.1) hx.1\n  · apply Integrable.mono_measure _ (Measure.restrict_mono_set _ Ico_subset_Icc_self)\n    apply Integrable.mul_of_top_left\n    · exact hf.integrableOn_isCompact isCompact_Icc\n    · apply AntitoneOn.memLp_isCompact isCompact_Icc\n      intro x hx y hy hxy\n      apply hg\n      · simpa using hx\n      · simpa using hy\n      · simpa using hxy",
+    "compilationAlias":
+    "lemma sum_mul_Ico_le_integral_of_monotone_antitone\n    (hab : a ≤ b) (hf : MonotoneOn f (Icc a b)) (hg : AntitoneOn g (Icc (a - 1) (b - 1)))\n    (fpos : 0 ≤ f a) (gpos : 0 ≤ g (b - 1)) :\n    ∑ i ∈ Finset.Ico a b, f i * g i ≤ ∫ x in a..b, f x * g (x - 1) := by\n  apply sum_Ico_le_integral_of_le (f := fun x ↦ f x * g x) hab\n  · intro i hi x hx\n    simp only [Nat.cast_add, Nat.cast_one, mem_Ico] at hx hi\n    have I0 : (i : ℝ) ≤ b - 1 := by\n      simp only [le_sub_iff_add_le]\n      norm_cast\n      omega\n    have I1 : (i : ℝ) ∈ Icc (a - 1 : ℝ) (b - 1) := by\n      simp only [mem_Icc, tsub_le_iff_right]\n      exact ⟨by norm_cast; omega, I0⟩\n    have I2 : x ∈ Icc (a : ℝ) b := by\n      refine ⟨le_trans (mod_cast hi.1) hx.1, hx.2.le.trans ?_⟩\n      norm_cast\n      omega\n    apply mul_le_mul\n    · apply hf\n      · simp only [mem_Icc, Nat.cast_le]\n        exact ⟨hi.1, hi.2.le⟩\n      · exact I2\n      · exact hx.1\n    · apply hg\n      · simp only [mem_Icc, tsub_le_iff_right, sub_add_cancel]\n        refine ⟨le_trans (mod_cast hi.1) hx.1, hx.2.le.trans ?_⟩\n        norm_cast\n        omega\n      · exact I1\n      · simpa [sub_le_iff_le_add] using hx.2.le\n    · apply gpos.trans\n      apply hg I1 (by simp [hab]) I0\n    · apply fpos.trans\n      apply hf (by simp [hab]) I2\n      exact le_trans (mod_cast hi.1) hx.1\n  · apply Integrable.mono_measure _ (Measure.restrict_mono_set _ Ico_subset_Icc_self)\n    apply Integrable.mul_of_top_left\n    · exact hf.integrableOn_isCompact isCompact_Icc\n    · apply AntitoneOn.memLp_isCompact isCompact_Icc\n      intro x hx y hy hxy\n      apply hg\n      · simpa using hx\n      · simpa using hy\n      · simpa using hxy"},
+   {"name": "Finset.Ico",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The finset $[a, b)$ of elements `x` such that `a ≤ x` and `x < b`. Basically `Set.Ico a b` as a\nfinset. -/\ndef Ico (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIco a b",
+    "compilationAlias":
+    "/-- The finset $[a, b)$ of elements `x` such that `a ≤ x` and `x < b`. Basically `Set.Ico a b` as a\nfinset. -/\ndef Ico (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIco a b"},
+   {"name": "Finset.Ico",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The finset $[a, b)$ of elements `x` such that `a ≤ x` and `x < b`. Basically `Set.Ico a b` as a\nfinset. -/\ndef Ico (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIco a b",
+    "compilationAlias":
+    "/-- The finset $[a, b)$ of elements `x` such that `a ≤ x` and `x < b`. Basically `Set.Ico a b` as a\nfinset. -/\ndef Ico (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIco a b"}],
+  "C0_dependencies":
+  [{"name": "intervalIntegral_pow_mul_exp_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n",
+    "compilationAlias":
+    "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.SpecialFunctions.Complex.LogBounds\nlemma integrable_pow_mul_norm_one_add_mul_inv (n : ℕ) {z : ℂ} (hz : ‖z‖ < 1) :\n    IntervalIntegrable (fun t : ℝ ↦ t ^ n * ‖(1 + t * z)⁻¹‖) MeasureTheory.volume 0 1 := by\n  have := continuousOn_one_add_mul_inv <| mem_slitPlane_of_norm_lt_one hz\n  rw [← Set.uIcc_of_le zero_le_one] at this\n  exact ContinuousOn.intervalIntegrable (by fun_prop)",
+   "--src: Mathlib.Analysis.SpecialFunctions.Integrals\n@[simp]\ntheorem intervalIntegrable_pow : IntervalIntegrable (fun x => x ^ n) μ a b :=\n  (continuous_pow n).intervalIntegrable a b",
+   "--src: Mathlib.Analysis.SpecificLimits.Basic\ntheorem le_geom {u : ℕ → ℝ} {c : ℝ} (hc : 0 ≤ c) (n : ℕ) (h : ∀ k < n, u (k + 1) ≤ c * u k) :\n    u n ≤ c ^ n * u 0 := by\n  apply (monotone_mul_left_of_nonneg hc).seq_le_seq n _ h _ <;>\n    simp [_root_.pow_succ', mul_assoc, le_refl]",
+   "--src: Mathlib.Data.Complex.Exponential\ntheorem sum_le_exp_of_nonneg {x : ℝ} (hx : 0 ≤ x) (n : ℕ) : ∑ i ∈ range n, x ^ i / i ! ≤ exp x :=\n  calc\n    ∑ i ∈ range n, x ^ i / i ! ≤ lim (⟨_, isCauSeq_re (exp' x)⟩ : CauSeq ℝ abs) := by\n      refine le_lim (CauSeq.le_of_exists ⟨n, fun j hj => ?_⟩)\n      simp only [exp', const_apply, re_sum]\n      norm_cast\n      refine sum_le_sum_of_subset_of_nonneg (range_mono hj) fun _ _ _ ↦ ?_\n      positivity\n    _ = exp x := by rw [exp, Complex.exp, ← cauSeqRe, lim_re]",
+   "--src: Mathlib.Analysis.SpecificLimits.Normed\n@[deprecated \"`Real.tendsto_pow_div_factorial_atTop` has been deprecated, use\n`FloorSemiring.tendsto_pow_div_factorial_atTop` instead\" (since := \"2024-10-05\")]\ntheorem Real.tendsto_pow_div_factorial_atTop (x : ℝ) :\n    Tendsto (fun n ↦ x ^ n / n ! : ℕ → ℝ) atTop (\u0000\u0000 0) :=\n  (Real.summable_pow_div_factorial x).tendsto_atTop_zero",
+   "--src: Mathlib.Analysis.SpecialFunctions.Integrals\n@[simp]\ntheorem intervalIntegrable_exp : IntervalIntegrable exp μ a b :=\n  continuous_exp.intervalIntegrable a b",
+   "--src: Mathlib.Analysis.SpecialFunctions.Exp\n@[fun_prop]\ntheorem ContinuousOn.rexp (h : ContinuousOn f s) :\n    ContinuousOn (fun y ↦ exp (f y)) s :=\n  fun x hx ↦ (h x hx).rexp",
+   "--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.EulerSineProd\ntheorem integral_cos_pow_pos (n : ℕ) : 0 < ∫ x in (0 : ℝ)..π / 2, cos x ^ n :=\n  (integral_cos_pow_eq n).symm ▸ mul_pos one_half_pos (integral_sin_pow_pos _)",
+   "--src: Mathlib.NumberTheory.ZetaValues\ntheorem antideriv_bernoulliFun (k : ℕ) (x : ℝ) :\n    HasDerivAt (fun x => bernoulliFun (k + 1) x / (k + 1)) (bernoulliFun k x) x := by\n  convert (hasDerivAt_bernoulliFun (k + 1) x).div_const _ using 1\n  field_simp [Nat.cast_add_one_ne_zero k]",
+   "--src: Mathlib.Analysis.SpecialFunctions.Stirling\ntheorem log_stirlingSeq_formula (n : ℕ) :\n    log (stirlingSeq n) = Real.log n ! - 1 / 2 * Real.log (2 * n) - n * log (n / exp 1) := by\n  cases n\n  · simp\n  · rw [stirlingSeq, log_div, log_mul, sqrt_eq_rpow, log_rpow, Real.log_pow, tsub_tsub]\n      <;> positivity"],
+  "prescopes": "open Real MeasureTheory",
+  "postscopes": "",
+  "id":
+  {"name": "intervalIntegral_pow_mul_exp_neg_le",
+   "module": "Carleson.Discrete.SumEstimates",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n",
+   "compilationAlias":
+   "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  simp only [mul_zero, smul_eq_mul]\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  apply setIntegral_mono_set\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    positivity\n  · apply ae_of_all\n    intro x hx\n    exact hx.1\n\n"},
+  "goal":
+  "k : Nat\nM c : Real\nhM : LE.le 0 M\nhc : LT.lt 0 c\n⊢ LE.le (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg.neg (HMul.hMul c x)))) 0 M MeasureTheory.MeasureSpace.volume) (HDiv.hDiv (↑k.factorial) (HPow.hPow c (HAdd.hAdd k 1)))",
+  "content_sorry":
+  "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  sorry",
+  "annotation":
+  "lemma intervalIntegral_pow_mul_exp_neg_le {k : ℕ} {M c : ℝ} (hM : 0 ≤ M) (hc : 0 < c) :\n    ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x)) ≤ k ! / c ^ (k + 1) := by\n  have : ∫ x in (0 : ℝ)..M, x ^ k * rexp (- (c * x))\n      = (∫ x in (0 : ℝ)..M, (c * x) ^ k * rexp (- (c * x))) / c ^ k := by\n    rw [← intervalIntegral.integral_div]\n    congr with x\n    field_simp [mul_pow, hc.ne']\n    ring\n  /-\n    k : Nat\n    M c : Real\n    hM : LE.le 0 M\n    hc : LT.lt 0 c\n    this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n    ⊢ LE.le (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg.n …\n  -/\n  rw [this, intervalIntegral.integral_comp_mul_left (fun x ↦ x ^ k * rexp (-x)) hc.ne']\n  /-\n    k : Nat\n    M c : Real\n    hM : LE.le 0 M\n    hc : LT.lt 0 c\n    this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n    ⊢ LE.le (HDiv.hDiv (HSMul.hSMul (Inv.inv c) (intervalIntegral (fun x => HMul.h …\n  -/\n  simp only [mul_zero, smul_eq_mul]\n  /-\n    k : Nat\n    M c : Real\n    hM : LE.le 0 M\n    hc : LT.lt 0 c\n    this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n    ⊢ LE.le (HDiv.hDiv (HMul.hMul (Inv.inv c) (intervalIntegral (fun x => HMul.hMu …\n  -/\n  rw [← div_eq_inv_mul, div_div, ← pow_succ']\n  /-\n    k : Nat\n    M c : Real\n    hM : LE.le 0 M\n    hc : LT.lt 0 c\n    this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n    ⊢ LE.le (HDiv.hDiv (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real …\n  -/\n  gcongr\n  rw [intervalIntegral.integral_of_le (by positivity),\n    ← Real.Gamma_nat_eq_factorial, Real.Gamma_eq_integral (by positivity)]\n  /-\n    case hab\n    k : Nat\n    M c : Real\n    hM : LE.le 0 M\n    hc : LT.lt 0 c\n    this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n    ⊢ LE.le (MeasureTheory.integral (MeasureTheory.MeasureSpace.volume.restrict (S …\n  -/\n  simp only [mul_comm, add_sub_cancel_right, Real.rpow_natCast]\n  /-\n    case hab\n    k : Nat\n    M c : Real\n    hM : LE.le 0 M\n    hc : LT.lt 0 c\n    this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n    ⊢ LE.le (MeasureTheory.integral (MeasureTheory.MeasureSpace.volume.restrict (S …\n  -/\n  apply setIntegral_mono_set\n    /-\n      case hab.hfi\n      k : Nat\n      M c : Real\n      hM : LE.le 0 M\n      hc : LT.lt 0 c\n      this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n      ⊢ MeasureTheory.IntegrableOn (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Ne …\n    -/\n  · simpa [mul_comm] using Real.GammaIntegral_convergent (s := k + 1) (by positivity)\n    /-\n      🎉 no goals\n    -/\n    /-\n      case hab.hf\n      k : Nat\n      M c : Real\n      hM : LE.le 0 M\n      hc : LT.lt 0 c\n      this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n      ⊢ (MeasureTheory.ae (MeasureTheory.MeasureSpace.volume.restrict (Set.Ioi 0))). …\n    -/\n  · filter_upwards [ae_restrict_mem measurableSet_Ioi] with x (hx : 0 < x)\n    /-\n      case h\n      k : Nat\n      M c : Real\n      hM : LE.le 0 M\n      hc : LT.lt 0 c\n      this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n      x : Real\n      hx : LT.lt 0 x\n      ⊢ LE.le (0 x) (HMul.hMul (HPow.hPow x k) (Real.exp (Neg.neg x)))\n    -/\n    positivity\n    /-\n      🎉 no goals\n    -/\n    /-\n      case hab.hst\n      k : Nat\n      M c : Real\n      hM : LE.le 0 M\n      hc : LT.lt 0 c\n      this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n      ⊢ (MeasureTheory.ae MeasureTheory.MeasureSpace.volume).EventuallyLE (Set.Ioc 0 …\n    -/\n  · apply ae_of_all\n    /-\n      case hab.hst.a\n      k : Nat\n      M c : Real\n      hM : LE.le 0 M\n      hc : LT.lt 0 c\n      this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n      ⊢ ∀ (a : Real), LE.le (Set.Ioc 0 (HMul.hMul M c) a) (Set.Ioi 0 a)\n    -/\n    intro x hx\n    /-\n      case hab.hst.a\n      k : Nat\n      M c : Real\n      hM : LE.le 0 M\n      hc : LT.lt 0 c\n      this : Eq (intervalIntegral (fun x => HMul.hMul (HPow.hPow x k) (Real.exp (Neg …\n      x : Real\n      hx : Set.Ioc 0 (HMul.hMul M c) x\n      ⊢ Set.Ioi 0 x\n    -/\n    exact hx.1\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "measurableSet_Ioi",
+    "module": "Mathlib.MeasureTheory.Constructions.BorelSpace.Order",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, measurability]\ntheorem measurableSet_Ioi : MeasurableSet (Ioi a) :=\n  isOpen_Ioi.measurableSet",
+    "compilationAlias":
+    "@[simp, measurability]\ntheorem measurableSet_Ioi : MeasurableSet (Ioi a) :=\n  isOpen_Ioi.measurableSet"},
+   {"name": "Real.GammaIntegral_convergent",
+    "module": "Mathlib.Analysis.SpecialFunctions.Gamma.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Euler integral for the `Γ` function converges for positive real `s`. -/\ntheorem GammaIntegral_convergent {s : ℝ} (h : 0 < s) :\n    IntegrableOn (fun x : ℝ => exp (-x) * x ^ (s - 1)) (Ioi 0) := by\n  rw [← Ioc_union_Ioi_eq_Ioi (@zero_le_one ℝ _ _ _ _), integrableOn_union]\n  constructor\n  · rw [← integrableOn_Icc_iff_integrableOn_Ioc]\n    refine IntegrableOn.continuousOn_mul continuousOn_id.neg.rexp ?_ isCompact_Icc\n    refine (intervalIntegrable_iff_integrableOn_Icc_of_le zero_le_one).mp ?_\n    exact intervalIntegrable_rpow' (by linarith)\n  · refine integrable_of_isBigO_exp_neg one_half_pos ?_ (Gamma_integrand_isLittleO _).isBigO\n    refine continuousOn_id.neg.rexp.mul (continuousOn_id.rpow_const ?_)\n    intro x hx\n    exact Or.inl ((zero_lt_one : (0 : ℝ) < 1).trans_le hx).ne'",
+    "compilationAlias":
+    "/-- The Euler integral for the `Γ` function converges for positive real `s`. -/\ntheorem GammaIntegral_convergent {s : ℝ} (h : 0 < s) :\n    IntegrableOn (fun x : ℝ => exp (-x) * x ^ (s - 1)) (Ioi 0) := by\n  rw [← Ioc_union_Ioi_eq_Ioi (@zero_le_one ℝ _ _ _ _), integrableOn_union]\n  constructor\n  · rw [← integrableOn_Icc_iff_integrableOn_Ioc]\n    refine IntegrableOn.continuousOn_mul continuousOn_id.neg.rexp ?_ isCompact_Icc\n    refine (intervalIntegrable_iff_integrableOn_Icc_of_le zero_le_one).mp ?_\n    exact intervalIntegrable_rpow' (by linarith)\n  · refine integrable_of_isBigO_exp_neg one_half_pos ?_ (Gamma_integrand_isLittleO _).isBigO\n    refine continuousOn_id.neg.rexp.mul (continuousOn_id.rpow_const ?_)\n    intro x hx\n    exact Or.inl ((zero_lt_one : (0 : ℝ) < 1).trans_le hx).ne'"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "Real.rpow_natCast",
+    "module": "Mathlib.Analysis.SpecialFunctions.Pow.Real",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem rpow_natCast (x : ℝ) (n : ℕ) : x ^ (n : ℝ) = x ^ n := by simpa using rpow_intCast x n",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem rpow_natCast (x : ℝ) (n : ℕ) : x ^ (n : ℝ) = x ^ n := by simpa using rpow_intCast x n"},
+   {"name": "add_sub_cancel_right",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "Real.Gamma_eq_integral",
+    "module": "Mathlib.Analysis.SpecialFunctions.Gamma.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Gamma_eq_integral {s : ℝ} (hs : 0 < s) :\n    Gamma s = ∫ x in Ioi 0, exp (-x) * x ^ (s - 1) := by\n  rw [Gamma, Complex.Gamma_eq_integral (by rwa [Complex.ofReal_re] : 0 < Complex.re s)]\n  dsimp only [Complex.GammaIntegral]\n  simp_rw [← Complex.ofReal_one, ← Complex.ofReal_sub]\n  suffices ∫ x : ℝ in Ioi 0, ↑(exp (-x)) * (x : ℂ) ^ ((s - 1 : ℝ) : ℂ) =\n      ∫ x : ℝ in Ioi 0, ((exp (-x) * x ^ (s - 1) : ℝ) : ℂ) by\n    have cc : ∀ r : ℝ, Complex.ofReal r = @RCLike.ofReal ℂ _ r := fun r => rfl\n    conv_lhs => rw [this]; enter [1, 2, x]; rw [cc]\n    rw [_root_.integral_ofReal, ← cc, Complex.ofReal_re]\n  refine setIntegral_congr_fun measurableSet_Ioi fun x hx => ?_\n  push_cast\n  rw [Complex.ofReal_cpow (le_of_lt hx)]\n  push_cast; rfl",
+    "compilationAlias":
+    "theorem Gamma_eq_integral {s : ℝ} (hs : 0 < s) :\n    Gamma s = ∫ x in Ioi 0, exp (-x) * x ^ (s - 1) := by\n  rw [Gamma, Complex.Gamma_eq_integral (by rwa [Complex.ofReal_re] : 0 < Complex.re s)]\n  dsimp only [Complex.GammaIntegral]\n  simp_rw [← Complex.ofReal_one, ← Complex.ofReal_sub]\n  suffices ∫ x : ℝ in Ioi 0, ↑(exp (-x)) * (x : ℂ) ^ ((s - 1 : ℝ) : ℂ) =\n      ∫ x : ℝ in Ioi 0, ((exp (-x) * x ^ (s - 1) : ℝ) : ℂ) by\n    have cc : ∀ r : ℝ, Complex.ofReal r = @RCLike.ofReal ℂ _ r := fun r => rfl\n    conv_lhs => rw [this]; enter [1, 2, x]; rw [cc]\n    rw [_root_.integral_ofReal, ← cc, Complex.ofReal_re]\n  refine setIntegral_congr_fun measurableSet_Ioi fun x hx => ?_\n  push_cast\n  rw [Complex.ofReal_cpow (le_of_lt hx)]\n  push_cast; rfl"},
+   {"name": "Real.Gamma_nat_eq_factorial",
+    "module": "Mathlib.Analysis.SpecialFunctions.Gamma.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Gamma_nat_eq_factorial (n : ℕ) : Gamma (n + 1) = n ! := by\n  rw [Gamma, Complex.ofReal_add, Complex.ofReal_natCast, Complex.ofReal_one,\n    Complex.Gamma_nat_eq_factorial, ← Complex.ofReal_natCast, Complex.ofReal_re]",
+    "compilationAlias":
+    "theorem Gamma_nat_eq_factorial (n : ℕ) : Gamma (n + 1) = n ! := by\n  rw [Gamma, Complex.ofReal_add, Complex.ofReal_natCast, Complex.ofReal_one,\n    Complex.Gamma_nat_eq_factorial, ← Complex.ofReal_natCast, Complex.ofReal_re]"},
+   {"name": "intervalIntegral.integral_of_le",
+    "module": "Mathlib.MeasureTheory.Integral.IntervalIntegral",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem integral_of_le (h : a ≤ b) : ∫ x in a..b, f x ∂μ = ∫ x in Ioc a b, f x ∂μ := by\n  simp [intervalIntegral, h]",
+    "compilationAlias":
+    "theorem integral_of_le (h : a ≤ b) : ∫ x in a..b, f x ∂μ = ∫ x in Ioc a b, f x ∂μ := by\n  simp [intervalIntegral, h]"},
+   {"name": "pow_succ'",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive succ_nsmul'] lemma pow_succ' (a : M) : ∀ n, a ^ (n + 1) = a * a ^ n\n  | 0 => by simp\n  | n + 1 => by rw [pow_succ _ n, pow_succ, pow_succ', mul_assoc]",
+    "compilationAlias":
+    "@[to_additive succ_nsmul'] lemma pow_succ' (a : M) : ∀ n, a ^ (n + 1) = a * a ^ n\n  | 0 => by simp\n  | n + 1 => by rw [pow_succ _ n, pow_succ, pow_succ', mul_assoc]"},
+   {"name": "div_div",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive, field_simps]\ntheorem div_div : a / b / c = a / (b * c) := by simp",
+    "compilationAlias":
+    "@[to_additive, field_simps]\ntheorem div_div : a / b / c = a / (b * c) := by simp"},
+   {"name": "div_eq_inv_mul",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem div_eq_inv_mul : a / b = b⁻¹ * a := by simp",
+    "compilationAlias":
+    "@[to_additive]\ntheorem div_eq_inv_mul : a / b = b⁻¹ * a := by simp"},
+   {"name": "smul_eq_mul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl"},
+   {"name": "intervalIntegral.integral_comp_mul_left",
+    "module": "Mathlib.MeasureTheory.Integral.IntervalIntegral",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem integral_comp_mul_left (hc : c ≠ 0) :\n    (∫ x in a..b, f (c * x)) = c⁻¹ • ∫ x in c * a..c * b, f x := by\n  simpa only [mul_comm c] using integral_comp_mul_right f hc",
+    "compilationAlias":
+    "@[simp]\ntheorem integral_comp_mul_left (hc : c ≠ 0) :\n    (∫ x in a..b, f (c * x)) = c⁻¹ • ∫ x in c * a..c * b, f x := by\n  simpa only [mul_comm c] using integral_comp_mul_right f hc"},
+   {"name": "mul_pow",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive nsmul_add] lemma mul_pow (a b : M) : ∀ n, (a * b) ^ n = a ^ n * b ^ n\n  | 0 => by rw [pow_zero, pow_zero, pow_zero, one_mul]\n  | n + 1 => by rw [pow_succ', pow_succ', pow_succ', mul_pow, mul_mul_mul_comm]",
+    "compilationAlias":
+    "@[to_additive nsmul_add] lemma mul_pow (a b : M) : ∀ n, (a * b) ^ n = a ^ n * b ^ n\n  | 0 => by rw [pow_zero, pow_zero, pow_zero, one_mul]\n  | n + 1 => by rw [pow_succ', pow_succ', pow_succ', mul_pow, mul_mul_mul_comm]"},
+   {"name": "intervalIntegral.integral_div",
+    "module": "Mathlib.MeasureTheory.Integral.IntervalIntegral",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem integral_div {𝕜 : Type*} [RCLike 𝕜] (r : 𝕜) (f : ℝ → 𝕜) :\n    ∫ x in a..b, f x / r ∂μ = (∫ x in a..b, f x ∂μ) / r := by\n  simpa only [div_eq_mul_inv] using integral_mul_const r⁻¹ f",
+    "compilationAlias":
+    "@[simp]\ntheorem integral_div {𝕜 : Type*} [RCLike 𝕜] (r : 𝕜) (f : ℝ → 𝕜) :\n    ∫ x in a..b, f x / r ∂μ = (∫ x in a..b, f x ∂μ) / r := by\n  simpa only [div_eq_mul_inv] using integral_mul_const r⁻¹ f"}],
+  "C0_dependencies": []}]

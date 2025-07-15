@@ -14,7 +14,20 @@ def get_default_gpus(params):
         _DEFAULT_GPUS = 0
     if params.get('gpus') is None:
         params['gpus'] = _DEFAULT_GPUS
+        
+    
+    cpus = params.get('cpus')    
+    if cpus is None:
+        params['cpus'] = multiprocessing.cpu_count()
+        cpus = params['cpus']
+    else:
+        params['engine_cpu_resources'] = int(cpus) // _DEFAULT_GPUS if _DEFAULT_GPUS > 0 else cpus
+        params['concurrency'] = _DEFAULT_GPUS if _DEFAULT_GPUS > 0 else 1
+    
     return params
+
+
+    
 
 METRIC_PROMPT_DEFAULTS = {
     "annotation_prompt": " A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response.",
@@ -67,6 +80,7 @@ def metrics():
 @metrics.command('add')
 @click.argument('name', required=False)
 @click.argument('system_prompt', required=False)
+@click.option('--minmax', default="max")
 @click.option('--score_fn', default=None)
 @click.option('--sorry_ok', is_flag=True, default=False)
 @click.option('--correctness_condition', default='none')
@@ -128,7 +142,7 @@ def prompts():
 @click.option('--config', type=click.Path(exists=True), default=None)
 def prompts_get(**kwargs):
     """Generate prompts."""
-    from ImProver.get_prompts.get_prompts import make_config as gp_make_config, main_async as gp_main_async
+    from ImProver.get_prompts.get_prompts import main as gp_main
 
     config = kwargs.pop('config')
     defaults = kwargs.copy()
@@ -136,8 +150,8 @@ def prompts_get(**kwargs):
     require_params(params, ['dataset_path'])
     params = get_default_gpus(params)
     args = argparse.Namespace(**params)
-    gp_make_config(args)
-    asyncio.run(gp_main_async(args))
+
+    gp_main(args)
 
 
 @prompts.command('informalize')
@@ -183,6 +197,22 @@ def run():
 @click.option('--context', default=0)
 @click.option('--rag', default=0)
 @click.option('--examples', default=0)
+
+@click.option('--NCCL_P2P', is_flag=True, default=False)
+@click.option('--ray_timeout', default=1800)
+@click.option('--num_blocks', default=16)
+@click.option('--engine_cpu_resources', default=None)
+@click.option('--engine_gpu_resources', default=1)
+@click.option('--concurrency', default=None)
+@click.option('--tensor_parallel_size', default=1)
+@click.option('--enable_chunked_prefill', is_flag=True, default=True)
+@click.option('--max_model_len', default=16384)
+@click.option('--max_num_batched_tokens', default=65536)
+@click.option('--max_concurrent_batches', default=32)
+@click.option('--batch_size', default=32)
+@click.option('--truncate_prompt_tokens', default=14336)
+@click.option('--max_tokens', default=2048)
+
 @click.option('--config', type=click.Path(exists=True), default=None)
 def run_inference(**kwargs):
     from ImProver.basic.inference import main as inference_main
@@ -263,6 +293,22 @@ def run_llm_metric(**kwargs):
 @click.option('--context', default=0)
 @click.option('--rag', default=0)
 @click.option('--examples', default=0)
+
+@click.option('--NCCL_P2P', is_flag=True, default=False)
+@click.option('--ray_timeout', default=1800)
+@click.option('--num_blocks', default=16)
+@click.option('--engine_cpu_resources', default=None)
+@click.option('--engine_gpu_resources', default=1)
+@click.option('--concurrency', default=None)
+@click.option('--tensor_parallel_size', default=1)
+@click.option('--enable_chunked_prefill', is_flag=True, default=True)
+@click.option('--max_model_len', default=16384)
+@click.option('--max_num_batched_tokens', default=65536)
+@click.option('--max_concurrent_batches', default=32)
+@click.option('--batch_size', default=32)
+@click.option('--truncate_prompt_tokens', default=14336)
+@click.option('--max_tokens', default=2048)
+
 @click.option('--run_id', default=f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--training_data', is_flag=True, default=True)
 @click.option('--config', type=click.Path(exists=True), default=None)
@@ -301,6 +347,7 @@ def kg_embed(**kwargs):
     embed_main(args)
 
 @KG.command('c3')
+@click.argument('prompts_id', required=False)
 @click.argument('kg_id', required=False)
 @click.option('--embedding_model', default='Qwen/Qwen3-Embedding-0.6B')
 @click.option('--k', default=40)
@@ -312,12 +359,13 @@ def kg_c3(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
-    require_params(params, ['kg_id'])
+    require_params(params, ['prompts_id', 'kg_id'])
     args = argparse.Namespace(**params)
     c3_main(args)
 
 @KG.command('make_db')
 @click.argument('dataset_path', required=False)
+@click.argument('prompts_id', required=False)
 @click.argument('kg_id', required=False)
 @click.option('--split', default='train')
 @click.option('--config', type=click.Path(exists=True), default=None)
@@ -327,7 +375,7 @@ def kg_make_db(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
-    require_params(params, ['dataset_path', 'kg_id'])
+    require_params(params, ['dataset_path', 'prompts_id','kg_id'])
     args = argparse.Namespace(**params)
     combined_main(args)
 
