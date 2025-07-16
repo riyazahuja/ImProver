@@ -1,0 +1,50 @@
+[{"rag":
+  ["--src: Mathlib.Logic.Embedding.Set\n/-- For disjoint `s t : Set α`, the natural injection from `↑s ⊕ ↑t` to `α`. -/\n@[simps] def Function.Embedding.sumSet (h : Disjoint s t) : s ⊕ t ↪ α where\n  toFun := Sum.elim (↑) (↑)\n  inj' := by\n    rintro (⟨a, ha⟩ | ⟨a, ha⟩) (⟨b, hb⟩ | ⟨b, hb⟩)\n    · simp [Subtype.val_inj]\n    · simpa using h.ne_of_mem ha hb\n    · simpa using h.symm.ne_of_mem ha hb\n    simp [Subtype.val_inj]",
+   "--src: Mathlib.Logic.Embedding.Set\n@[simp]\ntheorem subtypeOrEquiv_symm_inr (p q : α → Prop) [DecidablePred p] (h : Disjoint p q)\n    (x : { x // q x }) : (subtypeOrEquiv p q h).symm (Sum.inr x) = ⟨x, Or.inr x.prop⟩ :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Basic\n@[simp]\ntheorem sumCompl_apply_inr {α} (p : α → Prop) [DecidablePred p] (x : { a // ¬p a }) :\n    sumCompl p (Sum.inr x) = x :=\n  rfl",
+   "--src: Mathlib.Logic.Embedding.Basic\ntheorem subtypeOrLeftEmbedding_apply_right {p q : α → Prop} [DecidablePred p]\n    (x : { x // p x ∨ q x }) (hx : ¬p x) :\n    subtypeOrLeftEmbedding p q x = Sum.inr ⟨x, x.prop.resolve_left hx⟩ :=\n  dif_neg hx",
+   "--src: Mathlib.Logic.Equiv.Set\n@[simp]\ntheorem union_symm_apply_right {α} {s t : Set α} [DecidablePred fun x => x ∈ s] (H : Disjoint s t)\n    (a : t) : (Equiv.Set.union H).symm (Sum.inr a) = ⟨a, by simp⟩ :=\n  rfl",
+   "--src: Mathlib.Logic.Equiv.Set\ntheorem sumCompl_symm_apply_of_not_mem {α : Type u} {s : Set α} [DecidablePred (· ∈ s)] {x : α}\n    (hx : x ∉ s) : (Equiv.Set.sumCompl s).symm x = Sum.inr ⟨x, hx⟩ := by\n  simp [Equiv.Set.sumCompl, Equiv.Set.univ, union_apply_right, hx]",
+   "--src: Mathlib.Logic.Embedding.Set\n@[norm_cast] lemma Function.Embedding.coe_sumSet (h : Disjoint s t) :\n    (Function.Embedding.sumSet h : s ⊕ t → α) = Sum.elim (↑) (↑) := rfl",
+   "--src: Mathlib.Logic.Equiv.Basic\n@[simp]\ntheorem sumCompl_apply_symm_of_pos {α} (p : α → Prop) [DecidablePred p] (a : α) (h : p a) :\n    (sumCompl p).symm a = Sum.inl ⟨a, h⟩ :=\n  dif_pos h",
+   "--src: Mathlib.Logic.Embedding.Set\n/-- A subtype `{x // p x ∨ q x}` over a disjunction of `p q : α → Prop` is equivalent to a sum of\nsubtypes `{x // p x} ⊕ {x // q x}` such that `¬ p x` is sent to the right, when\n`Disjoint p q`.\nSee also `Equiv.sumCompl`, for when `IsCompl p q`. -/\n@[simps apply]\ndef subtypeOrEquiv (p q : α → Prop) [DecidablePred p] (h : Disjoint p q) :\n    { x // p x ∨ q x } ≃ { x // p x } ⊕ { x // q x } where\n  toFun := subtypeOrLeftEmbedding p q\n  invFun :=\n    Sum.elim (Subtype.impEmbedding _ _ fun x hx ↦ (Or.inl hx : p x ∨ q x))\n      (Subtype.impEmbedding _ _ fun x hx ↦ (Or.inr hx : p x ∨ q x))\n  left_inv x := by\n    by_cases hx : p x\n    · rw [subtypeOrLeftEmbedding_apply_left _ hx]\n      simp [Subtype.ext_iff]\n    · rw [subtypeOrLeftEmbedding_apply_right _ hx]\n      simp [Subtype.ext_iff]\n  right_inv x := by\n    cases x with\n    | inl x =>\n        simp only [Sum.elim_inl]\n        rw [subtypeOrLeftEmbedding_apply_left]\n        · simp\n        · simpa using x.prop\n    | inr x =>\n        simp only [Sum.elim_inr]\n        rw [subtypeOrLeftEmbedding_apply_right]\n        · simp\n        · suffices ¬p x by simpa\n          intro hp\n          simpa using h.le_bot x ⟨hp, x.prop⟩",
+   "--src: Mathlib.Logic.Equiv.Set\n@[simp]\ntheorem sumCompl_apply_inr {α : Type u} (s : Set α) [DecidablePred (· ∈ s)] (x : (sᶜ : Set α)) :\n    Equiv.Set.sumCompl s (Sum.inr x) = x :=\n  rfl"],
+  "prescopes": "variable {α : Type}",
+  "postscopes": "",
+  "id":
+  {"name": "toUnion_toSum",
+   "module": "Seymour.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Converting `X.Elem ⊕ Y.Elem` to `(X ∪ Y).Elem` and back to `X.Elem ⊕ Y.Elem` gives the original element, assuming that\n`X` and `Y` are disjoint. -/\nlemma toUnion_toSum {X Y : Set α} [∀ a, Decidable (a ∈ X)] [∀ a, Decidable (a ∈ Y)] (hXY : X ⫗ Y) (i : X.Elem ⊕ Y.Elem) :\n    i.toUnion.toSum = i := by\n  rw [Set.disjoint_right] at hXY\n  cases i <;> simp [Subtype.toSum, Sum.toUnion, HasSubset.Subset.elem, hXY]\n\n",
+   "compilationAlias":
+   "/-- Converting `X.Elem ⊕ Y.Elem` to `(X ∪ Y).Elem` and back to `X.Elem ⊕ Y.Elem` gives the original element, assuming that\n`X` and `Y` are disjoint. -/\nlemma toUnion_toSum {X Y : Set α} [∀ a, Decidable (a ∈ X)] [∀ a, Decidable (a ∈ Y)] (hXY : X ⫗ Y) (i : X.Elem ⊕ Y.Elem) :\n    i.toUnion.toSum = i := by\n  rw [Set.disjoint_right] at hXY\n  cases i <;> simp [Subtype.toSum, Sum.toUnion, HasSubset.Subset.elem, hXY]\n\n"},
+  "goal":
+  "α : Type\nX Y : Set α\ninst✝¹ : (a : α) → Decidable (Membership.mem X a)\ninst✝ : (a : α) → Decidable (Membership.mem Y a)\nhXY : Disjoint X Y\ni : Sum ↑X ↑Y\n⊢ Eq (Subtype.toSum i.toUnion) i",
+  "content_sorry":
+  "/-- Converting `X.Elem ⊕ Y.Elem` to `(X ∪ Y).Elem` and back to `X.Elem ⊕ Y.Elem` gives the original element, assuming that\n`X` and `Y` are disjoint. -/\nlemma toUnion_toSum {X Y : Set α} [∀ a, Decidable (a ∈ X)] [∀ a, Decidable (a ∈ Y)] (hXY : X ⫗ Y) (i : X.Elem ⊕ Y.Elem) :\n    i.toUnion.toSum = i := by\n  sorry",
+  "annotation":
+  "/-- Converting `X.Elem ⊕ Y.Elem` to `(X ∪ Y).Elem` and back to `X.Elem ⊕ Y.Elem` gives the original element, assuming that\n`X` and `Y` are disjoint. -/\nlemma toUnion_toSum {X Y : Set α} [∀ a, Decidable (a ∈ X)] [∀ a, Decidable (a ∈ Y)] (hXY : X ⫗ Y) (i : X.Elem ⊕ Y.Elem) :\n    i.toUnion.toSum = i := by\n  /-\n    α : Type\n    X Y : Set α\n    inst✝¹ : (a : α) → Decidable (Membership.mem X a)\n    inst✝ : (a : α) → Decidable (Membership.mem Y a)\n    hXY : Disjoint X Y\n    i : Sum ↑X ↑Y\n    ⊢ Eq (Subtype.toSum i.toUnion) i\n  -/\n  rw [Set.disjoint_right] at hXY\n  /-\n    α : Type\n    X Y : Set α\n    inst✝¹ : (a : α) → Decidable (Membership.mem X a)\n    inst✝ : (a : α) → Decidable (Membership.mem Y a)\n    hXY : ∀ ⦃a : α⦄, Membership.mem Y a → Not (Membership.mem X a)\n    i : Sum ↑X ↑Y\n    ⊢ Eq (Subtype.toSum i.toUnion) i\n  -/\n              /-\n                🎉 no goals\n              -/\n  cases i <;> simp [Subtype.toSum, Sum.toUnion, HasSubset.Subset.elem, hXY]\n              /-\n                🎉 no goals\n              -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set.disjoint_right",
+    "module": "Mathlib.Data.Set.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem disjoint_right : Disjoint s t ↔ ∀ ⦃a⦄, a ∈ t → a ∉ s := by rw [disjoint_comm, disjoint_left]",
+    "compilationAlias":
+    "theorem disjoint_right : Disjoint s t ↔ ∀ ⦃a⦄, a ∈ t → a ∉ s := by rw [disjoint_comm, disjoint_left]"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies": []}]

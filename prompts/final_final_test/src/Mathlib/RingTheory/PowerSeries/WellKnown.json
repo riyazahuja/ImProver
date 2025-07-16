@@ -1,0 +1,180 @@
+[{"rag":
+  ["--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow (e : ℕ) :\n    (1 - X) ^ (d + e) * (invOneSubPow S e).val = (1 - X) ^ d := by\n  simp [pow_add, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow S e]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem one_sub_pow_mul_invOneSubPow_val_add_eq_invOneSubPow_val (e : ℕ) :\n    (1 - X) ^ e * (invOneSubPow S (d + e)).val = (invOneSubPow S d).val := by\n  simp [invOneSubPow_add, Units.val_mul, mul_comm, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_inv_eq_one_sub_pow :\n    (invOneSubPow S d).inv = (1 - X : S⟦X⟧) ^ d := by\n  induction d with\n  | zero => exact Eq.symm <| pow_zero _\n  | succ d => rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem mk_add_choose_mul_one_sub_pow_eq_one :\n    (mk fun n ↦ Nat.choose (d + n) d : S⟦X⟧) * ((1 - X) ^ (d + 1)) = 1 :=\n  (invOneSubPow S (d + 1)).val_inv",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\n/--\n(1 + X + X^2 + ...) * (1 - X) = 1.\nNote that the power series `1 + X + X^2 + ...` is written as `mk 1` where `1` is the constant\nfunction so that `mk 1` is the power series with all coefficients equal to one.\n-/\ntheorem mk_one_mul_one_sub_eq_one : (mk 1 : S⟦X⟧) * (1 - X) = 1 := by\n  rw [mul_comm, PowerSeries.ext_iff]\n  intro n\n  cases n with\n  | zero => simp\n  | succ n => simp [sub_mul]",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\ntheorem rescale_mk (f : ℕ → R) (a : R) : rescale a (mk f) = mk fun n : ℕ => a ^ n * f n := by\n  ext\n  rw [coeff_rescale, coeff_mk, coeff_mk]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_zero : invOneSubPow S 0 = 1 := by\n  delta invOneSubPow\n  simp only [Units.val_one]",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\n/-- First coefficient of the `n`-th power of a power series. -/\nlemma coeff_one_pow (n : ℕ) (φ : R⟦X⟧) :\n    coeff R 1 (φ ^ n) = n * coeff R 1 φ * (constantCoeff R φ) ^ (n - 1) := by\n  rcases Nat.eq_zero_or_pos n with (rfl | hn)\n  · simp\n  induction n with\n  | zero => omega\n  | succ n' ih =>\n      have h₁ (m : ℕ) : φ ^ (m + 1) = φ ^ m * φ := by exact rfl\n      have h₂ : Finset.antidiagonal 1 = {(0, 1), (1, 0)} := by exact rfl\n      rw [h₁, coeff_mul, h₂, Finset.sum_insert, Finset.sum_singleton]\n      · simp only [coeff_zero_eq_constantCoeff, map_pow, Nat.cast_add, Nat.cast_one,\n          add_tsub_cancel_right]\n        have h₀ : n' = 0 ∨ 1 ≤ n' := by omega\n        rcases h₀ with h' | h'\n        · by_contra h''\n          rw [h'] at h''\n          simp only [pow_zero, one_mul, coeff_one, one_ne_zero, ↓reduceIte, zero_mul, add_zero,\n            CharP.cast_eq_zero, zero_add, mul_one, not_true_eq_false] at h''\n          norm_num at h''\n        · rw [ih]\n          · conv => lhs; arg 2; rw [mul_comm, ← mul_assoc]\n            move_mul [← (constantCoeff R) φ ^ (n' - 1)]\n            conv => enter [1, 2, 1, 1, 2]; rw [← pow_one (a := constantCoeff R φ)]\n            rw [← pow_add (a := constantCoeff R φ)]\n            conv => enter [1, 2, 1, 1]; rw [Nat.sub_add_cancel h']\n            conv => enter [1, 2, 1]; rw [mul_comm]\n            rw [mul_assoc, ← one_add_mul, add_comm, mul_assoc]\n            conv => enter [1, 2]; rw [mul_comm]\n          exact h'\n      · decide",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\ntheorem rescale_neg_one_X : rescale (-1 : A) X = -X := by\n  rw [rescale_X, map_neg, map_one, neg_one_mul]",
+   "--src: Mathlib.Algebra.Polynomial.Eval.Degree\n/-- A reformulation of the expansion of (1 + y)^d:\n$$(d + 1) (1 + y)^d - (d + 1)y^d = \\sum_{i = 0}^d {d + 1 \\choose i} \\cdot i \\cdot y^{i - 1}.$$\n-/\ntheorem eval_monomial_one_add_sub [CommRing S] (d : ℕ) (y : S) :\n    eval (1 + y) (monomial d (d + 1 : S)) - eval y (monomial d (d + 1 : S)) =\n      ∑ x_1 ∈ range (d + 1), ↑((d + 1).choose x_1) * (↑x_1 * y ^ (x_1 - 1)) := by\n  have cast_succ : (d + 1 : S) = ((d.succ : ℕ) : S) := by simp only [Nat.cast_succ]\n  rw [cast_succ, eval_monomial, eval_monomial, add_comm, add_pow]\n  -- Porting note: `apply_congr` hadn't been ported yet, so `congr` & `ext` is used.\n  conv_lhs =>\n    congr\n    · congr\n      · skip\n      · congr\n        · skip\n        · ext\n          rw [one_pow, mul_one, mul_comm]\n  rw [sum_range_succ, mul_add, Nat.choose_self, Nat.cast_one, one_mul, add_sub_cancel_right,\n    mul_sum, sum_range_succ', Nat.cast_zero, zero_mul, mul_zero, add_zero]\n  refine sum_congr rfl fun y _hy => ?_\n  rw [← mul_assoc, ← mul_assoc, ← Nat.cast_mul, Nat.succ_mul_choose_eq, Nat.cast_mul,\n    Nat.add_sub_cancel]"],
+  "prescopes":
+  "namespace PowerSeries\n\nvariable (S : Type*) [CommRing S] (d : ℕ)",
+  "postscopes": "end PowerSeries",
+  "id":
+  {"name": "PowerSeries.one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow",
+   "module": "Mathlib.RingTheory.PowerSeries.WellKnown",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow (e : ℕ) :\n    (1 - X) ^ (d + e) * (invOneSubPow S e).val = (1 - X) ^ d := by\n  simp [pow_add, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow S e]\n\n",
+   "compilationAlias":
+   "theorem one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow (e : ℕ) :\n    (1 - X) ^ (d + e) * (invOneSubPow S e).val = (1 - X) ^ d := by\n  simp [pow_add, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow S e]\n\n"},
+  "goal":
+  "S : Type u_1\ninst✝ : CommRing S\nd e : Nat\n⊢ Eq (HMul.hMul (HPow.hPow (HSub.hSub 1 PowerSeries.X) (HAdd.hAdd d e)) ↑(PowerSeries.invOneSubPow S e)) (HPow.hPow (HSub.hSub 1 PowerSeries.X) d)",
+  "content_sorry":
+  "theorem one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow (e : ℕ) :\n    (1 - X) ^ (d + e) * (invOneSubPow S e).val = (1 - X) ^ d := by\n  sorry",
+  "annotation":
+  "theorem one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow (e : ℕ) :\n    (1 - X) ^ (d + e) * (invOneSubPow S e).val = (1 - X) ^ d := by\n  /-\n    S : Type u_1\n    inst✝ : CommRing S\n    d e : Nat\n    ⊢ Eq (HMul.hMul (HPow.hPow (HSub.hSub 1 PowerSeries.X) (HAdd.hAdd d e)) ↑(Powe …\n  -/\n  simp [pow_add, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow S e]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "pow_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]",
+    "compilationAlias":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]"}],
+  "C0_dependencies":
+  [{"name": "PowerSeries.invOneSubPow_inv_zero_eq_one",
+    "module": "Mathlib.RingTheory.PowerSeries.WellKnown",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n\n",
+    "compilationAlias":
+    "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n\n"},
+   {"name": "PowerSeries.invOneSubPow_add",
+    "module": "Mathlib.RingTheory.PowerSeries.WellKnown",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]\n\n",
+    "compilationAlias":
+    "theorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_zero : invOneSubPow S 0 = 1 := by\n  delta invOneSubPow\n  simp only [Units.val_one]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_val_succ_eq_mk_add_choose :\n    (invOneSubPow S (d + 1)).val = (mk fun n => Nat.choose (d + n) d : S⟦X⟧) := rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_inv_eq_one_sub_pow :\n    (invOneSubPow S d).inv = (1 - X : S⟦X⟧) ^ d := by\n  induction d with\n  | zero => exact Eq.symm <| pow_zero _\n  | succ d => rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem one_sub_pow_add_mul_invOneSubPow_val_eq_one_sub_pow (e : ℕ) :\n    (1 - X) ^ (d + e) * (invOneSubPow S e).val = (1 - X) ^ d := by\n  simp [pow_add, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow S e]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_val_one_eq_invUnitSub_one :\n    (invOneSubPow S 1).val = invUnitsSub (1 : Sˣ) := by\n  simp [invOneSubPow, invUnitsSub]",
+   "--src: Mathlib.RingTheory.DividedPowers.Basic\n/-- A more general of `DividedPowers.exp_add` -/\ntheorem exp_add' (dp : ℕ → A → A)\n    (dp_add : ∀ n, dp n (a + b) = (antidiagonal n).sum fun k ↦ dp k.1 a * dp k.2 b) :\n    PowerSeries.mk (fun n ↦ dp n (a + b)) =\n      (PowerSeries.mk fun n ↦ dp n a) * (PowerSeries.mk fun n ↦ dp n b) := by\n  ext n\n  simp only [exp, PowerSeries.coeff_mk, PowerSeries.coeff_mul, dp_add n,\n    sum_antidiagonal_eq_sum_range_succ_mk]",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\n@[simp]\ntheorem coeff_X_pow_mul (p : R⟦X⟧) (n d : ℕ) :\n    coeff R (d + n) (X ^ n * p) = coeff R d p := by\n  rw [coeff_mul, Finset.sum_eq_single (n, d), coeff_X_pow, if_pos rfl, one_mul]\n  · rintro ⟨i, j⟩ h1 h2\n    rw [coeff_X_pow, if_neg, zero_mul]\n    rintro rfl\n    apply h2\n    rw [mem_antidiagonal, add_comm, add_right_cancel_iff] at h1\n    subst h1\n    rfl\n  · rw [add_comm]\n    exact fun h1 => (h1 (mem_antidiagonal.2 rfl)).elim",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\ntheorem rescale_mk (f : ℕ → R) (a : R) : rescale a (mk f) = mk fun n : ℕ => a ^ n * f n := by\n  ext\n  rw [coeff_rescale, coeff_mk, coeff_mk]",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\n@[simp]\ntheorem coeff_smul {S : Type*} [Semiring S] [Module R S] (n : ℕ) (φ : PowerSeries S) (a : R) :\n    coeff S n (a • φ) = a • coeff S n φ :=\n  rfl"],
+  "prescopes":
+  "namespace PowerSeries\n\nvariable (S : Type*) [CommRing S] (d : ℕ)",
+  "postscopes": "end PowerSeries",
+  "id":
+  {"name": "PowerSeries.invOneSubPow_add",
+   "module": "Mathlib.RingTheory.PowerSeries.WellKnown",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]\n\n",
+   "compilationAlias":
+   "theorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]\n\n"},
+  "goal":
+  "S : Type u_1\ninst✝ : CommRing S\nd e : Nat\n⊢ Eq (PowerSeries.invOneSubPow S (HAdd.hAdd d e)) (HMul.hMul (PowerSeries.invOneSubPow S d) (PowerSeries.invOneSubPow S e))",
+  "content_sorry":
+  "theorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  sorry",
+  "annotation":
+  "theorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  /-\n    S : Type u_1\n    inst✝ : CommRing S\n    d e : Nat\n    ⊢ Eq (PowerSeries.invOneSubPow S (HAdd.hAdd d e)) (HMul.hMul (PowerSeries.invO …\n  -/\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "pow_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]",
+    "compilationAlias":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]"}],
+  "C0_dependencies":
+  [{"name": "PowerSeries.invOneSubPow_inv_zero_eq_one",
+    "module": "Mathlib.RingTheory.PowerSeries.WellKnown",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n\n",
+    "compilationAlias":
+    "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_zero : invOneSubPow S 0 = 1 := by\n  delta invOneSubPow\n  simp only [Units.val_one]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_val_one_eq_invUnitSub_one :\n    (invOneSubPow S 1).val = invUnitsSub (1 : Sˣ) := by\n  simp [invOneSubPow, invUnitsSub]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_inv_eq_one_sub_pow :\n    (invOneSubPow S d).inv = (1 - X : S⟦X⟧) ^ d := by\n  induction d with\n  | zero => exact Eq.symm <| pow_zero _\n  | succ d => rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_add (e : ℕ) :\n    invOneSubPow S (d + e) = invOneSubPow S d * invOneSubPow S e := by\n  simp_rw [invOneSubPow_eq_inv_one_sub_pow, pow_add]",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\n/--\n(1 + X + X^2 + ...) * (1 - X) = 1.\nNote that the power series `1 + X + X^2 + ...` is written as `mk 1` where `1` is the constant\nfunction so that `mk 1` is the power series with all coefficients equal to one.\n-/\ntheorem mk_one_mul_one_sub_eq_one : (mk 1 : S⟦X⟧) * (1 - X) = 1 := by\n  rw [mul_comm, PowerSeries.ext_iff]\n  intro n\n  cases n with\n  | zero => simp\n  | succ n => simp [sub_mul]",
+   "--src: Mathlib.Algebra.Ring.NegOnePow\n@[simp]\nlemma negOnePow_zero : negOnePow 0 = 1 := rfl",
+   "--src: Mathlib.RingTheory.LaurentSeries\n@[simp]\ntheorem powerSeriesPart_zero : powerSeriesPart (0 : R⸨X⸩) = 0 := by\n  ext\n  simp [(PowerSeries.coeff _ _).map_zero] -- Note: this doesn't get picked up any more",
+   "--src: Mathlib.RingTheory.PowerSeries.Order\n/-- The order of the formal power series `1` is `0`. -/\n@[simp]\ntheorem order_one : order (1 : R⟦X⟧) = 0 := by\n  simpa using order_monomial_of_ne_zero 0 (1 : R) one_ne_zero",
+   "--src: Mathlib.Algebra.Group.NatPowAssoc\n/-- A mixin for power-associative multiplication. -/\nclass NatPowAssoc (M : Type*) [MulOneClass M] [Pow M ℕ] : Prop where\n  /-- Multiplication is power-associative. -/\n  protected npow_add : ∀ (k n : ℕ) (x : M), x ^ (k + n) = x ^ k * x ^ n\n  /-- Exponent zero is one. -/\n  protected npow_zero : ∀ (x : M), x ^ 0 = 1\n  /-- Exponent one is identity. -/\n  protected npow_one : ∀ (x : M), x ^ 1 = x"],
+  "prescopes":
+  "namespace PowerSeries\n\nvariable (S : Type*) [CommRing S] (d : ℕ)",
+  "postscopes": "end PowerSeries",
+  "id":
+  {"name": "PowerSeries.invOneSubPow_inv_zero_eq_one",
+   "module": "Mathlib.RingTheory.PowerSeries.WellKnown",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n\n",
+   "compilationAlias":
+   "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  delta invOneSubPow\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n\n"},
+  "goal":
+  "S : Type u_1\ninst✝ : CommRing S\n⊢ Eq (PowerSeries.invOneSubPow S 0).inv 1",
+  "content_sorry":
+  "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  sorry",
+  "annotation":
+  "theorem invOneSubPow_inv_zero_eq_one : (invOneSubPow S 0).inv = 1 := by\n  /-\n    S : Type u_1\n    inst✝ : CommRing S\n    ⊢ Eq (PowerSeries.invOneSubPow S 0).inv 1\n  -/\n  delta invOneSubPow\n  /-\n    S : Type u_1\n    inst✝ : CommRing S\n    ⊢ Eq (PowerSeries.invOneSubPow.match_1 (fun x => Units (PowerSeries S)) 0 (fun …\n  -/\n  simp only [Units.inv_eq_val_inv, inv_one, Units.val_one]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Units.val_one",
+    "module": "Mathlib.Algebra.Group.Units.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp, norm_cast)]\ntheorem val_one : ((1 : αˣ) : α) = 1 :=\n  rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp, norm_cast)]\ntheorem val_one : ((1 : αˣ) : α) = 1 :=\n  rfl"},
+   {"name": "inv_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem inv_one : (1 : G)⁻¹ = 1 :=\n  InvOneClass.inv_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem inv_one : (1 : G)⁻¹ = 1 :=\n  InvOneClass.inv_one"},
+   {"name": "Units.inv_eq_val_inv",
+    "module": "Mathlib.Algebra.Group.Units.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem inv_eq_val_inv : a.inv = ((a⁻¹ : αˣ) : α) :=\n  rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem inv_eq_val_inv : a.inv = ((a⁻¹ : αˣ) : α) :=\n  rfl"}],
+  "C0_dependencies": []}]

@@ -23,4 +23,4 @@ lake build eval_improver
 sleep 5
 
 
-./improver improver pipeline --config /home/riyaza/eval_improver/improver/configs/ablations/model/train/Q7.yaml
+./improver run pipeline --config /home/riyaza/eval_improver/improver/configs/ablations/model/train/Q7.yaml

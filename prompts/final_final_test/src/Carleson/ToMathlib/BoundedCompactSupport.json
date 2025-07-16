@@ -1,0 +1,176 @@
+[{"rag":
+  ["--src: Mathlib.MeasureTheory.Function.LpSeminorm.Basic\n/-- A continuous function with compact support belongs to `L^∞`.\nSee `Continuous.memℒp_of_hasCompactSupport` for a version for `L^p`. -/\ntheorem _root_.Continuous.memℒp_top_of_hasCompactSupport\n    {X : Type*} [TopologicalSpace X] [MeasurableSpace X] [OpensMeasurableSpace X]\n    {f : X → E} (hf : Continuous f) (h'f : HasCompactSupport f) (μ : Measure X) : Memℒp f ⊤ μ := by\n  borelize E\n  rcases hf.bounded_above_of_compact_support h'f with ⟨C, hC⟩\n  apply memℒp_top_of_bound ?_ C (Filter.Eventually.of_forall hC)\n  exact (hf.stronglyMeasurable_of_hasCompactSupport h'f).aestronglyMeasurable",
+   "--src: Mathlib.Analysis.Calculus.BumpFunction.Normed\ntheorem hasCompactSupport_normed : HasCompactSupport (f.normed μ) := by\n  simp only [HasCompactSupport, f.tsupport_normed_eq (μ := μ), isCompact_closedBall]",
+   "--src: Mathlib.Analysis.RCLike.Lemmas\n/-- A finite dimensional vector space over an `RCLike` is a proper metric space.\nThis is not an instance because it would cause a search for `FiniteDimensional ?x E` before\n`RCLike ?x`. -/\ntheorem proper_rclike [FiniteDimensional K E] : ProperSpace E := by\n  letI : NormedSpace ℝ E := RestrictScalars.normedSpace ℝ K E\n  letI : FiniteDimensional ℝ E := FiniteDimensional.trans ℝ K E\n  infer_instance",
+   "--src: Mathlib.Analysis.Normed.Module.FiniteDimension\n/-- If a function has compact support, then either the function is trivial\nor the space is finite-dimensional. -/\ntheorem HasCompactSupport.eq_zero_or_finiteDimensional {X : Type*} [TopologicalSpace X] [Zero X]\n    [T1Space X] {f : E → X} (hf : HasCompactSupport f) (h'f : Continuous f) :\n    f = 0 ∨ FiniteDimensional \u0000\u0000 E :=\n  (HasCompactSupport.eq_zero_or_locallyCompactSpace_of_addGroup hf h'f).imp_right fun h ↦\n    -- TODO: Lean doesn't find the instance without this `have`\n    have : LocallyCompactSpace E := h; .of_locallyCompactSpace \u0000\u0000",
+   "--src: Mathlib.MeasureTheory.Measure.Typeclasses\ntheorem measure_ball_lt_top [PseudoMetricSpace α] [ProperSpace α] {μ : Measure α}\n    [IsFiniteMeasureOnCompacts μ] {x : α} {r : ℝ} : μ (Metric.ball x r) < ∞ :=\n  Metric.isBounded_ball.measure_lt_top",
+   "--src: Mathlib.Topology.MetricSpace.Bounded\n/-- The **Heine–Borel theorem**: In a proper space, the closure of a bounded set is compact. -/\ntheorem _root_.Bornology.IsBounded.isCompact_closure [ProperSpace α] (h : IsBounded s) :\n    IsCompact (closure s) :=\n  isCompact_of_isClosed_isBounded isClosed_closure h.closure\n-- Porting note (https://github.com/leanprover-community/mathlib4/issues/11215): TODO: assume `[MetricSpace α]`\n-- instead of `[PseudoMetricSpace α] [T2Space α]`",
+   "--src: Mathlib.Topology.Algebra.Support\ntheorem HasCompactSupport.smul_right (hf : HasCompactSupport f) : HasCompactSupport (f • f') := by\n  rw [hasCompactSupport_iff_eventuallyEq] at hf ⊢\n  exact hf.mono fun x hx => by simp_rw [Pi.smul_apply', hx, Pi.zero_apply, zero_smul]",
+   "--src: Mathlib.Topology.ContinuousMap.BoundedCompactlySupported\nlemma mem_compactlySupported {f : α →ᵇ γ} :\n    f ∈ C_cb(α, γ) ↔ HasCompactSupport f :=\n  TwoSidedIdeal.mem_mk' {z : α →ᵇ γ | HasCompactSupport z} .zero .add .neg' .mul_left .mul_right f",
+   "--src: Mathlib.Analysis.Calculus.BumpFunction.FiniteDimension\n/-- If a set `s` is a neighborhood of `x`, then there exists a smooth function `f` taking\nvalues in `[0, 1]`, supported in `s` and with `f x = 1`. -/\ntheorem exists_smooth_tsupport_subset {s : Set E} {x : E} (hs : s ∈ \u0000\u0000 x) :\n    ∃ f : E → ℝ,\n      tsupport f ⊆ s ∧ HasCompactSupport f ∧ ContDiff ℝ ∞ f ∧ range f ⊆ Icc 0 1 ∧ f x = 1 := by\n  obtain ⟨d : ℝ, d_pos : 0 < d, hd : Euclidean.closedBall x d ⊆ s⟩ :=\n    Euclidean.nhds_basis_closedBall.mem_iff.1 hs\n  let c : ContDiffBump (toEuclidean x) :=\n    { rIn := d / 2\n      rOut := d\n      rIn_pos := half_pos d_pos\n      rIn_lt_rOut := half_lt_self d_pos }\n  let f : E → ℝ := c ∘ toEuclidean\n  have f_supp : f.support ⊆ Euclidean.ball x d := by\n    intro y hy\n    have : toEuclidean y ∈ Function.support c := by\n      simpa only [Function.mem_support, Function.comp_apply, Ne] using hy\n    rwa [c.support_eq] at this\n  have f_tsupp : tsupport f ⊆ Euclidean.closedBall x d := by\n    rw [tsupport, ← Euclidean.closure_ball _ d_pos.ne']\n    exact closure_mono f_supp\n  refine ⟨f, f_tsupp.trans hd, ?_, ?_, ?_, ?_⟩\n  · refine isCompact_of_isClosed_isBounded isClosed_closure ?_\n    have : IsBounded (Euclidean.closedBall x d) := Euclidean.isCompact_closedBall.isBounded\n    refine this.subset (Euclidean.isClosed_closedBall.closure_subset_iff.2 ?_)\n    exact f_supp.trans Euclidean.ball_subset_closedBall\n  · apply c.contDiff.comp\n    exact ContinuousLinearEquiv.contDiff _\n  · rintro t ⟨y, rfl⟩\n    exact ⟨c.nonneg, c.le_one⟩\n  · apply c.one_of_mem_closedBall\n    apply mem_closedBall_self\n    exact (half_pos d_pos).le",
+   "--src: Mathlib.MeasureTheory.Integral.BoundedContinuousFunction\nlemma integrable [IsFiniteMeasure μ] (f : X →ᵇ E) :\n    Integrable f μ := by\n  refine ⟨f.continuous.measurable.aestronglyMeasurable, (hasFiniteIntegral_def _ _).mp ?_⟩\n  calc  ∫⁻ x, ‖f x‖₊ ∂μ\n    _ ≤ ‖f‖₊ * (μ Set.univ)   := f.lintegral_nnnorm_le μ\n    _ < ∞                     := ENNReal.mul_lt_top ENNReal.coe_lt_top (measure_lt_top μ Set.univ)"],
+  "prescopes":
+  "namespace MeasureTheory.BoundedCompactSupport\n\nopen Bornology Function Set MeasureTheory.HasCompactSupport\n\nvariable {X Y 𝕜 : Type*} [RCLike 𝕜] [MeasureSpace X] {f : X → 𝕜} [PseudoMetricSpace X]\n  [SigmaFinite (volume : Measure X)] [MeasureSpace Y] {g : Y → 𝕜} [PseudoMetricSpace Y]\n  [SigmaFinite (volume : Measure Y)] (hf : BoundedCompactSupport f) (hg : BoundedCompactSupport g)\n\ninclude hf\n\nset_option linter.unusedSectionVars false",
+  "postscopes": "end MeasureTheory.BoundedCompactSupport",
+  "id":
+  {"name": "MeasureTheory.BoundedCompactSupport.isBoundedSupport'",
+   "module": "Carleson.ToMathlib.BoundedCompactSupport",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem isBoundedSupport' : IsBounded (tsupport f) :=\n  hf.hasCompactSupport.isBounded\n\n",
+   "compilationAlias":
+   "theorem isBoundedSupport' : IsBounded (tsupport f) :=\n  hf.hasCompactSupport.isBounded\n\n"},
+  "goal":
+  "X : Type u_1\n𝕜 : Type u_3\ninst✝³ : RCLike 𝕜\ninst✝² : MeasureTheory.MeasureSpace X\nf : X → 𝕜\ninst✝¹ : PseudoMetricSpace X\ninst✝ : MeasureTheory.SigmaFinite MeasureTheory.MeasureSpace.volume\nhf : MeasureTheory.BoundedCompactSupport f\n⊢ Bornology.IsBounded (tsupport f)",
+  "content_sorry":
+  "theorem isBoundedSupport' : IsBounded (tsupport f) := by sorry",
+  "annotation":
+  "theorem isBoundedSupport' : IsBounded (tsupport f) :=\n  hf.hasCompactSupport.isBounded\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "tsupport",
+    "module": "Mathlib.Topology.Algebra.Support",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive \"The topological support of a function is the closure of its support. i.e. the\nclosure of the set of all elements where the function is nonzero.\"]",
+    "compilationAlias":
+    "@[to_additive \"The topological support of a function is the closure of its support. i.e. the\nclosure of the set of all elements where the function is nonzero.\"]"}],
+  "C0_dependencies":
+  [{"name": "MeasureTheory.isBounded_range_iff_forall_norm_le",
+    "module": "Carleson.ToMathlib.BoundedCompactSupport",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n\n",
+    "compilationAlias":
+    "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n\n"},
+   {"name": "MeasureTheory.BoundedCompactSupport.finset_sum",
+    "module": "Carleson.ToMathlib.BoundedCompactSupport",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A finite sum of bounded compactly supported functions is bounded compactly supported. -/\ntheorem finset_sum\n    (hF : ∀ i ∈ s, BoundedCompactSupport (F i)) :\n    BoundedCompactSupport (fun x ↦ ∑ i ∈ s, F i x) := by\n  classical\n  induction s using Finset.induction with\n  | empty => simp [BoundedCompactSupport.zero]\n  | @insert j s hjs IH =>\n    simp_rw [Finset.sum_insert hjs]\n    apply BoundedCompactSupport.add\n    · exact hF _ (Finset.mem_insert_self j s)\n    · exact IH (fun i hi ↦ hF _ (Finset.mem_insert_of_mem hi))\n\n",
+    "compilationAlias":
+    "/-- A finite sum of bounded compactly supported functions is bounded compactly supported. -/\ntheorem finset_sum\n    (hF : ∀ i ∈ s, BoundedCompactSupport (F i)) :\n    BoundedCompactSupport (fun x ↦ ∑ i ∈ s, F i x) := by\n  classical\n  induction s using Finset.induction with\n  | empty => simp [BoundedCompactSupport.zero]\n  | @insert j s hjs IH =>\n    simp_rw [Finset.sum_insert hjs]\n    apply BoundedCompactSupport.add\n    · exact hF _ (Finset.mem_insert_self j s)\n    · exact IH (fun i hi ↦ hF _ (Finset.mem_insert_of_mem hi))\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Topology.ContinuousMap.CompactlySupported\n@[simp]\ntheorem coe_sum [AddCommMonoid β] [ContinuousAdd β] {ι : Type*} (s : Finset ι) (f : ι → C_c(α, β)) :\n    ⇑(∑ i in s, f i) = ∑ i in s, (f i : α → β) :=\n  map_sum coeFnMonoidHom f s",
+   "--src: Mathlib.Topology.ContinuousMap.BoundedCompactlySupported\nlemma ofCompactSupport_mem (g : α → γ) (hg₁ : Continuous g) (hg₂ : HasCompactSupport g) :\n    ofCompactSupport g hg₁ hg₂ ∈ C_cb(α, γ) := mem_compactlySupported.mpr hg₂",
+   "--src: Mathlib.Topology.ContinuousMap.CompactlySupported\n@[ext]\ntheorem ext {f g : C_c(α, β)} (h : ∀ x, f x = g x) : f = g :=\n  DFunLike.ext _ _ h",
+   "--src: Mathlib.Topology.Algebra.Support\n@[to_additive]\ntheorem comp₂_left (hf : HasCompactMulSupport f)\n    (hf₂ : HasCompactMulSupport f₂) (hm : m 1 1 = 1) :\n    HasCompactMulSupport fun x => m (f x) (f₂ x) := by\n  rw [hasCompactMulSupport_iff_eventuallyEq] at hf hf₂ ⊢\n  filter_upwards [hf, hf₂] with x hx hx₂\n  simp_rw [hx, hx₂, Pi.one_apply, hm]",
+   "--src: Mathlib.Topology.ContinuousMap.CompactlySupported\n@[simp]\ntheorem coe_mk (f : C(α, β)) (h : HasCompactSupport f) : ⇑(⟨f, h⟩ : C_c(α, β)) = f :=\n  rfl",
+   "--src: Mathlib.MeasureTheory.Function.LocallyIntegrable\ntheorem locallyIntegrable_finset_sum' {ι} (s : Finset ι) {f : ι → X → E}\n    (hf : ∀ i ∈ s, LocallyIntegrable (f i) μ) : LocallyIntegrable (∑ i ∈ s, f i) μ :=\n  Finset.sum_induction f (fun g => LocallyIntegrable g μ) (fun _ _ => LocallyIntegrable.add)\n    locallyIntegrable_zero hf",
+   "--src: Mathlib.MeasureTheory.Function.StronglyMeasurable.Basic\n@[to_additive (attr := measurability)]\ntheorem _root_.Finset.aestronglyMeasurable_prod' {ι : Type*} {f : ι → α → M} (s : Finset ι)\n    (hf : ∀ i ∈ s, AEStronglyMeasurable (f i) μ) : AEStronglyMeasurable (∏ i ∈ s, f i) μ :=\n  Multiset.aestronglyMeasurable_prod' _ fun _g hg =>\n    let ⟨_i, hi, hg⟩ := Multiset.mem_map.1 hg\n    hg ▸ hf _ hi",
+   "--src: Mathlib.Topology.ContinuousMap.CompactlySupported\n/-- A continuous function on a compact space has automatically compact support. This is not an\ninstance to avoid type class loops. -/\nlemma of_compactSpace (G : Type*) [FunLike G α β]\n    [ContinuousMapClass G α β] [CompactSpace α] : CompactlySupportedContinuousMapClass G α β where\n  map_continuous := map_continuous\n  hasCompactSupport := by\n    intro f\n    exact HasCompactSupport.of_compactSpace f",
+   "--src: Mathlib.MeasureTheory.Measure.FiniteMeasure\ntheorem tendsto_iff_weakDual_tendsto {γ : Type*} {F : Filter γ} {μs : γ → FiniteMeasure Ω}\n    {μ : FiniteMeasure Ω} :\n    Tendsto μs F (\u0000\u0000 μ) ↔ Tendsto (fun i ↦ (μs i).toWeakDualBCNN) F (\u0000\u0000 μ.toWeakDualBCNN) :=\n  IsInducing.tendsto_nhds_iff ⟨rfl⟩",
+   "--src: Mathlib.MeasureTheory.Integral.Bochner\ntheorem integral_finset_sum {ι} (s : Finset ι) {f : ι → α → G} (hf : ∀ i ∈ s, Integrable (f i) μ) :\n    ∫ a, ∑ i ∈ s, f i a ∂μ = ∑ i ∈ s, ∫ a, f i a ∂μ := by\n  by_cases hG : CompleteSpace G\n  · simp only [integral, hG, L1.integral]\n    exact setToFun_finset_sum (dominatedFinMeasAdditive_weightedSMul _) s hf\n  · simp [integral, hG]"],
+  "prescopes":
+  "namespace MeasureTheory.BoundedCompactSupport\n\nopen Bornology Function Set MeasureTheory.HasCompactSupport\n\nvariable {X 𝕜} [MeasurableSpace X] [RCLike 𝕜] {f : X → 𝕜} {μ : Measure X} [TopologicalSpace X] {f : X → 𝕜} {g : X → 𝕜}\n  (hf : BoundedCompactSupport f) (hg : BoundedCompactSupport g) {ι : Type*} {s : Finset ι} {F : ι → X → 𝕜}\n\nset_option linter.unusedSectionVars false",
+  "postscopes": "end MeasureTheory.BoundedCompactSupport",
+  "id":
+  {"name": "MeasureTheory.BoundedCompactSupport.finset_sum",
+   "module": "Carleson.ToMathlib.BoundedCompactSupport",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- A finite sum of bounded compactly supported functions is bounded compactly supported. -/\ntheorem finset_sum\n    (hF : ∀ i ∈ s, BoundedCompactSupport (F i)) :\n    BoundedCompactSupport (fun x ↦ ∑ i ∈ s, F i x) := by\n  classical\n  induction s using Finset.induction with\n  | empty => simp [BoundedCompactSupport.zero]\n  | @insert j s hjs IH =>\n    simp_rw [Finset.sum_insert hjs]\n    apply BoundedCompactSupport.add\n    · exact hF _ (Finset.mem_insert_self j s)\n    · exact IH (fun i hi ↦ hF _ (Finset.mem_insert_of_mem hi))\n\n",
+   "compilationAlias":
+   "/-- A finite sum of bounded compactly supported functions is bounded compactly supported. -/\ntheorem finset_sum\n    (hF : ∀ i ∈ s, BoundedCompactSupport (F i)) :\n    BoundedCompactSupport (fun x ↦ ∑ i ∈ s, F i x) := by\n  classical\n  induction s using Finset.induction with\n  | empty => simp [BoundedCompactSupport.zero]\n  | @insert j s hjs IH =>\n    simp_rw [Finset.sum_insert hjs]\n    apply BoundedCompactSupport.add\n    · exact hF _ (Finset.mem_insert_self j s)\n    · exact IH (fun i hi ↦ hF _ (Finset.mem_insert_of_mem hi))\n\n"},
+  "goal":
+  "X : Type u_2\n𝕜 : Type u_3\ninst✝² : MeasurableSpace X\ninst✝¹ : RCLike 𝕜\ninst✝ : TopologicalSpace X\nι : Type u_1\ns : Finset ι\nF : ι → X → 𝕜\nhF : ∀ (i : ι), Membership.mem s i → MeasureTheory.BoundedCompactSupport (F i)\n⊢ MeasureTheory.BoundedCompactSupport fun x => s.sum fun i => F i x",
+  "content_sorry":
+  "/-- A finite sum of bounded compactly supported functions is bounded compactly supported. -/\ntheorem finset_sum\n    (hF : ∀ i ∈ s, BoundedCompactSupport (F i)) :\n    BoundedCompactSupport (fun x ↦ ∑ i ∈ s, F i x) := by\n  sorry",
+  "annotation":
+  "/-- A finite sum of bounded compactly supported functions is bounded compactly supported. -/\ntheorem finset_sum\n    (hF : ∀ i ∈ s, BoundedCompactSupport (F i)) :\n    BoundedCompactSupport (fun x ↦ ∑ i ∈ s, F i x) := by\n  classical\n  induction s using Finset.induction with\n  | empty => simp [BoundedCompactSupport.zero]\n  | @insert j s hjs IH =>\n    simp_rw [Finset.sum_insert hjs]\n    apply BoundedCompactSupport.add\n    · exact hF _ (Finset.mem_insert_self j s)\n    · exact IH (fun i hi ↦ hF _ (Finset.mem_insert_of_mem hi))\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Finset.mem_insert_of_mem",
+    "module": "Mathlib.Data.Finset.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_insert_of_mem (h : a ∈ s) : a ∈ insert b s :=\n  mem_ndinsert_of_mem h",
+    "compilationAlias":
+    "theorem mem_insert_of_mem (h : a ∈ s) : a ∈ insert b s :=\n  mem_ndinsert_of_mem h"},
+   {"name": "Finset.mem_insert_self",
+    "module": "Mathlib.Data.Finset.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_insert_self (a : α) (s : Finset α) : a ∈ insert a s :=\n  mem_ndinsert_self a s.1",
+    "compilationAlias":
+    "theorem mem_insert_self (a : α) (s : Finset α) : a ∈ insert a s :=\n  mem_ndinsert_self a s.1"},
+   {"name": "Finset.sum_insert",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Finset.induction",
+    "module": "Mathlib.Data.Finset.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\nprotected theorem induction {α : Type*} {p : Finset α → Prop} [DecidableEq α] (empty : p ∅)\n    (insert : ∀ ⦃a : α⦄ {s : Finset α}, a ∉ s → p s → p (insert a s)) : ∀ s, p s :=\n  cons_induction empty fun a s ha => (s.cons_eq_insert a ha).symm ▸ insert ha",
+    "compilationAlias":
+    "@[elab_as_elim]\nprotected theorem induction {α : Type*} {p : Finset α → Prop} [DecidableEq α] (empty : p ∅)\n    (insert : ∀ ⦃a : α⦄ {s : Finset α}, a ∉ s → p s → p (insert a s)) : ∀ s, p s :=\n  cons_induction empty fun a s ha => (s.cons_eq_insert a ha).symm ▸ insert ha"}],
+  "C0_dependencies":
+  [{"name": "MeasureTheory.isBounded_range_iff_forall_norm_le",
+    "module": "Carleson.ToMathlib.BoundedCompactSupport",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n\n",
+    "compilationAlias":
+    "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Analysis.Normed.Group.Bounded\n@[to_additive isBounded_iff_forall_norm_le]\nlemma isBounded_iff_forall_norm_le' : Bornology.IsBounded s ↔ ∃ C, ∀ x ∈ s, ‖x‖ ≤ C := by\n  simpa only [Set.subset_def, mem_closedBall_one_iff] using isBounded_iff_subset_closedBall (1 : E)",
+   "--src: Mathlib.Topology.MetricSpace.Bounded\n/-- Characterization of the boundedness of the range of a function -/\ntheorem isBounded_range_iff {f : β → α} : IsBounded (range f) ↔ ∃ C, ∀ x y, dist (f x) (f y) ≤ C :=\n  isBounded_iff.trans <| by simp only [forall_mem_range]",
+   "--src: Mathlib.Analysis.Normed.Group.Bounded\nalias ⟨Bornology.IsBounded.exists_norm_le, _⟩ := isBounded_iff_forall_norm_le",
+   "--src: Mathlib.Analysis.Normed.Group.Bounded\n@[to_additive isBounded_iff_forall_norm_le]\nlemma isBounded_iff_forall_norm_le' : Bornology.IsBounded s ↔ ∃ C, ∀ x ∈ s, ‖x‖ ≤ C := by\n  simpa only [Set.subset_def, mem_closedBall_one_iff] using isBounded_iff_subset_closedBall (1 : E)",
+   "--src: Mathlib.Analysis.Normed.Group.Bounded\n@[to_additive exists_pos_norm_le]\nlemma Bornology.IsBounded.exists_pos_norm_le' (hs : IsBounded s) : ∃ R > 0, ∀ x ∈ s, ‖x‖ ≤ R :=\n  let ⟨R₀, hR₀⟩ := hs.exists_norm_le'\n  ⟨max R₀ 1, by positivity, fun x hx => (hR₀ x hx).trans <| le_max_left _ _⟩",
+   "--src: Mathlib.Topology.ContinuousMap.Bounded.Basic\ntheorem bddAbove_range_norm_comp : BddAbove <| Set.range <| norm ∘ f :=\n  (@isBounded_range _ _ _ _ f.normComp).bddAbove",
+   "--src: Mathlib.Topology.Bornology.Constructions\ntheorem boundedSpace_induced_iff {α β : Type*} [Bornology β] {f : α → β} :\n    @BoundedSpace α (Bornology.induced f) ↔ IsBounded (range f) := by\n  rw [← @isBounded_univ _ (Bornology.induced f), isBounded_induced, image_univ]\n-- Porting note: had to explicitly provided the bornology to `isBounded_univ`.",
+   "--src: Mathlib.Analysis.Normed.Group.Pointwise\n@[to_additive]\ntheorem Bornology.IsBounded.inv : IsBounded s → IsBounded s⁻¹ := by\n  simp_rw [isBounded_iff_forall_norm_le', ← image_inv_eq_inv, forall_mem_image, norm_inv']\n  exact id",
+   "--src: Mathlib.Analysis.Normed.Group.Bounded\n@[to_additive exists_pos_norm_le]\nlemma Bornology.IsBounded.exists_pos_norm_le' (hs : IsBounded s) : ∃ R > 0, ∀ x ∈ s, ‖x‖ ≤ R :=\n  let ⟨R₀, hR₀⟩ := hs.exists_norm_le'\n  ⟨max R₀ 1, by positivity, fun x hx => (hR₀ x hx).trans <| le_max_left _ _⟩",
+   "--src: Mathlib.Topology.MetricSpace.Bounded\ntheorem _root_.CauchySeq.isBounded_range {f : ℕ → α} (hf : CauchySeq f) : IsBounded (range f) :=\n  isBounded_range_of_cauchy_map_cofinite <| by rwa [Nat.cofinite_eq_atTop]"],
+  "prescopes":
+  "namespace MeasureTheory\n\nopen Bornology Function Set MeasureTheory.HasCompactSupport\n\nvariable {X 𝕜} [MeasurableSpace X] [RCLike 𝕜] {f : X → 𝕜} {μ : Measure X} [TopologicalSpace X]\n\nset_option linter.unusedSectionVars false",
+  "postscopes": "end MeasureTheory",
+  "id":
+  {"name": "MeasureTheory.isBounded_range_iff_forall_norm_le",
+   "module": "Carleson.ToMathlib.BoundedCompactSupport",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n\n",
+   "compilationAlias":
+   "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n\n"},
+  "goal":
+  "α : Type u_1\nβ : Sort u_2\ninst✝ : SeminormedAddCommGroup α\nf : β → α\n⊢ Iff (Bornology.IsBounded (Set.range f)) (Exists fun C => ∀ (x : β), LE.le (Norm.norm (f x)) C)",
+  "content_sorry":
+  "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by sorry",
+  "annotation":
+  "lemma isBounded_range_iff_forall_norm_le {α β} [SeminormedAddCommGroup α] {f : β → α} :\n                                                    /-\n                                                      α : Type u_1\n                                                      β : Sort u_2\n                                                      inst✝ : SeminormedAddCommGroup α\n                                                      f : β → α\n                                                      ⊢ Iff (Bornology.IsBounded (Set.range f)) (Exists fun C => ∀ (x : β), LE.le (N …\n                                                    -/\n    IsBounded (range f) ↔ ∃ C, ∀ x, ‖f x‖ ≤ C := by convert isBounded_iff_forall_norm_le; simp\n                                                                                          /-\n                                                                                            🎉 no goals\n                                                                                          -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "isBounded_iff_forall_norm_le",
+    "module": "Mathlib.Analysis.Normed.Group.Bounded",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive isBounded_iff_forall_norm_le]",
+    "compilationAlias": "@[to_additive isBounded_iff_forall_norm_le]"}],
+  "C0_dependencies": []}]
