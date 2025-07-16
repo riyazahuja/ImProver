@@ -1,0 +1,100 @@
+[{"rag":
+  ["--src: Mathlib.Data.Matroid.IndepAxioms\n/-- Construct an `Matroid` from an independence predicate that agrees with that of some matroid `M`.\n  This is computable even if `M` is only known existentially, or when `M` exists for different\n  reasons in different cases. This can also be used to change the independence predicate to a\n  more useful definitional form. -/\n@[simps! E] protected def ofExistsMatroid (E : Set α) (Indep : Set α → Prop)\n    (hM : ∃ (M : Matroid α), E = M.E ∧ ∀ I, M.Indep I ↔ Indep I) : Matroid α :=\n  IndepMatroid.matroid <|\n  have hex : ∃ (M : Matroid α), E = M.E ∧ M.Indep = Indep := by\n    obtain ⟨M, rfl, h⟩ := hM; refine ⟨_, rfl, funext (by simp [h])⟩\n  IndepMatroid.mk (E := E) (Indep := Indep)\n  (indep_empty := by obtain ⟨M, -, rfl⟩ := hex; exact M.empty_indep)\n  (indep_subset := by obtain ⟨M, -, rfl⟩ := hex; exact fun I J hJ hIJ ↦ hJ.subset hIJ)\n  (indep_aug := by obtain ⟨M, -, rfl⟩ := hex; exact Indep.exists_insert_of_not_maximal M)\n  (indep_maximal := by obtain ⟨M, rfl, rfl⟩ := hex; exact M.existsMaximalSubsetProperty_indep)\n  (subset_ground := by obtain ⟨M, rfl, rfl⟩ := hex; exact fun I ↦ Indep.subset_ground)",
+   "--src: Mathlib.Data.Matroid.Dual\ntheorem dual_injective : Function.Injective (dual : Matroid α → Matroid α) :=\n  dual_involutive.injective",
+   "--src: Mathlib.Data.Matroid.Restrict\n/-- A type synonym for matroids with the restriction order.\n  (The `PartialOrder` on `Matroid α` is reserved for the minor order)  -/\n@[ext] structure Matroidᵣ (α : Type*) where ofMatroid ::\n  /-- The underlying `Matroid`.-/\n  toMatroid : Matroid α",
+   "--src: Mathlib.Data.Matroid.Restrict\n@[simp] theorem Matroidᵣ.coe_inj {M₁ M₂ : Matroidᵣ α} :\n    (M₁ : Matroid α) = (M₂ : Matroid α) ↔ M₁ = M₂ := by\n  cases M₁; cases M₂; simp",
+   "--src: Mathlib.Data.Matroid.Dual\n@[simp] theorem dual_dual (M : Matroid α) : M✶✶ = M :=\n  ext_base rfl (fun B (h : B ⊆ M.E) ↦\n    by rw [dual_base_iff, dual_base_iff, dual_ground, diff_diff_cancel_left h])",
+   "--src: Mathlib.Data.Matroid.Dual\ntheorem coindep_def : M.Coindep X ↔ M✶.Indep X := Iff.rfl",
+   "--src: Mathlib.Data.Matroid.Restrict\n/-- The `IndepMatroid` whose independent sets are the independent subsets of `R`. -/\n@[simps] def restrictIndepMatroid (M : Matroid α) (R : Set α) : IndepMatroid α where\n  E := R\n  Indep I := M.Indep I ∧ I ⊆ R\n  indep_empty := ⟨M.empty_indep, empty_subset _⟩\n  indep_subset := fun _ _ h hIJ ↦ ⟨h.1.subset hIJ, hIJ.trans h.2⟩\n  indep_aug := by\n    rintro I I' ⟨hI, hIY⟩ (hIn : ¬ M.Basis' I R) (hI' : M.Basis' I' R)\n    rw [basis'_iff_basis_inter_ground] at hIn hI'\n    obtain ⟨B', hB', rfl⟩ := hI'.exists_base\n    obtain ⟨B, hB, hIB, hBIB'⟩ := hI.exists_base_subset_union_base hB'\n    rw [hB'.inter_basis_iff_compl_inter_basis_dual, diff_inter_diff] at hI'\n    have hss : M.E \\ (B' ∪ (R ∩ M.E)) ⊆ M.E \\ (B ∪ (R ∩ M.E)) := by\n      apply diff_subset_diff_right\n      rw [union_subset_iff, and_iff_left subset_union_right, union_comm]\n      exact hBIB'.trans (union_subset_union_left _ (subset_inter hIY hI.subset_ground))\n    have hi : M✶.Indep (M.E \\ (B ∪ (R ∩ M.E))) := by\n      rw [dual_indep_iff_exists]\n      exact ⟨B, hB, disjoint_of_subset_right subset_union_left disjoint_sdiff_left⟩\n    have h_eq := hI'.eq_of_subset_indep hi hss\n      (diff_subset_diff_right subset_union_right)\n    rw [h_eq, ← diff_inter_diff, ← hB.inter_basis_iff_compl_inter_basis_dual] at hI'\n    obtain ⟨J, hJ, hIJ⟩ := hI.subset_basis_of_subset\n      (subset_inter hIB (subset_inter hIY hI.subset_ground))\n    obtain rfl := hI'.indep.eq_of_basis hJ\n    have hIJ' : I ⊂ B ∩ (R ∩ M.E) := hIJ.ssubset_of_ne (fun he ↦ hIn (by rwa [he]))\n    obtain ⟨e, he⟩ := exists_of_ssubset hIJ'\n    exact ⟨e, ⟨⟨(hBIB' he.1.1).elim (fun h ↦ (he.2 h).elim) id,he.1.2⟩, he.2⟩,\n      hI'.indep.subset (insert_subset he.1 hIJ), insert_subset he.1.2.1 hIY⟩\n  indep_maximal := by\n    rintro A hAR I ⟨hI, _⟩ hIA\n    obtain ⟨J, hJ, hIJ⟩ := hI.subset_basis'_of_subset hIA\n    use J\n    simp only [hIJ, and_assoc, maximal_subset_iff, hJ.indep, hJ.subset, and_imp, true_and,\n      hJ.subset.trans hAR]\n    exact fun K hK _ hKA hJK ↦ hJ.eq_of_subset_indep hK hJK hKA\n  subset_ground _ := And.right",
+   "--src: Mathlib.Data.Matroid.Dual\ntheorem dual_involutive : Function.Involutive (dual : Matroid α → Matroid α) := dual_dual",
+   "--src: Mathlib.Data.Matroid.Restrict\n@[simp] protected theorem Matroidᵣ.le_iff {M M' : Matroidᵣ α} :\n    M ≤ M' ↔ (M : Matroid α) ≤r (M' : Matroid α) := Iff.rfl",
+   "--src: Mathlib.Data.Matroid.Constructions\ntheorem eq_emptyOn [IsEmpty α] (M : Matroid α) : M = emptyOn α := by\n  rw [← ground_eq_empty_iff]\n  exact M.E.eq_empty_of_isEmpty"],
+  "prescopes": "variable {α R : Type} [Ring R]",
+  "postscopes": "",
+  "id":
+  {"name": "VectorMatroid.dual_exists_standardRepr",
+   "module": "Seymour.Matroid.Constructors.VectorMatroid",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- todo: desc -/\nlemma VectorMatroid.dual_exists_standardRepr [DecidableEq α] (M : VectorMatroid α R) :\n    ∃ S' : StandardRepr α R, M.toMatroid✶ = S'.toMatroid :=\n  have ⟨S, hS⟩ := M.exists_standardRepr\n  ⟨S✶, hS ▸ S.toMatroid_dual⟩\n\n",
+   "compilationAlias":
+   "/-- todo: desc -/\nlemma VectorMatroid.dual_exists_standardRepr [DecidableEq α] (M : VectorMatroid α R) :\n    ∃ S' : StandardRepr α R, M.toMatroid✶ = S'.toMatroid :=\n  have ⟨S, hS⟩ := M.exists_standardRepr\n  ⟨S✶, hS ▸ S.toMatroid_dual⟩\n\n"},
+  "goal":
+  "α R : Type\ninst✝¹ : Ring R\ninst✝ : DecidableEq α\nM : VectorMatroid α R\n⊢ Exists fun S' => Eq M.toMatroid.dual S'.toMatroid",
+  "content_sorry":
+  "/-- todo: desc -/\nlemma VectorMatroid.dual_exists_standardRepr [DecidableEq α] (M : VectorMatroid α R) :\n    ∃ S' : StandardRepr α R, M.toMatroid✶ = S'.toMatroid := by sorry",
+  "annotation":
+  "/-- todo: desc -/\nlemma VectorMatroid.dual_exists_standardRepr [DecidableEq α] (M : VectorMatroid α R) :\n    ∃ S' : StandardRepr α R, M.toMatroid✶ = S'.toMatroid :=\n  have ⟨S, hS⟩ := M.exists_standardRepr\n  ⟨S✶, hS ▸ S.toMatroid_dual⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "DecidableEq",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nAsserts that `α` has decidable equality, that is, `a = b` is decidable\nfor all `a b : α`. See `Decidable`.\n-/\nabbrev DecidableEq (α : Sort u) :=\n  (a b : α) → Decidable (Eq a b)",
+    "compilationAlias":
+    "/--\nAsserts that `α` has decidable equality, that is, `a = b` is decidable\nfor all `a b : α`. See `Decidable`.\n-/\nabbrev DecidableEq (α : Sort u) :=\n  (a b : α) → Decidable (Eq a b)"}],
+  "C0_dependencies":
+  [{"name": "StandardRepr.toVectorMatroid_A",
+    "module": "Seymour.Matroid.Constructors.VectorMatroid",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Full representation matrix of vector matroid is `[1 | B]`. -/\n@[simp]\nlemma StandardRepr.toVectorMatroid_A (S : StandardRepr α R) :\n    S.toVectorMatroid.A = Matrix.fromCols 1 S.B :=\n  rfl\n\n",
+    "compilationAlias":
+    "/-- Full representation matrix of vector matroid is `[1 | B]`. -/\n@[simp]\nlemma StandardRepr.toVectorMatroid_A (S : StandardRepr α R) :\n    S.toVectorMatroid.A = Matrix.fromCols 1 S.B :=\n  rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.LinearAlgebra.Matrix.Determinant.TotallyUnimodular\n@[deprecated (since := \"2024-12-11\")]\nalias one_fromColumns_isTotallyUnimodular_iff := one_fromCols_isTotallyUnimodular_iff",
+   "--src: Mathlib.LinearAlgebra.Matrix.Determinant.TotallyUnimodular\nalias ⟨_, IsTotallyUnimodular.one_fromCols⟩ := one_fromCols_isTotallyUnimodular_iff",
+   "--src: Mathlib.LinearAlgebra.Matrix.Determinant.TotallyUnimodular\nlemma fromCols_col0_isTotallyUnimodular_iff (A : Matrix m n R) :\n    (fromCols A (col n' 0)).IsTotallyUnimodular ↔ A.IsTotallyUnimodular := by\n  rw [← transpose_isTotallyUnimodular_iff, transpose_fromCols, transpose_col,\n    fromRows_row0_isTotallyUnimodular_iff, transpose_isTotallyUnimodular_iff]",
+   "--src: Mathlib.LinearAlgebra.Matrix.Adjugate\n@[simp]\ntheorem cramer_one : cramer (1 : Matrix n n α) = 1 := by\n  ext i j\n  convert congr_fun (cramer_row_self (1 : Matrix n n α) (Pi.single i 1) i _) j\n  · simp\n  · intro j\n    rw [Matrix.one_eq_pi_single, Pi.single_comm]",
+   "--src: Mathlib.Data.Matrix.RowCol\ntheorem col_injective [Nonempty ι] : Function.Injective (col ι : (m → α) → Matrix m ι α) := by\n  inhabit ι\n  exact fun _x _y h => funext fun i => congr_fun₂ h i default",
+   "--src: Mathlib.Data.Matrix.ColumnRowPartitioned\n@[simp]\nlemma fromCols_zero : fromCols (0 : Matrix m n₁ R) (0 : Matrix m n₂ R) = 0 := by\n  ext _ (_ | _) <;> simp",
+   "--src: Mathlib.Data.Matrix.ColumnRowPartitioned\n@[deprecated (since := \"2024-12-11\")] alias toColumns₁_fromColumns := toCols₁_fromCols",
+   "--src: Mathlib.LinearAlgebra.Matrix.Determinant.TotallyUnimodular\nlemma one_fromRows_isTotallyUnimodular_iff [DecidableEq n] (A : Matrix m n R) :\n    (fromRows (1 : Matrix n n R) A).IsTotallyUnimodular ↔ A.IsTotallyUnimodular := by\n  have hA :\n    fromRows (1 : Matrix n n R) A =\n      (fromRows A (1 : Matrix n n R)).reindex (Equiv.sumComm m n) (Equiv.refl n) := by\n    aesop\n  rw [hA, reindex_isTotallyUnimodular, fromRows_one_isTotallyUnimodular_iff]",
+   "--src: Mathlib.Data.Matrix.Notation\n@[simp]\ntheorem submatrix_cons_row (A : Matrix m' n' α) (i : m') (row : Fin m → m') (col : o' → n') :\n    submatrix A (vecCons i row) col = vecCons (fun j => A i (col j)) (submatrix A row col) := by\n  ext i j\n  refine Fin.cases ?_ ?_ i <;> simp [submatrix]",
+   "--src: Mathlib.Logic.Function.FromTypes\ntheorem fromTypes_nil (τ : Type u) : FromTypes ![] τ = τ := fromTypes_zero ![] τ\n-- prefer `fromTypes_cons` when it (syntactically) applies"],
+  "prescopes": "variable {α R : Type} [Ring R]",
+  "postscopes": "",
+  "id":
+  {"name": "StandardRepr.toVectorMatroid_A",
+   "module": "Seymour.Matroid.Constructors.VectorMatroid",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Full representation matrix of vector matroid is `[1 | B]`. -/\n@[simp]\nlemma StandardRepr.toVectorMatroid_A (S : StandardRepr α R) :\n    S.toVectorMatroid.A = Matrix.fromCols 1 S.B :=\n  rfl\n\n",
+   "compilationAlias":
+   "/-- Full representation matrix of vector matroid is `[1 | B]`. -/\n@[simp]\nlemma StandardRepr.toVectorMatroid_A (S : StandardRepr α R) :\n    S.toVectorMatroid.A = Matrix.fromCols 1 S.B :=\n  rfl\n\n"},
+  "goal":
+  "α R : Type\ninst✝ : Ring R\nS : StandardRepr α R\n⊢ Eq S.toVectorMatroid.A (Matrix.fromCols 1 S.B)",
+  "content_sorry":
+  "/-- Full representation matrix of vector matroid is `[1 | B]`. -/\n@[simp]\nlemma StandardRepr.toVectorMatroid_A (S : StandardRepr α R) :\n    S.toVectorMatroid.A = Matrix.fromCols 1 S.B := by sorry",
+  "annotation":
+  "/-- Full representation matrix of vector matroid is `[1 | B]`. -/\n@[simp]\nlemma StandardRepr.toVectorMatroid_A (S : StandardRepr α R) :\n    S.toVectorMatroid.A = Matrix.fromCols 1 S.B :=\n  rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Matrix.fromCols",
+    "module": "Mathlib.Data.Matrix.ColumnRowPartitioned",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Concatenate together two matrices B₁[m × n₁] and B₂[m × n₂] with the same rows (M) to get a\nbigger matrix indexed by [m × (n₁ ⊕ n₂)] -/\ndef fromCols (B₁ : Matrix m n₁ R) (B₂ : Matrix m n₂ R) : Matrix m (n₁ ⊕ n₂) R :=\n  of fun i => Sum.elim (B₁ i) (B₂ i)",
+    "compilationAlias":
+    "/-- Concatenate together two matrices B₁[m × n₁] and B₂[m × n₂] with the same rows (M) to get a\nbigger matrix indexed by [m × (n₁ ⊕ n₂)] -/\ndef fromCols (B₁ : Matrix m n₁ R) (B₂ : Matrix m n₂ R) : Matrix m (n₁ ⊕ n₂) R :=\n  of fun i => Sum.elim (B₁ i) (B₂ i)"}],
+  "C0_dependencies": []}]

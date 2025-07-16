@@ -1,0 +1,1108 @@
+[{"rag":
+  ["--src: Mathlib.Analysis.SpecialFunctions.Gaussian.FourierTransform\ntheorem integral_cexp_neg_mul_sum_add {ι : Type*} [Fintype ι] (hb : 0 < b.re) (c : ι → ℂ) :\n    ∫ v : ι → ℝ, cexp (- b * ∑ i, (v i : ℂ) ^ 2 + ∑ i, c i * v i)\n      = (π / b) ^ (Fintype.card ι / 2 : ℂ) * cexp ((∑ i, c i ^ 2) / (4 * b)) := by\n  simp_rw [neg_mul, Finset.mul_sum, integral_cexp_neg_sum_mul_add (fun _ ↦ hb) c, one_div,\n    Finset.prod_mul_distrib, Finset.prod_const, ← cpow_nat_mul, ← Complex.exp_sum, Fintype.card,\n    Finset.sum_div, div_eq_mul_inv]",
+   "--src: Mathlib.Algebra.Order.BigOperators.Group.Finset\n/-- If `f : M → N` is a submultiplicative function, `f (x * y) ≤ f x * f y`, `f 1 = 1`, and `g i`,\n`i ∈ s`, is a finite family of elements of `M`, then `f (∏ i ∈ s, g i) ≤ ∏ i ∈ s, f (g i)`. -/\n@[to_additive le_sum_of_subadditive]\ntheorem le_prod_of_submultiplicative (f : M → N) (h_one : f 1 = 1)\n    (h_mul : ∀ x y, f (x * y) ≤ f x * f y) (s : Finset ι) (g : ι → M) :\n    f (∏ i ∈ s, g i) ≤ ∏ i ∈ s, f (g i) := by\n  refine le_trans (Multiset.le_prod_of_submultiplicative f h_one h_mul _) ?_\n  rw [Multiset.map_map]\n  rfl",
+   "--src: Mathlib.Analysis.MeanInequalitiesPow\ntheorem pow_arith_mean_le_arith_mean_pow_of_even (w z : ι → ℝ) (hw : ∀ i ∈ s, 0 ≤ w i)\n    (hw' : ∑ i ∈ s, w i = 1) {n : ℕ} (hn : Even n) :\n    (∑ i ∈ s, w i * z i) ^ n ≤ ∑ i ∈ s, w i * z i ^ n :=\n  hn.convexOn_pow.map_sum_le hw hw' fun _ _ => Set.mem_univ _",
+   "--src: Mathlib.Data.Complex.Exponential\nnonrec theorem sinh_three_mul : sinh (3 * x) = 4 * sinh x ^ 3 + 3 * sinh x := by\n  rw [← ofReal_inj]; simp [sinh_three_mul]",
+   "--src: Mathlib.Data.Real.Sqrt\n/-- **Cauchy-Schwarz inequality** for finsets using square roots in `ℝ`. -/\nlemma sum_mul_le_sqrt_mul_sqrt (s : Finset ι) (f g : ι → ℝ) :\n    ∑ i ∈ s, f i * g i ≤ √(∑ i ∈ s, f i ^ 2) * √(∑ i ∈ s, g i ^ 2) :=\n  (le_sqrt_of_sq_le <| sum_mul_sq_le_sq_mul_sq _ _ _).trans_eq <| sqrt_mul\n    (sum_nonneg fun _ _ ↦ by positivity) _",
+   "--src: Mathlib.Data.ENNReal.Operations\ntheorem ofReal_sum_of_nonneg {s : Finset α} {f : α → ℝ} (hf : ∀ i, i ∈ s → 0 ≤ f i) :\n    ENNReal.ofReal (∑ i ∈ s, f i) = ∑ i ∈ s, ENNReal.ofReal (f i) := by\n  simp_rw [ENNReal.ofReal, ← coe_finset_sum, coe_inj]\n  exact Real.toNNReal_sum_of_nonneg hf",
+   "--src: Mathlib.Topology.Algebra.InfiniteSum.Order\n@[to_additive]\ntheorem tprod_le_of_prod_range_le [ClosedIicTopology α] {f : ℕ → α} (hf : Multipliable f)\n    (h : ∀ n, ∏ i ∈ range n, f i ≤ c) : ∏' n, f n ≤ c :=\n  le_of_tendsto' hf.hasProd.tendsto_prod_nat h",
+   "--src: Mathlib.Data.Complex.BigOperators\n@[simp, norm_cast]\ntheorem ofReal_sum (f : α → ℝ) : ((∑ i ∈ s, f i : ℝ) : ℂ) = ∑ i ∈ s, (f i : ℂ) :=\n  map_sum ofRealHom _ _",
+   "--src: Mathlib.Data.Complex.Exponential\ntheorem exp_sum {α : Type*} (s : Finset α) (f : α → ℂ) :\n    exp (∑ x ∈ s, f x) = ∏ x ∈ s, exp (f x) :=\n  map_prod (β := Multiplicative ℂ) expMonoidHom f s",
+   "--src: Mathlib.Analysis.Normed.Group.Basic\n@[to_additive]\ntheorem dist_prod_prod_le (s : Finset ι) (f a : ι → E) :\n    dist (∏ b ∈ s, f b) (∏ b ∈ s, a b) ≤ ∑ b ∈ s, dist (f b) (a b) :=\n  dist_prod_prod_le_of_le s fun _ _ => le_rfl"],
+  "prescopes":
+  "noncomputable section\n\nopen MeasureTheory MeasureTheory.Measure NNReal Metric Complex Set Complex.Set Classical\n\nvariable {X : Type*} {a : ℕ} {q : ℝ} {K : X → X → ℂ} {σ₁ σ₂ : X → ℤ} {F G : Set X} [MetricSpace X]\n  [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] {k n j l : ℕ} {p p' u u' : 𝔓 X} {x : X}",
+  "postscopes": "end",
+  "id":
+  {"name": "lintegral_carlesonSum_𝔓₁_compl_le_sum_aux1",
+   "module": "Carleson.Discrete.ForestComplement",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "omit [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] in\nlemma lintegral_carlesonSum_𝔓₁_compl_le_sum_aux1 [ProofData a q K σ₁ σ₂ F G] {N : ℕ} :\n    ∑ x ≤ N,\n      (((12 + 8 * Z) * x ^ 0 + (19 + 20 * Z) * x ^ 1 + (7 + 16 * Z) * x ^ 2 + (4 * Z) * x ^ 3) *\n        (2 : ℝ) ^ (-((q - 1) / (8 * ↑a ^ 4) * x : ℝ))) ≤ 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n  simp only [add_mul _ _ ((2 : ℝ) ^ (_ : ℝ)), Finset.sum_add_distrib]\n  simp only [mul_assoc, ← Finset.mul_sum]\n  simp only [← mul_assoc]\n  have : 0 < q - 1 := by linarith [one_lt_q X]\n  have : 0 < a := a_pos X\n  have : q ≤ 2 := q_le_two X\n  have : (4 : ℝ) ≤ a := mod_cast (four_le_a X)\n  have P : 0 < (q - 1) / (8 * ↑a ^ 4) := by positivity\n  have : 0.6931471803 ≤ Real.log 2 := Real.log_two_gt_d9.le\n  have : (1 : ℝ) ≤ Z / 2 ^ 48 := by\n    rw [one_le_div (by positivity)]\n    simp only [defaultZ, Nat.cast_pow, Nat.cast_ofNat]\n    gcongr\n    · exact one_le_two\n    · linarith [four_le_a X]\n  calc\n  (12 + 8 * ↑Z) * ∑ i ≤ N, ↑i ^ 0 * (2 : ℝ) ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (19 + 20 * ↑Z) * ∑ i ≤ N, ↑i ^ 1 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (7 + 16 * ↑Z) * ∑ i ≤ N, ↑i ^ 2 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (4 * ↑Z) * ∑ i ≤ N, ↑i ^ 3 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i))\n  _ ≤ (12 + 8 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        0 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (0 + 1)) +\n      (19 + 20 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        1 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (1 + 1)) +\n      (7 + 16 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        2 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (2 + 1)) +\n      (4 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        3 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (3 + 1)) := by\n    gcongr <;> apply sum_Iic_pow_mul_two_pow_neg_le P\n  _ = (2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n      ( (12 + 8 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (19 + 20 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (14 + 32 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (24 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4) := by\n    simp only [Nat.cast_pow, Nat.cast_ofNat, Nat.factorial, Nat.cast_one, mul_one,\n      zero_add, pow_one, Nat.succ_eq_add_one, Nat.reduceAdd, Nat.reduceMul]\n    ring\n  _ ≤ (2 : ℝ) ^ (1 : ℝ) *\n      ( (12 + 8 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (19 + 20 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (14 + 32 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (24 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4) := by\n    gcongr\n    · exact one_le_two\n    · apply div_le_one_of_le₀ _ (by positivity)\n      have : 8 * (4 : ℝ) ^ 4 ≤ 8 * a ^ 4 := by gcongr\n      linarith\n  _ = (24 + 16 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (38 + 40 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (28 + 64 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (48 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4 := by\n    simp only [Real.rpow_one, Nat.cast_pow, Nat.cast_ofNat]\n    ring\n  _ = ((8 * a ^ 4) / (q - 1)) ^ 4 *\n     (((q - 1) / (8 * a ^ 4)) ^ 3 * (24 * 1 + 16 * ↑Z) / Real.log 2\n      + ((q - 1) / (8 * a ^ 4)) ^ 2 * (38 * 1 + 40 * ↑Z)  / (Real.log 2) ^ 2\n      + ((q - 1) / (8 * a ^ 4)) * (28 * 1 + 64 * ↑Z) / (Real.log 2) ^ 3\n      + (48 * ↑Z) /  (Real.log 2) ^ 4) := by\n    field_simp only\n    ring\n  _ ≤ ((8 * a ^ 4) / (q - 1)) ^ 4 *\n     (((2 - 1) / (8 * 4 ^ 4)) ^ 3 * (24 * (Z / 2 ^ 48) + 16 * ↑Z) / 0.6931471803\n      + ((2 - 1) / (8 * 4 ^ 4)) ^ 2 * (38 * (Z / 2 ^ 48) + 40 * ↑Z)  / 0.6931471803 ^ 2\n      + ((2 - 1) / (8 * 4 ^ 4)) * (28 * (Z / 2 ^ 48) + 64 * ↑Z) / 0.6931471803 ^ 3\n      + (48 * ↑Z) / 0.6931471803 ^ 4) := by gcongr\n  _ = a ^ 16 / (q - 1) ^ 4 * Z * (8 ^ 4 *\n      (((2 - 1) / (8 * 4 ^ 4)) ^ 3 * (24 * (1 / 2 ^ 48) + 16) / 0.6931471803\n      + ((2 - 1) / (8 * 4 ^ 4)) ^ 2 * (38 * (1 / 2 ^ 48) + 40)  / 0.6931471803 ^ 2\n      + ((2 - 1) / (8 * 4 ^ 4)) * (28 * (1 / 2 ^ 48) + 64) / 0.6931471803 ^ 3\n      + 48 / 0.6931471803 ^ 4)) := by\n    rw [div_pow]; ring\n  _ ≤ a ^ 16 / (q - 1) ^ 4 * Z * 2 ^ 20 := by gcongr; norm_num\n  _ ≤ (2 ^ a) ^ 16 / (q - 1) ^ 4 * Z * 2 ^ 20 := by\n    gcongr\n    exact_mod_cast (Nat.lt_pow_self one_lt_two).le\n  _ = (2 ^ (16 * a) * 2 ^ (12 * a) * 2 ^ 20) / (q - 1) ^ 4 := by\n    simp [← pow_mul, mul_comm a]\n    ring\n  _ = 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n    simp only [← pow_add]\n    congr\n    omega\n\n ",
+   "compilationAlias":
+   "omit [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] in\nlemma lintegral_carlesonSum_𝔓₁_compl_le_sum_aux1 [ProofData a q K σ₁ σ₂ F G] {N : ℕ} :\n    ∑ x ≤ N,\n      (((12 + 8 * Z) * x ^ 0 + (19 + 20 * Z) * x ^ 1 + (7 + 16 * Z) * x ^ 2 + (4 * Z) * x ^ 3) *\n        (2 : ℝ) ^ (-((q - 1) / (8 * ↑a ^ 4) * x : ℝ))) ≤ 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n  simp only [add_mul _ _ ((2 : ℝ) ^ (_ : ℝ)), Finset.sum_add_distrib]\n  simp only [mul_assoc, ← Finset.mul_sum]\n  simp only [← mul_assoc]\n  have : 0 < q - 1 := by linarith [one_lt_q X]\n  have : 0 < a := a_pos X\n  have : q ≤ 2 := q_le_two X\n  have : (4 : ℝ) ≤ a := mod_cast (four_le_a X)\n  have P : 0 < (q - 1) / (8 * ↑a ^ 4) := by positivity\n  have : 0.6931471803 ≤ Real.log 2 := Real.log_two_gt_d9.le\n  have : (1 : ℝ) ≤ Z / 2 ^ 48 := by\n    rw [one_le_div (by positivity)]\n    simp only [defaultZ, Nat.cast_pow, Nat.cast_ofNat]\n    gcongr\n    · exact one_le_two\n    · linarith [four_le_a X]\n  calc\n  (12 + 8 * ↑Z) * ∑ i ≤ N, ↑i ^ 0 * (2 : ℝ) ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (19 + 20 * ↑Z) * ∑ i ≤ N, ↑i ^ 1 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (7 + 16 * ↑Z) * ∑ i ≤ N, ↑i ^ 2 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (4 * ↑Z) * ∑ i ≤ N, ↑i ^ 3 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i))\n  _ ≤ (12 + 8 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        0 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (0 + 1)) +\n      (19 + 20 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        1 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (1 + 1)) +\n      (7 + 16 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        2 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (2 + 1)) +\n      (4 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        3 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (3 + 1)) := by\n    gcongr <;> apply sum_Iic_pow_mul_two_pow_neg_le P\n  _ = (2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n      ( (12 + 8 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (19 + 20 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (14 + 32 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (24 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4) := by\n    simp only [Nat.cast_pow, Nat.cast_ofNat, Nat.factorial, Nat.cast_one, mul_one,\n      zero_add, pow_one, Nat.succ_eq_add_one, Nat.reduceAdd, Nat.reduceMul]\n    ring\n  _ ≤ (2 : ℝ) ^ (1 : ℝ) *\n      ( (12 + 8 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (19 + 20 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (14 + 32 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (24 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4) := by\n    gcongr\n    · exact one_le_two\n    · apply div_le_one_of_le₀ _ (by positivity)\n      have : 8 * (4 : ℝ) ^ 4 ≤ 8 * a ^ 4 := by gcongr\n      linarith\n  _ = (24 + 16 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (38 + 40 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (28 + 64 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (48 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4 := by\n    simp only [Real.rpow_one, Nat.cast_pow, Nat.cast_ofNat]\n    ring\n  _ = ((8 * a ^ 4) / (q - 1)) ^ 4 *\n     (((q - 1) / (8 * a ^ 4)) ^ 3 * (24 * 1 + 16 * ↑Z) / Real.log 2\n      + ((q - 1) / (8 * a ^ 4)) ^ 2 * (38 * 1 + 40 * ↑Z)  / (Real.log 2) ^ 2\n      + ((q - 1) / (8 * a ^ 4)) * (28 * 1 + 64 * ↑Z) / (Real.log 2) ^ 3\n      + (48 * ↑Z) /  (Real.log 2) ^ 4) := by\n    field_simp only\n    ring\n  _ ≤ ((8 * a ^ 4) / (q - 1)) ^ 4 *\n     (((2 - 1) / (8 * 4 ^ 4)) ^ 3 * (24 * (Z / 2 ^ 48) + 16 * ↑Z) / 0.6931471803\n      + ((2 - 1) / (8 * 4 ^ 4)) ^ 2 * (38 * (Z / 2 ^ 48) + 40 * ↑Z)  / 0.6931471803 ^ 2\n      + ((2 - 1) / (8 * 4 ^ 4)) * (28 * (Z / 2 ^ 48) + 64 * ↑Z) / 0.6931471803 ^ 3\n      + (48 * ↑Z) / 0.6931471803 ^ 4) := by gcongr\n  _ = a ^ 16 / (q - 1) ^ 4 * Z * (8 ^ 4 *\n      (((2 - 1) / (8 * 4 ^ 4)) ^ 3 * (24 * (1 / 2 ^ 48) + 16) / 0.6931471803\n      + ((2 - 1) / (8 * 4 ^ 4)) ^ 2 * (38 * (1 / 2 ^ 48) + 40)  / 0.6931471803 ^ 2\n      + ((2 - 1) / (8 * 4 ^ 4)) * (28 * (1 / 2 ^ 48) + 64) / 0.6931471803 ^ 3\n      + 48 / 0.6931471803 ^ 4)) := by\n    rw [div_pow]; ring\n  _ ≤ a ^ 16 / (q - 1) ^ 4 * Z * 2 ^ 20 := by gcongr; norm_num\n  _ ≤ (2 ^ a) ^ 16 / (q - 1) ^ 4 * Z * 2 ^ 20 := by\n    gcongr\n    exact_mod_cast (Nat.lt_pow_self one_lt_two).le\n  _ = (2 ^ (16 * a) * 2 ^ (12 * a) * 2 ^ 20) / (q - 1) ^ 4 := by\n    simp [← pow_mul, mul_comm a]\n    ring\n  _ = 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n    simp only [← pow_add]\n    congr\n    omega\n\n "},
+  "goal":
+  "G : Type u_1\ninst✝ : Semigroup G\na b c : G\n⊢ Eq (HMul.hMul a (HMul.hMul b c)) (HMul.hMul (HMul.hMul a b) c)",
+  "content_sorry":
+  "omit [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] in\nlemma lintegral_carlesonSum_𝔓₁_compl_le_sum_aux1 [ProofData a q K σ₁ σ₂ F G] {N : ℕ} :\n    ∑ x ≤ N,\n      (((12 + 8 * Z) * x ^ 0 + (19 + 20 * Z) * x ^ 1 + (7 + 16 * Z) * x ^ 2 + (4 * Z) * x ^ 3) *\n        (2 : ℝ) ^ (-((q - 1) / (8 * ↑a ^ 4) * x : ℝ))) ≤ 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n  sorry",
+  "annotation":
+  "omit [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] in\nlemma lintegral_carlesonSum_𝔓₁_compl_le_sum_aux1 [ProofData a q K σ₁ σ₂ F G] {N : ℕ} :\n    ∑ x ≤ N,\n      (((12 + 8 * Z) * x ^ 0 + (19 + 20 * Z) * x ^ 1 + (7 + 16 * Z) * x ^ 2 + (4 * Z) * x ^ 3) *\n        (2 : ℝ) ^ (-((q - 1) / (8 * ↑a ^ 4) * x : ℝ))) ≤ 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    ⊢ LE.le ((Finset.Iic N).sum fun x => HMul.hMul (HAdd.hAdd (HAdd.hAdd (HAdd.hAd …\n  -/\n  simp only [add_mul _ _ ((2 : ℝ) ^ (_ : ℝ)), Finset.sum_add_distrib]\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd ((Finset.Iic N).sum fun x => HMul.hMu …\n  -/\n  simp only [mul_assoc, ← Finset.mul_sum]\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  simp only [← mul_assoc]\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  have : 0 < q - 1 := by linarith [one_lt_q X]\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    this : LT.lt 0 (HSub.hSub q 1)\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  have : 0 < a := a_pos X\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    this✝ : LT.lt 0 (HSub.hSub q 1)\n    this : LT.lt 0 a\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  have : q ≤ 2 := q_le_two X\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    this✝¹ : LT.lt 0 (HSub.hSub q 1)\n    this✝ : LT.lt 0 a\n    this : LE.le q 2\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  have : (4 : ℝ) ≤ a := mod_cast (four_le_a X)\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    this✝² : LT.lt 0 (HSub.hSub q 1)\n    this✝¹ : LT.lt 0 a\n    this✝ : LE.le q 2\n    this : LE.le 4 ↑a\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  have P : 0 < (q - 1) / (8 * ↑a ^ 4) := by positivity\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝¹ : MetricSpace X\n    inst✝ : ProofData a q K σ₁ σ₂ F G\n    N : Nat\n    this✝² : LT.lt 0 (HSub.hSub q 1)\n    this✝¹ : LT.lt 0 a\n    this✝ : LE.le q 2\n    this : LE.le 4 ↑a\n    P : LT.lt 0 (HDiv.hDiv (HSub.hSub q 1) (HMul.hMul 8 (HPow.hPow (↑a) 4)))\n    ⊢ LE.le (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul (HAdd.hAdd 12 (HMul.hMul 8 …\n  -/\n  have : 0.6931471803 ≤ Real.log 2 := Real.log_two_gt_d9.le\n  have : (1 : ℝ) ≤ Z / 2 ^ 48 := by\n    rw [one_le_div (by positivity)]\n    simp only [defaultZ, Nat.cast_pow, Nat.cast_ofNat]\n    gcongr\n    · exact one_le_two\n    · linarith [four_le_a X]\n  calc\n  (12 + 8 * ↑Z) * ∑ i ≤ N, ↑i ^ 0 * (2 : ℝ) ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (19 + 20 * ↑Z) * ∑ i ≤ N, ↑i ^ 1 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (7 + 16 * ↑Z) * ∑ i ≤ N, ↑i ^ 2 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i)) +\n      (4 * ↑Z) * ∑ i ≤ N, ↑i ^ 3 * 2 ^ (-((q - 1) / (8 * a ^ 4) * i))\n  _ ≤ (12 + 8 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        0 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (0 + 1)) +\n      (19 + 20 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        1 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (1 + 1)) +\n      (7 + 16 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        2 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (2 + 1)) +\n      (4 * ↑Z) * ((2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n        3 ! / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ (3 + 1)) := by\n    gcongr <;> apply sum_Iic_pow_mul_two_pow_neg_le P\n  _ = (2 : ℝ) ^ ((q - 1) / (8 * a ^ 4)) *\n      ( (12 + 8 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (19 + 20 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (14 + 32 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (24 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4) := by\n    simp only [Nat.cast_pow, Nat.cast_ofNat, Nat.factorial, Nat.cast_one, mul_one,\n      zero_add, pow_one, Nat.succ_eq_add_one, Nat.reduceAdd, Nat.reduceMul]\n    ring\n  _ ≤ (2 : ℝ) ^ (1 : ℝ) *\n      ( (12 + 8 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (19 + 20 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (14 + 32 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (24 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4) := by\n    gcongr\n    · exact one_le_two\n    · apply div_le_one_of_le₀ _ (by positivity)\n      have : 8 * (4 : ℝ) ^ 4 ≤ 8 * a ^ 4 := by gcongr\n      linarith\n  _ = (24 + 16 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4)))\n      + (38 + 40 * ↑Z)  / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 2\n      + (28 + 64 * ↑Z) / (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 3\n      + (48 * ↑Z) /  (Real.log 2 * ((q - 1) / (8 * a ^ 4))) ^ 4 := by\n    simp only [Real.rpow_one, Nat.cast_pow, Nat.cast_ofNat]\n    ring\n  _ = ((8 * a ^ 4) / (q - 1)) ^ 4 *\n     (((q - 1) / (8 * a ^ 4)) ^ 3 * (24 * 1 + 16 * ↑Z) / Real.log 2\n      + ((q - 1) / (8 * a ^ 4)) ^ 2 * (38 * 1 + 40 * ↑Z)  / (Real.log 2) ^ 2\n      + ((q - 1) / (8 * a ^ 4)) * (28 * 1 + 64 * ↑Z) / (Real.log 2) ^ 3\n      + (48 * ↑Z) /  (Real.log 2) ^ 4) := by\n    field_simp only\n    ring\n  _ ≤ ((8 * a ^ 4) / (q - 1)) ^ 4 *\n     (((2 - 1) / (8 * 4 ^ 4)) ^ 3 * (24 * (Z / 2 ^ 48) + 16 * ↑Z) / 0.6931471803\n      + ((2 - 1) / (8 * 4 ^ 4)) ^ 2 * (38 * (Z / 2 ^ 48) + 40 * ↑Z)  / 0.6931471803 ^ 2\n      + ((2 - 1) / (8 * 4 ^ 4)) * (28 * (Z / 2 ^ 48) + 64 * ↑Z) / 0.6931471803 ^ 3\n      + (48 * ↑Z) / 0.6931471803 ^ 4) := by gcongr\n  _ = a ^ 16 / (q - 1) ^ 4 * Z * (8 ^ 4 *\n      (((2 - 1) / (8 * 4 ^ 4)) ^ 3 * (24 * (1 / 2 ^ 48) + 16) / 0.6931471803\n      + ((2 - 1) / (8 * 4 ^ 4)) ^ 2 * (38 * (1 / 2 ^ 48) + 40)  / 0.6931471803 ^ 2\n      + ((2 - 1) / (8 * 4 ^ 4)) * (28 * (1 / 2 ^ 48) + 64) / 0.6931471803 ^ 3\n      + 48 / 0.6931471803 ^ 4)) := by\n    rw [div_pow]; ring\n  _ ≤ a ^ 16 / (q - 1) ^ 4 * Z * 2 ^ 20 := by gcongr; norm_num\n  _ ≤ (2 ^ a) ^ 16 / (q - 1) ^ 4 * Z * 2 ^ 20 := by\n    gcongr\n    exact_mod_cast (Nat.lt_pow_self one_lt_two).le\n  _ = (2 ^ (16 * a) * 2 ^ (12 * a) * 2 ^ 20) / (q - 1) ^ 4 := by\n    simp [← pow_mul, mul_comm a]\n    ring\n  _ = 2 ^ (28 * a + 20) / (q - 1) ^ 4 := by\n    simp only [← pow_add]\n    congr\n    omega\n\n ",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "pow_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]",
+    "compilationAlias":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "pow_mul",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive mul_nsmul] lemma pow_mul (a : M) (m : ℕ) : ∀ n, a ^ (m * n) = (a ^ m) ^ n\n  | 0 => by rw [Nat.mul_zero, pow_zero, pow_zero]\n  | n + 1 => by rw [Nat.mul_succ, pow_add, pow_succ, pow_mul]",
+    "compilationAlias":
+    "@[to_additive mul_nsmul] lemma pow_mul (a : M) (m : ℕ) : ∀ n, a ^ (m * n) = (a ^ m) ^ n\n  | 0 => by rw [Nat.mul_zero, pow_zero, pow_zero]\n  | n + 1 => by rw [Nat.mul_succ, pow_add, pow_succ, pow_mul]"},
+   {"name": "one_lt_two",
+    "module": "Mathlib.Algebra.Order.Monoid.NatCast",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma one_lt_two [AddLeftStrictMono α] : (1 : α) < 2 := by\n  rw [← one_add_one_eq_two]\n  exact lt_add_one _",
+    "compilationAlias":
+    "lemma one_lt_two [AddLeftStrictMono α] : (1 : α) < 2 := by\n  rw [← one_add_one_eq_two]\n  exact lt_add_one _"},
+   {"name": "Nat.lt_pow_self",
+    "module": "Init.Data.Nat.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem lt_pow_self {n a : Nat} (h : 1 < a) : n < a ^ n := by\n  induction n with\n  | zero => exact Nat.zero_lt_one\n  | succ _ ih => exact Nat.lt_of_lt_of_le (Nat.add_lt_add_right ih 1) (Nat.pow_lt_pow_succ h)",
+    "compilationAlias":
+    "protected theorem lt_pow_self {n a : Nat} (h : 1 < a) : n < a ^ n := by\n  induction n with\n  | zero => exact Nat.zero_lt_one\n  | succ _ ih => exact Nat.lt_of_lt_of_le (Nat.add_lt_add_right ih 1) (Nat.pow_lt_pow_succ h)"},
+   {"name": "div_pow",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive nsmul_sub]\nlemma div_pow (a b : α) (n : ℕ) : (a / b) ^ n = a ^ n / b ^ n := by\n  simp only [div_eq_mul_inv, mul_pow, inv_pow]",
+    "compilationAlias":
+    "@[to_additive nsmul_sub]\nlemma div_pow (a b : α) (n : ℕ) : (a / b) ^ n = a ^ n / b ^ n := by\n  simp only [div_eq_mul_inv, mul_pow, inv_pow]"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Nat.cast_ofNat",
+    "module": "Mathlib.Data.Nat.Cast.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast] theorem Nat.cast_ofNat {n : ℕ} [NatCast R] [Nat.AtLeastTwo n] :\n  (Nat.cast ofNat(n) : R) = ofNat(n) := rfl",
+    "compilationAlias":
+    "@[simp, norm_cast] theorem Nat.cast_ofNat {n : ℕ} [NatCast R] [Nat.AtLeastTwo n] :\n  (Nat.cast ofNat(n) : R) = ofNat(n) := rfl"},
+   {"name": "Nat.cast_pow",
+    "module": "Mathlib.Data.Nat.Cast.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\nlemma cast_pow (m : ℕ) : ∀ n : ℕ, ↑(m ^ n) = (m ^ n : α)\n  | 0 => by simp\n  | n + 1 => by rw [_root_.pow_succ', _root_.pow_succ', cast_mul, cast_pow m n]",
+    "compilationAlias":
+    "@[simp, norm_cast]\nlemma cast_pow (m : ℕ) : ∀ n : ℕ, ↑(m ^ n) = (m ^ n : α)\n  | 0 => by simp\n  | n + 1 => by rw [_root_.pow_succ', _root_.pow_succ', cast_mul, cast_pow m n]"},
+   {"name": "Real.rpow_one",
+    "module": "Mathlib.Analysis.SpecialFunctions.Pow.Real",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem rpow_one (x : ℝ) : x ^ (1 : ℝ) = x := by simp [rpow_def]",
+    "compilationAlias":
+    "@[simp]\ntheorem rpow_one (x : ℝ) : x ^ (1 : ℝ) = x := by simp [rpow_def]"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "div_le_one_of_le₀",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[bound]\nlemma div_le_one_of_le₀ (h : a ≤ b) (hb : 0 ≤ b) : a / b ≤ 1 :=\n  div_le_of_le_mul₀ hb zero_le_one <| by rwa [one_mul]",
+    "compilationAlias":
+    "@[bound]\nlemma div_le_one_of_le₀ (h : a ≤ b) (hb : 0 ≤ b) : a / b ≤ 1 :=\n  div_le_of_le_mul₀ hb zero_le_one <| by rwa [one_mul]"},
+   {"name": "one_le_two",
+    "module": "Mathlib.Algebra.Order.Monoid.NatCast",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma one_le_two [LE α] [ZeroLEOneClass α] [AddLeftMono α] :\n    (1 : α) ≤ 2 :=\n  calc (1 : α) = 1 + 0 := (add_zero 1).symm\n     _ ≤ 1 + 1 := add_le_add_left zero_le_one _\n     _ = 2 := one_add_one_eq_two",
+    "compilationAlias":
+    "lemma one_le_two [LE α] [ZeroLEOneClass α] [AddLeftMono α] :\n    (1 : α) ≤ 2 :=\n  calc (1 : α) = 1 + 0 := (add_zero 1).symm\n     _ ≤ 1 + 1 := add_le_add_left zero_le_one _\n     _ = 2 := one_add_one_eq_two"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Nat.reduceMul",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceMul ((_ * _ : Nat)) := reduceBin ``HMul.hMul 6 (· * ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceMul ((_ * _ : Nat)) := reduceBin ``HMul.hMul 6 (· * ·)"},
+   {"name": "Nat.reduceAdd",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Nat",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)",
+    "compilationAlias":
+    "builtin_dsimproc [simp, seval] reduceAdd ((_ + _ : Nat)) := reduceBin ``HAdd.hAdd 6 (· + ·)"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "pow_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp) one_nsmul]\nlemma pow_one (a : M) : a ^ 1 = a := by rw [pow_succ, pow_zero, one_mul]",
+    "compilationAlias":
+    "@[to_additive (attr := simp) one_nsmul]\nlemma pow_one (a : M) : a ^ 1 = a := by rw [pow_succ, pow_zero, one_mul]"},
+   {"name": "zero_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "Nat.cast_one",
+    "module": "Mathlib.Data.Nat.Cast.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\ntheorem cast_one [AddMonoidWithOne R] : ((1 : ℕ) : R) = 1 := by\n  rw [cast_succ, Nat.cast_zero, zero_add]",
+    "compilationAlias":
+    "@[simp, norm_cast]\ntheorem cast_one [AddMonoidWithOne R] : ((1 : ℕ) : R) = 1 := by\n  rw [cast_succ, Nat.cast_zero, zero_add]"},
+   {"name": "Nat.factorial",
+    "module": "Mathlib.Data.Nat.Factorial.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Nat.factorial n` is the factorial of `n`. -/\ndef factorial : ℕ → ℕ\n  | 0 => 1\n  | succ n => succ n * factorial n",
+    "compilationAlias":
+    "/-- `Nat.factorial n` is the factorial of `n`. -/\ndef factorial : ℕ → ℕ\n  | 0 => 1\n  | succ n => succ n * factorial n"},
+   {"name": "Nat.cast_ofNat",
+    "module": "Mathlib.Data.Nat.Cast.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast] theorem Nat.cast_ofNat {n : ℕ} [NatCast R] [Nat.AtLeastTwo n] :\n  (Nat.cast ofNat(n) : R) = ofNat(n) := rfl",
+    "compilationAlias":
+    "@[simp, norm_cast] theorem Nat.cast_ofNat {n : ℕ} [NatCast R] [Nat.AtLeastTwo n] :\n  (Nat.cast ofNat(n) : R) = ofNat(n) := rfl"},
+   {"name": "Nat.cast_pow",
+    "module": "Mathlib.Data.Nat.Cast.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\nlemma cast_pow (m : ℕ) : ∀ n : ℕ, ↑(m ^ n) = (m ^ n : α)\n  | 0 => by simp\n  | n + 1 => by rw [_root_.pow_succ', _root_.pow_succ', cast_mul, cast_pow m n]",
+    "compilationAlias":
+    "@[simp, norm_cast]\nlemma cast_pow (m : ℕ) : ∀ n : ℕ, ↑(m ^ n) = (m ^ n : α)\n  | 0 => by simp\n  | n + 1 => by rw [_root_.pow_succ', _root_.pow_succ', cast_mul, cast_pow m n]"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "sum_Iic_pow_mul_two_pow_neg_le",
+    "module": "Carleson.Discrete.SumEstimates",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_Iic_pow_mul_two_pow_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * (2 : ℝ) ^ (- (c * i))\n      ≤ 2 ^ c * k ! / (Real.log 2 * c) ^ (k + 1) := by\n  have A (i : ℕ) : (2 : ℝ) ^ (- (c * i)) = rexp (- (Real.log 2 * c) * i) := by\n    conv_lhs => rw [← exp_log zero_lt_two, ← exp_mul]\n    congr 1\n    ring\n  simp only [A, neg_mul]\n  apply (sum_Iic_pow_mul_exp_neg_le (by positivity)).trans_eq\n  rw [exp_mul, exp_log zero_lt_two]",
+    "compilationAlias":
+    "lemma sum_Iic_pow_mul_two_pow_neg_le {k : ℕ} {M : ℕ} {c : ℝ} (hc : 0 < c) :\n    ∑ i ∈ Finset.Iic M, i ^ k * (2 : ℝ) ^ (- (c * i))\n      ≤ 2 ^ c * k ! / (Real.log 2 * c) ^ (k + 1) := by\n  have A (i : ℕ) : (2 : ℝ) ^ (- (c * i)) = rexp (- (Real.log 2 * c) * i) := by\n    conv_lhs => rw [← exp_log zero_lt_two, ← exp_mul]\n    congr 1\n    ring\n  simp only [A, neg_mul]\n  apply (sum_Iic_pow_mul_exp_neg_le (by positivity)).trans_eq\n  rw [exp_mul, exp_log zero_lt_two]"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "one_le_two",
+    "module": "Mathlib.Algebra.Order.Monoid.NatCast",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma one_le_two [LE α] [ZeroLEOneClass α] [AddLeftMono α] :\n    (1 : α) ≤ 2 :=\n  calc (1 : α) = 1 + 0 := (add_zero 1).symm\n     _ ≤ 1 + 1 := add_le_add_left zero_le_one _\n     _ = 2 := one_add_one_eq_two",
+    "compilationAlias":
+    "lemma one_le_two [LE α] [ZeroLEOneClass α] [AddLeftMono α] :\n    (1 : α) ≤ 2 :=\n  calc (1 : α) = 1 + 0 := (add_zero 1).symm\n     _ ≤ 1 + 1 := add_le_add_left zero_le_one _\n     _ = 2 := one_add_one_eq_two"},
+   {"name": "Nat.cast_ofNat",
+    "module": "Mathlib.Data.Nat.Cast.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast] theorem Nat.cast_ofNat {n : ℕ} [NatCast R] [Nat.AtLeastTwo n] :\n  (Nat.cast ofNat(n) : R) = ofNat(n) := rfl",
+    "compilationAlias":
+    "@[simp, norm_cast] theorem Nat.cast_ofNat {n : ℕ} [NatCast R] [Nat.AtLeastTwo n] :\n  (Nat.cast ofNat(n) : R) = ofNat(n) := rfl"},
+   {"name": "Nat.cast_pow",
+    "module": "Mathlib.Data.Nat.Cast.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, norm_cast]\nlemma cast_pow (m : ℕ) : ∀ n : ℕ, ↑(m ^ n) = (m ^ n : α)\n  | 0 => by simp\n  | n + 1 => by rw [_root_.pow_succ', _root_.pow_succ', cast_mul, cast_pow m n]",
+    "compilationAlias":
+    "@[simp, norm_cast]\nlemma cast_pow (m : ℕ) : ∀ n : ℕ, ↑(m ^ n) = (m ^ n : α)\n  | 0 => by simp\n  | n + 1 => by rw [_root_.pow_succ', _root_.pow_succ', cast_mul, cast_pow m n]"},
+   {"name": "defaultZ",
+    "module": "Carleson.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] def defaultZ (a : ℕ) : ℕ := 2 ^ (12 * a)",
+    "compilationAlias": "@[simp] def defaultZ (a : ℕ) : ℕ := 2 ^ (12 * a)"},
+   {"name": "one_le_div",
+    "module": "Mathlib.Algebra.Order.Field.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem one_le_div (hb : 0 < b) : 1 ≤ a / b ↔ b ≤ a := by rw [le_div_iff₀ hb, one_mul]",
+    "compilationAlias":
+    "theorem one_le_div (hb : 0 < b) : 1 ≤ a / b ↔ b ≤ a := by rw [le_div_iff₀ hb, one_mul]"},
+   {"name": "Real.log",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩",
+    "compilationAlias":
+    "/-- The real logarithm function, equal to the inverse of the exponential for `x > 0`,\nto `log |x|` for `x < 0`, and to `0` for `0`. We use this unconventional extension to\n`(-∞, 0]` as it gives the formula `log (x * y) = log x + log y` for all nonzero `x` and `y`, and\nthe derivative of `log` is `1/x` away from `0`. -/\n@[pp_nodot]\nnoncomputable def log (x : ℝ) : ℝ :=\n  if hx : x = 0 then 0 else expOrderIso.symm ⟨|x|, abs_pos.2 hx⟩"},
+   {"name": "q_le_two",
+    "module": "Carleson.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma q_le_two : q ≤ 2 := (q_mem_Ioc X).2",
+    "compilationAlias": "lemma q_le_two : q ≤ 2 := (q_mem_Ioc X).2"},
+   {"name": "a_pos",
+    "module": "Carleson.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma a_pos : 0 < a := by linarith [four_le_a X]",
+    "compilationAlias": "lemma a_pos : 0 < a := by linarith [four_le_a X]"},
+   {"name": "one_lt_q",
+    "module": "Carleson.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma one_lt_q : 1 < q := (q_mem_Ioc X).1",
+    "compilationAlias": "lemma one_lt_q : 1 < q := (q_mem_Ioc X).1"},
+   {"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "Finset.mul_sum",
+    "module": "Mathlib.Algebra.BigOperators.Ring.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mul_sum (s : Finset ι) (f : ι → α) (a : α) :\n    a * ∑ i ∈ s, f i = ∑ i ∈ s, a * f i := map_sum (AddMonoidHom.mulLeft a) _ s",
+    "compilationAlias":
+    "lemma mul_sum (s : Finset ι) (f : ι → α) (a : α) :\n    a * ∑ i ∈ s, f i = ∑ i ∈ s, a * f i := map_sum (AddMonoidHom.mulLeft a) _ s"},
+   {"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "Finset.sum_add_distrib",
+    "module": "Mathlib.Algebra.BigOperators.Group.Finset.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "add_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "alias add_mul := right_distrib",
+    "compilationAlias": "alias add_mul := right_distrib"}],
+  "C0_dependencies":
+  [{"name": "carlesonSum_𝔓pos_inter_ℭ_eq_add_sum",
+    "module": "Carleson.Discrete.ForestComplement",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [𝔏₀_subset_ℭ hp]\n  · apply Subset.antisymm\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      simp only [mem_compl_iff] at h'p\n      simp only [h'p, false_or] at H\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      exact H\n    · intro p hp\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n\n",
+    "compilationAlias":
+    "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [𝔏₀_subset_ℭ hp]\n  · apply Subset.antisymm\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      simp only [mem_compl_iff] at h'p\n      simp only [h'p, false_or] at H\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      exact H\n    · intro p hp\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n\n"},
+   {"name": "carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum",
+    "module": "Carleson.Discrete.ForestComplement",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- In each set `ℭ₁ k n j`, the Carleson sum can be decomposed as a sum over `ℭ₂ k n j` and over\nvarious `𝔏₁ k n j l`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum {f : X → ℂ} {x : X} :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₂ k n j) f x\n      + ∑ l ≤ Z * (n + 1), carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₁ k n j l) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (ℭ₂ k n j)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    have : univ.PairwiseDisjoint fun l ↦ 𝔏₁ (X := X) k n j l := pairwiseDisjoint_minLayer\n    apply this.mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [ℭ₂_subset_ℭ₁ hp]\n  · ext p\n    simp only [ℭ₂, layersAbove, mem_inter_iff,\n      mem_compl_iff, mem_diff, mem_iUnion, exists_prop, not_exists, not_and, not_forall,\n      Classical.not_imp, Decidable.not_not, Finset.mem_Iic, 𝔏₁, exists_and_left]\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · simpa [h.1.1] using h.2 h.1.2\n    · rcases h with ⟨i, hi, h'i⟩\n      simp only [h'i.1, not_false_eq_true, and_self, minLayer_subset h'i.2, forall_const, true_and]\n      exact ⟨i, hi, h'i.2⟩\n\n",
+    "compilationAlias":
+    "/-- In each set `ℭ₁ k n j`, the Carleson sum can be decomposed as a sum over `ℭ₂ k n j` and over\nvarious `𝔏₁ k n j l`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum {f : X → ℂ} {x : X} :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₂ k n j) f x\n      + ∑ l ≤ Z * (n + 1), carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₁ k n j l) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (ℭ₂ k n j)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    have : univ.PairwiseDisjoint fun l ↦ 𝔏₁ (X := X) k n j l := pairwiseDisjoint_minLayer\n    apply this.mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [ℭ₂_subset_ℭ₁ hp]\n  · ext p\n    simp only [ℭ₂, layersAbove, mem_inter_iff,\n      mem_compl_iff, mem_diff, mem_iUnion, exists_prop, not_exists, not_and, not_forall,\n      Classical.not_imp, Decidable.not_not, Finset.mem_Iic, 𝔏₁, exists_and_left]\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · simpa [h.1.1] using h.2 h.1.2\n    · rcases h with ⟨i, hi, h'i⟩\n      simp only [h'i.1, not_false_eq_true, and_self, minLayer_subset h'i.2, forall_const, true_and]\n      exact ⟨i, hi, h'i.2⟩\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Deprecated.ByteArray\n/-- A terminal byte slice, a suffix of a byte array. -/\n@[deprecated \"No deprecation message was provided.\" (since := \"2024-08-19\")]\nstructure ByteSliceT := (arr : ByteArray) (off : Nat)",
+   "--src: Mathlib.Topology.Sheaves.LocalPredicate\n/-- Given a topological space `X : TopCat` and a type family `T : X → Type`,\na `P : LocalPredicate T` consists of:\n* a family of predicates `P.pred`, one for each `U : Opens X`, of the form `(Π x : U, T x) → Prop`\n* a proof that if `f : Π x : V, T x` satisfies the predicate on `V : Opens X`, then\n  the restriction of `f` to any open subset `U` also satisfies the predicate, and\n* a proof that given some `f : Π x : U, T x`,\n  if for every `x : U` we can find an open set `x ∈ V ≤ U`\n  so that the restriction of `f` to `V` satisfies the predicate,\n  then `f` itself satisfies the predicate.\n-/\nstructure LocalPredicate extends PrelocalPredicate T where\n  /-- A local predicate must be local --- provided that it is locally satisfied, it is also globally\n    satisfied -/\n  locality :\n    ∀ {U : Opens X} (f : ∀ x : U, T x)\n      (_ : ∀ x : U, ∃ (V : Opens X) (_ : x.1 ∈ V) (i : V ⟶ U),\n        pred fun x : V => f (i x : U)), pred f",
+   "--src: Mathlib.Logic.Unique\n/-- `Unique α` expresses that `α` is a type with a unique term `default`.\nThis is implemented as a type, rather than a `Prop`-valued predicate,\nfor good definitional properties of the default term. -/\n@[ext]\nstructure Unique (α : Sort u) extends Inhabited α where\n  /-- In a `Unique` type, every term is equal to the default element (from `Inhabited`). -/\n  uniq : ∀ a : α, a = default",
+   "--src: Mathlib.Order.Closure\n/-- A closure operator on the preorder `α` is a monotone function which is extensive (every `x`\nis less than its closure) and idempotent. -/\nstructure ClosureOperator [Preorder α] extends α →o α where\n  /-- An element is less than or equal its closure -/\n  le_closure' : ∀ x, x ≤ toFun x\n  /-- Closures are idempotent -/\n  idempotent' : ∀ x, toFun (toFun x) = toFun x\n  /-- Predicate for an element to be closed.\n  By default, this is defined as `c.IsClosed x := (c x = x)` (see `isClosed_iff`).\n  We allow an override to fix definitional equalities. -/\n  IsClosed (x : α) : Prop := toFun x = x\n  isClosed_iff {x : α} : IsClosed x ↔ toFun x = x := by aesop",
+   "--src: Mathlib.Order.Hom.Bounded\n/-- The type of bounded order homomorphisms from `α` to `β`. -/\nstructure BoundedOrderHom (α β : Type*) [Preorder α] [Preorder β] [BoundedOrder α]\n  [BoundedOrder β] extends OrderHom α β where\n  /-- The function preserves the top element. The preferred spelling is `map_top`. -/\n  map_top' : toFun ⊤ = ⊤\n  /-- The function preserves the bottom element. The preferred spelling is `map_bot`. -/\n  map_bot' : toFun ⊥ = ⊥",
+   "--src: Mathlib.Topology.ContinuousMap.CompactlySupported\n/-- `C_c(α, β)` is the type of continuous functions `α → β` with compact support from a topological\nspace to a topological space with a zero element.\nWhen possible, instead of parametrizing results over `f : C_c(α, β)`,\nyou should parametrize over `{F : Type*} [CompactlySupportedContinuousMapClass F α β] (f : F)`.\nWhen you extend this structure, make sure to extend `CompactlySupportedContinuousMapClass`. -/\nstructure CompactlySupportedContinuousMap (α β : Type*) [TopologicalSpace α] [Zero β]\n    [TopologicalSpace β] extends ContinuousMap α β where\n  /-- The function has compact support . -/\n  hasCompactSupport' : HasCompactSupport toFun",
+   "--src: Mathlib.Order.InitialSeg\n/-- If `r` is a relation on `α` and `s` in a relation on `β`, then `f : r ≼i s` is an order\nembedding whose range is an initial segment. That is, whenever `b < f a` in `β` then `b` is in the\nrange of `f`. -/\nstructure InitialSeg {α β : Type*} (r : α → α → Prop) (s : β → β → Prop) extends r ↪r s where\n  /-- The order embedding is an initial segment -/\n  mem_range_of_rel' : ∀ a b, s b (toRelEmbedding a) → b ∈ Set.range toRelEmbedding\n-- Porting note: Deleted `scoped[InitialSeg]`",
+   "--src: Mathlib.CategoryTheory.Functor.Basic\n/-- `Functor C D` represents a functor between categories `C` and `D`.\nTo apply a functor `F` to an object use `F.obj X`, and to a morphism use `F.map f`.\nThe axiom `map_id` expresses preservation of identities, and\n`map_comp` expresses functoriality.\nSee <https://stacks.math.columbia.edu/tag/001B>.\n-/\nstructure Functor (C : Type u₁) [Category.{v₁} C] (D : Type u₂) [Category.{v₂} D]\n    extends Prefunctor C D : Type max v₁ v₂ u₁ u₂ where\n  /-- A functor preserves identity morphisms. -/\n  map_id : ∀ X : C, map (\u0000\u0000 X) = \u0000\u0000 (obj X) := by aesop_cat\n  /-- A functor preserves composition. -/\n  map_comp : ∀ {X Y Z : C} (f : X ⟶ Y) (g : Y ⟶ Z), map (f ≫ g) = map f ≫ map g := by aesop_cat",
+   "--src: Mathlib.Data.Analysis.Topology\n/-- A `Ctop α σ` is a realization of a topology (basis) on `α`,\n  represented by a type `σ` together with operations for the top element and\n  the intersection operation. -/\nstructure Ctop (α σ : Type*) where\n  f : σ → Set α\n  top : α → σ\n  top_mem : ∀ x : α, x ∈ f (top x)\n  inter : ∀ (a b) (x : α), x ∈ f a ∩ f b → σ\n  inter_mem : ∀ a b x h, x ∈ f (inter a b x h)\n  inter_sub : ∀ a b x h, f (inter a b x h) ⊆ f a ∩ f b",
+   "--src: Mathlib.CategoryTheory.Functor.FullyFaithful\nvariable (F) in\n/-- Structure containing the data of inverse map `(F.obj X ⟶ F.obj Y) ⟶ (X ⟶ Y)` of `F.map`\nin order to express that `F` is a fully faithful functor. -/\nstructure FullyFaithful where\n  /-- The inverse map `(F.obj X ⟶ F.obj Y) ⟶ (X ⟶ Y)` of `F.map`. -/\n  preimage {X Y : C} (f : F.obj X ⟶ F.obj Y) : X ⟶ Y\n  map_preimage {X Y : C} (f : F.obj X ⟶ F.obj Y) : F.map (preimage f) = f := by aesop_cat\n  preimage_map {X Y : C} (f : X ⟶ Y) : preimage (F.map f) = f := by aesop_cat"],
+  "prescopes":
+  "noncomputable section\n\nopen MeasureTheory MeasureTheory.Measure NNReal Metric Complex Set Complex.Set Classical\n\nvariable {X : Type*} {a : ℕ} {q : ℝ} {K : X → X → ℂ} {σ₁ σ₂ : X → ℤ} {F G : Set X} [MetricSpace X]\n  [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] {k n j l : ℕ} {p p' u u' : 𝔓 X} {x : X}",
+  "postscopes": "end",
+  "id":
+  {"name": "carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum",
+   "module": "Carleson.Discrete.ForestComplement",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- In each set `ℭ₁ k n j`, the Carleson sum can be decomposed as a sum over `ℭ₂ k n j` and over\nvarious `𝔏₁ k n j l`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum {f : X → ℂ} {x : X} :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₂ k n j) f x\n      + ∑ l ≤ Z * (n + 1), carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₁ k n j l) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (ℭ₂ k n j)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    have : univ.PairwiseDisjoint fun l ↦ 𝔏₁ (X := X) k n j l := pairwiseDisjoint_minLayer\n    apply this.mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [ℭ₂_subset_ℭ₁ hp]\n  · ext p\n    simp only [ℭ₂, layersAbove, mem_inter_iff,\n      mem_compl_iff, mem_diff, mem_iUnion, exists_prop, not_exists, not_and, not_forall,\n      Classical.not_imp, Decidable.not_not, Finset.mem_Iic, 𝔏₁, exists_and_left]\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · simpa [h.1.1] using h.2 h.1.2\n    · rcases h with ⟨i, hi, h'i⟩\n      simp only [h'i.1, not_false_eq_true, and_self, minLayer_subset h'i.2, forall_const, true_and]\n      exact ⟨i, hi, h'i.2⟩\n\n",
+   "compilationAlias":
+   "/-- In each set `ℭ₁ k n j`, the Carleson sum can be decomposed as a sum over `ℭ₂ k n j` and over\nvarious `𝔏₁ k n j l`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum {f : X → ℂ} {x : X} :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₂ k n j) f x\n      + ∑ l ≤ Z * (n + 1), carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₁ k n j l) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (ℭ₂ k n j)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    have : univ.PairwiseDisjoint fun l ↦ 𝔏₁ (X := X) k n j l := pairwiseDisjoint_minLayer\n    apply this.mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [ℭ₂_subset_ℭ₁ hp]\n  · ext p\n    simp only [ℭ₂, layersAbove, mem_inter_iff,\n      mem_compl_iff, mem_diff, mem_iUnion, exists_prop, not_exists, not_and, not_forall,\n      Classical.not_imp, Decidable.not_not, Finset.mem_Iic, 𝔏₁, exists_and_left]\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · simpa [h.1.1] using h.2 h.1.2\n    · rcases h with ⟨i, hi, h'i⟩\n      simp only [h'i.1, not_false_eq_true, and_self, minLayer_subset h'i.2, forall_const, true_and]\n      exact ⟨i, hi, h'i.2⟩\n\n"},
+  "goal": "a b : Prop\n⊢ Eq (Not (a → b)) (And a (Not b))",
+  "content_sorry":
+  "/-- In each set `ℭ₁ k n j`, the Carleson sum can be decomposed as a sum over `ℭ₂ k n j` and over\nvarious `𝔏₁ k n j l`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum {f : X → ℂ} {x : X} :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₂ k n j) f x\n      + ∑ l ≤ Z * (n + 1), carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₁ k n j l) f x := by\n  sorry",
+  "annotation":
+  "/-- In each set `ℭ₁ k n j`, the Carleson sum can be decomposed as a sum over `ℭ₂ k n j` and over\nvarious `𝔏₁ k n j l`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ₁_eq_add_sum {f : X → ℂ} {x : X} :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₂ k n j) f x\n      + ∑ l ≤ Z * (n + 1), carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₁ k n j l) f x := by\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝² : MetricSpace X\n    inst✝¹ : ProofData a q K σ₁ σ₂ F G\n    inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n    k n j : Nat\n    f : X → Complex\n    x : X\n    ⊢ Eq (carlesonSum (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ₁ k n  …\n  -/\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (ℭ₂ k n j)]\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝² : MetricSpace X\n    inst✝¹ : ProofData a q K σ₁ σ₂ F G\n    inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n    k n j : Nat\n    f : X → Complex\n    x : X\n    ⊢ Eq (HAdd.hAdd (carlesonSum (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasC …\n  -/\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      ⊢ (↑(Finset.Iic (HMul.hMul (defaultZ a) (HAdd.hAdd n 1)))).PairwiseDisjoint fu …\n    -/\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      ⊢ Set.univ.PairwiseDisjoint fun l => Inter.inter (Inter.inter 𝔓pos (HasCompl.c …\n    -/\n    have : univ.PairwiseDisjoint fun l ↦ 𝔏₁ (X := X) k n j l := pairwiseDisjoint_minLayer\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      this : Set.univ.PairwiseDisjoint fun l => 𝔏₁ k n j l\n      ⊢ Set.univ.PairwiseDisjoint fun l => Inter.inter (Inter.inter 𝔓pos (HasCompl.c …\n    -/\n    apply this.mono\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      this : Set.univ.PairwiseDisjoint fun l => 𝔏₁ k n j l\n      ⊢ LE.le (fun l => Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (𝔏₁ k n j …\n    -/\n    intro j\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j✝ : Nat\n      f : X → Complex\n      x : X\n      this : Set.univ.PairwiseDisjoint fun l => 𝔏₁ k n j✝ l\n      j : Nat\n      ⊢ LE.le ((fun l => Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (𝔏₁ k n  …\n    -/\n    exact inter_subset_right\n    /-\n      🎉 no goals\n    -/\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝² : MetricSpace X\n    inst✝¹ : ProofData a q K σ₁ σ₂ F G\n    inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n    k n j : Nat\n    f : X → Complex\n    x : X\n    ⊢ Eq (HAdd.hAdd (carlesonSum (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasC …\n  -/\n  congr 2\n    /-\n      case e_a.e_ℭ\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      ⊢ Eq (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ₁ k n  …\n    -/\n  · ext p\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      p : 𝔓 X\n      ⊢ Iff (Membership.mem (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.co …\n    -/\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      p : 𝔓 X\n      ⊢ Membership.mem (ℭ₂ k n j) p → Membership.mem 𝔓pos p → Not (Membership.mem 𝔓₁ …\n    -/\n    intro hp\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      p : 𝔓 X\n      hp : Membership.mem (ℭ₂ k n j) p\n      ⊢ Membership.mem 𝔓pos p → Not (Membership.mem 𝔓₁ p) → Membership.mem (ℭ₁ k n j …\n    -/\n    simp [ℭ₂_subset_ℭ₁ hp]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case e_a.e_ℭ\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      ⊢ Eq (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ₁ k n  …\n    -/\n  · ext p\n    simp only [ℭ₂, layersAbove, mem_inter_iff,\n      mem_compl_iff, mem_diff, mem_iUnion, exists_prop, not_exists, not_and, not_forall,\n      Classical.not_imp, Decidable.not_not, Finset.mem_Iic, 𝔏₁, exists_and_left]\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n j : Nat\n      f : X → Complex\n      x : X\n      p : 𝔓 X\n      ⊢ Iff (And (And (And (Membership.mem 𝔓pos p) (Not (Membership.mem 𝔓₁ p))) (Mem …\n    -/\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n      /-\n        case e_a.e_ℭ.h.refine_1\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n j : Nat\n        f : X → Complex\n        x : X\n        p : 𝔓 X\n        h : And (And (And (Membership.mem 𝔓pos p) (Not (Membership.mem 𝔓₁ p))) (Member …\n        ⊢ Exists fun i => And (LE.le i (HMul.hMul (defaultZ a) (HAdd.hAdd n 1))) (And  …\n      -/\n    · simpa [h.1.1] using h.2 h.1.2\n      /-\n        🎉 no goals\n      -/\n      /-\n        case e_a.e_ℭ.h.refine_2\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n j : Nat\n        f : X → Complex\n        x : X\n        p : 𝔓 X\n        h : Exists fun i => And (LE.le i (HMul.hMul (defaultZ a) (HAdd.hAdd n 1))) (An …\n        ⊢ And (And (And (Membership.mem 𝔓pos p) (Not (Membership.mem 𝔓₁ p))) (Membersh …\n      -/\n    · rcases h with ⟨i, hi, h'i⟩\n      /-\n        case e_a.e_ℭ.h.refine_2.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n j : Nat\n        f : X → Complex\n        x : X\n        p : 𝔓 X\n        i : Nat\n        hi : LE.le i (HMul.hMul (defaultZ a) (HAdd.hAdd n 1))\n        h'i : And (And (Membership.mem 𝔓pos p) (Not (Membership.mem 𝔓₁ p))) (Membershi …\n        ⊢ And (And (And (Membership.mem 𝔓pos p) (Not (Membership.mem 𝔓₁ p))) (Membersh …\n      -/\n      simp only [h'i.1, not_false_eq_true, and_self, minLayer_subset h'i.2, forall_const, true_and]\n      /-\n        case e_a.e_ℭ.h.refine_2.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n j : Nat\n        f : X → Complex\n        x : X\n        p : 𝔓 X\n        i : Nat\n        hi : LE.le i (HMul.hMul (defaultZ a) (HAdd.hAdd n 1))\n        h'i : And (And (Membership.mem 𝔓pos p) (Not (Membership.mem 𝔓₁ p))) (Membershi …\n        ⊢ Exists fun x => And (LE.le x (HMul.hMul (defaultZ a) (HAdd.hAdd n 1))) (Memb …\n      -/\n      exact ⟨i, hi, h'i.2⟩\n      /-\n        🎉 no goals\n      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "true_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩",
+    "compilationAlias":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩"},
+   {"name": "forall_const",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem forall_const (α : Sort _) [i : Nonempty α] : (α → b) ↔ b :=\n  ⟨i.elim, fun hb _ => hb⟩",
+    "compilationAlias":
+    "@[simp] theorem forall_const (α : Sort _) [i : Nonempty α] : (α → b) ↔ b :=\n  ⟨i.elim, fun hb _ => hb⟩"},
+   {"name": "and_self",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_self (p : Prop) : (p ∧ p) = p := propext ⟨(·.left), fun h => ⟨h, h⟩⟩",
+    "compilationAlias":
+    "@[simp] theorem and_self (p : Prop) : (p ∧ p) = p := propext ⟨(·.left), fun h => ⟨h, h⟩⟩"},
+   {"name": "not_false_eq_true",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem not_false_eq_true : (¬ False) = True := eq_true False.elim",
+    "compilationAlias":
+    "@[simp] theorem not_false_eq_true : (¬ False) = True := eq_true False.elim"},
+   {"name": "exists_and_left",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem exists_and_left : (∃ x, b ∧ p x) ↔ b ∧ (∃ x, p x) :=\n  ⟨fun ⟨x, h, hp⟩ => ⟨h, x, hp⟩, fun ⟨h, x, hp⟩ => ⟨x, h, hp⟩⟩",
+    "compilationAlias":
+    "@[simp] theorem exists_and_left : (∃ x, b ∧ p x) ↔ b ∧ (∃ x, p x) :=\n  ⟨fun ⟨x, h, hp⟩ => ⟨h, x, hp⟩, fun ⟨h, x, hp⟩ => ⟨x, h, hp⟩⟩"},
+   {"name": "𝔏₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `𝔏₁(k, n, j, l)` consists of the minimal elements in `ℭ₁(k, n, j)` not in\n  `𝔏₁(k, n, j, l')` for some `l' < l`. Defined near (5.1.11). -/\ndef 𝔏₁ (k n j l : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).minLayer l",
+    "compilationAlias":
+    "/-- `𝔏₁(k, n, j, l)` consists of the minimal elements in `ℭ₁(k, n, j)` not in\n  `𝔏₁(k, n, j, l')` for some `l' < l`. Defined near (5.1.11). -/\ndef 𝔏₁ (k n j l : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).minLayer l"},
+   {"name": "Finset.mem_Iic",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_Iic : x ∈ Iic a ↔ x ≤ a :=\n  LocallyFiniteOrderBot.finset_mem_Iic _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_Iic : x ∈ Iic a ↔ x ≤ a :=\n  LocallyFiniteOrderBot.finset_mem_Iic _ _"},
+   {"name": "Decidable.not_not",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Decidable.not_not [Decidable p] : ¬¬p ↔ p := ⟨of_not_not, not_not_intro⟩",
+    "compilationAlias":
+    "@[simp] theorem Decidable.not_not [Decidable p] : ¬¬p ↔ p := ⟨of_not_not, not_not_intro⟩"},
+   {"name": "Classical.not_imp",
+    "module": "Init.Classical",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem not_imp : ¬(a → b) ↔ a ∧ ¬b := Decidable.not_imp_iff_and_not",
+    "compilationAlias":
+    "@[simp] theorem not_imp : ¬(a → b) ↔ a ∧ ¬b := Decidable.not_imp_iff_and_not"},
+   {"name": "not_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem not_and : ¬(a ∧ b) ↔ (a → ¬b) := and_imp",
+    "compilationAlias":
+    "@[simp] theorem not_and : ¬(a ∧ b) ↔ (a → ¬b) := and_imp"},
+   {"name": "not_exists",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem not_exists : (¬∃ x, p x) ↔ ∀ x, ¬p x := exists_imp",
+    "compilationAlias":
+    "@[simp] theorem not_exists : (¬∃ x, p x) ↔ ∀ x, ¬p x := exists_imp"},
+   {"name": "exists_prop",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem exists_prop : (∃ _h : a, b) ↔ a ∧ b :=\n  ⟨fun ⟨hp, hq⟩ => ⟨hp, hq⟩, fun ⟨hp, hq⟩ => ⟨hp, hq⟩⟩",
+    "compilationAlias":
+    "@[simp] theorem exists_prop : (∃ _h : a, b) ↔ a ∧ b :=\n  ⟨fun ⟨hp, hq⟩ => ⟨hp, hq⟩, fun ⟨hp, hq⟩ => ⟨hp, hq⟩⟩"},
+   {"name": "ℭ₂",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `ℭ₂(k, n, j)` of `ℭ₁(k, n, j)`, given in (5.1.13). -/\ndef ℭ₂ (k n j : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).layersAbove (Z * (n + 1))",
+    "compilationAlias":
+    "/-- The subset `ℭ₂(k, n, j)` of `ℭ₁(k, n, j)`, given in (5.1.13). -/\ndef ℭ₂ (k n j : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).layersAbove (Z * (n + 1))"},
+   {"name": "ℭ₂_subset_ℭ₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma ℭ₂_subset_ℭ₁ {k n j : ℕ} : ℭ₂ k n j ⊆ ℭ₁ (X := X) k n j := layersAbove_subset",
+    "compilationAlias":
+    "lemma ℭ₂_subset_ℭ₁ {k n j : ℕ} : ℭ₂ k n j ⊆ ℭ₁ (X := X) k n j := layersAbove_subset"},
+   {"name": "and_imp",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_imp : (a ∧ b → c) ↔ (a → b → c) := ⟨fun h ha hb => h ⟨ha, hb⟩, fun h ⟨ha, hb⟩ => h ha hb⟩",
+    "compilationAlias":
+    "@[simp] theorem and_imp : (a ∧ b → c) ↔ (a → b → c) := ⟨fun h ha hb => h ⟨ha, hb⟩, fun h ⟨ha, hb⟩ => h ha hb⟩"},
+   {"name": "and_iff_left_iff_imp",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_iff_left_iff_imp  : ((a ∧ b) ↔ a) ↔ (a → b) := Iff.intro (And.right ∘ ·.mpr) and_iff_left_of_imp",
+    "compilationAlias":
+    "@[simp] theorem and_iff_left_iff_imp  : ((a ∧ b) ↔ a) ↔ (a → b) := Iff.intro (And.right ∘ ·.mpr) and_iff_left_of_imp"},
+   {"name": "and_congr_left_iff",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_congr_left_iff : (a ∧ c ↔ b ∧ c) ↔ c → (a ↔ b) := by\n  rw [@and_comm _ c, @and_comm _ c, ← and_congr_right_iff]",
+    "compilationAlias":
+    "@[simp] theorem and_congr_left_iff : (a ∧ c ↔ b ∧ c) ↔ c → (a ↔ b) := by\n  rw [@and_comm _ c, @and_comm _ c, ← and_congr_right_iff]"},
+   {"name": "𝔏₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `𝔏₁(k, n, j, l)` consists of the minimal elements in `ℭ₁(k, n, j)` not in\n  `𝔏₁(k, n, j, l')` for some `l' < l`. Defined near (5.1.11). -/\ndef 𝔏₁ (k n j l : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).minLayer l",
+    "compilationAlias":
+    "/-- `𝔏₁(k, n, j, l)` consists of the minimal elements in `ℭ₁(k, n, j)` not in\n  `𝔏₁(k, n, j, l')` for some `l' < l`. Defined near (5.1.11). -/\ndef 𝔏₁ (k n j l : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).minLayer l"},
+   {"name": "sum_carlesonSum_of_pairwiseDisjoint",
+    "module": "Carleson.TileStructure",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_carlesonSum_of_pairwiseDisjoint {ι : Type*} {f : X → ℂ} {x : X} {A : ι → Set (𝔓 X)}\n    {s : Finset ι} (hs : (s : Set ι).PairwiseDisjoint A) :\n    ∑ i ∈ s, carlesonSum (A i) f x = carlesonSum (⋃ i ∈ s, A i) f x := by\n  classical\n  simp only [carlesonSum]\n  rw [← Finset.sum_biUnion]\n  · congr\n    ext p\n    simp\n  · convert hs\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · intro i hi j hj hij\n      convert Finset.disjoint_coe.2 (h hi hj hij)\n      · ext; simp\n      · ext; simp\n    · intro i hi j hj hij\n      apply Finset.disjoint_coe.1\n      convert h hi hj hij\n      · ext; simp\n      · ext; simp",
+    "compilationAlias":
+    "lemma sum_carlesonSum_of_pairwiseDisjoint {ι : Type*} {f : X → ℂ} {x : X} {A : ι → Set (𝔓 X)}\n    {s : Finset ι} (hs : (s : Set ι).PairwiseDisjoint A) :\n    ∑ i ∈ s, carlesonSum (A i) f x = carlesonSum (⋃ i ∈ s, A i) f x := by\n  classical\n  simp only [carlesonSum]\n  rw [← Finset.sum_biUnion]\n  · congr\n    ext p\n    simp\n  · convert hs\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · intro i hi j hj hij\n      convert Finset.disjoint_coe.2 (h hi hj hij)\n      · ext; simp\n      · ext; simp\n    · intro i hi j hj hij\n      apply Finset.disjoint_coe.1\n      convert h hi hj hij\n      · ext; simp\n      · ext; simp"},
+   {"name": "ℭ₂",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `ℭ₂(k, n, j)` of `ℭ₁(k, n, j)`, given in (5.1.13). -/\ndef ℭ₂ (k n j : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).layersAbove (Z * (n + 1))",
+    "compilationAlias":
+    "/-- The subset `ℭ₂(k, n, j)` of `ℭ₁(k, n, j)`, given in (5.1.13). -/\ndef ℭ₂ (k n j : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).layersAbove (Z * (n + 1))"},
+   {"name": "carlesonSum_inter_add_inter_compl",
+    "module": "Carleson.TileStructure",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma carlesonSum_inter_add_inter_compl {f : X → ℂ} {x : X} (A B : Set (𝔓 X)) :\n    carlesonSum (A ∩ B) f x + carlesonSum (A ∩ Bᶜ) f x = carlesonSum A f x := by\n  classical\n  simp only [carlesonSum]\n  conv_rhs => rw [← Finset.sum_filter_add_sum_filter_not _ (fun p ↦ p ∈ B)]\n  congr 2\n  · ext; simp\n  · ext; simp",
+    "compilationAlias":
+    "lemma carlesonSum_inter_add_inter_compl {f : X → ℂ} {x : X} (A B : Set (𝔓 X)) :\n    carlesonSum (A ∩ B) f x + carlesonSum (A ∩ Bᶜ) f x = carlesonSum A f x := by\n  classical\n  simp only [carlesonSum]\n  conv_rhs => rw [← Finset.sum_filter_add_sum_filter_not _ (fun p ↦ p ∈ B)]\n  congr 2\n  · ext; simp\n  · ext; simp"},
+   {"name": "𝔏₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `𝔏₁(k, n, j, l)` consists of the minimal elements in `ℭ₁(k, n, j)` not in\n  `𝔏₁(k, n, j, l')` for some `l' < l`. Defined near (5.1.11). -/\ndef 𝔏₁ (k n j l : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).minLayer l",
+    "compilationAlias":
+    "/-- `𝔏₁(k, n, j, l)` consists of the minimal elements in `ℭ₁(k, n, j)` not in\n  `𝔏₁(k, n, j, l')` for some `l' < l`. Defined near (5.1.11). -/\ndef 𝔏₁ (k n j l : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).minLayer l"},
+   {"name": "𝔓₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j",
+    "compilationAlias":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j"},
+   {"name": "carlesonSum",
+    "module": "Carleson.TileStructure",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x",
+    "compilationAlias":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x"},
+   {"name": "ℭ₂",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `ℭ₂(k, n, j)` of `ℭ₁(k, n, j)`, given in (5.1.13). -/\ndef ℭ₂ (k n j : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).layersAbove (Z * (n + 1))",
+    "compilationAlias":
+    "/-- The subset `ℭ₂(k, n, j)` of `ℭ₁(k, n, j)`, given in (5.1.13). -/\ndef ℭ₂ (k n j : ℕ) : Set (𝔓 X) :=\n  (ℭ₁ k n j).layersAbove (Z * (n + 1))"},
+   {"name": "𝔓₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j",
+    "compilationAlias":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j"},
+   {"name": "carlesonSum",
+    "module": "Carleson.TileStructure",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x",
+    "compilationAlias":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x"},
+   {"name": "ℭ₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `ℭ₁(k, n, j)` of `ℭ(k, n)`, given in (5.1.9).\nTogether with `𝔏₀(k, n)` this forms a partition. -/\ndef ℭ₁ (k n j : ℕ) : Set (𝔓 X) :=\n  preℭ₁ k n j \\ preℭ₁ k n (j + 1)",
+    "compilationAlias":
+    "/-- The subset `ℭ₁(k, n, j)` of `ℭ(k, n)`, given in (5.1.9).\nTogether with `𝔏₀(k, n)` this forms a partition. -/\ndef ℭ₁ (k n j : ℕ) : Set (𝔓 X) :=\n  preℭ₁ k n j \\ preℭ₁ k n (j + 1)"},
+   {"name": "𝔓₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j",
+    "compilationAlias":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j"},
+   {"name": "carlesonSum",
+    "module": "Carleson.TileStructure",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x",
+    "compilationAlias":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x"}],
+  "C0_dependencies":
+  [{"name": "carlesonSum_𝔓pos_inter_ℭ_eq_add_sum",
+    "module": "Carleson.Discrete.ForestComplement",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [𝔏₀_subset_ℭ hp]\n  · apply Subset.antisymm\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      simp only [mem_compl_iff] at h'p\n      simp only [h'p, false_or] at H\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      exact H\n    · intro p hp\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n\n",
+    "compilationAlias":
+    "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [𝔏₀_subset_ℭ hp]\n  · apply Subset.antisymm\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      simp only [mem_compl_iff] at h'p\n      simp only [h'p, false_or] at H\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      exact H\n    · intro p hp\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.Deprecated.ByteArray\n/-- A terminal byte slice, a suffix of a byte array. -/\n@[deprecated \"No deprecation message was provided.\" (since := \"2024-08-19\")]\nstructure ByteSliceT := (arr : ByteArray) (off : Nat)",
+   "--src: Mathlib.Order.Closure\n/-- A closure operator on the preorder `α` is a monotone function which is extensive (every `x`\nis less than its closure) and idempotent. -/\nstructure ClosureOperator [Preorder α] extends α →o α where\n  /-- An element is less than or equal its closure -/\n  le_closure' : ∀ x, x ≤ toFun x\n  /-- Closures are idempotent -/\n  idempotent' : ∀ x, toFun (toFun x) = toFun x\n  /-- Predicate for an element to be closed.\n  By default, this is defined as `c.IsClosed x := (c x = x)` (see `isClosed_iff`).\n  We allow an override to fix definitional equalities. -/\n  IsClosed (x : α) : Prop := toFun x = x\n  isClosed_iff {x : α} : IsClosed x ↔ toFun x = x := by aesop",
+   "--src: Mathlib.Logic.Unique\n/-- `Unique α` expresses that `α` is a type with a unique term `default`.\nThis is implemented as a type, rather than a `Prop`-valued predicate,\nfor good definitional properties of the default term. -/\n@[ext]\nstructure Unique (α : Sort u) extends Inhabited α where\n  /-- In a `Unique` type, every term is equal to the default element (from `Inhabited`). -/\n  uniq : ∀ a : α, a = default",
+   "--src: Mathlib.Order.Hom.Bounded\n/-- The type of bounded order homomorphisms from `α` to `β`. -/\nstructure BoundedOrderHom (α β : Type*) [Preorder α] [Preorder β] [BoundedOrder α]\n  [BoundedOrder β] extends OrderHom α β where\n  /-- The function preserves the top element. The preferred spelling is `map_top`. -/\n  map_top' : toFun ⊤ = ⊤\n  /-- The function preserves the bottom element. The preferred spelling is `map_bot`. -/\n  map_bot' : toFun ⊥ = ⊥",
+   "--src: Mathlib.CategoryTheory.Functor.Basic\n/-- `Functor C D` represents a functor between categories `C` and `D`.\nTo apply a functor `F` to an object use `F.obj X`, and to a morphism use `F.map f`.\nThe axiom `map_id` expresses preservation of identities, and\n`map_comp` expresses functoriality.\nSee <https://stacks.math.columbia.edu/tag/001B>.\n-/\nstructure Functor (C : Type u₁) [Category.{v₁} C] (D : Type u₂) [Category.{v₂} D]\n    extends Prefunctor C D : Type max v₁ v₂ u₁ u₂ where\n  /-- A functor preserves identity morphisms. -/\n  map_id : ∀ X : C, map (\u0000\u0000 X) = \u0000\u0000 (obj X) := by aesop_cat\n  /-- A functor preserves composition. -/\n  map_comp : ∀ {X Y Z : C} (f : X ⟶ Y) (g : Y ⟶ Z), map (f ≫ g) = map f ≫ map g := by aesop_cat",
+   "--src: Mathlib.Topology.Sheaves.LocalPredicate\n/-- Given a topological space `X : TopCat` and a type family `T : X → Type`,\na `P : LocalPredicate T` consists of:\n* a family of predicates `P.pred`, one for each `U : Opens X`, of the form `(Π x : U, T x) → Prop`\n* a proof that if `f : Π x : V, T x` satisfies the predicate on `V : Opens X`, then\n  the restriction of `f` to any open subset `U` also satisfies the predicate, and\n* a proof that given some `f : Π x : U, T x`,\n  if for every `x : U` we can find an open set `x ∈ V ≤ U`\n  so that the restriction of `f` to `V` satisfies the predicate,\n  then `f` itself satisfies the predicate.\n-/\nstructure LocalPredicate extends PrelocalPredicate T where\n  /-- A local predicate must be local --- provided that it is locally satisfied, it is also globally\n    satisfied -/\n  locality :\n    ∀ {U : Opens X} (f : ∀ x : U, T x)\n      (_ : ∀ x : U, ∃ (V : Opens X) (_ : x.1 ∈ V) (i : V ⟶ U),\n        pred fun x : V => f (i x : U)), pred f",
+   "--src: Mathlib.Topology.ContinuousMap.CompactlySupported\n/-- `C_c(α, β)` is the type of continuous functions `α → β` with compact support from a topological\nspace to a topological space with a zero element.\nWhen possible, instead of parametrizing results over `f : C_c(α, β)`,\nyou should parametrize over `{F : Type*} [CompactlySupportedContinuousMapClass F α β] (f : F)`.\nWhen you extend this structure, make sure to extend `CompactlySupportedContinuousMapClass`. -/\nstructure CompactlySupportedContinuousMap (α β : Type*) [TopologicalSpace α] [Zero β]\n    [TopologicalSpace β] extends ContinuousMap α β where\n  /-- The function has compact support . -/\n  hasCompactSupport' : HasCompactSupport toFun",
+   "--src: Mathlib.Topology.CWComplex\n/-- A CW-complex is a relative CW-complex whose `sk 0` (i.e., $(-1)$-skeleton) is empty. -/\nstructure CWComplex extends RelativeCWComplex.{u} where\n  /-- `sk 0` (i.e., the $(-1)$-skeleton) is empty. -/\n  isEmpty_sk_zero : IsEmpty (sk 0)",
+   "--src: Mathlib.Order.InitialSeg\n/-- If `r` is a relation on `α` and `s` in a relation on `β`, then `f : r ≼i s` is an order\nembedding whose range is an initial segment. That is, whenever `b < f a` in `β` then `b` is in the\nrange of `f`. -/\nstructure InitialSeg {α β : Type*} (r : α → α → Prop) (s : β → β → Prop) extends r ↪r s where\n  /-- The order embedding is an initial segment -/\n  mem_range_of_rel' : ∀ a b, s b (toRelEmbedding a) → b ∈ Set.range toRelEmbedding\n-- Porting note: Deleted `scoped[InitialSeg]`",
+   "--src: Mathlib.CategoryTheory.Functor.FullyFaithful\nvariable (F) in\n/-- Structure containing the data of inverse map `(F.obj X ⟶ F.obj Y) ⟶ (X ⟶ Y)` of `F.map`\nin order to express that `F` is a fully faithful functor. -/\nstructure FullyFaithful where\n  /-- The inverse map `(F.obj X ⟶ F.obj Y) ⟶ (X ⟶ Y)` of `F.map`. -/\n  preimage {X Y : C} (f : F.obj X ⟶ F.obj Y) : X ⟶ Y\n  map_preimage {X Y : C} (f : F.obj X ⟶ F.obj Y) : F.map (preimage f) = f := by aesop_cat\n  preimage_map {X Y : C} (f : X ⟶ Y) : preimage (F.map f) = f := by aesop_cat"],
+  "prescopes":
+  "noncomputable section\n\nopen MeasureTheory MeasureTheory.Measure NNReal Metric Complex Set Complex.Set Classical\n\nvariable {X : Type*} {a : ℕ} {q : ℝ} {K : X → X → ℂ} {σ₁ σ₂ : X → ℤ} {F G : Set X} [MetricSpace X]\n  [ProofData a q K σ₁ σ₂ F G] [TileStructure Q D κ S o] {k n j l : ℕ} {p p' u u' : 𝔓 X} {x : X}",
+  "postscopes": "end",
+  "id":
+  {"name": "carlesonSum_𝔓pos_inter_ℭ_eq_add_sum",
+   "module": "Carleson.Discrete.ForestComplement",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [𝔏₀_subset_ℭ hp]\n  · apply Subset.antisymm\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      simp only [mem_compl_iff] at h'p\n      simp only [h'p, false_or] at H\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      exact H\n    · intro p hp\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n\n",
+   "compilationAlias":
+   "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    intro j\n    exact inter_subset_right\n  congr 2\n  · ext p\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    intro hp\n    simp [𝔏₀_subset_ℭ hp]\n  · apply Subset.antisymm\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      simp only [mem_compl_iff] at h'p\n      simp only [h'p, false_or] at H\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      exact H\n    · intro p hp\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n\n"},
+  "goal":
+  "X : Type u_1\na : Nat\nq : Real\nK : X → X → Complex\nσ₁ σ₂ : X → Int\nF G : Set X\ninst✝² : MetricSpace X\ninst✝¹ : ProofData a q K σ₁ σ₂ F G\ninst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (cancelPt X)\nk n : Nat\nf : X → Complex\nx : X\nhkn : LE.le k n\n⊢ Eq (carlesonSum (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ k n)) f x) (HAdd.hAdd (carlesonSum (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (𝔏₀ k n)) f x) ((Finset.Iic (HAdd.hAdd (HMul.hMul 2 n) 3)).sum fun j => carlesonSum (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ₁ k n j)) f x))",
+  "content_sorry":
+  "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  sorry",
+  "annotation":
+  "/-- In each set `ℭ k n`, the Carleson sum can be decomposed as a sum over `𝔏₀ k n` and over\nvarious `ℭ₁ k n j`. -/\nlemma carlesonSum_𝔓pos_inter_ℭ_eq_add_sum {f : X → ℂ} {x : X} (hkn : k ≤ n) :\n    carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ k n) f x =\n      carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ 𝔏₀ k n) f x\n      + ∑ j ≤ 2 * n + 3, carlesonSum (𝔓pos ∩ 𝔓₁ᶜ ∩ ℭ₁ k n j) f x := by\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝² : MetricSpace X\n    inst✝¹ : ProofData a q K σ₁ σ₂ F G\n    inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n    k n : Nat\n    f : X → Complex\n    x : X\n    hkn : LE.le k n\n    ⊢ Eq (carlesonSum (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ k n)) …\n  -/\n  conv_lhs => rw [← carlesonSum_inter_add_inter_compl _ (𝔏₀ k n)]\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝² : MetricSpace X\n    inst✝¹ : ProofData a q K σ₁ σ₂ F G\n    inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n    k n : Nat\n    f : X → Complex\n    x : X\n    hkn : LE.le k n\n    ⊢ Eq (HAdd.hAdd (carlesonSum (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasC …\n  -/\n  rw [sum_carlesonSum_of_pairwiseDisjoint]; swap\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      ⊢ (↑(Finset.Iic (HAdd.hAdd (HMul.hMul 2 n) 3))).PairwiseDisjoint fun j => Inte …\n    -/\n  · apply PairwiseDisjoint.subset _ (subset_univ _)\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      ⊢ Set.univ.PairwiseDisjoint fun j => Inter.inter (Inter.inter 𝔓pos (HasCompl.c …\n    -/\n    apply (pairwiseDisjoint_ℭ₁ (k := k) (n := n)).mono\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      ⊢ LE.le (fun j => Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ₁ k n j …\n    -/\n    intro j\n    /-\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      j : Nat\n      ⊢ LE.le ((fun j => Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ₁ k n  …\n    -/\n    exact inter_subset_right\n    /-\n      🎉 no goals\n    -/\n  /-\n    X : Type u_1\n    a : Nat\n    q : Real\n    K : X → X → Complex\n    σ₁ σ₂ : X → Int\n    F G : Set X\n    inst✝² : MetricSpace X\n    inst✝¹ : ProofData a q K σ₁ σ₂ F G\n    inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n    k n : Nat\n    f : X → Complex\n    x : X\n    hkn : LE.le k n\n    ⊢ Eq (HAdd.hAdd (carlesonSum (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasC …\n  -/\n  congr 2\n    /-\n      case e_a.e_ℭ\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      ⊢ Eq (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ k n)) …\n    -/\n  · ext p\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      p : 𝔓 X\n      ⊢ Iff (Membership.mem (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.co …\n    -/\n    simp only [mem_inter_iff, mem_compl_iff, and_congr_left_iff, and_iff_left_iff_imp, and_imp]\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      p : 𝔓 X\n      ⊢ Membership.mem (𝔏₀ k n) p → Membership.mem 𝔓pos p → Not (Membership.mem 𝔓₁ p …\n    -/\n    intro hp\n    /-\n      case e_a.e_ℭ.h\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      p : 𝔓 X\n      hp : Membership.mem (𝔏₀ k n) p\n      ⊢ Membership.mem 𝔓pos p → Not (Membership.mem 𝔓₁ p) → Membership.mem (ℭ k n) p\n    -/\n    simp [𝔏₀_subset_ℭ hp]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case e_a.e_ℭ\n      X : Type u_1\n      a : Nat\n      q : Real\n      K : X → X → Complex\n      σ₁ σ₂ : X → Int\n      F G : Set X\n      inst✝² : MetricSpace X\n      inst✝¹ : ProofData a q K σ₁ σ₂ F G\n      inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n      k n : Nat\n      f : X → Complex\n      x : X\n      hkn : LE.le k n\n      ⊢ Eq (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) (ℭ k n)) …\n    -/\n  · apply Subset.antisymm\n      /-\n        case e_a.e_ℭ.h₁\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        ⊢ HasSubset.Subset (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl …\n      -/\n    · rintro p ⟨⟨hp, Hp⟩, h'p⟩\n      /-\n        case e_a.e_ℭ.h₁.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        h'p : Membership.mem (HasCompl.compl (𝔏₀ k n)) p\n        hp : Membership.mem (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) p\n        Hp : Membership.mem (ℭ k n) p\n        ⊢ Membership.mem (Set.iUnion fun i => Set.iUnion fun h => Inter.inter (Inter.i …\n      -/\n      rcases exists_j_of_mem_𝔓pos_ℭ hp.1 Hp hkn with H\n      /-\n        case e_a.e_ℭ.h₁.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        h'p : Membership.mem (HasCompl.compl (𝔏₀ k n)) p\n        hp : Membership.mem (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) p\n        Hp : Membership.mem (ℭ k n) p\n        H : Or (Membership.mem (𝔏₀ k n) p) (Exists fun j => And (LE.le j (HAdd.hAdd (H …\n        ⊢ Membership.mem (Set.iUnion fun i => Set.iUnion fun h => Inter.inter (Inter.i …\n      -/\n      simp only [mem_compl_iff] at h'p\n      /-\n        case e_a.e_ℭ.h₁.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        hp : Membership.mem (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) p\n        Hp : Membership.mem (ℭ k n) p\n        H : Or (Membership.mem (𝔏₀ k n) p) (Exists fun j => And (LE.le j (HAdd.hAdd (H …\n        h'p : Not (Membership.mem (𝔏₀ k n) p)\n        ⊢ Membership.mem (Set.iUnion fun i => Set.iUnion fun h => Inter.inter (Inter.i …\n      -/\n      simp only [h'p, false_or] at H\n      /-\n        case e_a.e_ℭ.h₁.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        hp : Membership.mem (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) p\n        Hp : Membership.mem (ℭ k n) p\n        h'p : Not (Membership.mem (𝔏₀ k n) p)\n        H : Exists fun j => And (LE.le j (HAdd.hAdd (HMul.hMul 2 n) 3)) (Membership.me …\n        ⊢ Membership.mem (Set.iUnion fun i => Set.iUnion fun h => Inter.inter (Inter.i …\n      -/\n      simp only [Finset.mem_Iic, mem_iUnion, mem_inter_iff, hp, true_and, exists_prop]\n      /-\n        case e_a.e_ℭ.h₁.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        hp : Membership.mem (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) p\n        Hp : Membership.mem (ℭ k n) p\n        h'p : Not (Membership.mem (𝔏₀ k n) p)\n        H : Exists fun j => And (LE.le j (HAdd.hAdd (HMul.hMul 2 n) 3)) (Membership.me …\n        ⊢ Exists fun i => And (LE.le i (HAdd.hAdd (HMul.hMul 2 n) 3)) (Membership.mem  …\n      -/\n      exact H\n      /-\n        🎉 no goals\n      -/\n      /-\n        case e_a.e_ℭ.h₂\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        ⊢ HasSubset.Subset (Set.iUnion fun i => Set.iUnion fun h => Inter.inter (Inter …\n      -/\n    · intro p hp\n      /-\n        case e_a.e_ℭ.h₂\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        hp : Membership.mem (Set.iUnion fun i => Set.iUnion fun h => Inter.inter (Inte …\n        ⊢ Membership.mem (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓 …\n      -/\n      simp only [Finset.mem_Iic, mem_iUnion, mem_compl_iff, exists_and_left, exists_prop] at hp\n      /-\n        case e_a.e_ℭ.h₂\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        hp : Exists fun i => And (LE.le i (HAdd.hAdd (HMul.hMul 2 n) 3)) (Membership.m …\n        ⊢ Membership.mem (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓 …\n      -/\n      rcases hp with ⟨i, hi, h'i, h''i⟩\n      /-\n        case e_a.e_ℭ.h₂.intro.intro.intro\n        X : Type u_1\n        a : Nat\n        q : Real\n        K : X → X → Complex\n        σ₁ σ₂ : X → Int\n        F G : Set X\n        inst✝² : MetricSpace X\n        inst✝¹ : ProofData a q K σ₁ σ₂ F G\n        inst✝ : TileStructure PreProofData.Q (defaultD a) (defaultκ a) (defaultS X) (c …\n        k n : Nat\n        f : X → Complex\n        x : X\n        hkn : LE.le k n\n        p : 𝔓 X\n        i : Nat\n        hi : LE.le i (HAdd.hAdd (HMul.hMul 2 n) 3)\n        h'i : Membership.mem (Inter.inter 𝔓pos (HasCompl.compl 𝔓₁)) p\n        h''i : Membership.mem (ℭ₁ k n i) p\n        ⊢ Membership.mem (Inter.inter (Inter.inter (Inter.inter 𝔓pos (HasCompl.compl 𝔓 …\n      -/\n      exact ⟨⟨h'i, ℭ₁_subset_ℭ h''i⟩, disjoint_left.1 𝔏₀_disjoint_ℭ₁.symm h''i⟩\n      /-\n        🎉 no goals\n      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ℭ₁_subset_ℭ",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma ℭ₁_subset_ℭ {k n j : ℕ} : ℭ₁ k n j ⊆ ℭ (X := X) k n := fun t mt ↦ by\n  rw [ℭ₁, preℭ₁, mem_diff, mem_setOf] at mt; exact mt.1.1",
+    "compilationAlias":
+    "lemma ℭ₁_subset_ℭ {k n j : ℕ} : ℭ₁ k n j ⊆ ℭ (X := X) k n := fun t mt ↦ by\n  rw [ℭ₁, preℭ₁, mem_diff, mem_setOf] at mt; exact mt.1.1"},
+   {"name": "exists_prop",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem exists_prop : (∃ _h : a, b) ↔ a ∧ b :=\n  ⟨fun ⟨hp, hq⟩ => ⟨hp, hq⟩, fun ⟨hp, hq⟩ => ⟨hp, hq⟩⟩",
+    "compilationAlias":
+    "@[simp] theorem exists_prop : (∃ _h : a, b) ↔ a ∧ b :=\n  ⟨fun ⟨hp, hq⟩ => ⟨hp, hq⟩, fun ⟨hp, hq⟩ => ⟨hp, hq⟩⟩"},
+   {"name": "exists_and_left",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem exists_and_left : (∃ x, b ∧ p x) ↔ b ∧ (∃ x, p x) :=\n  ⟨fun ⟨x, h, hp⟩ => ⟨h, x, hp⟩, fun ⟨h, x, hp⟩ => ⟨x, h, hp⟩⟩",
+    "compilationAlias":
+    "@[simp] theorem exists_and_left : (∃ x, b ∧ p x) ↔ b ∧ (∃ x, p x) :=\n  ⟨fun ⟨x, h, hp⟩ => ⟨h, x, hp⟩, fun ⟨h, x, hp⟩ => ⟨x, h, hp⟩⟩"},
+   {"name": "Finset.mem_Iic",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_Iic : x ∈ Iic a ↔ x ≤ a :=\n  LocallyFiniteOrderBot.finset_mem_Iic _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_Iic : x ∈ Iic a ↔ x ≤ a :=\n  LocallyFiniteOrderBot.finset_mem_Iic _ _"},
+   {"name": "exists_prop",
+    "module": "Init.PropLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem exists_prop : (∃ _h : a, b) ↔ a ∧ b :=\n  ⟨fun ⟨hp, hq⟩ => ⟨hp, hq⟩, fun ⟨hp, hq⟩ => ⟨hp, hq⟩⟩",
+    "compilationAlias":
+    "@[simp] theorem exists_prop : (∃ _h : a, b) ↔ a ∧ b :=\n  ⟨fun ⟨hp, hq⟩ => ⟨hp, hq⟩, fun ⟨hp, hq⟩ => ⟨hp, hq⟩⟩"},
+   {"name": "true_and",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩",
+    "compilationAlias":
+    "@[simp] theorem true_and (p : Prop) : (True ∧ p) = p := propext ⟨(·.2), (⟨trivial, ·⟩)⟩"},
+   {"name": "Finset.mem_Iic",
+    "module": "Mathlib.Order.Interval.Finset.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_Iic : x ∈ Iic a ↔ x ≤ a :=\n  LocallyFiniteOrderBot.finset_mem_Iic _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_Iic : x ∈ Iic a ↔ x ≤ a :=\n  LocallyFiniteOrderBot.finset_mem_Iic _ _"},
+   {"name": "false_or",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem false_or (p : Prop) : (False ∨ p) = p := propext ⟨fun (.inr h) => h, .inr⟩",
+    "compilationAlias":
+    "@[simp] theorem false_or (p : Prop) : (False ∨ p) = p := propext ⟨fun (.inr h) => h, .inr⟩"},
+   {"name": "𝔏₀_subset_ℭ",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma 𝔏₀_subset_ℭ : 𝔏₀ (X := X) k n ⊆ ℭ k n := fun _ mu ↦ mu.1",
+    "compilationAlias":
+    "lemma 𝔏₀_subset_ℭ : 𝔏₀ (X := X) k n ⊆ ℭ k n := fun _ mu ↦ mu.1"},
+   {"name": "and_imp",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_imp : (a ∧ b → c) ↔ (a → b → c) := ⟨fun h ha hb => h ⟨ha, hb⟩, fun h ⟨ha, hb⟩ => h ha hb⟩",
+    "compilationAlias":
+    "@[simp] theorem and_imp : (a ∧ b → c) ↔ (a → b → c) := ⟨fun h ha hb => h ⟨ha, hb⟩, fun h ⟨ha, hb⟩ => h ha hb⟩"},
+   {"name": "and_iff_left_iff_imp",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_iff_left_iff_imp  : ((a ∧ b) ↔ a) ↔ (a → b) := Iff.intro (And.right ∘ ·.mpr) and_iff_left_of_imp",
+    "compilationAlias":
+    "@[simp] theorem and_iff_left_iff_imp  : ((a ∧ b) ↔ a) ↔ (a → b) := Iff.intro (And.right ∘ ·.mpr) and_iff_left_of_imp"},
+   {"name": "and_congr_left_iff",
+    "module": "Init.SimpLemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem and_congr_left_iff : (a ∧ c ↔ b ∧ c) ↔ c → (a ↔ b) := by\n  rw [@and_comm _ c, @and_comm _ c, ← and_congr_right_iff]",
+    "compilationAlias":
+    "@[simp] theorem and_congr_left_iff : (a ∧ c ↔ b ∧ c) ↔ c → (a ↔ b) := by\n  rw [@and_comm _ c, @and_comm _ c, ← and_congr_right_iff]"},
+   {"name": "pairwiseDisjoint_ℭ₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma pairwiseDisjoint_ℭ₁ {k n : ℕ} : univ.PairwiseDisjoint (ℭ₁ (X := X) k n) := fun _ _ _ _ ↦\n  disjoint_ℭ₁_of_ne",
+    "compilationAlias":
+    "lemma pairwiseDisjoint_ℭ₁ {k n : ℕ} : univ.PairwiseDisjoint (ℭ₁ (X := X) k n) := fun _ _ _ _ ↦\n  disjoint_ℭ₁_of_ne"},
+   {"name": "sum_carlesonSum_of_pairwiseDisjoint",
+    "module": "Carleson.TileStructure",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_carlesonSum_of_pairwiseDisjoint {ι : Type*} {f : X → ℂ} {x : X} {A : ι → Set (𝔓 X)}\n    {s : Finset ι} (hs : (s : Set ι).PairwiseDisjoint A) :\n    ∑ i ∈ s, carlesonSum (A i) f x = carlesonSum (⋃ i ∈ s, A i) f x := by\n  classical\n  simp only [carlesonSum]\n  rw [← Finset.sum_biUnion]\n  · congr\n    ext p\n    simp\n  · convert hs\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · intro i hi j hj hij\n      convert Finset.disjoint_coe.2 (h hi hj hij)\n      · ext; simp\n      · ext; simp\n    · intro i hi j hj hij\n      apply Finset.disjoint_coe.1\n      convert h hi hj hij\n      · ext; simp\n      · ext; simp",
+    "compilationAlias":
+    "lemma sum_carlesonSum_of_pairwiseDisjoint {ι : Type*} {f : X → ℂ} {x : X} {A : ι → Set (𝔓 X)}\n    {s : Finset ι} (hs : (s : Set ι).PairwiseDisjoint A) :\n    ∑ i ∈ s, carlesonSum (A i) f x = carlesonSum (⋃ i ∈ s, A i) f x := by\n  classical\n  simp only [carlesonSum]\n  rw [← Finset.sum_biUnion]\n  · congr\n    ext p\n    simp\n  · convert hs\n    refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩\n    · intro i hi j hj hij\n      convert Finset.disjoint_coe.2 (h hi hj hij)\n      · ext; simp\n      · ext; simp\n    · intro i hi j hj hij\n      apply Finset.disjoint_coe.1\n      convert h hi hj hij\n      · ext; simp\n      · ext; simp"},
+   {"name": "𝔏₀",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `𝔏₀(k, n)` of `ℭ(k, n)`, given in (5.1.10).\nNot to be confused with `𝔏₀(k, n, j)` which is called `𝔏₀'` in Lean. -/\ndef 𝔏₀ (k n : ℕ) : Set (𝔓 X) :=\n  { p ∈ ℭ k n | 𝔅 k n p = ∅ }",
+    "compilationAlias":
+    "/-- The subset `𝔏₀(k, n)` of `ℭ(k, n)`, given in (5.1.10).\nNot to be confused with `𝔏₀(k, n, j)` which is called `𝔏₀'` in Lean. -/\ndef 𝔏₀ (k n : ℕ) : Set (𝔓 X) :=\n  { p ∈ ℭ k n | 𝔅 k n p = ∅ }"},
+   {"name": "carlesonSum_inter_add_inter_compl",
+    "module": "Carleson.TileStructure",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma carlesonSum_inter_add_inter_compl {f : X → ℂ} {x : X} (A B : Set (𝔓 X)) :\n    carlesonSum (A ∩ B) f x + carlesonSum (A ∩ Bᶜ) f x = carlesonSum A f x := by\n  classical\n  simp only [carlesonSum]\n  conv_rhs => rw [← Finset.sum_filter_add_sum_filter_not _ (fun p ↦ p ∈ B)]\n  congr 2\n  · ext; simp\n  · ext; simp",
+    "compilationAlias":
+    "lemma carlesonSum_inter_add_inter_compl {f : X → ℂ} {x : X} (A B : Set (𝔓 X)) :\n    carlesonSum (A ∩ B) f x + carlesonSum (A ∩ Bᶜ) f x = carlesonSum A f x := by\n  classical\n  simp only [carlesonSum]\n  conv_rhs => rw [← Finset.sum_filter_add_sum_filter_not _ (fun p ↦ p ∈ B)]\n  congr 2\n  · ext; simp\n  · ext; simp"},
+   {"name": "ℭ₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `ℭ₁(k, n, j)` of `ℭ(k, n)`, given in (5.1.9).\nTogether with `𝔏₀(k, n)` this forms a partition. -/\ndef ℭ₁ (k n j : ℕ) : Set (𝔓 X) :=\n  preℭ₁ k n j \\ preℭ₁ k n (j + 1)",
+    "compilationAlias":
+    "/-- The subset `ℭ₁(k, n, j)` of `ℭ(k, n)`, given in (5.1.9).\nTogether with `𝔏₀(k, n)` this forms a partition. -/\ndef ℭ₁ (k n j : ℕ) : Set (𝔓 X) :=\n  preℭ₁ k n j \\ preℭ₁ k n (j + 1)"},
+   {"name": "𝔓₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j",
+    "compilationAlias":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j"},
+   {"name": "carlesonSum",
+    "module": "Carleson.TileStructure",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x",
+    "compilationAlias":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x"},
+   {"name": "𝔏₀",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The subset `𝔏₀(k, n)` of `ℭ(k, n)`, given in (5.1.10).\nNot to be confused with `𝔏₀(k, n, j)` which is called `𝔏₀'` in Lean. -/\ndef 𝔏₀ (k n : ℕ) : Set (𝔓 X) :=\n  { p ∈ ℭ k n | 𝔅 k n p = ∅ }",
+    "compilationAlias":
+    "/-- The subset `𝔏₀(k, n)` of `ℭ(k, n)`, given in (5.1.10).\nNot to be confused with `𝔏₀(k, n, j)` which is called `𝔏₀'` in Lean. -/\ndef 𝔏₀ (k n : ℕ) : Set (𝔓 X) :=\n  { p ∈ ℭ k n | 𝔅 k n p = ∅ }"},
+   {"name": "𝔓₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j",
+    "compilationAlias":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j"},
+   {"name": "carlesonSum",
+    "module": "Carleson.TileStructure",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x",
+    "compilationAlias":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x"},
+   {"name": "ℭ",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The partition `ℭ(k, n)` of `𝔓(k)` by density, given in (5.1.7). -/\ndef ℭ (k n : ℕ) : Set (𝔓 X) :=\n  { p ∈ TilesAt k | dens' k {p} ∈ Ioc (2 ^ (4 * a - n : ℤ)) (2 ^ (4 * a - n + 1 : ℤ)) }",
+    "compilationAlias":
+    "/-- The partition `ℭ(k, n)` of `𝔓(k)` by density, given in (5.1.7). -/\ndef ℭ (k n : ℕ) : Set (𝔓 X) :=\n  { p ∈ TilesAt k | dens' k {p} ∈ Ioc (2 ^ (4 * a - n : ℤ)) (2 ^ (4 * a - n + 1 : ℤ)) }"},
+   {"name": "𝔓₁",
+    "module": "Carleson.Discrete.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j",
+    "compilationAlias":
+    "/-- The set `𝔓₁`, defined in (5.1.30). -/\ndef 𝔓₁ : Set (𝔓 X) := ⋃ (n : ℕ) (k ≤ n) (j ≤ 2 * n + 3), ℭ₅ k n j"},
+   {"name": "carlesonSum",
+    "module": "Carleson.TileStructure",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x",
+    "compilationAlias":
+    "/-- The operator `T_ℭ f` defined at the bottom of Section 7.4.\nWe will use this in other places of the formalization as well. -/\ndef carlesonSum (ℭ : Set (𝔓 X)) (f : X → ℂ) (x : X) : ℂ :=\n  ∑ p ∈ {p | p ∈ ℭ}, carlesonOn p f x"}],
+  "C0_dependencies": []}]

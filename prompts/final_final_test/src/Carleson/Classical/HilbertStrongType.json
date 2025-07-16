@@ -1,0 +1,108 @@
+[{"rag":
+  ["--src: Mathlib.Analysis.SpecialFunctions.Complex.Log\ntheorem two_pi_I_ne_zero : (2 * π * I : ℂ) ≠ 0 := by norm_num [Real.pi_ne_zero, I_ne_zero]",
+   "--src: Mathlib.Analysis.Fourier.AddCircle\n@[simp]\ntheorem fourier_coe_apply' {n : ℤ} {x : ℝ} :\n    toCircle (n • (x : AddCircle T) :) = Complex.exp (2 * π * Complex.I * n * x / T) := by\n  rw [← fourier_apply]; exact fourier_coe_apply\n-- simp normal form is `fourier_zero'`",
+   "--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic\ntheorem exp_mul_I_antiperiodic : Function.Antiperiodic (fun x => exp (x * I)) π := by\n  simpa only [mul_inv_cancel_right₀ I_ne_zero] using exp_antiperiodic.mul_const I_ne_zero",
+   "--src: Mathlib.Analysis.Fourier.AddCircle\ntheorem fourier_eval_zero (n : ℤ) : fourier n (0 : AddCircle T) = 1 := by\n  rw [← QuotientAddGroup.mk_zero, fourier_coe_apply, Complex.ofReal_zero, mul_zero,\n    zero_div, Complex.exp_zero]",
+   "--src: Mathlib.Analysis.Fourier.AddCircle\n/-- For `n ≠ 0`, a translation by `T / 2 / n` negates the function `fourier n`. -/\ntheorem fourier_add_half_inv_index {n : ℤ} (hn : n ≠ 0) (hT : 0 < T) (x : AddCircle T) :\n    @fourier T n (x + ↑(T / 2 / n)) = -fourier n x := by\n  rw [fourier_apply, zsmul_add, ← QuotientAddGroup.mk_zsmul, toCircle_add, coe_mul_unitSphere]\n  have : (n : ℂ) ≠ 0 := by simpa using hn\n  have : (@toCircle T (n • (T / 2 / n) : ℝ) : ℂ) = -1 := by\n    rw [zsmul_eq_mul, toCircle, Function.Periodic.lift_coe, Circle.coe_exp]\n    replace hT := Complex.ofReal_ne_zero.mpr hT.ne'\n    convert Complex.exp_pi_mul_I using 3\n    field_simp; ring\n  rw [this]; simp",
+   "--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic\n@[simp]\ntheorem exp_int_mul_two_pi_mul_I (n : ℤ) : exp (n * (2 * π * I)) = 1 :=\n  (exp_periodic.int_mul_eq n).trans exp_zero",
+   "--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.EulerSineProd\ntheorem integral_cos_mul_cos_pow_aux (hn : 2 ≤ n) (hz : z ≠ 0) :\n    (∫ x in (0 : ℝ)..π / 2, Complex.cos (2 * z * x) * (cos x : ℂ) ^ n) =\n      n / (2 * z) *\n        ∫ x in (0 : ℝ)..π / 2, Complex.sin (2 * z * x) * sin x * (cos x : ℂ) ^ (n - 1) := by\n  have der1 :\n    ∀ x : ℝ,\n      x ∈ uIcc 0 (π / 2) →\n        HasDerivAt (fun y : ℝ => (cos y : ℂ) ^ n) (-n * sin x * (cos x : ℂ) ^ (n - 1)) x := by\n    intro x _\n    have b : HasDerivAt (fun y : ℝ => (cos y : ℂ)) (-sin x) x := by\n      simpa using (hasDerivAt_cos x).ofReal_comp\n    convert HasDerivAt.comp x (hasDerivAt_pow _ _) b using 1\n    ring\n  convert (config := { sameFun := true })\n    integral_mul_deriv_eq_deriv_mul der1 (fun x _ => antideriv_cos_comp_const_mul hz x) _ _ using 2\n  · ext1 x; rw [mul_comm]\n  · rw [Complex.ofReal_zero, mul_zero, Complex.sin_zero, zero_div, mul_zero, sub_zero,\n      cos_pi_div_two, Complex.ofReal_zero, zero_pow (by positivity : n ≠ 0), zero_mul, zero_sub,\n      ← integral_neg, ← integral_const_mul]\n    refine integral_congr fun x _ => ?_\n    field_simp; ring\n  · apply Continuous.intervalIntegrable\n    exact\n      (continuous_const.mul (Complex.continuous_ofReal.comp continuous_sin)).mul\n        ((Complex.continuous_ofReal.comp continuous_cos).pow (n - 1))\n  · apply Continuous.intervalIntegrable\n    exact Complex.continuous_cos.comp (continuous_const.mul Complex.continuous_ofReal)",
+   "--src: Mathlib.Analysis.Fourier.FourierTransformDeriv\nlemma hasDerivAt_fourierChar (x : ℝ) : HasDerivAt (\u0000\u0000 · : ℝ → ℂ) (2 * π * I * \u0000\u0000 x) x := by\n  have h1 (y : ℝ) : \u0000\u0000 y = fourier 1 (y : UnitAddCircle) := by\n    rw [fourierChar_apply, fourier_coe_apply]\n    push_cast\n    ring_nf\n  simpa only [h1, Int.cast_one, ofReal_one, div_one, mul_one] using hasDerivAt_fourier 1 1 x",
+   "--src: Mathlib.Analysis.SpecialFunctions.Integrals\ntheorem integral_exp_mul_complex {c : ℂ} (hc : c ≠ 0) :\n    (∫ x in a..b, Complex.exp (c * x)) = (Complex.exp (c * b) - Complex.exp (c * a)) / c := by\n  have D : ∀ x : ℝ, HasDerivAt (fun y : ℝ => Complex.exp (c * y) / c) (Complex.exp (c * x)) x := by\n    intro x\n    conv => congr\n    rw [← mul_div_cancel_right₀ (Complex.exp (c * x)) hc]\n    apply ((Complex.hasDerivAt_exp _).comp x _).div_const c\n    simpa only [mul_one] using ((hasDerivAt_id (x : ℂ)).const_mul _).comp_ofReal\n  rw [integral_deriv_eq_sub' _ (funext fun x => (D x).deriv) fun x _ => (D x).differentiableAt]\n  · ring\n  · fun_prop",
+   "--src: Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic\n@[simp]\ntheorem sin_two_pi : sin (2 * π) = 0 := by simp [two_mul, sin_add]"],
+  "prescopes":
+  "noncomputable section\n\nopen Complex ComplexConjugate MeasureTheory Bornology Set Complex.Set",
+  "postscopes": "end",
+  "id":
+  {"name": "mean_zero_oscillation",
+   "module": "Carleson.Classical.HilbertStrongType",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Lemma 11.1.8 -/\nlemma mean_zero_oscillation {n : ℤ} (hn : n ≠ 0) :\n    ∫ x in (0)..2 * π, Complex.exp (.I * n * x) = 0 := by\n  rw [integral_exp_mul_complex (by simp [hn])]\n  simp [sub_eq_zero, Complex.exp_eq_one_iff, hn, ← mul_assoc, mul_comm Complex.I,\n    mul_right_comm _ Complex.I]\n\n\n",
+   "compilationAlias":
+   "/-- Lemma 11.1.8 -/\nlemma mean_zero_oscillation {n : ℤ} (hn : n ≠ 0) :\n    ∫ x in (0)..2 * π, Complex.exp (.I * n * x) = 0 := by\n  rw [integral_exp_mul_complex (by simp [hn])]\n  simp [sub_eq_zero, Complex.exp_eq_one_iff, hn, ← mul_assoc, mul_comm Complex.I,\n    mul_right_comm _ Complex.I]\n\n\n"},
+  "goal":
+  "G : Type u_3\ninst✝ : AddGroup G\na b : G\n⊢ Eq (Eq (HSub.hSub a b) 0) (Eq a b)",
+  "content_sorry":
+  "/-- Lemma 11.1.8 -/\nlemma mean_zero_oscillation {n : ℤ} (hn : n ≠ 0) :\n    ∫ x in (0)..2 * π, Complex.exp (.I * n * x) = 0 := by\n  sorry",
+  "annotation":
+  "/-- Lemma 11.1.8 -/\nlemma mean_zero_oscillation {n : ℤ} (hn : n ≠ 0) :\n    ∫ x in (0)..2 * π, Complex.exp (.I * n * x) = 0 := by\n  /-\n    n : Int\n    hn : Ne n 0\n    ⊢ Eq (intervalIntegral (fun x => Complex.exp (HMul.hMul (HMul.hMul Complex.I ↑ …\n  -/\n  rw [integral_exp_mul_complex (by simp [hn])]\n  simp [sub_eq_zero, Complex.exp_eq_one_iff, hn, ← mul_assoc, mul_comm Complex.I,\n    mul_right_comm _ Complex.I]\n\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Complex.I",
+    "module": "Mathlib.Data.Complex.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "/-- The imaginary unit. -/\ndef I : ℂ :=\n  ⟨0, 1⟩",
+    "compilationAlias": "/-- The imaginary unit. -/\ndef I : ℂ :=\n  ⟨0, 1⟩"},
+   {"name": "mul_right_comm",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_right_comm (a b c : G) : a * b * c = a * c * b := by\n  rw [mul_assoc, mul_comm b, mul_assoc]",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_right_comm (a b c : G) : a * b * c = a * c * b := by\n  rw [mul_assoc, mul_comm b, mul_assoc]"},
+   {"name": "Complex.I",
+    "module": "Mathlib.Data.Complex.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "/-- The imaginary unit. -/\ndef I : ℂ :=\n  ⟨0, 1⟩",
+    "compilationAlias": "/-- The imaginary unit. -/\ndef I : ℂ :=\n  ⟨0, 1⟩"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "Complex.exp_eq_one_iff",
+    "module": "Mathlib.Analysis.SpecialFunctions.Complex.Log",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem exp_eq_one_iff {x : ℂ} : exp x = 1 ↔ ∃ n : ℤ, x = n * (2 * π * I) := by\n  constructor\n  · intro h\n    rcases existsUnique_add_zsmul_mem_Ioc Real.two_pi_pos x.im (-π) with ⟨n, hn, -⟩\n    use -n\n    rw [Int.cast_neg, neg_mul, eq_neg_iff_add_eq_zero]\n    have : (x + n * (2 * π * I)).im ∈ Set.Ioc (-π) π := by simpa [two_mul, mul_add] using hn\n    rw [← log_exp this.1 this.2, exp_periodic.int_mul n, h, log_one]\n  · rintro ⟨n, rfl⟩\n    exact (exp_periodic.int_mul n).eq.trans exp_zero",
+    "compilationAlias":
+    "theorem exp_eq_one_iff {x : ℂ} : exp x = 1 ↔ ∃ n : ℤ, x = n * (2 * π * I) := by\n  constructor\n  · intro h\n    rcases existsUnique_add_zsmul_mem_Ioc Real.two_pi_pos x.im (-π) with ⟨n, hn, -⟩\n    use -n\n    rw [Int.cast_neg, neg_mul, eq_neg_iff_add_eq_zero]\n    have : (x + n * (2 * π * I)).im ∈ Set.Ioc (-π) π := by simpa [two_mul, mul_add] using hn\n    rw [← log_exp this.1 this.2, exp_periodic.int_mul n, h, log_one]\n  · rintro ⟨n, rfl⟩\n    exact (exp_periodic.int_mul n).eq.trans exp_zero"},
+   {"name": "sub_eq_zero",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "integral_exp_mul_complex",
+    "module": "Mathlib.Analysis.SpecialFunctions.Integrals",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem integral_exp_mul_complex {c : ℂ} (hc : c ≠ 0) :\n    (∫ x in a..b, Complex.exp (c * x)) = (Complex.exp (c * b) - Complex.exp (c * a)) / c := by\n  have D : ∀ x : ℝ, HasDerivAt (fun y : ℝ => Complex.exp (c * y) / c) (Complex.exp (c * x)) x := by\n    intro x\n    conv => congr\n    rw [← mul_div_cancel_right₀ (Complex.exp (c * x)) hc]\n    apply ((Complex.hasDerivAt_exp _).comp x _).div_const c\n    simpa only [mul_one] using ((hasDerivAt_id (x : ℂ)).const_mul _).comp_ofReal\n  rw [integral_deriv_eq_sub' _ (funext fun x => (D x).deriv) fun x _ => (D x).differentiableAt]\n  · ring\n  · fun_prop",
+    "compilationAlias":
+    "theorem integral_exp_mul_complex {c : ℂ} (hc : c ≠ 0) :\n    (∫ x in a..b, Complex.exp (c * x)) = (Complex.exp (c * b) - Complex.exp (c * a)) / c := by\n  have D : ∀ x : ℝ, HasDerivAt (fun y : ℝ => Complex.exp (c * y) / c) (Complex.exp (c * x)) x := by\n    intro x\n    conv => congr\n    rw [← mul_div_cancel_right₀ (Complex.exp (c * x)) hc]\n    apply ((Complex.hasDerivAt_exp _).comp x _).div_const c\n    simpa only [mul_one] using ((hasDerivAt_id (x : ℂ)).const_mul _).comp_ofReal\n  rw [integral_deriv_eq_sub' _ (funext fun x => (D x).deriv) fun x _ => (D x).differentiableAt]\n  · ring\n  · fun_prop"},
+   {"name": "Complex.exp",
+    "module": "Mathlib.Data.Complex.Exponential",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The complex exponential function, defined via its Taylor series -/\n@[pp_nodot]\ndef exp (z : ℂ) : ℂ :=\n  CauSeq.lim (exp' z)",
+    "compilationAlias":
+    "/-- The complex exponential function, defined via its Taylor series -/\n@[pp_nodot]\ndef exp (z : ℂ) : ℂ :=\n  CauSeq.lim (exp' z)"}],
+  "C0_dependencies": []}]

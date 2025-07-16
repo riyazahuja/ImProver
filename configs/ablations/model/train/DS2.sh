@@ -5,7 +5,7 @@
 #SBATCH --error=logs/ablation_model_train_DS2.err
 #SBATCH --cpus-per-task=12
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:A100_80GB:6
+#SBATCH --gres=gpu:A6000:8
 #SBATCH --mem=150G
 
 
@@ -23,4 +23,4 @@ lake build eval_improver
 sleep 5
 
 
-./improver improver pipeline --config /home/riyaza/eval_improver/improver/configs/ablations/model/train/DS2.yaml
+./improver run pipeline --config /home/riyaza/eval_improver/improver/configs/ablations/model/train/DS2.yaml

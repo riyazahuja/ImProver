@@ -1,0 +1,517 @@
+[{"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\ntheorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\ntheorem natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt\n    {p : F[X]} {d : ℕ} (hp : p ≠ 0) (hpd : p.rootMultiplicity 1 < d) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n  have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n    simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n    exact hq1.trans (mul_comm _ _)\n  nth_rw 1 [heq, ← Nat.sub_add_cancel (le_of_lt hpd), hilbertPoly_mul_one_sub_pow_add,\n    ← Nat.sub_add_cancel (Nat.le_sub_of_add_le' <| add_one_le_of_lt hpd)]\n  delta hilbertPoly\n  apply natDegree_eq_of_le_of_coeff_ne_zero\n  · apply natDegree_sum_le_of_forall_le _ _ <| fun _ _ => ?_\n    apply le_trans (natDegree_smul_le _ _)\n    rw [natDegree_preHilbertPoly]\n  · have : (fun (x : ℕ) (a : F) => a) = fun x a => a * 1 ^ x := by simp only [one_pow, mul_one]\n    simp only [finset_sum_coeff, coeff_smul, smul_eq_mul, coeff_preHilbertPoly_self,\n      ← Finset.sum_mul, ← sum_def _ (fun _ a => a), this, ← eval_eq_sum, eval_mul, eval_pow,\n      eval_neg, eval_one, _root_.mul_eq_zero, pow_eq_zero_iff', neg_eq_zero, one_ne_zero, ne_eq,\n      false_and, or_false, inv_eq_zero, cast_eq_zero, not_or]\n    exact ⟨(not_iff_not.2 dvd_iff_isRoot).1 hq2, factorial_ne_zero _⟩",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_mul_one_sub_pow_add (p : F[X]) (d e : ℕ) :\n    hilbertPoly (p * (1 - X) ^ e) (d + e) = hilbertPoly p d := by\n  induction e with\n  | zero => simp\n  | succ e he => rw [pow_add, pow_one, ← mul_assoc, ← add_assoc, hilbertPoly_mul_one_sub_succ, he]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma natDegree_preHilbertPoly [CharZero F] (d k : ℕ) :\n    (preHilbertPoly F d k).natDegree = d := by\n  have hne : (d ! : F) ≠ 0 := by norm_cast; positivity\n  rw [preHilbertPoly, natDegree_smul _ (inv_ne_zero hne), natDegree_comp, ascPochhammer_natDegree,\n    add_comm_sub, ← C_1, ← map_sub, natDegree_add_C, natDegree_X, mul_one]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_X_pow_succ (d k : ℕ) :\n    hilbertPoly ((X : F[X]) ^ k) (d + 1) = preHilbertPoly F d k := by\n  delta hilbertPoly; simp",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma preHilbertPoly_eq_choose_sub_add [CharZero F] (d : ℕ) {k n : ℕ} (hkn : k ≤ n):\n    (preHilbertPoly F d k).eval (n : F) = (n - k + d).choose d := by\n  have : (d ! : F) ≠ 0 := by norm_cast; positivity\n  calc\n  _ = (↑d !)⁻¹ * eval (↑(n - k + 1)) (ascPochhammer F d) := by simp [cast_sub hkn, preHilbertPoly]\n  _ = (n - k + d).choose d := by\n    rw [ascPochhammer_nat_eq_natCast_ascFactorial];\n    field_simp [ascFactorial_eq_factorial_mul_choose]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i in p.support, (p.coeff i) • preHilbertPoly F d i := rfl",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_val_eq_mk_sub_one_add_choose_of_pos (h : 0 < d) :\n    (invOneSubPow S d).val = (mk fun n => Nat.choose (d - 1 + n) (d - 1) : S⟦X⟧) := by\n  rw [← Nat.sub_one_add_one_eq_of_pos h, invOneSubPow, add_tsub_cancel_right]"],
+  "prescopes":
+  "namespace Polynomial\n\nopen Nat PowerSeries\n\nvariable {F : Type*} [Field F] [CharZero F]",
+  "postscopes": "end Polynomial",
+  "id":
+  {"name": "Polynomial.natDegree_hilbertPoly_of_ne_zero",
+   "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd\n\n",
+   "compilationAlias":
+   "theorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd\n\n"},
+  "goal":
+  "F : Type u_1\ninst✝¹ : Field F\ninst✝ : CharZero F\np : Polynomial F\nd : Nat\nhh : Ne (p.hilbertPoly d) 0\n⊢ Eq (p.hilbertPoly d).natDegree (HSub.hSub (HSub.hSub d (Polynomial.rootMultiplicity 1 p)) 1)",
+  "content_sorry":
+  "theorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  sorry",
+  "annotation":
+  "theorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  /-\n    F : Type u_1\n    inst✝¹ : Field F\n    inst✝ : CharZero F\n    p : Polynomial F\n    d : Nat\n    hh : Ne (p.hilbertPoly d) 0\n    hp : Ne p 0\n    hpd : LT.lt (Polynomial.rootMultiplicity 1 p) d\n    ⊢ Eq (p.hilbertPoly d).natDegree (HSub.hSub (HSub.hSub d (Polynomial.rootMulti …\n  -/\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "not_lt",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩",
+    "compilationAlias":
+    "@[simp] lemma not_lt : ¬a < b ↔ b ≤ a := ⟨le_of_not_gt, not_lt_of_ge⟩"}],
+  "C0_dependencies":
+  [{"name": "Polynomial.hilbertPoly_zero_right",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n"},
+   {"name": "Polynomial.hilbertPoly_succ",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n"},
+   {"name": "Polynomial.existsUnique_hilbertPoly",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n",
+    "compilationAlias":
+    "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n"},
+   {"name": "Polynomial.eq_hilbertPoly_of_forall_coeff_eq_eval",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n",
+    "compilationAlias":
+    "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n"},
+   {"name": "Polynomial.hilbertPoly_eq_zero_of_le_rootMultiplicity_one",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\ntheorem natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt\n    {p : F[X]} {d : ℕ} (hp : p ≠ 0) (hpd : p.rootMultiplicity 1 < d) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n  have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n    simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n    exact hq1.trans (mul_comm _ _)\n  nth_rw 1 [heq, ← Nat.sub_add_cancel (le_of_lt hpd), hilbertPoly_mul_one_sub_pow_add,\n    ← Nat.sub_add_cancel (Nat.le_sub_of_add_le' <| add_one_le_of_lt hpd)]\n  delta hilbertPoly\n  apply natDegree_eq_of_le_of_coeff_ne_zero\n  · apply natDegree_sum_le_of_forall_le _ _ <| fun _ _ => ?_\n    apply le_trans (natDegree_smul_le _ _)\n    rw [natDegree_preHilbertPoly]\n  · have : (fun (x : ℕ) (a : F) => a) = fun x a => a * 1 ^ x := by simp only [one_pow, mul_one]\n    simp only [finset_sum_coeff, coeff_smul, smul_eq_mul, coeff_preHilbertPoly_self,\n      ← Finset.sum_mul, ← sum_def _ (fun _ a => a), this, ← eval_eq_sum, eval_mul, eval_pow,\n      eval_neg, eval_one, _root_.mul_eq_zero, pow_eq_zero_iff', neg_eq_zero, one_ne_zero, ne_eq,\n      false_and, or_false, inv_eq_zero, cast_eq_zero, not_or]\n    exact ⟨(not_iff_not.2 dvd_iff_isRoot).1 hq2, factorial_ne_zero _⟩",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\ntheorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma natDegree_preHilbertPoly [CharZero F] (d k : ℕ) :\n    (preHilbertPoly F d k).natDegree = d := by\n  have hne : (d ! : F) ≠ 0 := by norm_cast; positivity\n  rw [preHilbertPoly, natDegree_smul _ (inv_ne_zero hne), natDegree_comp, ascPochhammer_natDegree,\n    add_comm_sub, ← C_1, ← map_sub, natDegree_add_C, natDegree_X, mul_one]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_X_pow_succ (d k : ℕ) :\n    hilbertPoly ((X : F[X]) ^ k) (d + 1) = preHilbertPoly F d k := by\n  delta hilbertPoly; simp",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_zero_left (d : ℕ) : hilbertPoly (0 : F[X]) d = 0 := by\n  delta hilbertPoly; induction d with\n  | zero => simp only\n  | succ d _ => simp only [coeff_zero, zero_smul, Finset.sum_const_zero]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma leadingCoeff_preHilbertPoly [CharZero F] (d k : ℕ) :\n    (preHilbertPoly F d k).leadingCoeff = (d ! : F)⁻¹ := by\n  rw [leadingCoeff, natDegree_preHilbertPoly, coeff_preHilbertPoly_self]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i in p.support, (p.coeff i) • preHilbertPoly F d i := rfl",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem rootMultiplicity_sub_one_le_derivative_rootMultiplicity [CharZero R] (p : R[X]) (t : R) :\n    p.rootMultiplicity t - 1 ≤ p.derivative.rootMultiplicity t := by\n  by_cases h : p.IsRoot t\n  · exact (derivative_rootMultiplicity_of_root h).symm.le\n  · rw [rootMultiplicity_eq_zero h, zero_tsub]\n    exact zero_le _",
+   "--src: Mathlib.Algebra.Polynomial.Div\nlemma pow_rootMultiplicity_not_dvd (p0 : p ≠ 0) (a : R) :\n    ¬(X - C a) ^ (rootMultiplicity a p + 1) ∣ p := by rw [← rootMultiplicity_le_iff p0]"],
+  "prescopes":
+  "namespace Polynomial\n\nopen Nat PowerSeries\n\nvariable {F : Type*} [Field F] [CharZero F]",
+  "postscopes": "end Polynomial",
+  "id":
+  {"name": "Polynomial.hilbertPoly_eq_zero_of_le_rootMultiplicity_one",
+   "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]\n\n",
+   "compilationAlias":
+   "lemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]\n\n"},
+  "goal":
+  "F : Type u_1\ninst✝¹ : Field F\ninst✝ : CharZero F\np : Polynomial F\nd : Nat\nhdp : LE.le d (Polynomial.rootMultiplicity 1 p)\n⊢ Eq (p.hilbertPoly d) 0",
+  "content_sorry":
+  "lemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  sorry",
+  "annotation":
+  "lemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  /-\n    F : Type u_1\n    inst✝¹ : Field F\n    inst✝ : CharZero F\n    p : Polynomial F\n    d : Nat\n    hdp : LE.le d (Polynomial.rootMultiplicity 1 p)\n    ⊢ Eq (p.hilbertPoly d) 0\n  -/\n  by_cases hp : p = 0\n    /-\n      case pos\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      hdp : LE.le d (Polynomial.rootMultiplicity 1 p)\n      hp : Eq p 0\n      ⊢ Eq (p.hilbertPoly d) 0\n    -/\n  · rw [hp, hilbertPoly_zero_left]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case neg\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      hdp : LE.le d (Polynomial.rootMultiplicity 1 p)\n      hp : Not (Eq p 0)\n      ⊢ Eq (p.hilbertPoly d) 0\n    -/\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"},
+   {"name": "pow_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]",
+    "compilationAlias":
+    "@[to_additive add_nsmul]\nlemma pow_add (a : M) (m : ℕ) : ∀ n, a ^ (m + n) = a ^ m * a ^ n\n  | 0 => by rw [Nat.add_zero, pow_zero, mul_one]\n  | n + 1 => by rw [pow_succ, ← mul_assoc, ← pow_add, ← pow_succ, Nat.add_assoc]"},
+   {"name": "Nat.sub_add_cancel",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] protected theorem sub_add_cancel {n m : Nat} (h : m ≤ n) : n - m + m = n := by\n  rw [Nat.add_comm, Nat.add_sub_of_le h]",
+    "compilationAlias":
+    "@[simp] protected theorem sub_add_cancel {n m : Nat} (h : m ≤ n) : n - m + m = n := by\n  rw [Nat.add_comm, Nat.add_sub_of_le h]"},
+   {"name": "zero_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_comm",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"},
+   {"name": "neg_sub",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "one_mul",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "mul_pow",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive nsmul_add] lemma mul_pow (a b : M) : ∀ n, (a * b) ^ n = a ^ n * b ^ n\n  | 0 => by rw [pow_zero, pow_zero, pow_zero, one_mul]\n  | n + 1 => by rw [pow_succ', pow_succ', pow_succ', mul_pow, mul_mul_mul_comm]",
+    "compilationAlias":
+    "@[to_additive nsmul_add] lemma mul_pow (a b : M) : ∀ n, (a * b) ^ n = a ^ n * b ^ n\n  | 0 => by rw [pow_zero, pow_zero, pow_zero, one_mul]\n  | n + 1 => by rw [pow_succ', pow_succ', pow_succ', mul_pow, mul_mul_mul_comm]"},
+   {"name": "mul_assoc",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+    "compilationAlias":
+    "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"}],
+  "C0_dependencies":
+  [{"name": "Polynomial.hilbertPoly_zero_right",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n"},
+   {"name": "Polynomial.hilbertPoly_succ",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n"},
+   {"name": "Polynomial.existsUnique_hilbertPoly",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n",
+    "compilationAlias":
+    "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n"},
+   {"name": "Polynomial.eq_hilbertPoly_of_forall_coeff_eq_eval",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n",
+    "compilationAlias":
+    "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n/--\nThe key property of Hilbert polynomials. If `F` is a field with characteristic `0`, `p : F[X]` and\n`d : ℕ`, then for any large enough `n : ℕ`, `(Polynomial.hilbertPoly p d).eval (n : F)` equals the\ncoefficient of `Xⁿ` in the power series expansion of `p/(1 - X)ᵈ`.\n-/\ntheorem coeff_mul_invOneSubPow_eq_hilbertPoly_eval\n    {p : F[X]} (d : ℕ) {n : ℕ} (hn : p.natDegree < n) :\n    PowerSeries.coeff F n (p * invOneSubPow F d) = (hilbertPoly p d).eval (n : F) := by\n  delta hilbertPoly; induction d with\n  | zero => simp only [invOneSubPow_zero, Units.val_one, mul_one, coeff_coe, eval_zero]\n            exact coeff_eq_zero_of_natDegree_lt hn\n  | succ d hd =>\n      simp only [eval_finset_sum, eval_smul, smul_eq_mul]\n      rw [← Finset.sum_coe_sort]\n      have h_le (i : p.support) : (i : ℕ) ≤ n :=\n        le_trans (le_natDegree_of_ne_zero <| mem_support_iff.1 i.2) hn.le\n      have h (i : p.support) : eval ↑n (preHilbertPoly F d ↑i) = (n + d - ↑i).choose d := by\n        rw [preHilbertPoly_eq_choose_sub_add _ _ (h_le i), Nat.sub_add_comm (h_le i)]\n      simp_rw [h]\n      rw [Finset.sum_coe_sort _ (fun x => (p.coeff ↑x) * (_ + d - ↑x).choose _),\n        PowerSeries.coeff_mul, Finset.Nat.sum_antidiagonal_eq_sum_range_succ_mk,\n        invOneSubPow_val_eq_mk_sub_one_add_choose_of_pos _ _ (zero_lt_succ d)]\n      simp only [coeff_coe, coeff_mk]\n      symm\n      refine Finset.sum_subset_zero_on_sdiff (fun s hs ↦ ?_) (fun x hx ↦ ?_) (fun x hx ↦ ?_)\n      · rw [Finset.mem_range_succ_iff]\n        exact h_le ⟨s, hs⟩\n      · simp only [Finset.mem_sdiff, mem_support_iff, not_not] at hx\n        rw [hx.2, zero_mul]\n      · rw [add_comm, Nat.add_sub_assoc (h_le ⟨x, hx⟩), succ_eq_add_one, add_tsub_cancel_right]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n@[deprecated (since := \"2024-12-17\")] alias exists_unique_hilbertPoly := existsUnique_hilbertPoly",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma preHilbertPoly_eq_choose_sub_add [CharZero F] (d : ℕ) {k n : ℕ} (hkn : k ≤ n):\n    (preHilbertPoly F d k).eval (n : F) = (n - k + d).choose d := by\n  have : (d ! : F) ≠ 0 := by norm_cast; positivity\n  calc\n  _ = (↑d !)⁻¹ * eval (↑(n - k + 1)) (ascPochhammer F d) := by simp [cast_sub hkn, preHilbertPoly]\n  _ = (n - k + d).choose d := by\n    rw [ascPochhammer_nat_eq_natCast_ascFactorial];\n    field_simp [ascFactorial_eq_factorial_mul_choose]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\ntheorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_mul_one_sub_pow_add (p : F[X]) (d e : ℕ) :\n    hilbertPoly (p * (1 - X) ^ e) (d + e) = hilbertPoly p d := by\n  induction e with\n  | zero => simp\n  | succ e he => rw [pow_add, pow_one, ← mul_assoc, ← add_assoc, hilbertPoly_mul_one_sub_succ, he]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma leadingCoeff_preHilbertPoly [CharZero F] (d k : ℕ) :\n    (preHilbertPoly F d k).leadingCoeff = (d ! : F)⁻¹ := by\n  rw [leadingCoeff, natDegree_preHilbertPoly, coeff_preHilbertPoly_self]",
+   "--src: Mathlib.RingTheory.PowerSeries.Inverse\n@[simp]\ntheorem Inv_divided_by_X_pow_order_rightInv {f : k⟦X⟧} (hf : f ≠ 0) :\n    divided_by_X_pow_order hf * Inv_divided_by_X_pow_order hf = 1 :=\n  mul_invOfUnit (divided_by_X_pow_order hf) (firstUnitCoeff hf) rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem one_sub_pow_mul_invOneSubPow_val_add_eq_invOneSubPow_val (e : ℕ) :\n    (1 - X) ^ e * (invOneSubPow S (d + e)).val = (invOneSubPow S d).val := by\n  simp [invOneSubPow_add, Units.val_mul, mul_comm, mul_assoc, ← invOneSubPow_inv_eq_one_sub_pow]"],
+  "prescopes":
+  "namespace Polynomial\n\nopen Nat PowerSeries\n\nvariable {F : Type*} [Field F] [CharZero F]",
+  "postscopes": "end Polynomial",
+  "id":
+  {"name": "Polynomial.eq_hilbertPoly_of_forall_coeff_eq_eval",
+   "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n",
+   "compilationAlias":
+   "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n"},
+  "goal":
+  "F : Type u_1\ninst✝¹ : Field F\ninst✝ : CharZero F\np h : Polynomial F\nd N : Nat\nhhN : ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p ↑(PowerSeries.invOneSubPow F d))) (Polynomial.eval (↑n) h)\n⊢ Eq h (p.hilbertPoly d)",
+  "content_sorry":
+  "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d := by sorry",
+  "annotation":
+  "/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ExistsUnique.unique",
+    "module": "Mathlib.Logic.ExistsUnique",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem ExistsUnique.unique {p : α → Prop}\n    (h : ∃! x, p x) {y₁ y₂ : α} (py₁ : p y₁) (py₂ : p y₂) : y₁ = y₂ :=\n  let ⟨_, _, hy⟩ := h; (hy _ py₁).trans (hy _ py₂).symm",
+    "compilationAlias":
+    "theorem ExistsUnique.unique {p : α → Prop}\n    (h : ∃! x, p x) {y₁ y₂ : α} (py₁ : p y₁) (py₂ : p y₂) : y₁ = y₂ :=\n  let ⟨_, _, hy⟩ := h; (hy _ py₁).trans (hy _ py₂).symm"},
+   {"name": "PowerSeries.coeff",
+    "module": "Mathlib.RingTheory.PowerSeries.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The `n`th coefficient of a formal power series. -/\ndef coeff (n : ℕ) : R⟦X⟧ →ₗ[R] R :=\n  MvPowerSeries.coeff R (single () n)",
+    "compilationAlias":
+    "/-- The `n`th coefficient of a formal power series. -/\ndef coeff (n : ℕ) : R⟦X⟧ →ₗ[R] R :=\n  MvPowerSeries.coeff R (single () n)"}],
+  "C0_dependencies":
+  [{"name": "Polynomial.hilbertPoly_zero_right",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n"},
+   {"name": "Polynomial.hilbertPoly_succ",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n"},
+   {"name": "Polynomial.existsUnique_hilbertPoly",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n",
+    "compilationAlias":
+    "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n@[deprecated (since := \"2024-12-17\")] alias exists_unique_hilbertPoly := existsUnique_hilbertPoly",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n/--\nIf `h : F[X]` and there exists some `N : ℕ` such that for any number `n : ℕ` bigger than `N`\nwe have `PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)`, then `h` is exactly\n`Polynomial.hilbertPoly p d`.\n-/\ntheorem eq_hilbertPoly_of_forall_coeff_eq_eval\n    {p h : F[X]} {d : ℕ} (N : ℕ) (hhN : ∀ n > N,\n    PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F)) :\n    h = hilbertPoly p d :=\n  ExistsUnique.unique (existsUnique_hilbertPoly p d) ⟨N, hhN⟩\n    ⟨p.natDegree, fun _ x => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d x⟩",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma preHilbertPoly_eq_choose_sub_add [CharZero F] (d : ℕ) {k n : ℕ} (hkn : k ≤ n):\n    (preHilbertPoly F d k).eval (n : F) = (n - k + d).choose d := by\n  have : (d ! : F) ≠ 0 := by norm_cast; positivity\n  calc\n  _ = (↑d !)⁻¹ * eval (↑(n - k + 1)) (ascPochhammer F d) := by simp [cast_sub hkn, preHilbertPoly]\n  _ = (n - k + d).choose d := by\n    rw [ascPochhammer_nat_eq_natCast_ascFactorial];\n    field_simp [ascFactorial_eq_factorial_mul_choose]",
+   "--src: Mathlib.RingTheory.PowerSeries.Inverse\n@[simp]\ntheorem Inv_divided_by_X_pow_order_rightInv {f : k⟦X⟧} (hf : f ≠ 0) :\n    divided_by_X_pow_order hf * Inv_divided_by_X_pow_order hf = 1 :=\n  mul_invOfUnit (divided_by_X_pow_order hf) (firstUnitCoeff hf) rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.WellKnown\ntheorem invOneSubPow_val_succ_eq_mk_add_choose :\n    (invOneSubPow S (d + 1)).val = (mk fun n => Nat.choose (d + n) d : S⟦X⟧) := rfl",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\ninstance [IsDomain R] : IsDomain R⟦X⟧ :=\n  NoZeroDivisors.to_isDomain _",
+   "--src: Mathlib.RingTheory.LaurentSeries\ntheorem coe_coe (P : Polynomial F) : ((P : F⟦X⟧) : F⸨X⸩) = (P : RatFunc F) := by\n  simp only [coePolynomial, coe_def, AlgHom.commutes, algebraMap_hahnSeries_apply]",
+   "--src: Mathlib.RingTheory.PowerSeries.Basic\n@[simp, norm_cast]\ntheorem coeff_coe (n) : PowerSeries.coeff R n φ = coeff φ n :=\n  congr_arg (coeff φ) Finsupp.single_eq_same",
+   "--src: Mathlib.RingTheory.PowerSeries.Inverse\n@[simp]\ntheorem invOfUnit_eq' (φ : k⟦X⟧) (u : Units k) (h : constantCoeff k φ = u) :\n    invOfUnit φ u = φ⁻¹ :=\n  MvPowerSeries.invOfUnit_eq' φ _ h"],
+  "prescopes":
+  "namespace Polynomial\n\nopen Nat PowerSeries\n\nvariable {F : Type*} [Field F] [CharZero F]",
+  "postscopes": "end Polynomial",
+  "id":
+  {"name": "Polynomial.existsUnique_hilbertPoly",
+   "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n",
+   "compilationAlias":
+   "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  use hilbertPoly p d; constructor\n  · use p.natDegree\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n  · rintro h ⟨N, hhN⟩\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    rintro x ⟨n, hn, rfl⟩\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝ : Preorder α\na x : α\n⊢ Eq (Membership.mem (Set.Ioi a) x) (LT.lt a x)",
+  "content_sorry":
+  "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  sorry",
+  "annotation":
+  "/--\nThe polynomial satisfying the key property of `Polynomial.hilbertPoly p d` is unique.\n-/\ntheorem existsUnique_hilbertPoly (p : F[X]) (d : ℕ) :\n    ∃! h : F[X], ∃ N : ℕ, ∀ n > N,\n      PowerSeries.coeff F n (p * invOneSubPow F d) = h.eval (n : F) := by\n  /-\n    F : Type u_1\n    inst✝¹ : Field F\n    inst✝ : CharZero F\n    p : Polynomial F\n    d : Nat\n    ⊢ ExistsUnique fun h => Exists fun N => ∀ (n : Nat), GT.gt n N → Eq ((PowerSer …\n  -/\n  use hilbertPoly p d; constructor\n    /-\n      case h.left\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      ⊢ (fun h => Exists fun N => ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F  …\n    -/\n  · use p.natDegree\n    /-\n      case h\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      ⊢ ∀ (n : Nat), GT.gt n p.natDegree → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p …\n    -/\n    exact fun n => coeff_mul_invOneSubPow_eq_hilbertPoly_eval d\n    /-\n      🎉 no goals\n    -/\n    /-\n      case h.right\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      ⊢ ∀ (y : Polynomial F), (fun h => Exists fun N => ∀ (n : Nat), GT.gt n N → Eq  …\n    -/\n  · rintro h ⟨N, hhN⟩\n    /-\n      case h.right.intro\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      h : Polynomial F\n      N : Nat\n      hhN : ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p ↑(Pow …\n      ⊢ Eq h (p.hilbertPoly d)\n    -/\n    apply eq_of_infinite_eval_eq h (hilbertPoly p d)\n    /-\n      case h.right.intro\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      h : Polynomial F\n      N : Nat\n      hhN : ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p ↑(Pow …\n      ⊢ (setOf fun x => Eq (Polynomial.eval x h) (Polynomial.eval x (p.hilbertPoly d …\n    -/\n    apply ((Set.Ioi_infinite (max N p.natDegree)).image cast_injective.injOn).mono\n    /-\n      case h.right.intro\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      h : Polynomial F\n      N : Nat\n      hhN : ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p ↑(Pow …\n      ⊢ HasSubset.Subset (Set.image Nat.cast (Set.Ioi (Max.max N p.natDegree))) (set …\n    -/\n    rintro x ⟨n, hn, rfl⟩\n    /-\n      case h.right.intro.intro.intro\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      h : Polynomial F\n      N : Nat\n      hhN : ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p ↑(Pow …\n      n : Nat\n      hn : Membership.mem (Set.Ioi (Max.max N p.natDegree)) n\n      ⊢ Membership.mem (setOf fun x => Eq (Polynomial.eval x h) (Polynomial.eval x ( …\n    -/\n    simp only [Set.mem_Ioi, sup_lt_iff, Set.mem_setOf_eq] at hn ⊢\n    /-\n      case h.right.intro.intro.intro\n      F : Type u_1\n      inst✝¹ : Field F\n      inst✝ : CharZero F\n      p : Polynomial F\n      d : Nat\n      h : Polynomial F\n      N : Nat\n      hhN : ∀ (n : Nat), GT.gt n N → Eq ((PowerSeries.coeff F n) (HMul.hMul ↑p ↑(Pow …\n      n : Nat\n      hn : And (LT.lt N n) (LT.lt p.natDegree n)\n      ⊢ Eq (Polynomial.eval (↑n) h) (Polynomial.eval (↑n) (p.hilbertPoly d))\n    -/\n    rw [← coeff_mul_invOneSubPow_eq_hilbertPoly_eval d hn.2, hhN n hn.1]\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set.mem_setOf_eq",
+    "module": "Mathlib.Data.Set.Operations",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, mfld_simps] theorem mem_setOf_eq {x : α} {p : α → Prop} : (x ∈ {y | p y}) = p x := rfl",
+    "compilationAlias":
+    "@[simp, mfld_simps] theorem mem_setOf_eq {x : α} {p : α → Prop} : (x ∈ {y | p y}) = p x := rfl"},
+   {"name": "sup_lt_iff",
+    "module": "Mathlib.Order.Lattice",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem sup_lt_iff : b ⊔ c < a ↔ b < a ∧ c < a :=\n  ⟨fun h => ⟨le_sup_left.trans_lt h, le_sup_right.trans_lt h⟩,\n   fun h => sup_ind (p := (· < a)) b c h.1 h.2⟩",
+    "compilationAlias":
+    "@[simp]\ntheorem sup_lt_iff : b ⊔ c < a ↔ b < a ∧ c < a :=\n  ⟨fun h => ⟨le_sup_left.trans_lt h, le_sup_right.trans_lt h⟩,\n   fun h => sup_ind (p := (· < a)) b c h.1 h.2⟩"},
+   {"name": "Set.mem_Ioi",
+    "module": "Mathlib.Order.Interval.Set.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] theorem mem_Ioi : x ∈ Ioi a ↔ a < x := Iff.rfl",
+    "compilationAlias":
+    "@[simp] theorem mem_Ioi : x ∈ Ioi a ↔ a < x := Iff.rfl"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Set.Ioi_infinite",
+    "module": "Mathlib.Order.Interval.Set.Infinite",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Ioi_infinite [NoMaxOrder α] (a : α) : (Ioi a).Infinite :=\n  infinite_coe_iff.1 inferInstance",
+    "compilationAlias":
+    "theorem Ioi_infinite [NoMaxOrder α] (a : α) : (Ioi a).Infinite :=\n  infinite_coe_iff.1 inferInstance"},
+   {"name": "PowerSeries.coeff",
+    "module": "Mathlib.RingTheory.PowerSeries.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The `n`th coefficient of a formal power series. -/\ndef coeff (n : ℕ) : R⟦X⟧ →ₗ[R] R :=\n  MvPowerSeries.coeff R (single () n)",
+    "compilationAlias":
+    "/-- The `n`th coefficient of a formal power series. -/\ndef coeff (n : ℕ) : R⟦X⟧ →ₗ[R] R :=\n  MvPowerSeries.coeff R (single () n)"}],
+  "C0_dependencies":
+  [{"name": "Polynomial.hilbertPoly_zero_right",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n"},
+   {"name": "Polynomial.hilbertPoly_succ",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i in p.support, (p.coeff i) • preHilbertPoly F d i := rfl",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_smul (a : F) (p : F[X]) (d : ℕ) :\n    hilbertPoly (a • p) d = a • hilbertPoly p d := by\n  delta hilbertPoly\n  induction d with\n  | zero => simp only [smul_zero]\n  | succ d _ =>\n      simp only\n      rw [← sum_def _ fun _ r => r • _, ← sum_def _ fun _ r => r • _, Polynomial.smul_sum,\n        sum_smul_index' _ _ _ fun i => zero_smul F (preHilbertPoly F d i)]\n      simp only [smul_assoc]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_add_left (p q : F[X]) (d : ℕ) :\n    hilbertPoly (p + q) d = hilbertPoly p d + hilbertPoly q d := by\n  delta hilbertPoly\n  induction d with\n  | zero => simp only [add_zero]\n  | succ d _ =>\n      simp only [← coeff_add]\n      rw [← sum_def _ fun _ r => r • _]\n      exact sum_add_index _ _ _ (fun _ => zero_smul ..) (fun _ _ _ => add_smul ..)",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_X_pow_succ (d k : ℕ) :\n    hilbertPoly ((X : F[X]) ^ k) (d + 1) = preHilbertPoly F d k := by\n  delta hilbertPoly; simp",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\ntheorem natDegree_hilbertPoly_of_ne_zero\n    {p : F[X]} {d : ℕ} (hh : hilbertPoly p d ≠ 0) :\n    (hilbertPoly p d).natDegree = d - p.rootMultiplicity 1 - 1 := by\n  have hp : p ≠ 0 := by\n    intro h\n    rw [h] at hh\n    exact hh (hilbertPoly_zero_left d)\n  have hpd : p.rootMultiplicity 1 < d := by\n    by_contra h\n    exact hh (hilbertPoly_eq_zero_of_le_rootMultiplicity_one <| not_lt.1 h)\n  exact natDegree_hilbertPoly_of_ne_zero_of_rootMultiplicity_lt hp hpd",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl",
+   "--src: Mathlib.Algebra.Polynomial.Module.Basic\ntheorem smul_apply (f : R[X]) (g : PolynomialModule R M) (n : ℕ) :\n    (f • g) n = ∑ x ∈ Finset.antidiagonal n, f.coeff x.1 • g x.2 := by\n  induction' f using Polynomial.induction_on' with p q hp hq f_n f_a\n  · rw [add_smul, Finsupp.add_apply, hp, hq, ← Finset.sum_add_distrib]\n    congr\n    ext\n    rw [coeff_add, add_smul]\n  · rw [Finset.Nat.sum_antidiagonal_eq_sum_range_succ fun i j => (monomial f_n f_a).coeff i • g j,\n      monomial_smul_apply]\n    simp_rw [Polynomial.coeff_monomial, ← Finset.mem_range_succ_iff]\n    rw [← Finset.sum_ite_eq (Finset.range (Nat.succ n)) f_n (fun x => f_a • g (n - x))]\n    congr\n    ext x\n    split_ifs\n    exacts [rfl, (zero_smul R _).symm]",
+   "--src: Mathlib.Algebra.Polynomial.Basic\nprotected theorem smul_sum {S T : Type*} [AddCommMonoid S] [DistribSMul T S] (p : R[X]) (b : T)\n    (f : ℕ → R → S) : b • p.sum f = p.sum fun n a => b • f n a :=\n  Finsupp.smul_sum",
+   "--src: Mathlib.RingTheory.PolynomialAlgebra\ntheorem toFunBilinear_apply_eq_sum (a : A) (p : R[X]) :\n    toFunBilinear R A a p = p.sum fun n r => monomial n (a * algebraMap R A r) := by\n  simp only [toFunBilinear_apply_apply, aeval_def, eval₂_eq_sum, Polynomial.sum, Finset.smul_sum]\n  congr with i : 1\n  rw [← Algebra.smul_def, ← C_mul', mul_smul_comm, C_mul_X_pow_eq_monomial, ← Algebra.commutes,\n    ← Algebra.smul_def, smul_monomial]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\n/--\nThe key property of Hilbert polynomials. If `F` is a field with characteristic `0`, `p : F[X]` and\n`d : ℕ`, then for any large enough `n : ℕ`, `(Polynomial.hilbertPoly p d).eval (n : F)` equals the\ncoefficient of `Xⁿ` in the power series expansion of `p/(1 - X)ᵈ`.\n-/\ntheorem coeff_mul_invOneSubPow_eq_hilbertPoly_eval\n    {p : F[X]} (d : ℕ) {n : ℕ} (hn : p.natDegree < n) :\n    PowerSeries.coeff F n (p * invOneSubPow F d) = (hilbertPoly p d).eval (n : F) := by\n  delta hilbertPoly; induction d with\n  | zero => simp only [invOneSubPow_zero, Units.val_one, mul_one, coeff_coe, eval_zero]\n            exact coeff_eq_zero_of_natDegree_lt hn\n  | succ d hd =>\n      simp only [eval_finset_sum, eval_smul, smul_eq_mul]\n      rw [← Finset.sum_coe_sort]\n      have h_le (i : p.support) : (i : ℕ) ≤ n :=\n        le_trans (le_natDegree_of_ne_zero <| mem_support_iff.1 i.2) hn.le\n      have h (i : p.support) : eval ↑n (preHilbertPoly F d ↑i) = (n + d - ↑i).choose d := by\n        rw [preHilbertPoly_eq_choose_sub_add _ _ (h_le i), Nat.sub_add_comm (h_le i)]\n      simp_rw [h]\n      rw [Finset.sum_coe_sort _ (fun x => (p.coeff ↑x) * (_ + d - ↑x).choose _),\n        PowerSeries.coeff_mul, Finset.Nat.sum_antidiagonal_eq_sum_range_succ_mk,\n        invOneSubPow_val_eq_mk_sub_one_add_choose_of_pos _ _ (zero_lt_succ d)]\n      simp only [coeff_coe, coeff_mk]\n      symm\n      refine Finset.sum_subset_zero_on_sdiff (fun s hs ↦ ?_) (fun x hx ↦ ?_) (fun x hx ↦ ?_)\n      · rw [Finset.mem_range_succ_iff]\n        exact h_le ⟨s, hs⟩\n      · simp only [Finset.mem_sdiff, mem_support_iff, not_not] at hx\n        rw [hx.2, zero_mul]\n      · rw [add_comm, Nat.add_sub_assoc (h_le ⟨x, hx⟩), succ_eq_add_one, add_tsub_cancel_right]"],
+  "prescopes":
+  "namespace Polynomial\n\nopen Nat PowerSeries\n\nvariable {F : Type*} [Field F]",
+  "postscopes": "end Polynomial",
+  "id":
+  {"name": "Polynomial.hilbertPoly_succ",
+   "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n",
+   "compilationAlias":
+   "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n"},
+  "goal":
+  "F : Type u_1\ninst✝ : Field F\np : Polynomial F\nd : Nat\n⊢ Eq (p.hilbertPoly (HAdd.hAdd d 1)) (p.support.sum fun i => HSMul.hSMul (p.coeff i) (Polynomial.preHilbertPoly F d i))",
+  "content_sorry":
+  "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := by sorry",
+  "annotation":
+  "lemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i ∈ p.support, (p.coeff i) • preHilbertPoly F d i := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "Polynomial.hilbertPoly_zero_right",
+    "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+    "compilationAlias":
+    "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n"}]},
+ {"rag":
+  ["--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_zero_left (d : ℕ) : hilbertPoly (0 : F[X]) d = 0 := by\n  delta hilbertPoly; induction d with\n  | zero => simp only\n  | succ d _ => simp only [coeff_zero, zero_smul, Finset.sum_const_zero]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_smul (a : F) (p : F[X]) (d : ℕ) :\n    hilbertPoly (a • p) d = a • hilbertPoly p d := by\n  delta hilbertPoly\n  induction d with\n  | zero => simp only [smul_zero]\n  | succ d _ =>\n      simp only\n      rw [← sum_def _ fun _ r => r • _, ← sum_def _ fun _ r => r • _, Polynomial.smul_sum,\n        sum_smul_index' _ _ _ fun i => zero_smul F (preHilbertPoly F d i)]\n      simp only [smul_assoc]",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_add_left (p q : F[X]) (d : ℕ) :\n    hilbertPoly (p + q) d = hilbertPoly p d + hilbertPoly q d := by\n  delta hilbertPoly\n  induction d with\n  | zero => simp only [add_zero]\n  | succ d _ =>\n      simp only [← coeff_add]\n      rw [← sum_def _ fun _ r => r • _]\n      exact sum_add_index _ _ _ (fun _ => zero_smul ..) (fun _ _ _ => add_smul ..)",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_succ (p : F[X]) (d : ℕ) :\n    hilbertPoly p (d + 1) = ∑ i in p.support, (p.coeff i) • preHilbertPoly F d i := rfl",
+   "--src: Mathlib.RingTheory.Polynomial.HilbertPoly\nlemma hilbertPoly_eq_zero_of_le_rootMultiplicity_one\n    {p : F[X]} {d : ℕ} (hdp : d ≤ p.rootMultiplicity 1) :\n    hilbertPoly p d = 0 := by\n  by_cases hp : p = 0\n  · rw [hp, hilbertPoly_zero_left]\n  · rcases exists_eq_pow_rootMultiplicity_mul_and_not_dvd p hp 1 with ⟨q, hq1, hq2⟩\n    have heq : p = q * (- 1) ^ p.rootMultiplicity 1 * (1 - X) ^ p.rootMultiplicity 1 := by\n      simp only [mul_assoc, ← mul_pow, neg_mul, one_mul, neg_sub]\n      exact hq1.trans (mul_comm _ _)\n    rw [heq, ← zero_add d, ← Nat.sub_add_cancel hdp, pow_add (1 - X), ← mul_assoc,\n      hilbertPoly_mul_one_sub_pow_add, hilbertPoly]",
+   "--src: Mathlib.RingTheory.LaurentSeries\n@[simp, norm_cast]\ntheorem coe_zero : ((0 : RatFunc F) : F⸨X⸩) = 0 :=\n  map_zero (coeAlgHom F)",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem isUnit_iff_degree_eq_zero : IsUnit p ↔ degree p = 0 :=\n  ⟨degree_eq_zero_of_isUnit, fun h =>\n    have : degree p ≤ 0 := by simp [*, le_refl]\n    have hc : coeff p 0 ≠ 0 := fun hc => by\n      rw [eq_C_of_degree_le_zero this, hc] at h; simp only [map_zero] at h; contradiction\n    isUnit_iff_dvd_one.2\n      ⟨C (coeff p 0)⁻¹, by\n        conv in p => rw [eq_C_of_degree_le_zero this]\n        rw [← C_mul, mul_inv_cancel₀ hc, C_1]⟩⟩",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem mem_roots_map [CommRing k] [IsDomain k] {f : R →+* k} {x : k} (hp : p ≠ 0) :\n    x ∈ (p.map f).roots ↔ p.eval₂ f x = 0 := by\n  rw [mem_roots (map_ne_zero hp), IsRoot, Polynomial.eval_map]",
+   "--src: Mathlib.Algebra.Polynomial.FieldDivision\ntheorem monic_normalize [DecidableEq R] (hp0 : p ≠ 0) : Monic (normalize p) := by\n  rw [Ne, ← leadingCoeff_eq_zero, ← Ne, ← isUnit_iff_ne_zero] at hp0\n  rw [Monic, leadingCoeff_normalize, normalize_eq_one]\n  apply hp0"],
+  "prescopes":
+  "namespace Polynomial\n\nopen Nat PowerSeries\n\nvariable {F : Type*} [Field F]",
+  "postscopes": "end Polynomial",
+  "id":
+  {"name": "Polynomial.hilbertPoly_zero_right",
+   "module": "Mathlib.RingTheory.Polynomial.HilbertPoly",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+   "compilationAlias":
+   "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n"},
+  "goal":
+  "F : Type u_1\ninst✝ : Field F\np : Polynomial F\n⊢ Eq (p.hilbertPoly 0) 0",
+  "content_sorry":
+  "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := by sorry",
+  "annotation":
+  "lemma hilbertPoly_zero_right (p : F[X]) : hilbertPoly p 0 = 0 := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies": []}]

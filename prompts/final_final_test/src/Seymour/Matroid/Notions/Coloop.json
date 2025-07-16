@@ -1,0 +1,131 @@
+[{"rag":
+  ["--src: Mathlib.Data.Matroid.Basic\ntheorem indep_iff_not_dep : M.Indep I ↔ ¬M.Dep I ∧ I ⊆ M.E := by\n  rw [dep_iff, not_and, not_imp_not]\n  exact ⟨fun h ↦ ⟨fun _ ↦ h, h.subset_ground⟩, fun h ↦ h.1 h.2⟩",
+   "--src: Mathlib.Data.Matroid.Closure\nlemma Indep.not_mem_closure_iff (hI : M.Indep I) (he : e ∈ M.E := by aesop_mat) :\n    e ∉ M.closure I ↔ M.Indep (insert e I) ∧ e ∉ I := by\n  rw [hI.mem_closure_iff, dep_iff, insert_subset_iff, and_iff_right he,\n    and_iff_left hI.subset_ground]; tauto",
+   "--src: Mathlib.Data.Matroid.Dual\n@[simp] theorem dual_coindep_iff : M✶.Coindep X ↔ M.Indep X := by\n  rw [Coindep, dual_dual]",
+   "--src: Mathlib.Data.Matroid.Basic\ntheorem Base.dep_of_insert (hB : M.Base B) (heB : e ∉ B) (he : e ∈ M.E := by aesop_mat) :\n    M.Dep (insert e B) := hB.dep_of_ssubset (ssubset_insert heB) (insert_subset he hB.subset_ground)",
+   "--src: Mathlib.Data.Matroid.Closure\nlemma Indep.mem_closure_iff' (hI : M.Indep I) :\n    x ∈ M.closure I ↔ x ∈ M.E ∧ (M.Indep (insert x I) → x ∈ I) := by\n  rw [hI.mem_closure_iff, dep_iff, insert_subset_iff, and_iff_left hI.subset_ground,\n    imp_iff_not_or]\n  have := hI.subset_ground\n  aesop",
+   "--src: Mathlib.Data.Matroid.Basic\n@[simp] theorem not_indep_iff (hX : X ⊆ M.E := by aesop_mat) : ¬ M.Indep X ↔ M.Dep X := by\n  rw [Dep, and_iff_left hX]",
+   "--src: Mathlib.Data.Matroid.Map\n@[simp] lemma comap_dep_iff :\n    (N.comap f).Dep I ↔ N.Dep (f '' I) ∨ (N.Indep (f '' I) ∧ ¬ InjOn f I) := by\n  rw [Dep, comap_indep_iff, not_and, comap_ground_eq, Dep, image_subset_iff]\n  refine ⟨fun ⟨hi, h⟩ ↦ ?_, ?_⟩\n  · rw [and_iff_left h, ← imp_iff_not_or]\n    exact fun hI ↦ ⟨hI, hi hI⟩\n  rintro (⟨hI, hIE⟩ | hI)\n  · exact ⟨fun h ↦ (hI h).elim, hIE⟩\n  rw [iff_true_intro hI.1, iff_true_intro hI.2, implies_true, true_and]\n  simpa using hI.1.subset_ground",
+   "--src: Mathlib.Data.Matroid.Closure\nlemma base_iff_indep_closure_eq : M.Base B ↔ M.Indep B ∧ M.closure B = M.E := by\n  rw [← basis_ground_iff, basis_iff_indep_subset_closure, and_congr_right_iff]\n  exact fun hI ↦ ⟨fun h ↦ (M.closure_subset_ground _).antisymm h.2,\n    fun h ↦ ⟨(M.subset_closure B).trans_eq h, h.symm.subset⟩⟩",
+   "--src: Mathlib.Data.Matroid.Basic\ntheorem ground_indep_iff_base : M.Indep M.E ↔ M.Base M.E :=\n  ⟨fun h ↦ h.base_of_maximal (fun _ hJ hEJ ↦ hEJ.antisymm hJ.subset_ground), Base.indep⟩",
+   "--src: Mathlib.Data.Matroid.Constructions\ntheorem not_rkPos_iff : ¬RkPos M ↔ M = loopyOn M.E := by\n  rw [rkPos_iff_empty_not_base, not_iff_comm, empty_base_iff]"],
+  "prescopes": "variable {α : Type}",
+  "postscopes": "",
+  "id":
+  {"name": "Matroid.coloop_iff_in_no_circuit",
+   "module": "Seymour.Matroid.Notions.Coloop",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- An element is a coloop iff it belongs to no circuit. -/\nlemma Matroid.coloop_iff_in_no_circuit (M : Matroid α) {a : α} :\n    M.Coloop a ↔ a ∈ M.E ∧ ∀ C : Set α, M.Circuit C → a ∉ C := by\n  constructor\n  · intro ⟨haE, M_dual_Dep_a⟩\n    refine ⟨haE, fun C hC haC => ?_⟩\n    obtain ⟨B, hB, hCaB⟩ := (hC.indep_diff_singleton haC).exists_isBase_superset\n    have haB := (Matroid.dual_dep_iff_forall.→ M_dual_Dep_a).left B hB\n    have hMB : M.Dep B\n    · rw [Matroid.dep_iff_has_circuit]\n      have hCB := Set.diff_union_of_subset (Set.singleton_subset_iff.← haC) ▸ Set.union_subset hCaB\n        (Set.singleton_subset_iff.← (Set.singleton_inter_nonempty.→ haB))\n      exact ⟨M.subset_ground B hB, C, hC, hCB⟩\n    exact hMB.not_indep hB.indep\n  · intro ⟨haE, haC⟩\n    constructor\n    · exact haE\n    · rw [Matroid.dual_dep_iff_forall]\n      constructor\n      · intro B hB\n        by_contra! haB\n        obtain ⟨C', hC', hC'aB, haC'⟩ := hB.indep.circuit_of_insert_dep\n          (hB.dep_of_insert (Set.singleton_inter_eq_empty.→ haB) haE)\n        exact haC C' hC' haC'\n      · rwa [Set.singleton_subset_iff]\n",
+   "compilationAlias":
+   "/-- An element is a coloop iff it belongs to no circuit. -/\nlemma Matroid.coloop_iff_in_no_circuit (M : Matroid α) {a : α} :\n    M.Coloop a ↔ a ∈ M.E ∧ ∀ C : Set α, M.Circuit C → a ∉ C := by\n  constructor\n  · intro ⟨haE, M_dual_Dep_a⟩\n    refine ⟨haE, fun C hC haC => ?_⟩\n    obtain ⟨B, hB, hCaB⟩ := (hC.indep_diff_singleton haC).exists_isBase_superset\n    have haB := (Matroid.dual_dep_iff_forall.→ M_dual_Dep_a).left B hB\n    have hMB : M.Dep B\n    · rw [Matroid.dep_iff_has_circuit]\n      have hCB := Set.diff_union_of_subset (Set.singleton_subset_iff.← haC) ▸ Set.union_subset hCaB\n        (Set.singleton_subset_iff.← (Set.singleton_inter_nonempty.→ haB))\n      exact ⟨M.subset_ground B hB, C, hC, hCB⟩\n    exact hMB.not_indep hB.indep\n  · intro ⟨haE, haC⟩\n    constructor\n    · exact haE\n    · rw [Matroid.dual_dep_iff_forall]\n      constructor\n      · intro B hB\n        by_contra! haB\n        obtain ⟨C', hC', hC'aB, haC'⟩ := hB.indep.circuit_of_insert_dep\n          (hB.dep_of_insert (Set.singleton_inter_eq_empty.→ haB) haE)\n        exact haC C' hC' haC'\n      · rwa [Set.singleton_subset_iff]\n"},
+  "goal":
+  "α : Type\nM : Matroid α\na : α\nmotive : M.Coloop a → Prop\nh✝ : M.Coloop a\nh_1 : ∀ (haE : Membership.mem M.dual.E a) (M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)), motive ⋯\n⊢ motive h✝",
+  "content_sorry":
+  "/-- An element is a coloop iff it belongs to no circuit. -/\nlemma Matroid.coloop_iff_in_no_circuit (M : Matroid α) {a : α} :\n    M.Coloop a ↔ a ∈ M.E ∧ ∀ C : Set α, M.Circuit C → a ∉ C := by\n  sorry",
+  "annotation":
+  "/-- An element is a coloop iff it belongs to no circuit. -/\nlemma Matroid.coloop_iff_in_no_circuit (M : Matroid α) {a : α} :\n    M.Coloop a ↔ a ∈ M.E ∧ ∀ C : Set α, M.Circuit C → a ∉ C := by\n  /-\n    α : Type\n    M : Matroid α\n    a : α\n    ⊢ Iff (M.Coloop a) (And (Membership.mem M.E a) (∀ (C : Set α), M.Circuit C → N …\n  -/\n  constructor\n    /-\n      case mp\n      α : Type\n      M : Matroid α\n      a : α\n      ⊢ M.Coloop a → And (Membership.mem M.E a) (∀ (C : Set α), M.Circuit C → Not (M …\n    -/\n  · intro ⟨haE, M_dual_Dep_a⟩\n    /-\n      case mp\n      α : Type\n      M : Matroid α\n      a : α\n      haE : Membership.mem M.dual.E a\n      M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n      ⊢ And (Membership.mem M.E a) (∀ (C : Set α), M.Circuit C → Not (Membership.mem …\n    -/\n    refine ⟨haE, fun C hC haC => ?_⟩\n    /-\n      case mp\n      α : Type\n      M : Matroid α\n      a : α\n      haE : Membership.mem M.dual.E a\n      M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n      C : Set α\n      hC : M.Circuit C\n      haC : Membership.mem C a\n      ⊢ False\n    -/\n    obtain ⟨B, hB, hCaB⟩ := (hC.indep_diff_singleton haC).exists_isBase_superset\n    /-\n      case mp.intro.intro\n      α : Type\n      M : Matroid α\n      a : α\n      haE : Membership.mem M.dual.E a\n      M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n      C : Set α\n      hC : M.Circuit C\n      haC : Membership.mem C a\n      B : Set α\n      hB : M.IsBase B\n      hCaB : HasSubset.Subset (SDiff.sdiff C (Singleton.singleton a)) B\n      ⊢ False\n    -/\n    have haB := (Matroid.dual_dep_iff_forall.→ M_dual_Dep_a).left B hB\n    /-\n      case mp.intro.intro\n      α : Type\n      M : Matroid α\n      a : α\n      haE : Membership.mem M.dual.E a\n      M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n      C : Set α\n      hC : M.Circuit C\n      haC : Membership.mem C a\n      B : Set α\n      hB : M.IsBase B\n      hCaB : HasSubset.Subset (SDiff.sdiff C (Singleton.singleton a)) B\n      haB : (Inter.inter (Singleton.singleton a) B).Nonempty\n      ⊢ False\n    -/\n    have hMB : M.Dep B\n      /-\n        case hMB\n        α : Type\n        M : Matroid α\n        a : α\n        haE : Membership.mem M.dual.E a\n        M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n        C : Set α\n        hC : M.Circuit C\n        haC : Membership.mem C a\n        B : Set α\n        hB : M.IsBase B\n        hCaB : HasSubset.Subset (SDiff.sdiff C (Singleton.singleton a)) B\n        haB : (Inter.inter (Singleton.singleton a) B).Nonempty\n        ⊢ M.Dep B\n      -/\n    · rw [Matroid.dep_iff_has_circuit]\n      have hCB := Set.diff_union_of_subset (Set.singleton_subset_iff.← haC) ▸ Set.union_subset hCaB\n        (Set.singleton_subset_iff.← (Set.singleton_inter_nonempty.→ haB))\n      /-\n        case hMB\n        α : Type\n        M : Matroid α\n        a : α\n        haE : Membership.mem M.dual.E a\n        M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n        C : Set α\n        hC : M.Circuit C\n        haC : Membership.mem C a\n        B : Set α\n        hB : M.IsBase B\n        hCaB : HasSubset.Subset (SDiff.sdiff C (Singleton.singleton a)) B\n        haB : (Inter.inter (Singleton.singleton a) B).Nonempty\n        hCB : HasSubset.Subset C B\n        ⊢ And (HasSubset.Subset B M.E) (Exists fun C => And (M.Circuit C) (HasSubset.S …\n      -/\n      exact ⟨M.subset_ground B hB, C, hC, hCB⟩\n      /-\n        🎉 no goals\n      -/\n    /-\n      case mp.intro.intro\n      α : Type\n      M : Matroid α\n      a : α\n      haE : Membership.mem M.dual.E a\n      M_dual_Dep_a : M.dual.Dep (Singleton.singleton a)\n      C : Set α\n      hC : M.Circuit C\n      haC : Membership.mem C a\n      B : Set α\n      hB : M.IsBase B\n      hCaB : HasSubset.Subset (SDiff.sdiff C (Singleton.singleton a)) B\n      haB : (Inter.inter (Singleton.singleton a) B).Nonempty\n      hMB : M.Dep B\n      ⊢ False\n    -/\n    exact hMB.not_indep hB.indep\n    /-\n      🎉 no goals\n    -/\n    /-\n      case mpr\n      α : Type\n      M : Matroid α\n      a : α\n      ⊢ And (Membership.mem M.E a) (∀ (C : Set α), M.Circuit C → Not (Membership.mem …\n    -/\n  · intro ⟨haE, haC⟩\n    /-\n      case mpr\n      α : Type\n      M : Matroid α\n      a : α\n      haE : Membership.mem M.E a\n      haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n      ⊢ M.Coloop a\n    -/\n    constructor\n      /-\n        case mpr.left\n        α : Type\n        M : Matroid α\n        a : α\n        haE : Membership.mem M.E a\n        haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n        ⊢ Membership.mem M.dual.E a\n      -/\n    · exact haE\n      /-\n        🎉 no goals\n      -/\n      /-\n        case mpr.right\n        α : Type\n        M : Matroid α\n        a : α\n        haE : Membership.mem M.E a\n        haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n        ⊢ M.dual.Dep (Singleton.singleton a)\n      -/\n    · rw [Matroid.dual_dep_iff_forall]\n      /-\n        case mpr.right\n        α : Type\n        M : Matroid α\n        a : α\n        haE : Membership.mem M.E a\n        haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n        ⊢ And (∀ (B : Set α), M.IsBase B → (Inter.inter (Singleton.singleton a) B).Non …\n      -/\n      constructor\n        /-\n          case mpr.right.left\n          α : Type\n          M : Matroid α\n          a : α\n          haE : Membership.mem M.E a\n          haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n          ⊢ ∀ (B : Set α), M.IsBase B → (Inter.inter (Singleton.singleton a) B).Nonempty\n        -/\n      · intro B hB\n        /-\n          case mpr.right.left\n          α : Type\n          M : Matroid α\n          a : α\n          haE : Membership.mem M.E a\n          haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n          B : Set α\n          hB : M.IsBase B\n          ⊢ (Inter.inter (Singleton.singleton a) B).Nonempty\n        -/\n        by_contra! haB\n        obtain ⟨C', hC', hC'aB, haC'⟩ := hB.indep.circuit_of_insert_dep\n          (hB.dep_of_insert (Set.singleton_inter_eq_empty.→ haB) haE)\n        /-\n          case mpr.right.left.intro.intro.intro\n          α : Type\n          M : Matroid α\n          a : α\n          haE : Membership.mem M.E a\n          haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n          B : Set α\n          hB : M.IsBase B\n          haB : Eq (Inter.inter (Singleton.singleton a) B) EmptyCollection.emptyCollection\n          C' : Set α\n          hC' : M.Circuit C'\n          hC'aB : HasSubset.Subset C' (Insert.insert a B)\n          haC' : Membership.mem C' a\n          ⊢ False\n        -/\n        exact haC C' hC' haC'\n        /-\n          🎉 no goals\n        -/\n        /-\n          case mpr.right.right\n          α : Type\n          M : Matroid α\n          a : α\n          haE : Membership.mem M.E a\n          haC : ∀ (C : Set α), M.Circuit C → Not (Membership.mem C a)\n          ⊢ HasSubset.Subset (Singleton.singleton a) M.E\n        -/\n      · rwa [Set.singleton_subset_iff]\n        /-\n          🎉 no goals\n        -/\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set.singleton_subset_iff",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem singleton_subset_iff {a : α} {s : Set α} : {a} ⊆ s ↔ a ∈ s :=\n  forall_eq",
+    "compilationAlias":
+    "@[simp]\ntheorem singleton_subset_iff {a : α} {s : Set α} : {a} ⊆ s ↔ a ∈ s :=\n  forall_eq"},
+   {"name": "Set.singleton_inter_eq_empty",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem singleton_inter_eq_empty : {a} ∩ s = ∅ ↔ a ∉ s :=\n  not_nonempty_iff_eq_empty.symm.trans singleton_inter_nonempty.not",
+    "compilationAlias":
+    "@[simp]\ntheorem singleton_inter_eq_empty : {a} ∩ s = ∅ ↔ a ∉ s :=\n  not_nonempty_iff_eq_empty.symm.trans singleton_inter_nonempty.not"},
+   {"name": "Matroid.dual_dep_iff_forall",
+    "module": "Mathlib.Data.Matroid.Dual",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem dual_dep_iff_forall : (M✶.Dep I) ↔ (∀ B, M.IsBase B → (I ∩ B).Nonempty) ∧ I ⊆ M.E := by\n  simp_rw [dep_iff, dual_indep_iff_exists', dual_ground, and_congr_left_iff, not_and,\n    not_exists, not_and, not_disjoint_iff_nonempty_inter, Classical.imp_iff_right_iff,\n    iff_true_intro Or.inl]",
+    "compilationAlias":
+    "theorem dual_dep_iff_forall : (M✶.Dep I) ↔ (∀ B, M.IsBase B → (I ∩ B).Nonempty) ∧ I ⊆ M.E := by\n  simp_rw [dep_iff, dual_indep_iff_exists', dual_ground, and_congr_left_iff, not_and,\n    not_exists, not_and, not_disjoint_iff_nonempty_inter, Classical.imp_iff_right_iff,\n    iff_true_intro Or.inl]"},
+   {"name": "Set.singleton_inter_nonempty",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem singleton_inter_nonempty : ({a} ∩ s).Nonempty ↔ a ∈ s := by\n  simp only [Set.Nonempty, mem_inter_iff, mem_singleton_iff, exists_eq_left]",
+    "compilationAlias":
+    "@[simp]\ntheorem singleton_inter_nonempty : ({a} ∩ s).Nonempty ↔ a ∈ s := by\n  simp only [Set.Nonempty, mem_inter_iff, mem_singleton_iff, exists_eq_left]"},
+   {"name": "Set.singleton_subset_iff",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem singleton_subset_iff {a : α} {s : Set α} : {a} ⊆ s ↔ a ∈ s :=\n  forall_eq",
+    "compilationAlias":
+    "@[simp]\ntheorem singleton_subset_iff {a : α} {s : Set α} : {a} ⊆ s ↔ a ∈ s :=\n  forall_eq"},
+   {"name": "Set.union_subset",
+    "module": "Mathlib.Data.Set.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem union_subset {s t r : Set α} (sr : s ⊆ r) (tr : t ⊆ r) : s ∪ t ⊆ r := fun _ =>\n  Or.rec (@sr _) (@tr _)",
+    "compilationAlias":
+    "theorem union_subset {s t r : Set α} (sr : s ⊆ r) (tr : t ⊆ r) : s ∪ t ⊆ r := fun _ =>\n  Or.rec (@sr _) (@tr _)"},
+   {"name": "Set.singleton_subset_iff",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem singleton_subset_iff {a : α} {s : Set α} : {a} ⊆ s ↔ a ∈ s :=\n  forall_eq",
+    "compilationAlias":
+    "@[simp]\ntheorem singleton_subset_iff {a : α} {s : Set α} : {a} ⊆ s ↔ a ∈ s :=\n  forall_eq"},
+   {"name": "Set.diff_union_of_subset",
+    "module": "Mathlib.Data.Set.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem diff_union_of_subset {s t : Set α} (h : t ⊆ s) : s \\ t ∪ t = s :=\n  Subset.antisymm (union_subset diff_subset h) (subset_diff_union _ _)",
+    "compilationAlias":
+    "theorem diff_union_of_subset {s t : Set α} (h : t ⊆ s) : s \\ t ∪ t = s :=\n  Subset.antisymm (union_subset diff_subset h) (subset_diff_union _ _)"},
+   {"name": "Matroid.dep_iff_has_circuit",
+    "module": "Seymour.Matroid.Notions.Circuit",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is dependent iff it is grounded and contains a circuit. -/\nlemma Matroid.dep_iff_has_circuit (M : Matroid α) {D : Set α} :\n    M.Dep D ↔ D ⊆ M.E ∧ ∃ C : Set α, M.Circuit C ∧ C ⊆ D := by\n  constructor\n  · intro ⟨hMD, hDE⟩\n    refine ⟨hDE, ?_⟩\n    -- Source: https://github.com/apnelson1/Matroid/blob/1c75a026d1ea5162210ec53d0204d5900098b31c/Matroid/Circuit.lean#L300\n    rw [Matroid.indep_iff_forall_not_mem_closure_diff] at hMD\n    push_neg at hMD\n    obtain ⟨a, haD, haM⟩ := hMD\n    obtain ⟨B, hBDa⟩ := M.exists_isBasis (D \\ {a}) (Set.diff_subset.trans hDE)\n    rw [←hBDa.closure_eq_closure] at haM\n    obtain ⟨hDaB, hDaE⟩ := hBDa\n    -- `B` is the maximal independent subset of `D \\ {a}`\n    use D\n    constructor\n    · sorry\n    · rfl\n  · intro ⟨hDE, C, hMC, hCD⟩\n    obtain ⟨hMC, hCE⟩ := Matroid.dep_iff.→ hMC.dep\n    exact ⟨(hMC <| ·.subset hCD), hDE⟩",
+    "compilationAlias":
+    "/-- A set is dependent iff it is grounded and contains a circuit. -/\nlemma Matroid.dep_iff_has_circuit (M : Matroid α) {D : Set α} :\n    M.Dep D ↔ D ⊆ M.E ∧ ∃ C : Set α, M.Circuit C ∧ C ⊆ D := by\n  constructor\n  · intro ⟨hMD, hDE⟩\n    refine ⟨hDE, ?_⟩\n    -- Source: https://github.com/apnelson1/Matroid/blob/1c75a026d1ea5162210ec53d0204d5900098b31c/Matroid/Circuit.lean#L300\n    rw [Matroid.indep_iff_forall_not_mem_closure_diff] at hMD\n    push_neg at hMD\n    obtain ⟨a, haD, haM⟩ := hMD\n    obtain ⟨B, hBDa⟩ := M.exists_isBasis (D \\ {a}) (Set.diff_subset.trans hDE)\n    rw [←hBDa.closure_eq_closure] at haM\n    obtain ⟨hDaB, hDaE⟩ := hBDa\n    -- `B` is the maximal independent subset of `D \\ {a}`\n    use D\n    constructor\n    · sorry\n    · rfl\n  · intro ⟨hDE, C, hMC, hCD⟩\n    obtain ⟨hMC, hCE⟩ := Matroid.dep_iff.→ hMC.dep\n    exact ⟨(hMC <| ·.subset hCD), hDE⟩"},
+   {"name": "Matroid.dual_dep_iff_forall",
+    "module": "Mathlib.Data.Matroid.Dual",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem dual_dep_iff_forall : (M✶.Dep I) ↔ (∀ B, M.IsBase B → (I ∩ B).Nonempty) ∧ I ⊆ M.E := by\n  simp_rw [dep_iff, dual_indep_iff_exists', dual_ground, and_congr_left_iff, not_and,\n    not_exists, not_and, not_disjoint_iff_nonempty_inter, Classical.imp_iff_right_iff,\n    iff_true_intro Or.inl]",
+    "compilationAlias":
+    "theorem dual_dep_iff_forall : (M✶.Dep I) ↔ (∀ B, M.IsBase B → (I ∩ B).Nonempty) ∧ I ⊆ M.E := by\n  simp_rw [dep_iff, dual_indep_iff_exists', dual_ground, and_congr_left_iff, not_and,\n    not_exists, not_and, not_disjoint_iff_nonempty_inter, Classical.imp_iff_right_iff,\n    iff_true_intro Or.inl]"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies": []}]

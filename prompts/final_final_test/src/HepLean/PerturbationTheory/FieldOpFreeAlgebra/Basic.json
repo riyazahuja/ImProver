@@ -1,0 +1,42 @@
+[{"rag":
+  ["--src: Mathlib.AlgebraicGeometry.EllipticCurve.Group\nvariable {W} in\nlemma smul (x : R[X]) (y : W.CoordinateRing) : x • y = mk W (C x) * y :=\n  (algebraMap_smul W.CoordinateRing x y).symm",
+   "--src: Mathlib.RingTheory.LaurentSeries\ninstance : IsScalarTower F[X] (RatFunc F) F⸨X⸩ :=\n  ⟨fun x y z => by\n    ext\n    simp⟩",
+   "--src: Mathlib.Algebra.Field.Defs\n/-- A `Field` is a `CommRing` with multiplicative inverses for nonzero elements.\nAn instance of `Field K` includes maps `ratCast : ℚ → K` and `qsmul : ℚ → K → K`.\nThose two fields are needed to implement the `DivisionRing K → Algebra ℚ K` instance since we need\nto control the specific definitions for some special cases of `K` (in particular `K = ℚ` itself).\nSee also note [forgetful inheritance].\nIf the field has positive characteristic `p`, our division by zero convention forces\n`ratCast (1 / p) = 1 / 0 = 0`. -/\n@[stacks 09FD \"first part\"]\nclass Field (K : Type u) extends CommRing K, DivisionRing K\n-- see Note [lower instance priority]",
+   "--src: Mathlib.RepresentationTheory.Character\ntheorem char_mul_comm (V : FDRep k G) (g : G) (h : G) :\n    V.character (h * g) = V.character (g * h) := by simp only [trace_mul_comm, character, map_mul]",
+   "--src: Mathlib.RingTheory.MvPowerSeries.Inverse\n@[simp]\nprotected theorem mul_inv_rev (φ ψ : MvPowerSeries σ k) :\n    (φ * ψ)⁻¹ = ψ⁻¹ * φ⁻¹ := by\n  by_cases h : constantCoeff σ k (φ * ψ) = 0\n  · rw [inv_eq_zero.mpr h]\n    simp only [map_mul, mul_eq_zero] at h\n    -- we don't have `NoZeroDivisors (MvPowerSeries σ k)` yet,\n    cases' h with h h <;> simp [inv_eq_zero.mpr h]\n  · rw [MvPowerSeries.inv_eq_iff_mul_eq_one h]\n    simp only [not_or, map_mul, mul_eq_zero] at h\n    rw [← mul_assoc, mul_assoc _⁻¹, MvPowerSeries.inv_mul_cancel _ h.left, mul_one,\n      MvPowerSeries.inv_mul_cancel _ h.right]",
+   "--src: Mathlib.FieldTheory.IsSepClosed\n/-- If `k` is perfect, `K` is a separable closure of `k`,\nthen it is also an algebraic closure of `k`. -/\ninstance (priority := 100) IsSepClosure.isAlgClosure_of_perfectField\n    [Algebra k K] [IsSepClosure k K] [PerfectField k] : IsAlgClosure k K :=\n  have halg : Algebra.IsAlgebraic k K := IsSepClosure.separable.isAlgebraic\n  haveI := halg.perfectField; inferInstance",
+   "--src: Mathlib.Analysis.CStarAlgebra.GelfandDuality\ninstance [Nontrivial A] : Nonempty (characterSpace ℂ A) :=\n  ⟨Classical.choose <|\n      WeakDual.CharacterSpace.exists_apply_eq_zero <| zero_mem_nonunits.2 zero_ne_one⟩",
+   "--src: Mathlib.RingTheory.Unramified.Field\ninclude K in\ntheorem isReduced_of_field :\n    IsReduced A := by\n  constructor\n  intro x hx\n  let f := (Algebra.TensorProduct.includeRight (R := K) (A := AlgebraicClosure K) (B := A))\n  have : Function.Injective f := by\n    have : ⇑f = (LinearMap.rTensor A (Algebra.ofId K (AlgebraicClosure K)).toLinearMap).comp\n        (Algebra.TensorProduct.lid K A).symm.toLinearMap := by\n      ext x; simp [f]\n    rw [this]\n    suffices Function.Injective\n        (LinearMap.rTensor A (Algebra.ofId K (AlgebraicClosure K)).toLinearMap) by\n      exact this.comp (Algebra.TensorProduct.lid K A).symm.injective\n    apply Module.Flat.rTensor_preserves_injective_linearMap\n    exact (algebraMap K _).injective\n  apply this\n  rw [map_zero]\n  apply eq_zero_of_localization\n  intro M hM\n  have hy := (hx.map f).map (algebraMap _ (Localization.AtPrime M))\n  generalize algebraMap _ (Localization.AtPrime M) (f x) = y at *\n  have := EssFiniteType.of_isLocalization (Localization.AtPrime M) M.primeCompl\n  have := of_isLocalization (Rₘ := Localization.AtPrime M) M.primeCompl\n  have := EssFiniteType.comp (AlgebraicClosure K) (AlgebraicClosure K ⊗[K] A)\n    (Localization.AtPrime M)\n  have := comp (AlgebraicClosure K) (AlgebraicClosure K ⊗[K] A)\n    (Localization.AtPrime M)\n  letI := (isField_of_isAlgClosed_of_isLocalRing (AlgebraicClosure K)\n    (A := Localization.AtPrime M)).toField\n  exact hy.eq_zero",
+   "--src: Mathlib.AlgebraicGeometry.FunctionField\ninstance functionField_isFractionRing_of_affine (R : CommRingCat.{u}) [IsDomain R] :\n    IsFractionRing R (Spec R).functionField := by\n  convert StructureSheaf.IsLocalization.to_stalk R (genericPoint (Spec R))\n  delta IsFractionRing IsLocalization.AtPrime\n  -- Porting note: `congr` does not work for `Iff`\n  apply Eq.to_iff\n  congr 1\n  rw [genericPoint_eq_bot_of_affine]\n  ext\n  exact mem_nonZeroDivisors_iff_ne_zero",
+   "--src: Mathlib.Algebra.Group.Hom.Defs\n/-- `MulHomClass F M N` states that `F` is a type of multiplication-preserving homomorphisms.\nYou should declare an instance of this typeclass when you extend `MulHom`.\n-/\n@[to_additive]\nclass MulHomClass (F : Type*) (M N : outParam Type*) [Mul M] [Mul N] [FunLike F M N] : Prop where\n  /-- The proposition that the function preserves multiplication -/\n  map_mul : ∀ (f : F) (x y : M), f (x * y) = f x * f y"],
+  "prescopes":
+  "namespace FieldSpecification.FieldOpFreeAlgebra\n\nvariable {𝓕 : FieldSpecification}",
+  "postscopes": "end FieldSpecification.FieldOpFreeAlgebra",
+  "id":
+  {"name": "FieldSpecification.FieldOpFreeAlgebra.mulLinearMap_apply",
+   "module": "HepLean.PerturbationTheory.FieldOpFreeAlgebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma mulLinearMap_apply (a b : FieldOpFreeAlgebra 𝓕) :\n    mulLinearMap a b = a * b := rfl\n\n",
+   "compilationAlias":
+   "lemma mulLinearMap_apply (a b : FieldOpFreeAlgebra 𝓕) :\n    mulLinearMap a b = a * b := rfl\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\na b : 𝓕.FieldOpFreeAlgebra\n⊢ Eq ((FieldSpecification.FieldOpFreeAlgebra.mulLinearMap a) b) (HMul.hMul a b)",
+  "content_sorry":
+  "lemma mulLinearMap_apply (a b : FieldOpFreeAlgebra 𝓕) :\n    mulLinearMap a b = a * b := by sorry",
+  "annotation":
+  "lemma mulLinearMap_apply (a b : FieldOpFreeAlgebra 𝓕) :\n    mulLinearMap a b = a * b := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies": []}]
