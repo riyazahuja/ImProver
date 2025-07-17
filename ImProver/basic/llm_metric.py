@@ -153,12 +153,12 @@ def run_inference(df, args, metric_config):
     )
     ds = vllm_processor(ds).materialize()
 
-    run_output_dir = os.path.join("evals", args.runID, "readability")
+    run_output_dir = os.path.join("evals", args.run_id, "readability")
     os.makedirs(run_output_dir, exist_ok=True)
 
     ds.repartition(16).write_parquet(f"local://{run_output_dir}")
 
-    con = duckdb.connect(os.path.join("evals", args.runID, "readability.duckdb"))
+    con = duckdb.connect(os.path.join("evals", args.run_id, "readability.duckdb"))
     con.execute(
         f"""
         CREATE TABLE IF NOT EXISTS scores AS
@@ -287,7 +287,7 @@ def get_readability_scores(readability_connection,args,prompts=True):
         return None
 
 def parse_readabilityDB(args):
-    readabilityDB_path = os.path.join("evals", args.runID, "readability.duckdb")
+    readabilityDB_path = os.path.join("evals", args.run_id, "readability.duckdb")
     if readabilityDB_path:
         try:
             readability_connection = duckdb.connect(readabilityDB_path)
@@ -337,7 +337,7 @@ def parse_readabilityDB(args):
     print(f"Model scores data: {model_scores_data}")
     if model_scores_data is not None:
         # Open connection to eval database
-        eval_db_path = os.path.join("evals", args.runID, "eval.duckdb")
+        eval_db_path = os.path.join("evals", args.run_id, "eval.duckdb")
         prompt_db_path = os.path.join("prompts", "readability.duckdb")
 
         try:
@@ -436,7 +436,7 @@ def main(args):
     
     
     # Try to open the eval.duckdb file
-    eval_db_path = os.path.join("evals", args.runID, "eval.duckdb")
+    eval_db_path = os.path.join("evals", args.run_id, "eval.duckdb")
     try:
         eval_connection = duckdb.connect(eval_db_path)
         print(f"Successfully connected to {eval_db_path}")
@@ -499,7 +499,7 @@ def main(args):
 
 
     # Load run config to get metric information
-    run_config_path = os.path.join("evals", args.runID, "config.json")
+    run_config_path = os.path.join("evals", args.run_id, "config.json")
     try:
         with open(run_config_path, 'r') as f:
             run_config = json.load(f)
@@ -545,7 +545,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generates and infers the LLM-based readability metric on a collection of proofs"
     )
-    parser.add_argument("runID", type=str, help="Run ID to use for evaluation")
+    parser.add_argument("run_id", type=str, help="Run ID to use for evaluation")
     parser.add_argument("prompts_id", type=str, help="Prompt ID to use for evaluation")
     parser.add_argument(
         "--model",

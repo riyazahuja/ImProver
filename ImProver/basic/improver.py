@@ -8,7 +8,7 @@ from .eval_improver import main_async as eval_main
 from .analysis import main as analysis_main
 from .llm_metric import main as llm_main
 import json
-
+import asyncio
 
 
 def get_parser():
@@ -44,7 +44,7 @@ def get_parser():
     
     #inference hyperparams
     parser.add_argument(
-        "--NCCL_P2P",
+        "--nccl_p2p",
         type=bool,
         default=False,
         help="Enable NCCL P2P - set to false if nvidia-smi topo -m shows SYS between gpus, or something or another about PCIE? A6000 -> false. (default: False)",
@@ -131,10 +131,11 @@ def get_parser():
     
     # Run identifier
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    parser.add_argument("--runID", type=str, default=f"RUN_{timestamp}", help="Run identifier")
+    parser.add_argument("--run_id", type=str, default=f"RUN_{timestamp}", help="Run identifier")
     
     # Analysis settings
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data", default=True)
+    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
     return parser
 
 def main(args):
@@ -160,18 +161,34 @@ def main(args):
         context=args.context,
         rag=args.rag,
         examples=args.examples,
-        runID=args.runID
+        
+        nccl_p2p=args.nccl_p2p,
+        ray_timeout=args.ray_timeout,
+        num_blocks=args.num_blocks,
+        engine_cpu_resources=args.engine_cpu_resources,
+        engine_gpu_resources=args.engine_gpu_resources,
+        concurrency=args.concurrency,
+        tensor_parallel_size=args.tensor_parallel_size,
+        enable_chunked_prefill=args.enable_chunked_prefill,
+        max_model_len=args.max_model_len,
+        max_num_batched_tokens=args.max_num_batched_tokens,
+        max_concurrent_batches=args.max_concurrent_batches,
+        batch_size=args.batch_size,
+        truncate_prompt_tokens=args.truncate_prompt_tokens,
+        max_tokens=args.max_tokens,
+        
+        run_id=args.run_id
     )
     inference_main(inference_args)
     
     # 2. Run Evaluation
-    print(f"[IMPROVER: Evaluating run {args.runID}...]")
+    print(f"[IMPROVER: Evaluating run {args.run_id}...]")
     eval_args = argparse.Namespace(
-        runID=args.runID,
+        run_id=args.run_id,
         # inference_dir=args.output_dir,
         cpus=args.cpus
     )
-    eval_main(eval_args)
+    asyncio.run(eval_main(eval_args))
     
     # 3. Run Analysis
     
@@ -191,9 +208,9 @@ def main(args):
     
     # 4. If metric is llm, run llm metric
     if metric_config.get("llm",{}).get("llm_metric",False):
-        print(f"[IMPROVER: Running llm metric analysis for run {args.runID}...]")
+        print(f"[IMPROVER: Running llm metric analysis for run {args.run_id}...]")
         llm_args = argparse.Namespace(
-            runID=args.runID,
+            run_id=args.run_id,
             prompts_id=args.prompt_id,
             inference=True,
             # output_dir=args.output_dir,
@@ -207,17 +224,18 @@ def main(args):
         llm_main(llm_args)
 
     
-    print(f"[IMPROVER: Analyzing run {args.runID}...]")
+    print(f"[IMPROVER: Analyzing run {args.run_id}...]")
     analysis_args = argparse.Namespace(
-        RunID=args.runID,
+        run_id=args.run_id,
         # run_dir=args.output_dir,
-        training_data=args.training_data
+        training_data=args.training_data,
+        thinking=args.thinking
     )
     analysis_main(analysis_args)
     
     
     
-    print(f"[IMPROVER: ImProver pipeline completed for run {args.runID}]")
+    print(f"[IMPROVER: ImProver pipeline completed for run {args.run_id}]")
 
     
 

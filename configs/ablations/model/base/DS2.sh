@@ -3,11 +3,11 @@
 #SBATCH --job-name=ablation_model_base_DS2
 #SBATCH --output=logs/ablation_model_base_DS2.out
 #SBATCH --error=logs/ablation_model_base_DS2.err
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
 #SBATCH --gres=gpu:A6000:8
 #SBATCH --mem=150G
-
+    
 
 source $HOME/miniconda3/bin/activate env
 

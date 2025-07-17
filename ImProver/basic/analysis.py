@@ -104,7 +104,7 @@ def calculate_nonzero_accuracy(rows, metric_name, metric_spec_map):
     if not rows:
         return 0.0
     
-    metric_objective = metric_spec_map.get(metric_name)
+    metric_objective = metric_spec_map#metric_spec_map.get(metric_name)
     if not metric_objective:
         print(f"Warning: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS for nonzero_accuracy.")
         return 0.0 # Or handle error
@@ -129,7 +129,7 @@ def calculate_improvement(rows, metric_name, metric_spec_map):
     if not rows:
         return 0.0
     
-    metric_objective = metric_spec_map.get(metric_name)
+    metric_objective = metric_spec_map#metric_spec_map.get(metric_name)
     if not metric_objective:
         print(f"Warning: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS for improvement.")
         return 0.0
@@ -155,7 +155,7 @@ def calculate_nonzero_improvement(rows, metric_name, metric_spec_map):
     Calculates nonzero improvement:
     Average delta value across rows with delta not null AND (delta < 0 if min, else delta > 0).
     """
-    metric_objective = metric_spec_map.get(metric_name)
+    metric_objective = metric_spec_map#.get(metric_name)
     if not metric_objective:
         print(f"Warning: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS for nonzero_improvement.")
         return 0.0
@@ -183,12 +183,13 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
     #     print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
     #     return False
 
-    analysis_base_path = run_dir_path / run_id / "analysis" / "BoN"
-    analysis_base_path.mkdir(parents=True, exist_ok=True)
-    
-    raw_db_path = analysis_base_path / "raw.duckdb"
-    plot_path = analysis_base_path / "BoN.png"
-    csv_path = analysis_base_path / "data.csv"
+    analysis_base_path = os.path.join(run_dir_path, run_id, "analysis", "BoN")
+
+    os.makedirs(analysis_base_path, exist_ok=True)
+
+    raw_db_path = os.path.join(analysis_base_path, "raw.duckdb")
+    plot_path = os.path.join(analysis_base_path, "BoN.png")
+    csv_path = os.path.join(analysis_base_path, "data.csv")
 
     tick_size = max(math.floor(n_config_val / 16), 1)
     
@@ -326,8 +327,8 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
         try:
             # If raw_db_path exists, DuckDB might error on connect if it's not a valid DB
             # It's safer to delete if exists, or use a new table name if appending
-            if raw_db_path.exists():
-                raw_db_path.unlink() # Remove old raw.duckdb to ensure clean write
+            if os.path.exists(raw_db_path):
+                os.remove(raw_db_path) # Remove old raw.duckdb to ensure clean write
 
             con_raw = duckdb.connect(database=str(raw_db_path))
             # Infer schema from DataFrame; ensure it matches original if necessary
@@ -410,14 +411,14 @@ def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, t
         print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
         return
 
-    analysis_base_path = run_dir_path / run_id / "analysis" / "BoN"
-    raw_db_path = analysis_base_path / "raw.duckdb"
+    analysis_base_path = os.path.join(run_dir_path, run_id, "analysis", "BoN")
+    raw_db_path = os.path.join(analysis_base_path, "raw.duckdb")
 
-    if not raw_db_path.exists():
+    if not os.path.exists(raw_db_path):
         print(f"{raw_db_path} does not exist. Running Best-of-N analysis first...")
         # Need a connection to the original eval.duckdb for BoN
-        eval_db_path = run_dir_path / run_id / "eval.duckdb"
-        if not eval_db_path.exists():
+        eval_db_path = os.path.join(run_dir_path, run_id, "eval.duckdb")
+        if not os.path.exists(eval_db_path):
             print(f"Error: eval.duckdb not found at {eval_db_path} for BoN pre-run.")
             return
         
@@ -425,7 +426,7 @@ def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, t
         if not db_con_eval:
             return 
         
-        bon_success = run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config)
+        bon_success = run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config, METRIC_SPECIFICATIONS)
         db_con_eval.close()
         if not bon_success or not raw_db_path.exists():
             print("Best-of-N analysis failed or did not produce raw.duckdb. Cannot proceed with training analysis.")
@@ -474,6 +475,8 @@ def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, t
                         new_trimmed = row['new_trimmed'] if row['new_trimmed'] else new
                         
                         output = new_trimmed.strip()
+                    
+                        
                         if thinking_mode == "raw":
                             output = row['new_raw'].strip()
                         # TODO IMPLEMENT AUTO THINKING MODE
@@ -487,7 +490,7 @@ def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, t
                         # print("===")
                         count +=1
         print(f"Found {count} training data candidates.")
-        json_output_path = analysis_base_path / "train.jsonl"
+        json_output_path = os.path.join(analysis_base_path, "train.jsonl")
         if pairs:
             # print(pairs[:5])  # Print first 5 pairs for verification
             with open(json_output_path, 'w') as f:
@@ -505,20 +508,20 @@ def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, t
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Perform analysis on experimental run data.")
-    parser.add_argument("runID", help="Identifier for the run.")
+    parser.add_argument("run_id", help="Identifier for the run.")
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data (default: True)", default=True)
-    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw', 'auto'.")
+    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
     return parser
 
 def main(args):
 
-    run_id = args.runID
+    run_id = args.run_id
     run_dir_path = "evals"
 
-    db_path = run_dir_path / run_id / "eval.duckdb"
-    config_path = run_dir_path / run_id / "config.json"
+    db_path = os.path.join(run_dir_path, run_id, "eval.duckdb")
+    config_path = os.path.join(run_dir_path, run_id, "config.json")
 
-    if not db_path.exists():
+    if not os.path.exists(db_path):
         print(f"Error: Database file not found at {db_path}")
         return
     
@@ -527,7 +530,7 @@ def main(args):
         return
     
     metric = config.get('metric')
-    metric_config_path = Path("metrics") / metric / "config.json"
+    metric_config_path = os.path.join("metrics", metric, "config.json")
     try:
         with open(metric_config_path, 'r') as f:
             metric_config = json.load(f)

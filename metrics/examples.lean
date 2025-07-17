@@ -1,4 +1,3 @@
-import metrics.conjecturer2.examples
 import metrics.readability.examples
 import metrics.conjecturer.examples
 import metrics.completion.examples
