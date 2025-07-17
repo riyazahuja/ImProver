@@ -1,4 +1,3 @@
-import metrics.conjecturer2.conjecturer2
 import metrics.conjecturer.conjecturer
 import metrics.completion.completion
 import metrics.dependency.dependency
@@ -12,5 +11,4 @@ def route_metric (name : String) (cs : CompilationStep) : IO Float := match name
 | "dependency" => dependency_score cs
 | "completion" => completion_score cs
 | "conjecturer" => conjecturer_score cs
-| "conjecturer2" => conjecturer2_score cs
 | _ => pure 0.0

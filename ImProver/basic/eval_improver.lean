@@ -307,6 +307,7 @@ def withTimeout (timeout : UInt32) (x : IO α) : IO α := do
 
 def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath : String) (sorryOk : Bool) (correctnessCondition : String) : IO UInt32 := do
   searchPathRef.set compile_time_search_path%
+  IO.println s!"Running eval_improver for {mod} with metric {metric}"
 
   let fileName := (← findLean mod).toString
   let options := ({} : KVMap)
@@ -318,11 +319,14 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
 
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none options fileName
 
+  -- IO.println s!"Processed compilation steps for {mod}"
+
   let targets := steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)
 
   let mut targets_new : Array (CompilationStep × ConstantInfo) := #[]
 
   for (cmd, ci) in targets do
+    IO.println s!"Processing target: {ci.name} ({cmd.src.toString})"
     let isThm? := match ci with
       | .thmInfo _ => true
       | _ => false
@@ -340,6 +344,7 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
       continue
 
     targets_new := targets_new.push (cmd, ci)
+
 
 
 
@@ -538,7 +543,8 @@ def evalImproverCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputPath := args.positionalArg! "outputPath" |>.as! String
   let mod :Name := module
 
-  let sorryOk := args.positionalArg! "sorryOk" |>.as! Bool
+  let sorryOk_raw := args.positionalArg! "sorryOk" |>.as! String
+  let sorryOk := sorryOk_raw == "true" || sorryOk_raw == "1" || sorryOk_raw == "True"
   let correctnessCondition := args.positionalArg! "correctnessCondition" |>.as! String
 
 
@@ -555,7 +561,7 @@ def eval_improver : Cmd := `[Cli|
     metric : String; "Metric to use for evaluation."
     runPath : String; "Path to the run DB."
     outputPath : String; "Where to save the Json output."
-    sorryOk : Bool; "Whether to allow 'sorry' in the output."
+    sorryOk : String; "Whether to allow 'sorry' in the output."
     correctnessCondition : String; "Condition to check correctness of the output."
 ]
 

@@ -17,10 +17,11 @@ from glob import glob
 
 
 async def eval_file(file, args, config, metric_config):
+    print(file)
     st = time.time()
-    # output at inference_dir/runID/evals/[file_path].json
+    # output at inference_dir/run_id/evals/[file_path].json
     output_path = os.path.join(
-        "evals", args.runID, "evals", file.replace(".lean", ".json")
+        "evals", args.run_id, "evals", file.replace(".lean", ".json")
     )
     # print(file)
     #['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']['lake', 'exe', 'eval_improver', 'Compfiles.Usa2008P1', 'length', 'runs/RUN_20250515_031905', 'runs/RUN_20250515_031905/evals/Compfiles/Usa2008P1.json']
@@ -30,13 +31,13 @@ async def eval_file(file, args, config, metric_config):
         "eval_improver",
         file.replace("/", ".").replace(".lean", ""),
         config["metric"],
-        os.path.join("evals", args.runID),
+        os.path.join("evals", args.run_id),
         output_path,
-        metric_config['scoring']['router_file'],
-        metric_config['scoring']['sorry_ok'],
+        # metric_config['scoring']['router_file'],
+        str(metric_config['scoring']['sorry_ok']),
         metric_config['scoring']['correctness_condition'],
     ]
-    print(" ".join(cmd))
+    print(f"running {' '.join(cmd)}")
     proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
@@ -63,10 +64,10 @@ async def eval_file(file, args, config, metric_config):
 
 async def main_async(args):
     
-    with open(os.path.join("evals", args.runID, "config.json"), "r") as f:
+    with open(os.path.join("evals", args.run_id, "config.json"), "r") as f:
         config = json.load(f)
         
-    with open(config["dataset"], "r") as f:
+    with open(config["dataset_path"], "r") as f:
         all = json.load(f)
         dataset = all[config["split"]]
         
@@ -76,7 +77,17 @@ async def main_async(args):
         
     files_to_process = []
     for repo in dataset.keys():
-        files_to_process = files_to_process + dataset[repo]
+        repo_files_raw = dataset[repo]
+        repo_files = []
+        for file in repo_files_raw:
+            if type(file) is dict:
+                file = file["file"]
+            
+            repo_files.append(file)
+        
+            
+        files_to_process = files_to_process + repo_files
+    files_to_process = list(set(files_to_process))  # Remove duplicates
     
     semaphore = asyncio.Semaphore(args.cpus)
     progress_bar = tqdm.tqdm(total=len(files_to_process), desc="Processing files")
@@ -94,8 +105,8 @@ async def main_async(args):
     
    
 
-    evals_dir = os.path.join("evals", args.runID, "evals")
-    db_path = os.path.join("evals", args.runID, "eval.duckdb")
+    evals_dir = os.path.join("evals", args.run_id, "evals")
+    db_path = os.path.join("evals", args.run_id, "eval.duckdb")
     con = duckdb.connect(db_path)
     
     #   SAFE MODE
@@ -116,7 +127,7 @@ async def main_async(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
-    parser.add_argument("runID", type=str, help="Run ID to use for evaluation")
+    parser.add_argument("run_id", type=str, help="Run ID to use for evaluation")
     parser.add_argument(
         "--cpus",
         type=int,

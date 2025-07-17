@@ -198,7 +198,7 @@ def run():
 @click.option('--rag', default=0)
 @click.option('--examples', default=0)
 
-@click.option('--NCCL_P2P', is_flag=True, default=False)
+@click.option('--nccl_p2p', is_flag=True, default=False)
 @click.option('--ray_timeout', default=1800)
 @click.option('--num_blocks', default=16)
 @click.option('--engine_cpu_resources', default=None)
@@ -246,6 +246,7 @@ def run_eval(**kwargs):
 @click.argument('run_id', required=False)
 @click.option('--training_data', is_flag=True, default=True)
 @click.option('--config', type=click.Path(exists=True), default=None)
+@click.option('--thinking', default='none', help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
 def run_analysis(**kwargs):
     from ImProver.basic.analysis import main as analysis_main, get_parser as analysis_parser
 
@@ -294,7 +295,7 @@ def run_llm_metric(**kwargs):
 @click.option('--rag', default=0)
 @click.option('--examples', default=0)
 
-@click.option('--NCCL_P2P', is_flag=True, default=False)
+@click.option('--nccl_p2p', is_flag=True, default=False)
 @click.option('--ray_timeout', default=1800)
 @click.option('--num_blocks', default=16)
 @click.option('--engine_cpu_resources', default=None)
@@ -311,6 +312,7 @@ def run_llm_metric(**kwargs):
 
 @click.option('--run_id', default=f"RUN_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--training_data', is_flag=True, default=True)
+@click.option('--thinking', default='none', help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
 @click.option('--config', type=click.Path(exists=True), default=None)
 def run_pipeline(**kwargs):
     from ImProver.basic.improver import main as pipeline_main

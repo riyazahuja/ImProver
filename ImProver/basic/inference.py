@@ -11,7 +11,7 @@ import multiprocessing
 import argparse
 import duckdb
 
-# NCCL_P2P (default is False, A6000)
+# nccl_p2p (default is False, A6000)
 # ray_timeout (def 1800s)
 # num_blocks (default 16)
 # engine_cpu_resources = args.cpus // args.gpus
@@ -30,13 +30,17 @@ def run_inference(df, args, ray_init=True):
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
     # os.environ["NCCL_P2P_DISABLE"] = "1"
-    if args.NCCL_P2P:
+    if args.nccl_p2p:
         os.environ["NCCL_P2P_DISABLE"] = "0"
     else:
         os.environ["NCCL_P2P_DISABLE"] = "1"
         
     if ray_init:
-        ray.init(num_cpus=args.cpus, num_gpus=args.gpus)#, _temp_dir='/home/riyaza/ray_tmp')
+        try:
+            ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
+        except:
+            ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/riyaza/ray_tmp')
+            
     DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
     ctx = DataContext.get_current()
     # ctx.progress_bar = True
@@ -99,7 +103,7 @@ def run_inference(df, args, ray_init=True):
     )
     ds = vllm_processor(ds).materialize()
 
-    run_output_dir = os.path.join("evals", args.runID)
+    run_output_dir = os.path.join("evals", args.run_id)
     os.makedirs(run_output_dir, exist_ok=True)
 
     output_path = os.path.join(run_output_dir, "data")
@@ -267,7 +271,7 @@ if __name__ == "__main__":
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
     parser.add_argument("prompt_id", type=str, help="Prompt ID to use")
     parser.add_argument(
-        "--runID",
+        "--run_id",
         type=str,
         default="RUN_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
         help="Run ID to use for evaluation (default: run_<timestamp>)",
@@ -322,7 +326,7 @@ if __name__ == "__main__":
         help="Number of few-shot example retrievals (default: 0)",
     )
     parser.add_argument(
-        "--NCCL_P2P",
+        "--nccl_p2p",
         type=bool,
         default=False,
         help="Enable NCCL P2P - set to false if nvidia-smi topo -m shows SYS between gpus, or something or another about PCIE? A6000 -> false. (default: False)",
