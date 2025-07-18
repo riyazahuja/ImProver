@@ -175,7 +175,8 @@ def route_metric (name : String) (cs : CompilationStep) : IO Float := match name
         "score_fn": score_fn,
         "sorry_ok": args.sorry_ok,
         "correctness_condition": args.correctness_condition,
-        "minmax": args.minmax
+        "minmax": args.minmax,
+        "input_sorry": args.input_sorry,
         },
         "examples": {
         "example_file": args.example_file,
@@ -188,6 +189,8 @@ def route_metric (name : String) (cs : CompilationStep) : IO Float := match name
         "context_prompt": args.context_prompt,
         "rag_prompt": args.rag_prompt,
         "example_prompt": args.example_prompt,
+        "goal_state_prompt": args.goal_state_prompt,
+        "file_context_prompt": args.file_context_prompt,
         },
         "llm": {
 
@@ -206,7 +209,9 @@ def get_parser():
         "annotation_prompt": " A version of the current theorem with the goal states annotated has also been provided for reference (wrapped in <ANNOTATED>...</ANNOTATED>). Namely, the goal states have been interleaved between tactics as comments to help you better understand the proof and ensure the correctness of your response. Do not include such state comments in your final response.",
     "context_prompt": " The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>.",
     "rag_prompt": " The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>.",
-    "example_prompt": "Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem."
+    "example_prompt": " Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem.",
+    "goal_state_prompt": " Additionally, the initial goal state of the theorem has been provided to help you better understand the proof statement and ensure the correctness of your response. It is wrapped in <GOAL_STATE>...</GOAL_STATE>.",
+    "file_context_prompt": " The file context of the theorem, i.e. the preceding definitions, theorems, etc., have been provided to help understand the context of the theorem and ensure the correctness of your response. It is wrapped in <FILE_CONTEXT>...</FILE_CONTEXT>, with each individual item wrapped in <ITEM>...</ITEM>."
     }
     
     parser = argparse.ArgumentParser(description="Create a metric configuration.")
@@ -221,13 +226,14 @@ def get_parser():
     parser.add_argument("--rubric", default=None, help="JSON rubric")
 
     parser.add_argument("--minmax", default="max", help="Minimize or maximize the metric score")
-
+    parser.add_argument("--input_sorry", action="store_true", default=False, help="Send sorry'd proof as the input")
     
     parser.add_argument("--annotation_prompt", default=prompt_defaults['annotation_prompt'], help="annotation prompt")
     parser.add_argument("--context_prompt", default=prompt_defaults['context_prompt'], help="context prompt")
     parser.add_argument("--rag_prompt", default=prompt_defaults['rag_prompt'], help="rag prompt")
     parser.add_argument("--example_prompt", default=prompt_defaults['example_prompt'], help="example prompt")
-
+    parser.add_argument("--goal_state_prompt", default=prompt_defaults['goal_state_prompt'], help="goal state prompt")
+    parser.add_argument("--file_context_prompt", default=prompt_defaults['file_context_prompt'], help="file context prompt")
     return parser
 
 def main(args):
