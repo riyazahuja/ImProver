@@ -40,7 +40,15 @@ def get_parser():
     parser.add_argument("--context", type=int, default=0, help="Number of context retrievals")
     parser.add_argument("--rag", type=int, default=0, help="Number of RAG retrievals")
     parser.add_argument("--examples", type=int, default=0, help="Number of few-shot example retrievals")
-    
+    parser.add_argument(
+        "--goal_state", action=argparse.BooleanOptionalAction, default=False, help="Enable goal state"
+    )
+    parser.add_argument(
+        "--file_context",
+        type=int,
+        default=0,
+        help="Number of file context items (default: 0, -1 for all)",
+    )
     
     #inference hyperparams
     parser.add_argument(
@@ -161,6 +169,9 @@ def main(args):
         context=args.context,
         rag=args.rag,
         examples=args.examples,
+        goal_state=args.goal_state,
+        file_context=args.file_context,
+        
         
         nccl_p2p=args.nccl_p2p,
         ray_timeout=args.ray_timeout,
@@ -243,6 +254,6 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
-    main()
+    main(args)
 
 

@@ -34,6 +34,8 @@ METRIC_PROMPT_DEFAULTS = {
     "context_prompt": " The proof context, with relevant definitions and theorems, has additionally been provided to help you better understand the proof and ensure the correctness of your response. It is wrapped in <CONTEXT>...</CONTEXT>, with each item wrapped in <ITEM>...</ITEM>.",
     "rag_prompt": " The following items have been retrieved from the knowledge base as they may be helpful in optimizing the proof. They are wrapped in <RETRIEVED>...</RETRIEVED> with each item being wrapped further in <DOC>...</DOC>.",
     "example_prompt": "Here are some examples of such optimization, as wrapped in <EXAMPLES>...</EXAMPLES>. Note that these examples are for illustrative purposes only and should not be copied directly. Instead, use them to understand the kind of optimization expected and apply similar techniques to the current theorem.",
+    "goal_state_prompt": " Additionally, the initial goal state of the theorem has been provided to help you better understand the proof statement and ensure the correctness of your response. It is wrapped in <GOAL_STATE>...</GOAL_STATE>.",
+    "file_context_prompt": " The file context of the theorem, i.e. the preceding definitions, theorems, etc., have been provided to help understand the context of the theorem and ensure the correctness of your response. It is wrapped in <FILE_CONTEXT>...</FILE_CONTEXT>, with each individual item wrapped in <ITEM>...</ITEM>."
 }
 
 
@@ -81,6 +83,7 @@ def metrics():
 @click.argument('name', required=False)
 @click.argument('system_prompt', required=False)
 @click.option('--minmax', default="max")
+@click.option('--input_sorry', is_flag=True, default=False)
 @click.option('--score_fn', default=None)
 @click.option('--sorry_ok', is_flag=True, default=False)
 @click.option('--correctness_condition', default='none')
@@ -92,6 +95,8 @@ def metrics():
 @click.option('--context_prompt', default=METRIC_PROMPT_DEFAULTS['context_prompt'])
 @click.option('--rag_prompt', default=METRIC_PROMPT_DEFAULTS['rag_prompt'])
 @click.option('--example_prompt', default=METRIC_PROMPT_DEFAULTS['example_prompt'])
+@click.option('--goal_state_prompt', default=METRIC_PROMPT_DEFAULTS['goal_state_prompt'])
+@click.option('--file_context_prompt', default=METRIC_PROMPT_DEFAULTS['file_context_prompt'])
 @click.option('--config', type=click.Path(exists=True), default=None)
 def metrics_add(**kwargs):
     """Add a new metric."""
@@ -197,6 +202,8 @@ def run():
 @click.option('--context', default=0)
 @click.option('--rag', default=0)
 @click.option('--examples', default=0)
+@click.option('--goal_state', is_flag=True, default=False)
+@click.option('--file_context', default=0)
 
 @click.option('--nccl_p2p', is_flag=True, default=False)
 @click.option('--ray_timeout', default=1800)
@@ -294,6 +301,8 @@ def run_llm_metric(**kwargs):
 @click.option('--context', default=0)
 @click.option('--rag', default=0)
 @click.option('--examples', default=0)
+@click.option('--goal_state', is_flag=True, default=False)
+@click.option('--file_context', default=0)
 
 @click.option('--nccl_p2p', is_flag=True, default=False)
 @click.option('--ray_timeout', default=1800)

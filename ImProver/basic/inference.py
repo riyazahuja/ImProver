@@ -128,6 +128,43 @@ def run_inference(df, args, ray_init=True):
     return run_output_dir
 
 
+def construct_prompt_core(config_data, item, args):
+    prompt = ""
+    
+    if args.file_context != 0:
+        prompt += f"<FILE_CONTEXT>\n"
+        num_deps = len(item["C0_dependencies"])if args.file_context == -1 else min(args.file_context,len(item["C0_dependencies"]))
+        for context in item["C0_dependencies"][: num_deps]:
+            prompt += f"<ITEM>\n--name={context['name']}\n--type={context['kind']}\n{context['content']}\n</ITEM>\n"
+        prompt += f"</FILE_CONTEXT>\n\n"
+    
+    if args.context != 0:
+            
+        prompt += f"<CONTEXT>\n"
+        num_deps = len(item["C1_dependencies"])if args.context == -1 else min(args.context,len(item["C1_dependencies"]))
+        for context in item["C1_dependencies"][: num_deps]:
+            prompt += f"<ITEM>\n--name={context['name']}\n--type={context['kind']}\n{context['content']}\n</ITEM>\n"
+        prompt += f"</CONTEXT>\n\n"
+
+    if args.rag != 0:
+        prompt += f"<RAG>\n"
+        num_rag = len(item["rag"])if args.rag == -1 else min(args.rag,len(item["rag"]))
+        for rag in item["rag"][: num_rag]:
+            prompt += f"<DOC>\n{rag}\n</DOC>\n"
+        prompt += f"</RAG>\n\n"
+
+    if args.annotation:
+        prompt += f"<ANNOTATION>\n{item['annotation']}\n</ANNOTATION>\n\n"
+        
+    if args.goal_state:
+        prompt += f"<GOAL_STATE>\n{item['goal_state']}\n</GOAL_STATE>\n\n"
+
+    prompt += f"\n<CURRENT>\n{item['content_sorry'] if config_data["input_sorry"] else item['id']['content']}\n</CURRENT>\n\n"
+    prompt += "<IMPROVED>"
+
+    return prompt
+
+
 def construct_prompts(config_data, data, args):
     # config_data is metric config data
     # data is the prompt data
@@ -147,14 +184,20 @@ def construct_prompts(config_data, data, args):
         if args.examples != 0:
             prompt += config_data["prompts"]["example_prompt"] + "\n"
 
-        if args.annotation:
-            prompt += config_data["prompts"]["annotation_prompt"] + "\n"
-
         if args.context != 0:
             prompt += config_data["prompts"]["context_prompt"] + "\n"
+        
+        if args.file_context != 0:
+            prompt += config_data["prompts"]["file_context_prompt"] + "\n"
 
         if args.rag != 0:
             prompt += config_data["prompts"]["rag_prompt"] + "\n"
+            
+        if args.annotation:
+            prompt += config_data["prompts"]["annotation_prompt"] + "\n"
+
+        if args.goal_state:
+            prompt += config_data["prompts"]["goal_state_prompt"] + "\n"
 
         prompt += "\n"
 
@@ -166,51 +209,21 @@ def construct_prompts(config_data, data, args):
             
             
             prompt += f"<EXAMPLES>\n\n"
-            for nameTag, example in examples_data.items()[: min(args.examples,len(examples_data.items()))]:
+            num_examples = len(examples_data.items())if args.examples == -1 else min(args.examples,len(examples_data.items()))
+            for nameTag, example in examples_data.items()[: num_examples]:
                 try:
                     ex_prompt = "<EXAMPLE>\n\n"
-                    if args.context:
-                        ex_prompt += f"<CONTEXT>\n"
-                        for context in example["C1_dependencies"]:
-                            ex_prompt += f"<ITEM>\n--name={context['name']}\n--type={context['kind']}\n{context['content']}\n</ITEM>\n"
-                        ex_prompt += f"</CONTEXT>\n\n"
-                    if args.rag != 0:
-                        ex_prompt += f"<RAG>\n"
-                        for rag in example["rag"][: args.rag]:
-                            ex_prompt += (
-                                f"<DOC>\n{rag}\n</DOC>\n"
-                            )
-                        ex_prompt += f"</RAG>\n\n"
-                    if args.annotation:
-                        ex_prompt += (
-                            f"<ANNOTATION>\n{example['annotation']}\n</ANNOTATION>\n\n"
-                        )
-                    ex_prompt += f"<CURRENT>\n{example['id']['content']}\n</CURRENT>\n\n"
-                    ex_prompt += f"<IMPROVED>\n{example['improved']}\n</IMPROVED>\n\n"
+                    
+                    ex_prompt += construct_prompt_core(config_data, example, args)
+                    
+                    ex_prompt += f"\n{example['improved']}\n</IMPROVED>\n\n"
                     ex_prompt += f"</EXAMPLE>\n\n"
                     prompt += ex_prompt
                 except:
                     pass
             prompt += f"</EXAMPLES>\n\n"
-
-        if args.context != 0:
-            
-            prompt += f"<CONTEXT>\n"
-            for context in item["C1_dependencies"][: min(args.context,len(item["C1_dependencies"]))]:
-                prompt += f"<ITEM>\n--name={context['name']}\n--type={context['kind']}\n{context['content']}\n</ITEM>\n"
-            prompt += f"</CONTEXT>\n\n"
-
-        if args.rag != 0:
-            prompt += f"<RAG>\n"
-            for rag in item["rag"][: min(args.rag,len(item["rag"]))]:
-                prompt += f"<DOC>\n{rag}\n</DOC>\n"
-            prompt += f"</RAG>\n\n"
-
-        if args.annotation:
-            prompt += f"<ANNOTATION>\n{item['annotation']}\n</ANNOTATION>\n\n"
-
-        prompt += f"\n<CURRENT>\n{item['id']['content'] if args.metric!="completion" else item['content_sorry']}\n</CURRENT>\n\n"
-        prompt += "<IMPROVED>"
+        
+        prompt += construct_prompt_core(config_data, item, args)
 
         data = {
             "decl": name,
@@ -311,19 +324,29 @@ if __name__ == "__main__":
         "--annotation", type=bool, default=False, help="Annotation? (default: False)"
     )
     parser.add_argument(
+        "--goal_state", type=bool, default=False, help="Goal state? (default: False)"
+    )
+    parser.add_argument(
         "--context",
         type=int,
         default=0,
-        help="Number of context retrievals (default: 0)",
+        help="Number of context retrievals (default: 0, -1 for all)",
     )
     parser.add_argument(
-        "--rag", type=int, default=0, help="Number of RAG retrievals (default: 0)"
+        "--file_context",
+        type=int,
+        default=0,
+        help="Number of file context items (default: 0, -1 for all)",
     )
+    parser.add_argument(
+        "--rag", type=int, default=0, help="Number of RAG retrievals (default: 0, max: 10)"
+    )
+    
     parser.add_argument(
         "--examples",
         type=int,
         default=0,
-        help="Number of few-shot example retrievals (default: 0)",
+        help="Number of few-shot example retrievals (default: 0, -1 for all)",
     )
     parser.add_argument(
         "--nccl_p2p",
