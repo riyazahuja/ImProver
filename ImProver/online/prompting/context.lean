@@ -136,8 +136,22 @@ def isAuxLemma : Name → Bool
 | .num (.str _ "_auxLemma") _ => true
 | _ => false
 
+
+/-- Return the name of the module in which a declaration was defined. -/
+def Environment.getModuleForWithSelf? (env : Environment) (declName : Name) (curr_mod : Option Name) : Option Name :=
+  match env.getModuleIdxFor? declName with
+  | none =>
+    if env.constants.map₂.contains declName then do
+      curr_mod.getD env.header.mainModule
+    else do
+      none
+  | some idx => do
+    env.header.moduleNames[idx.toNat]!
+
+
 def get_context (step:CompilationStep)
   (allowed_kinds : List String := ["theorem", "def","theorem (internal)", "def (internal)"] )
+  (module : Option Name := none)
   : IO (List ExternalContext) := do
 
   let pf_env := step.commandStateBefore.env
@@ -146,12 +160,51 @@ def get_context (step:CompilationStep)
 
   let constants ← MetaM.toIO (getConstants step) ctx state
   let constants := constants.1.eraseDups
+  -- IO.println s!"constants: {"\n".intercalate (constants.map (fun (c, pos, endPos) => s!"{c}"))}"
+  let scopes := step.commandStateBefore.scopes.reverse.filterMap (fun s =>
+    let content := s.header.trim
+    if content == "" then none else some content
+    ) |>.toArray
 
-  let modules := constants.map (fun (c, pos, endPos) => (c, pos, endPos, pf_env.getModuleFor? c |>.getD (Name.anonymous)))
 
-  let consts_mods_kind := modules.map (fun (c, pos, endPos, m) => (c, pos, endPos, m, getKind pf_env.constants c))
 
-  let mods := (modules.map fun x => x.2.2.2) |>.eraseDups |>.filter fun m => m != Name.anonymous
+  let consts_mods_kind : List (Name × Option Pos × Option Pos × Name × String) ← constants.filterMapM (fun (c, pos, endPos) => do
+    let prefixes : List Name ← do
+      if scopes.isEmpty then pure []
+      else do
+        let mut acc := Name.str Name.anonymous scopes[0]!
+        let mut out := [acc]
+        for i in [1:scopes.size] do
+          acc := Name.str acc scopes[i]!
+          out := out ++ [acc]
+        pure out
+
+    let possibilities := c :: prefixes.map (fun p => Name.append p c)
+    let included? := pf_env.constants.find? c |>.map (fun x => x.all)
+    -- IO.println s!"included? {c} : {included?}"
+    -- IO.println s!"possibilities: {"\n".intercalate (possibilities.map (fun p => p.toString))}"
+
+    -- IO.println "++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+    let included? := possibilities.filterMap (fun p => pf_env.constants.find? p)
+    match included? with
+    | [] => return (c, pos, endPos, Name.anonymous, "Not Found")
+    | fst :: _ =>
+      let curr_mod := Environment.getModuleForWithSelf? pf_env fst.name module
+      return (fst.name, pos, endPos, curr_mod |>.getD Name.anonymous, getKind pf_env.constants fst.name)
+
+
+
+    )
+  -- IO.println "########################################################"
+  -- IO.println s!"constants: \n{"\n".intercalate (pf_env.constants.map₂.toList.map (fun (c, x) => c.toString))}"
+  -- IO.println "########################################################"
+  -- IO.println s!"consts_mods_kind: {"\n".intercalate (consts_mods_kind.map (fun (c, pos, endPos, m, kind) => s!"{c} ({kind}) : {m}"))}"
+  let temp_custom_beq : BEq (Name × Option Pos × Option Pos × Name × String) :=
+    ⟨fun (c1, _, _, m1, _) (c2, _, _, m2, _) => c1 = c2 && m1 = m2⟩
+
+
+  let consts_mods_kind := @List.eraseDups _ temp_custom_beq <| consts_mods_kind.filter fun (_, _, _, m, _) => m != Name.anonymous
+  let mods := (consts_mods_kind.map fun (_, _, _, m, _) => m) |>.eraseDups
 
   -- let allowed_kinds := ["theorem", "def","theorem (internal)", "def (internal)"]
   let constant_info ← CoreM.withImportModules mods.toArray do
