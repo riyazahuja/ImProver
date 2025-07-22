@@ -7,6 +7,7 @@ from .inference import main as inference_main
 from .eval_improver import main_async as eval_main
 from .analysis import main as analysis_main
 from .llm_metric import main as llm_main
+from .synth_thinking import main as synthetic_main
 import json
 import asyncio
 
@@ -143,7 +144,7 @@ def get_parser():
     
     # Analysis settings
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data", default=True)
-    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
+    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw', 'synthetic.")
     return parser
 
 def main(args):
@@ -245,6 +246,29 @@ def main(args):
     analysis_main(analysis_args)
     
     
+    if args.thinking == "synthetic":
+        print(f"[IMPROVER: Running synthetic thinking for run {args.run_id}...]")
+        synthetic_args = argparse.Namespace(
+            run_id=args.run_id,
+            model=args.model,
+            cpus=args.cpus,
+            gpus=args.gpus,
+            num_blocks=args.num_blocks,
+            engine_cpu_resources=args.engine_cpu_resources,
+            engine_gpu_resources=args.engine_gpu_resources,
+            concurrency=args.concurrency,
+            tensor_parallel_size=args.tensor_parallel_size,
+            enable_chunked_prefill=args.enable_chunked_prefill,
+            max_model_len=args.max_model_len,
+            max_num_batched_tokens=args.max_num_batched_tokens,
+            max_concurrent_batches=args.max_concurrent_batches,
+            batch_size=args.batch_size,
+            truncate_prompt_tokens=args.truncate_prompt_tokens,
+            max_tokens=args.max_tokens,
+            nccl_p2p=args.nccl_p2p,
+            ray_timeout=args.ray_timeout
+        )
+        synthetic_main(synthetic_args)
     
     print(f"[IMPROVER: ImProver pipeline completed for run {args.run_id}]")
 

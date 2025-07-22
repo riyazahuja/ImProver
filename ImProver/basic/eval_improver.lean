@@ -230,8 +230,9 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
           if old_score.get! == 0 then
             none
           else
-            some ((old_score.get! - metric_score.get!) / (old_score.get!))
+            some ((metric_score.get!- old_score.get!) / (old_score.get!))
           )
+
         else none
 
       let out := {

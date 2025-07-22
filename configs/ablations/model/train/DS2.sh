@@ -5,7 +5,7 @@
 #SBATCH --error=logs/ablation_model_train_DS2.err
 #SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:A6000:1
+#SBATCH --gres=gpu:A6000:0
 #SBATCH --mem=150G
 
 
