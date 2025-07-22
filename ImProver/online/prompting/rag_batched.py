@@ -45,7 +45,7 @@ sys.stdout = devnull
 
 #     return (i, results)
 
-async def get_from_db(conn, name, module):
+async def get_from_db(id, conn, name, module):
     """
     Get the RAG documents from the database.
     """
@@ -53,9 +53,9 @@ async def get_from_db(conn, name, module):
     result = conn.execute(query, (name, module)).fetchone()
     
     if result:
-        return result[0]
+        return (id, result)
     else:
-        return ""
+        return (id, "")
 
 
 async def main():
@@ -104,7 +104,7 @@ async def main():
 
     tasks = [
         # process_query(i, query, retriever, source_paths if imports else None)
-        get_from_db(conn, query["name"], query["module"])
+        get_from_db(i, conn, query["name"], query["module"])
         for i, query in enumerate(queries)
     ]
     results = await asyncio.gather(*tasks)
