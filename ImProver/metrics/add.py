@@ -177,6 +177,7 @@ def route_metric (name : String) (cs : CompilationStep) : IO Float := match name
         "correctness_condition": args.correctness_condition,
         "minmax": args.minmax,
         "input_sorry": args.input_sorry,
+        # "delta_type": args.delta_type,
         },
         "examples": {
         "example_file": args.example_file,
@@ -227,6 +228,7 @@ def get_parser():
 
     parser.add_argument("--minmax", default="max", help="Minimize or maximize the metric score")
     parser.add_argument("--input_sorry", action="store_true", default=False, help="Send sorry'd proof as the input")
+    # parser.add_argument("--delta_type", action="relative", default=False, help="How to calculate the delta between the old and new score: relative (%) or absolute (-).")
     
     parser.add_argument("--annotation_prompt", default=prompt_defaults['annotation_prompt'], help="annotation prompt")
     parser.add_argument("--context_prompt", default=prompt_defaults['context_prompt'], help="context prompt")

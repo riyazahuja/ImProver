@@ -47,6 +47,7 @@ def apply_config(params, defaults, config_path):
     res = {}
     for key, default in defaults.items():
         res[key] = data.get(key, default)
+    # for key, value in params.items():
     return res
 
 
@@ -287,6 +288,35 @@ def run_llm_metric(**kwargs):
     args = argparse.Namespace(**params)
     llm_metric_main(args)
 
+@run.command('synthetic_thinking')
+@click.argument('run_id', required=False)
+@click.argument('model', required=False)
+@click.option('--cpus', default=multiprocessing.cpu_count())
+@click.option('--gpus', default=None)
+@click.option('--num_blocks', default=16)
+@click.option('--engine_cpu_resources', default=None)
+@click.option('--engine_gpu_resources', default=1)
+@click.option('--concurrency', default=None)
+@click.option('--tensor_parallel_size', default=1)
+@click.option('--enable_chunked_prefill', is_flag=True, default=True)
+@click.option('--max_model_len', default=16384)
+@click.option('--max_num_batched_tokens', default=65536)
+@click.option('--max_concurrent_batches', default=32)
+@click.option('--batch_size', default=32)
+@click.option('--truncate_prompt_tokens', default=14336)
+@click.option('--max_tokens', default=2048)
+@click.option('--nccl_p2p', is_flag=True, default=False)
+@click.option('--ray_timeout', default=1800)
+@click.option('--config', type=click.Path(exists=True), default=None)
+def run_synthetic_thinking(**kwargs):
+    from ImProver.basic.synth_thinking import main as synthetic_thinking_main
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['run_id', 'model'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+    synthetic_thinking_main(args)
 
 @run.command('pipeline')
 @click.argument('metric', required=False)
@@ -328,6 +358,7 @@ def run_pipeline(**kwargs):
 
     config = kwargs.pop('config')
     defaults = kwargs.copy()
+    print(defaults)
     params = apply_config(kwargs, defaults, config)
     require_params(params, ['metric', 'dataset_path', 'prompt_id'])
     params = get_default_gpus(params)
