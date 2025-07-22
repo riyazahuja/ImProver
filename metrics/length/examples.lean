@@ -32,13 +32,16 @@ theorem foo' {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y  := by
 
 
 
+
+noncomputable section
+
+
 open Function
 open Set
 
 variable {α β : Type*} [Inhabited α]
 variable (f : α → β)
 
-noncomputable section
 open Classical
 
 def inverse (f : α → β) : β → α := fun y : β ↦
@@ -66,55 +69,56 @@ theorem bar' : Injective f ↔ LeftInverse (inverse f) f  := by
   · exact fun h y ↦ h (inverse_spec _ ⟨y, rfl⟩)
   · exact fun h x1 x2 e ↦ by rw [←h x1, e, h x2]
 
+end
 
-
-
-
-
-theorem baz {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
-  apply Left.add_nonneg
-  . exact ha
-  . exact hb
-
-
-theorem baz' {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
-  linarith
-
--- @[improver_example have_reuse, version unoptimized]
--- theorem max_add_max_eq {a b c d : ℝ} :
---     max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
---   rcases le_total a b with h_ab | h_ab
---   · rcases le_total c d with h_cd | h_cd
---     -- Case 1: a ≤ b and c ≤ d
---     · calc max a b + max c d
---         _ = b + d := by rw [max_eq_right h_ab, max_eq_right h_cd]
---         _ = max (b+c) (b+d) := by rw [max_eq_right (add_le_add_left h_cd b)]
---         _ = max (max (a+d) (b+c)) (b+d) := by
---           rw [max_eq_right (le_trans (add_le_add_right h_ab d) (@max_le_iff _ _ a b d |>.mp (by simp [h_ab, h_cd, le_refl])))]
---         _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_cd]
-
---     · calc max a b + max c d
---         _ = b + c := by rw [max_eq_right h_ab, max_eq_left h_cd]
---         _ = max (b+c) (b+d) := by rw [max_eq_left (add_le_add_left h_cd b)]
---         _ = max (max (a+d) (b+c)) (b+d) := by rw [max_eq_right (le_trans (add_le_add_right h_ab d) (max_le_iff.mp (by simp [h_ab, h_cd, le_refl])))]
---         _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_cd]; linarith
---   · rcases le_total c d with h_cd | h_cd
---     -- Case 3: b < a and c ≤ d
---     · calc max a b + max c d
---         _ = a + d := by rw [max_eq_left h_ab, max_eq_right h_cd]
---         _ = max (a+c) (a+d) := by rw [max_eq_right (add_le_add_left h_cd a)]
---         _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_cd]
---     · calc max a b + max c d
---           _ = a + c := by rw [max_eq_left h_ab, max_eq_left h_cd]
---           _ = max (a+c) (a+d) := by rw [max_eq_left (add_le_add_left h_cd a)]
---           _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_cd]
-
-
+@[improver_example have_reuse, version unoptimized]
+theorem baz {a b c d : ℝ} :
+    max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
+  rcases le_total a b with h_ab | h_ba
+  · rcases le_total c d with h_cd | h_dc
+    -- Case 1: a ≤ b and c ≤ d
+    · calc max a b + max c d
+        _ = b + d := by rw [max_eq_right h_ab, max_eq_right h_cd]
+        _ = max (b+c) (b+d) := by rw [max_eq_right (add_le_add_left h_cd b)]
+        _ = max (max (a+d) (b+c)) (b+d) := by
+          rw [max_eq_right (add_le_add_left h_cd b)]
+          apply symm
+          apply @max_eq_right _ _ (max (a+d) (b+c)) (b+d)
+          rw [max_le_iff]
+          constructor
+          . linarith
+          . exact add_le_add_left h_cd b
+        _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_cd]
+    -- Case 2: a ≤ b and d ≤ c
+    · calc max a b + max c d
+        _ = b + c := by rw [max_eq_right h_ab, max_eq_left h_dc]
+        _ = max (b+c) (b+d) := by rw [max_eq_left (add_le_add_left h_dc b)]
+        _ = max (max (a+d) (b+c)) (b+d) := by
+          rw [max_eq_left (add_le_add_left h_dc b)]
+          apply symm
+          rw [max_assoc (a+d) (b+c) (b+d), max_comm (b+c) (b+d), ← max_assoc (a+d) (b+d) (b+c)]
+          apply @max_eq_right _ _ (max (a+d) (b+d)) (b+c)
+          rw [max_le_iff]
+          constructor
+          . linarith
+          . exact add_le_add_left h_dc b
+        _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_dc]; linarith
+  · rcases le_total c d with h_cd | h_dc
+    -- Case 3: b ≤ a and c ≤ d
+    · calc max a b + max c d
+        _ = a + d := by rw [max_eq_left h_ba, max_eq_right h_cd]
+        _ = max (a+c) (a+d) := by rw [max_eq_right (add_le_add_left h_cd a)]
+        _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ba, h_cd]
+    -- Case 4: b ≤ a and d ≤ c
+    · calc max a b + max c d
+          _ = a + c := by rw [max_eq_left h_ba, max_eq_left h_dc]
+          _ = max (a+c) (a+d) := by rw [max_eq_left (add_le_add_left h_dc a)]
+          _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ba, h_dc]
 
 
 
 @[improver_example have_reuse, version optimized]
-theorem max_add_max_eq' {a b c d : ℝ} :
+theorem baz' {a b c d : ℝ} :
     max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
   have lemma_add_distrib : ∀ (x y z : ℝ), z + max x y = max (z + x) (z + y) := by
     intro x y z
@@ -127,3 +131,15 @@ theorem max_add_max_eq' {a b c d : ℝ} :
     _ = max (max c d + a) (max c d + b) := by rw [lemma_add_distrib]
     _ = max (a + max c d) (b + max c d) := by rw [add_comm (max c d) a, add_comm (max c d) b]
     _ = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by rw [lemma_add_distrib, lemma_add_distrib]
+
+
+
+@[improver_example strong_tactics, version unoptimized]
+theorem qux {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
+  apply Left.add_nonneg
+  . exact ha
+  . exact hb
+
+@[improver_example strong_tactics, version optimized]
+theorem qux' {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
+  linarith
