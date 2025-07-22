@@ -25,24 +25,31 @@ set_option autoImplicit true
 
 
 
-def initialize_retrieval (config : ImProverConfig) (step: CompilationStep) : IO ImProverConfig := do
+def initialize_retrieval (config : ImProverConfig) (step: CompilationStep) (python_cmd : String := "python"): IO ImProverConfig := do
   let env : NameMap (Array Name) := step.after.importGraph
   let nodes := env.toList.map (fun (n, _) => n) |>.eraseDup
   let output : ImProverConfig := {
     config with
     retrievalFilter := nodes
   }
+  let _ ← IO.Process.output {
+    cmd := python_cmd,
+    args := #["ImProver/prompting/rag_new_initialize.py"]
+  }
   return output
 
 
 def retrieve (step : CompilationStep) (config: ImProverConfig)
-  (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python"): IO (List String) := do
+  (python_cmd : String := "python"): IO (List String) := do
   let query : String ← insert_state_comments step
 
   let data : Json := Json.mkObj
     [("query", Json.str query),
       ("k", Json.num <| JsonNumber.fromNat config.rag?),
-     ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
+      ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString))),
+      ("prompt_id", Json.str config.prompt),
+      ("name", Json.str ""), -- TODO
+      ("module", Json.str step.after.mainModule.toString)
     ]
   IO.println data.compress
   let out ← IO.Process.output {
@@ -73,7 +80,7 @@ def getInitialProofState (env : Environment) (ci : ConstantInfo) : IO String := 
 
 -- test both on first step RAG or all steps RAG
 def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: ImProverConfig)
-  (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python"): IO (Array (CompilationStep × (List String))) := do
+  (python_cmd : String := "python"): IO (Array (CompilationStep × (List String))) := do
   let queries : Array String ← steps.mapM (fun (cmd, ci) => do
     let env := cmd.after
 
@@ -122,31 +129,35 @@ def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: Im
 
 
 
-def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo))
+def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) (prompt_id : String)
   (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python") : IO (Array (CompilationStep × (List String))) := do
   IO.println "Retrieving batch independently"
 
-  let queries : Array String ← steps.mapM (fun (cmd, ci) => do
-    let env := cmd.after
+  -- let queries : Array String ← steps.mapM (fun (cmd, ci) => do
+  --   let env := cmd.after
 
-    try
-      getInitialProofState env ci
-    catch e =>
-      IO.println s!"Error getting initial proof state on {ci.name}: {e}"
-      let tacs :=cmd.trees
-        |>.flatMap InfoTree.retainTacticInfo
-        |>.flatMap InfoTree.retainOriginal
-        |>.flatMap InfoTree.retainSubstantive
-        |>.flatMap InfoTree.tactics
-      match tacs with
-      | [] => pure ""
-      | i::_ => pure <| ((← i.mainGoalStateBefore)).pretty 1000000
+  --   try
+  --     getInitialProofState env ci
+  --   catch e =>
+  --     IO.println s!"Error getting initial proof state on {ci.name}: {e}"
+  --     let tacs :=cmd.trees
+  --       |>.flatMap InfoTree.retainTacticInfo
+  --       |>.flatMap InfoTree.retainOriginal
+  --       |>.flatMap InfoTree.retainSubstantive
+  --       |>.flatMap InfoTree.tactics
+  --     match tacs with
+  --     | [] => pure ""
+  --     | i::_ => pure <| ((← i.mainGoalStateBefore)).pretty 1000000
 
-  )
+  -- )
 
   -- IO.println queries
   let data : Json := Json.mkObj
-    [("queries", Json.arr <| queries.map (fun q => Json.str q)),
+    [("queries", Json.arr <| steps.map (fun (cmd, ci) =>
+      Json.mkObj
+        [("module", Json.str cmd.after.mainModule.toString),
+         ("name", Json.str ci.name.toString)]
+    )),
       ("k", Json.num 10)
     --  ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
     ]
@@ -154,7 +165,10 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo))
   let out ← IO.Process.output {
     cmd := python_cmd,
     -- cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
-    args := #["ImProver/online/prompting/rag_batched.py", data.compress]
+    args := #["ImProver/online/prompting/rag_batched.py",
+      data.compress,
+      "--prompt_id", prompt_id
+    ]
   }
 
   let stdout := out.stdout.trim
