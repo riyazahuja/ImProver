@@ -11,8 +11,10 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 import os, json, sys
 import argparse
 import re
+import duckdb
+from rag import get_database_retriever, add_to_db, ROOT_PATH
 
-ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 METADATA_PATH = "/Users/ahuja/Desktop/ImProver_rewrite/RAG/annotated/Mathlib/"
 
 devnull = open(os.devnull, "w")
@@ -21,67 +23,58 @@ old_stdout = sys.stdout
 sys.stdout = devnull
 
 
-def get_database_retriever(package_name="Mathlib", number_to_retrieve=6, filter={}):
-    database_path = os.path.join(
-        ROOT_PATH, ".db", f"{package_name.lower()}_initial_proofstate_db"
-    )
+# async def process_query(i, query: str, retriever, source_paths=None):
+#     if source_paths:
+#         docs = await retriever.ainvoke(
+#             query,
+#             filter={"source": {"$in": source_paths}},
+#         )
+#     else:
+#         docs = await retriever.ainvoke(query)
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="hanwenzhu/all-distilroberta-v1-lr2e-4-bs256-nneg3-ml-mar13"
-    )
+#     results = []
+#     for doc in docs:
+#         src = doc.metadata.get("source", "Unknown source")
+#         # src = src.replace(".lean", "")
+#         contents = doc.metadata.get("decl", "Unknown decl")
+#         # contents = doc.page_content
+#         # contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
+#         contents = "\n".join(line for line in contents.split("\n") if line.strip())
 
-    database = Chroma(
-        collection_name="Mathlib_initial_proofstate_db",
-        persist_directory=database_path,
-        embedding_function=embeddings,
-    )
-    db = database.as_retriever(
-        search_type="mmr", search_kwargs={"k": number_to_retrieve}
-    )
+#         results.append(f"--src: {src.strip()}\n{contents}")
 
-    return db
+#     return (i, results)
 
-
-async def process_query(i, query: str, retriever, source_paths=None):
-    if source_paths:
-        docs = await retriever.ainvoke(
-            query,
-            filter={"source": {"$in": source_paths}},
-        )
+async def get_from_db(conn, name, module):
+    """
+    Get the RAG documents from the database.
+    """
+    query = f"SELECT rag_docs FROM prompts WHERE name = ? AND module = ?"
+    result = conn.execute(query, (name, module)).fetchone()
+    
+    if result:
+        return result[0]
     else:
-        docs = await retriever.ainvoke(query)
-
-    results = []
-    for doc in docs:
-        src = doc.metadata.get("source", "Unknown source")
-        # src = src.replace(".lean", "")
-        contents = doc.metadata.get("decl", "Unknown decl")
-        # contents = doc.page_content
-        # contents = re.sub(r"/\-[\s\S]*?\-/", "", contents, flags=re.MULTILINE)
-        contents = "\n".join(line for line in contents.split("\n") if line.strip())
-
-        results.append(f"--src: {src.strip()}\n{contents}")
-
-    return (i, results)
+        return ""
 
 
 async def main():
     parser = argparse.ArgumentParser(description="Retrieve related Mathlib theorems")
     parser.add_argument(
         "json_query",
-        help='JSON string containing queries in format {"queries": ["query1", "query2"], "k": 5, "imports": [...]}',
+        help='JSON string containing queries in format {"queries": [{"module": "module1", "name": "name1"}, {"module": "module2", "name": "name2"},], "k": 5, "imports": [...]}',
+    )
+    parser.add_argument(
+        "--prompt_id",
+        type=str,
+        default="final_final_train",
+        help="ID of the prompt to retrieve documents for.",
     )
     args = parser.parse_args()
 
     try:
         query_data = json.loads(args.json_query)
 
-        # query_data = {
-        #     "queries": [
-        #         "theorem t8 : { n | Nat.Prime n } ∩ { n | n > 2 } ⊆ { n | ¬Even n } := by\n  /-\n    ⊢ HasSubset.Subset (Inter.inter (setOf fun n => Nat.Prime n) (setOf fun n => G …\n  -/\n  intro n\n  /-\n    n : Nat\n    ⊢ Membership.mem (Inter.inter (setOf fun n => Nat.Prime n) (setOf fun n => GT. …\n  -/\n  simp\n  /-\n    n : Nat\n    ⊢ Nat.Prime n → LT.lt 2 n → Odd n\n  -/\n  intro nprime n_gt\n  /-\n    n : Nat\n    nprime : Nat.Prime n\n    n_gt : LT.lt 2 n\n    ⊢ Odd n\n  -/\n  rcases Nat.Prime.eq_two_or_odd nprime with h | h\n    /-\n      case inl\n      n : Nat\n      nprime : Nat.Prime n\n      n_gt : LT.lt 2 n\n      h : Eq n 2\n      ⊢ Odd n\n    -/\n  · rw [h]\n    /-\n      case inl\n      n : Nat\n      nprime : Nat.Prime n\n      n_gt : LT.lt 2 n\n      h : Eq n 2\n      ⊢ Odd 2\n    -/\n    linarith\n    /-\n      🎉 no goals\n    -/\n    /-\n      case inr\n      n : Nat\n      nprime : Nat.Prime n\n      n_gt : LT.lt 2 n\n      h : Eq (HMod.hMod n 2) 1\n      ⊢ Odd n\n    -/\n  · rw [Nat.odd_iff, h]\n    /-\n      🎉 no goals\n    -/\n\n"
-        #     ],
-        #     "k": 5,
-        # }
 
         queries = query_data.get("queries", [])
         if not queries:
@@ -94,15 +87,24 @@ async def main():
     except ValueError as e:
         print(json.dumps({"error": str(e)}))
         exit(1)
+    
+    add_to_db(
+        prompt_id=args.prompt_id,
+        k=k,
+    )
 
-    retriever = get_database_retriever(number_to_retrieve=k)
+    prompt_id = args.prompt_id
+    conn = duckdb.connect(os.path.join(ROOT_PATH, "prompts", prompt_id, "informal_data.duckdb"))
+
+    # retriever = get_database_retriever(number_to_retrieve=k)
 
     source_paths = []
     if imports:
         source_paths = imports
 
     tasks = [
-        process_query(i, query, retriever, source_paths if imports else None)
+        # process_query(i, query, retriever, source_paths if imports else None)
+        get_from_db(conn, query["name"], query["module"])
         for i, query in enumerate(queries)
     ]
     results = await asyncio.gather(*tasks)
