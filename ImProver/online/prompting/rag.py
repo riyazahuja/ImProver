@@ -55,11 +55,13 @@ def process_informalization(model_output):
     informal_statement = ""
     informal_proof = ""
     if "<STATEMENT>" in model_output and "</STATEMENT>" in model_output:
-        informal_statement = re.search(r"<STATEMENT>(.*?)</STATEMENT>", model_output, re.DOTALL)
-        informal_statement = informal_statement.group(1).strip() if informal_statement else ""
+        # informal_statement = re.search(r"<STATEMENT>(.*?)</STATEMENT>", model_output, re.DOTALL)
+        # informal_statement = informal_statement.group(1).strip() if informal_statement else ""
+        informal_statement = model_output.split("<STATEMENT>")[-1].split("</STATEMENT>")[0].strip()
     if "<PROOF>" in model_output and "</PROOF>" in model_output:
-        informal_proof = re.search(r"<PROOF>(.*?)</PROOF>", model_output, re.DOTALL)
-        informal_proof = informal_proof.group(1).strip() if informal_proof else ""
+        # informal_proof = re.search(r"<PROOF>(.*?)</PROOF>", model_output, re.DOTALL)
+        # informal_proof = informal_proof.group(1).strip() if informal_proof else ""
+        informal_proof = model_output.split("<PROOF>")[-1].split("</PROOF>")[0].strip()
     return informal_statement, informal_proof
 
 def add_to_db(prompt_id, k=6):
@@ -132,7 +134,7 @@ def get_rag_string(prompt_id, name, module, k):
     conn.close()
 
     if result:
-        return result[0]  # Return the rag_docs string
+        return result  # Return the rag_docs string
     else:
         return ""  # No RAG docs found
 

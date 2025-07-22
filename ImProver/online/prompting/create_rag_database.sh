@@ -15,5 +15,5 @@ source ~/miniconda3/bin/activate ImProver_env
 export HF_HOME=/data/user_data/$USER/HF
 cd ~/ImProver/ImProver/online/prompting
 
-# python create_rag_database.py
-python rag_batched.py '{"queries": [{"module": "Carleson.Antichain.AntichainOperator", "name": "antichain_operator_le_volume"}], "k": 5, "imports": ["Mathlib.Tactic.Ring"]}' --prompt_id final_final_train
+python create_rag_database.py
+# python rag_batched.py '{"queries": [{"module": "Carleson.Antichain.AntichainOperator", "name": "antichain_operator_le_volume"}], "k": 5, "imports": ["Mathlib.Tactic.Ring"]}' --prompt_id final_final_train
