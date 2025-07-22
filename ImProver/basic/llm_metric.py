@@ -359,81 +359,75 @@ def parse_readabilityDB(args):
         except Exception as e:
             print(f"Error storing readability scores: {e}")
     
-    # model_scores_data = get_readability_scores(readability_connection,args,prompts=False)
-    # print(f"Model scores data: {model_scores_data}")
-    # if model_scores_data is not None:
-    #     # Open connection to eval database
-    #     eval_db_path = os.path.join("evals", args.runID, "eval.duckdb")
-    #     prompt_db_path = os.path.join("prompts", "readability.duckdb")
+    model_scores_data = get_readability_scores(readability_connection,args,prompts=False)
+    print(f"Model scores data: {model_scores_data}")
+    if model_scores_data is not None:
+        # Open connection to eval database
+        eval_db_path = os.path.join("evals", args.runID, "eval.duckdb")
+        prompt_db_path = os.path.join("prompts", "readability.duckdb")
 
-    #     try:
-    #         eval_connection = duckdb.connect(eval_db_path)
-    #         prompt_connection = duckdb.connect(prompt_db_path)
-    #
-    #         print(f"Connected to evaluation database at {eval_db_path}")
-    #         print(f"Connected to prompt database at {prompt_db_path}")
-    #         # First duplicate the evaluation_results to make a evaluation_results_legacy table
-    #         try:
-    #             # Check if the legacy table already exists
-    #             table_exists = eval_connection.execute("""
-    #                 SELECT count(*) FROM information_schema.tables 
-    #                 WHERE table_name = 'evaluation_results_legacy'
-    #             """).fetchone()[0]
+        try:
+            eval_connection = duckdb.connect(eval_db_path)
+            prompt_connection = duckdb.connect(prompt_db_path)
+    
+            print(f"Connected to evaluation database at {eval_db_path}")
+            print(f"Connected to prompt database at {prompt_db_path}")
+            # First duplicate the evaluation_results to make a evaluation_results_legacy table
+            try:
+                # Check if the legacy table already exists
+                table_exists = eval_connection.execute("""
+                    SELECT count(*) FROM information_schema.tables 
+                    WHERE table_name = 'evaluation_results_legacy'
+                """).fetchone()[0]
                 
-    #             if table_exists == 0:
-    #                 # Create the legacy table
-    #                 eval_connection.execute("""
-    #                     CREATE TABLE evaluation_results_legacy AS 
-    #                     SELECT * FROM evaluation_results
-    #                 """)
-    #                 print("Created evaluation_results_legacy backup table")
-    #             else:
-    #                 print("evaluation_results_legacy table already exists, skipping backup creation")
-    #         except Exception as e:
-    #             print(f"Error creating backup table: {e}")
-    #         # Process each row in model_scores_data
-    #         for _, row in model_scores_data.iterrows():
-    #             rowid = row['rowid']
-    #             module = row['module']
-    #             decl = row['decl']
-    #             new_score = row['score']
+                if table_exists == 0:
+                    # Create the legacy table
+                    eval_connection.execute("""
+                        CREATE TABLE evaluation_results_legacy AS 
+                        SELECT * FROM evaluation_results
+                    """)
+                    print("Created evaluation_results_legacy backup table")
+                else:
+                    print("evaluation_results_legacy table already exists, skipping backup creation")
+            except Exception as e:
+                print(f"Error creating backup table: {e}")
+            # Process each row in model_scores_data
+            for _, row in model_scores_data.iterrows():
+                rowid = row['rowid']
+                module = row['module']
+                decl = row['decl']
+                new_score = row['score']
                 
-    #             # Get the original score from the prompt database
-    #             result = prompt_connection.execute(
-    #                 "SELECT score FROM readability_scores WHERE module = ? AND decl = ?",
-    #                 [module, decl]
-    #             ).fetchone()
+                # Get the original score from the prompt database
+                result = prompt_connection.execute(
+                    "SELECT score FROM readability_scores WHERE module = ? AND decl = ?",
+                    [module, decl]
+                ).fetchone()
                 
-    #             if result:
-    #                 og_score = result[0]
+                if result:
+                    delta = float(result[0]) / 10
                     
-    #                 # Calculate percent change
-    #                 if og_score != 0:
-    #                     delta = (new_score - og_score) / og_score
-    #                 else:
-    #                     delta = None
+                    # Update the row in the eval database
+                    eval_connection.execute(
+                        """
+                        UPDATE evaluation_results 
+                        SET 
+                            new_score = ?,
+                            og_score = ?,
+                            delta = ?
+                        WHERE 
+                            rowid = ?
+                        """,
+                        [0, 0, delta, int(rowid)]
+                    )
                     
-    #                 # Update the row in the eval database
-    #                 eval_connection.execute(
-    #                     """
-    #                     UPDATE evaluation_results 
-    #                     SET 
-    #                         new_score = ?,
-    #                         og_score = ?,
-    #                         delta = ?
-    #                     WHERE 
-    #                         rowid = ?
-    #                     """,
-    #                     [new_score, og_score, delta, int(rowid)]
-    #                 )
-                    
-    #                 print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: og={og_score}, new={new_score}, delta={delta}")
-    #             else:
-    #                 print(f"Warning: No original score found for module {module}, decl {decl}")
+                    print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: og={og_score}, new={new_score}, delta={delta}")
+                else:
+                    print(f"Warning: No original score found for module {module}, decl {decl}")
             
-    #         # Commit the changes
-    #         eval_connection.commit()
-    #         print(f"Successfully updated {len(model_scores_data)} rows in the evaluation database")
+            # Commit the changes
+            eval_connection.commit()
+            print(f"Successfully updated {len(model_scores_data)} rows in the evaluation database")
             
             # Close connections
             eval_connection.close()
