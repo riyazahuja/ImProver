@@ -11,64 +11,8 @@ import datetime
 import multiprocessing
 import argparse
 import duckdb
+import random
 
-
-READABILITY_RUBRIC_PROMPTS = [
-    {
-        "text": """You are an expert at evaluating mathematical proofs in the Lean 4 language. You will be provided a proof, and you must score them with an integer number of points. You should award points as follows:
-
-**Clarity and organization: 2 points**
-The proof should receive 2 points in this category if is easy to understand the mathematical argument it is making, and if intermediate "have" statements are clear and placed appropriately. The proof should receive 0 points in this category if it makes use of an overly convoluted proof term, or if it is difficult to interpret the proof informally.
-
-You will think about this criterion, and score the proof based on its description. You will the print out only the score you gave this proof (a single number).""",
-        "points": 2,
-    },
-    {
-        "text": """You are an expert at evaluating mathematical proofs in the Lean 4 language. You will be provided a proof, and you must score them with an integer number of points. You should award points as follows:
-
-**Using outside theorems effectively: 2 points**
-The proof should receive 2 points in this category if it uses results from Mathlib, etc. to logically progress the proof, and if it is clear why such results are relevant to the proof. The proof should receive 0 points in this category if it attempts to re-prove trivial statements that have already been proven in Mathlib, or previously in the same proof.
-
-You will think about this criterion, and score the proof based on its description. You will the print out only the score you gave this proof (a single number).""",
-        "points": 2,
-    },
-    {
-        "text": """You are an expert at evaluating mathematical proofs in the Lean 4 language. You will be provided a proof, and you must score them with an integer number of points. You should award points as follows:
-
-**Clean layout: 2 points**
-The proof should receive 2 points in this category if each line is generally 100 characters or less, if "·", indentations, and newlines are used to break up proofs with multiple goals, and if longer tactic proofs are placed on the line following the "by" keyword. The proof should receive 0 points in this category if any of the above style conventions are violated.
-
-You will think about this criterion, and score the proof based on its description. You will the print out only the score you gave this proof (a single number).""",
-        "points": 2,
-    },
-    {
-        "text": """You are an expert at evaluating mathematical proofs in the Lean 4 language. You will be provided a proof, and you must score them with an integer number of points. You should award points as follows:
-
-**Comments: 1 points**
-The proof should receive 1 points in this category if complex or important points in the proof are commented ("/- ... -/" or "-- ...") with a description of the step in question, including what it symbolizes in informal mathematics. The proof should receive 0 points in this category if its comments are too long or too frequent, or if they are irrelevant to the steps of the proof nearby.
-
-You will think about this criterion, and score the proof based on its description. You will the print out only the score you gave this proof (a single number).""",
-        "points": 1,
-    },
-    {
-        "text": """You are an expert at evaluating mathematical proofs in the Lean 4 language. You will be provided a proof, and you must score them with an integer number of points. You should award points as follows:
-
-**Variable conventions: 1 point**
-The proof should receive 1 point in this category if "α", "β", "γ" are used as names for general types, "h", "h₁", etc. are used for hypotheses, "m", "n", "k" are used for natural numbers, "i", "j", "k" are used for integers, and uppercase letters are used for types with some mathematical definition ("G" for a group, "R" for a ring, etc.). The proof should receive 0 points in this category if any of the above conventions are violated.
-
-You will think about this criterion, and score the proof based on its description. You will the print out only the score you gave this proof (a single number).""",
-        "points": 1,
-    },
-    {
-        "text": """You are an expert at evaluating mathematical proofs in the Lean 4 language. You will be provided a proof, and you must score them with an integer number of points. You should award points as follows:
-
-**Automation tactics: 1 point**
-The proof should receive 1 point in this category if powerful automation tactics (such as "simp", "linarith", "ring", "aesop", etc.) are used where appropriate in effective places, and if they replace steps that would be considered straightforward, purely computational/technical, or trivial in an ordinary mathematical argument. The proof should receive 0 points in this category if the proof contains long sequences of tactics that could be replaced by one of the automation tactics mentioned above, or if it overuses these tactics in ineffective places.
-
-You will think about this criterion, and score the proof based on its description. You will the print out only the score you gave this proof (a single number).""",
-        "points": 1,
-    },
-]
 
 
 def run_inference(df, args, metric_config):
@@ -125,23 +69,26 @@ def run_inference(df, args, metric_config):
 
     def postprocess(row):
         text = row["generated_text"]
-        max_score = sum(
-            rubric["points"] for rubric in metric_config["llm"]["rubric"]
-        )
-        # Extract the first number that is <= max_score using regex
-        score = 0
-        match = re.search(r'\b\d+\b', text)
+        match = re.search(r"(\d+)$", text)
         if match:
-            candidate_score = int(match.group())
-            if candidate_score <= max_score:
-                score = candidate_score
-        
+            score = int(match.group()[-1]) # Extract the last number from the text
+        else:
+            print(f"Warning: No score found in generated text: {text}. Might need to increase number of generated tokens. ")
+            score = 0
+        # Will score everything between 0 (first is better) and 10 (second is better), so we need to scale it to the rubric points
+        if row["original_first"]:
+            score = (score - 5) / 10 * row["points"]
+        else:
+            score = (5 - score) / 10 * row["points"]
         return dict(answer=score, **row)
 
     vllm_processor = build_llm_processor(
         config,
         preprocess=lambda row: dict(
-            messages=[{"role": "user", "content": row["raw_prompt"]}],
+            messages=[
+                {"role": "system", "content": "You are a helpful expert in evaluating proofs in the Lean4 language. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them. Think carefully about your answer, listen to EXACTLY what the user tells you to do, and output ONLY the final score of which proof is better, without anything else."},
+                {"role": "user", "content": row["raw_prompt"]}
+                ],
             sampling_params=dict(
                 # n=args.n,
                 truncate_prompt_tokens=8192 - 128,
@@ -168,18 +115,97 @@ def run_inference(df, args, metric_config):
 
     return run_output_dir
 
+def strip_lean_comments(src: str) -> str:
+    """
+    Remove *all* Lean-4 comments **and** leading attribute tags.
 
-def calculate_prompt(proof, metric_config):
+    • Line comments:             -- … (to end-of-line)
+    • Block & doc comments:      /- … -/   and   /-- … -/
+      ⋄ Nesting is handled.
+    • Attribute tags:            @[ … ]   (e.g. @[simp], @[simp, reducible]).
+      ⋄ Only stripped when found outside comments/strings.
+
+    String literals (\" … \") are respected, including \"escaped quotes\".
+    All new-lines are preserved so original line numbering is unchanged.
+    """
+    i, n = 0, len(src)
+    out = []
+    in_string = False
+    in_line   = False           # after "--"
+    depth     = 0               # nesting of /- … -/
+
+    while i < n:
+        c = src[i]
+
+        # ── inside string literal ────────────────────────────────────────────
+        if in_string:
+            if c == '\\' and i + 1 < n:                 # keep escape + char
+                out.extend(src[i:i+2]); i += 2; continue
+            if c == '"':   in_string = False
+            out.append(c); i += 1; continue
+
+        # ── inside single-line comment ───────────────────────────────────────
+        if in_line:
+            if c == '\n':   in_line = False; out.append('\n')
+            i += 1; continue
+
+        # ── inside (possibly nested) block/doc comment ───────────────────────
+        if depth:
+            if src.startswith('-/', i):                # close one level
+                depth -= 1; i += 2; continue
+            if src.startswith('/--', i):               # nested doc
+                depth += 1; i += 3; continue
+            if src.startswith('/-', i):                # nested block
+                depth += 1; i += 2; continue
+            if c == '\n':   out.append('\n')           # keep new-lines
+            i += 1; continue
+
+        # ── normal code region ───────────────────────────────────────────────
+        # 1) attribute tags  @[ … ]
+        if src.startswith('@[', i):
+            i += 2
+            # skip until corresponding ]
+            while i < n and src[i] != ']':
+                i += 1
+            if i < n: i += 1            # skip closing ]
+            # remove trailing spaces/tabs (leave new-line)
+            while i < n and src[i] in ' \t':
+                i += 1
+            continue
+
+        # 2) open/close comment regions
+        if src.startswith('/--', i):     depth = 1; i += 3; continue
+        if src.startswith('/-',  i):     depth = 1; i += 2; continue
+        if src.startswith('--',  i):     in_line = True; i += 2; continue
+
+        # 3) open string
+        if c == '"':   in_string = True; out.append(c); i += 1; continue
+
+        # 4) ordinary code char
+        out.append(c); i += 1
+
+    return ''.join(out).strip()
+
+
+
+def calculate_prompt(proof1, proof2, metric_config):
     ret = []
     for i, rubric in enumerate(metric_config["llm"]["rubric"]):
+        if rubric.get("comments", True):
+            proof1, proof2 = strip_lean_comments(proof1), strip_lean_comments(proof2)
         prompt = (
             rubric["text"]
-            + f"""The proof you will score is the following:
-        ```lean
-        {proof}
-        ```
-        
-        Remember to output ONLY the final score, without anything else."""
+            + f"""Here is the first proof:
+```lean
+{proof1}
+```
+
+And here is the second proof:
+```lean
+{proof2}
+```
+
+You will think about this criterion, and score which proof is better by giving a number between 0 and 9, where 0 means the first proof is much better, 9 means the second proof is much better, and 5 means they are equally good or equally bad. You will then print out ONLY the score you gave these proofs (a single number), without anything else. """
         )
         ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i})
     return ret
@@ -222,8 +248,8 @@ def aggregate_scores(rows, metric_config):
             print(f"Warning: Duplicate categories found in group for prompt_idx {idx}")
             continue
             
-        # Calculate score for each category (min of answer and points)
-        group_score = sum(min(item['answer'], item['points']) for item in group)
+        # Calculate score for each category
+        group_score = sum(item["answer"] for item in group)
         
         # Normalize by dividing by total points
         normalized_score = group_score
@@ -235,17 +261,17 @@ def aggregate_scores(rows, metric_config):
     
     return sum(normalized_scores) / len(normalized_scores)
 
-def get_readability_scores(readability_connection,args,prompts=True):
-    if prompts:
-        condition = "WHERE is_og = TRUE"
-    else:
-        condition = "WHERE is_og = FALSE"
+def get_readability_scores(readability_connection,args):
+    # if prompts:
+    #     condition = "WHERE is_og = TRUE"
+    # else:
+    #     condition = "WHERE is_og = FALSE"
         
     
     if readability_connection:
         try:
             
-            query = f"SELECT * FROM scores {condition}"
+            query = f"SELECT * FROM scores"
             result = readability_connection.execute(query).fetchdf()
             
             if not result.empty:
@@ -296,8 +322,8 @@ def parse_readabilityDB(args):
             print(f"Error connecting to existing database: {e}")
             readability_connection = None
             
-    # Query the database to get scores for original proofs
-    readability_scores_data = get_readability_scores(readability_connection,args,prompts=True)
+    # Query the database to get scores for original/new proof pairs
+    readability_scores_data = get_readability_scores(readability_connection,args)
     if readability_scores_data is not None:
         # Create the directory if it doesn't exist
         os.makedirs("prompts", exist_ok=True)
@@ -343,7 +369,7 @@ def parse_readabilityDB(args):
         try:
             eval_connection = duckdb.connect(eval_db_path)
             prompt_connection = duckdb.connect(prompt_db_path)
-            
+    
             print(f"Connected to evaluation database at {eval_db_path}")
             print(f"Connected to prompt database at {prompt_db_path}")
             # First duplicate the evaluation_results to make a evaluation_results_legacy table
@@ -379,13 +405,7 @@ def parse_readabilityDB(args):
                 ).fetchone()
                 
                 if result:
-                    og_score = result[0]
-                    
-                    # Calculate percent change
-                    if og_score != 0:
-                        delta = (new_score - og_score) / og_score
-                    else:
-                        delta = None
+                    delta = float(result[0]) / 10
                     
                     # Update the row in the eval database
                     eval_connection.execute(
@@ -398,7 +418,7 @@ def parse_readabilityDB(args):
                         WHERE 
                             rowid = ?
                         """,
-                        [new_score, og_score, delta, int(rowid)]
+                        [0, 0, delta, int(rowid)]
                     )
                     
                     print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: og={og_score}, new={new_score}, delta={delta}")
@@ -417,10 +437,14 @@ def parse_readabilityDB(args):
             print(f"Error updating scores in evaluation database: {e}")
             
     
-    
-    
-    
-    
+def randomize_order(proof_data):
+    for p in proof_data:
+        if random.random() < 0.5:
+            p['proof1'], p['proof2'] = p['proof2'], p['proof1']
+            p['original_first'] = False
+        else:
+            p['original_first'] = True
+
 
 def main(args):
 
@@ -447,56 +471,86 @@ def main(args):
     proof_data = []
 
     # If we don't have a prompt database connection
-    if promptDB_connection is None:
-        print("No prompt database connection. Will fetch original proofs from eval database.")
-        # Get one row per module+decl with original proofs
-        original_proofs = eval_connection.execute("""
-            SELECT 
-                MIN(rowid) as rowid, 
-                module, 
-                decl, 
-                ANY_VALUE(og_raw) as og_raw
-            FROM 
-                evaluation_results 
-            GROUP BY 
-                module, decl
-        """).fetchall()
+    # if promptDB_connection is None:
+    #     print("No prompt database connection. Will fetch original proofs from eval database.")
+    #     # Get one row per module+decl with original proofs
+    #     original_proofs = eval_connection.execute("""
+    #         SELECT 
+    #             MIN(rowid) as rowid, 
+    #             module, 
+    #             decl, 
+    #             ANY_VALUE(og_raw) as og_raw
+    #         FROM 
+    #             evaluation_results 
+    #         GROUP BY 
+    #             module, decl
+    #     """).fetchall()
         
-        # Add original proofs to our data
-        for _, module, decl, old_raw in original_proofs:
-            if old_raw:  # Ensure we have a valid proof
-                proof_data.append({
-                    'module': module,
-                    'decl': decl,
-                    'proof': old_raw,
-                    'rowid': None,
-                    'is_og': True
-                })
+    #     # Add original proofs to our data
+    #     for _, module, decl, old_raw in original_proofs:
+    #         if old_raw:  # Ensure we have a valid proof
+    #             proof_data.append({
+    #                 'module': module,
+    #                 'decl': decl,
+    #                 'proof': old_raw,
+    #                 'rowid': None,
+    #                 'is_og': True
+    #             })
 
-    # Get all improved proofs that are marked as correct
-    improved_proofs = eval_connection.execute("""
-        SELECT 
-            rowid, 
-            module, 
-            decl, 
-            new_raw 
-        FROM 
-            evaluation_results 
-        WHERE 
-            new_correct = TRUE
-    """).fetchall()
+    # # Get all improved proofs that are marked as correct
+    # improved_proofs = eval_connection.execute("""
+    #     SELECT 
+    #         rowid, 
+    #         module, 
+    #         decl, 
+    #         new_raw 
+    #     FROM 
+    #         evaluation_results 
+    #     WHERE 
+    #         new_correct = TRUE
+    # """).fetchall()
 
-    # Add improved proofs to our data
-    for rowid, module, decl, new_raw in improved_proofs:
-        if new_raw:  # Ensure we have a valid proof
-            proof_data.append({
-                'module': module,
-                'decl': decl,
-                'proof': new_raw,
-                'rowid': int(rowid),
-                'is_og': False
-            })
+    # # Add improved proofs to our data
+    # for rowid, module, decl, new_raw in improved_proofs:
+    #     if new_raw:  # Ensure we have a valid proof
+    #         proof_data.append({
+    #             'module': module,
+    #             'decl': decl,
+    #             'proof': new_raw,
+    #             'rowid': int(rowid),
+    #             'is_og': False
+    #         })
 
+    # Get all pairs of original and improved proofs that are marked as correct and have non-empty proofs
+    query = """
+SELECT a.decl,
+       struct_pack(a.*) AS row_a,
+       struct_pack(b.*) AS row_b
+FROM   evaluation_results AS a
+JOIN   evaluation_results AS b
+       ON  a.decl = b.decl
+       AND a.module = b.module
+       AND a.og_raw != ""
+       AND b.new_raw != ""
+       AND a.rowid != b.rowid
+       AND a.is_og = TRUE
+       AND b.is_og = FALSE
+       AND b.new_correct = TRUE;"""
+
+    df_pairs = con.execute(query).fetchall()
+    # Couldn't be bothered to use pandas here
+    for original, new in df_pairs:
+        assert original['decl'] == new['decl'], "Mismatched decls in proof pair (Tate messed up his SQL)"
+        assert original['is_og'] == True and new['is_og'] == False, "Tate probably messed up his SQL"
+        proof_data.append({
+            'module': original['module'],
+            'decl': original['decl'],
+            'proof1': original['og_raw'],
+            'proof2': new['new_raw'],
+            'rowid': int(original['rowid']),
+        })
+    
+    randomize_order(proof_data)
 
     # Load run config to get metric information
     run_config_path = os.path.join("evals", args.run_id, "config.json")
@@ -519,7 +573,7 @@ def main(args):
 
     data = []
     for item in proof_data:
-        prompts = calculate_prompt(item["proof"], metric_config)
+        prompts = calculate_prompt(item["proof1"], item["proof2"], metric_config)
         data.extend([{**prompt, **item} for prompt in prompts])
     
     proof_df = pd.DataFrame(data)
@@ -538,10 +592,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-
-
-
-
     parser = argparse.ArgumentParser(
         description="Generates and infers the LLM-based readability metric on a collection of proofs"
     )
