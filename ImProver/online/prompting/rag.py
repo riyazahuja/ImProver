@@ -117,16 +117,17 @@ def add_to_db(prompt_id, k=6):
 
     conn.close()
 
-def get_rag_string(prompt_id, name, module, k):
+def get_rag_string(conn, name, module, k):
     """
     Retrieve the RAG string for a specific name and module.
     """
-    conn = duckdb.connect(os.path.join(ROOT_PATH, "prompts", prompt_id, "informal_data.duckdb"))
-    assert conn is not None, "Failed to connect to the database."
+    # conn = duckdb.connect(os.path.join(ROOT_PATH, "prompts", prompt_id, "informal_data.duckdb"))
+    # assert conn is not None, "Failed to connect to the database."
 
     columns = [col[0] for col in conn.execute("DESCRIBE prompts").fetchall()]
     if "rag_docs" not in columns:
-        add_to_db(prompt_id, k=k)
+        # add_to_db(prompt_id, k=k)
+        raise ValueError("rag_docs column does not exist in the database. Please run add_to_db first.")
 
     query = f"SELECT rag_docs FROM prompts WHERE name = '{_duckdb_escape(name)}' AND module = '{module}'"
     result = conn.execute(query).fetchone()
