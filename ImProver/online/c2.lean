@@ -272,7 +272,7 @@ structure TheoremData where
   goal : String := ""
   prescopes: String := ""
   postscopes: String := ""
-  rag : Json := Json.arr #[]
+  -- rag : Json := Json.arr #[]
   C0_dependencies : Array TheoremID := #[]
   C1_dependencies : Array TheoremID := #[]
   C2_dependencies : Array TheoremID := #[]
