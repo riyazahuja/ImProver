@@ -75,13 +75,13 @@ def getScopes (cmd : CompilationStep) (fileName : String) : IO (String × String
 
 
 def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod : Name) (python_cmd : String) (fileName: String) (prompt_id : String) : IO (List (List TheoremData × Nat)) := do
-  let rag_strings : Array Json ← do
-    let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new mod prompt_id (python_cmd := python_cmd)
-    let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
-    pure x
+  -- let rag_strings : Array Json ← do
+  --   let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new mod prompt_id (python_cmd := python_cmd)
+  --   let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
+  --   pure x
 
 
-  IO.println s!"==== Got {rag_strings.size} prompts from RAG ===="
+  -- IO.println s!"==== Got {rag_strings.size} prompts from RAG ===="
 
   -- let targets_new_with_id : Array (CompilationStep × ConstantInfo × (Array (CompilationStep × ConstantInfo))) :=
   --   targets_new.mapIdx (fun i target => (target.1, target.2, targets_new.extract 0 i))
@@ -98,7 +98,7 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
 
 
   let mut outputs := []
-  for (((cmd, ci, id, prev_ids), rag), target_idx) in (targets_new_cumulative.zip rag_strings).zipIdx do
+  for ((cmd, ci, id, prev_ids), target_idx) in (targets_new_cumulative).zipIdx do
     IO.println s!"Processing {ci.name.toString} in {mod.toString}"
     -- eventually want annotation on partial proofs, but for now, ignore
     let annotation_string : String ← insert_state_comments cmd
@@ -162,7 +162,7 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
         annotation := annotation_string,
         content_sorry := pfAsSorry,
         goal := initialGoal,
-        rag := rag,
+        -- rag := rag,
         prescopes := prescopes,
         postscopes := postscopes
         }
