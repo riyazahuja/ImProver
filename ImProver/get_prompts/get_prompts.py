@@ -85,6 +85,7 @@ async def calculate_prompt(file_info, args):
             file.replace("/", ".").replace(".lean", ""),
             os.path.join("prompts", args.prompts_id, "src"),
             sys.executable,
+            args.prompts_id,
             "--theorems",
             ",".join(theorems) if theorems else ""
         ]
@@ -96,6 +97,7 @@ async def calculate_prompt(file_info, args):
             file.replace("/", ".").replace(".lean", ""),
             os.path.join("prompts", args.prompts_id, "src"),
             sys.executable,
+            args.prompts_id
         ]
     print(" ".join(cmd))
     try:
