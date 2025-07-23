@@ -74,9 +74,9 @@ def getScopes (cmd : CompilationStep) (fileName : String) : IO (String × String
 
 
 
-def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod : Name) (python_cmd : String) (fileName: String) : IO (List (List TheoremData × Nat)) := do
+def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod : Name) (python_cmd : String) (fileName: String) (prompt_id : String) : IO (List (List TheoremData × Nat)) := do
   let rag_strings : Array Json ← do
-    let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new python_cmd
+    let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new prompt_id (python_cmd := python_cmd)
     let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
     pure x
 

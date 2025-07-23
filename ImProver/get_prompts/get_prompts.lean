@@ -26,7 +26,7 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 set_option autoImplicit true
 
 
-def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String): IO Unit := do
+def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String) (prompts_id : String): IO Unit := do
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean mod).toString
   -- let scope_import := "import ImProver.get_prompts.where_with_end\n"
@@ -73,7 +73,7 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
 
   IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ===="
 
-  let outputs_raw ← getPromptsAux targets_new mod python_cmd fileName
+  let outputs_raw ← getPromptsAux targets_new mod python_cmd fileName prompts_id
   let outputs := outputs_raw.map (fun x => x.1) |>.flatten
 
 
@@ -101,6 +101,7 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
+  let prompts_id := args.positionalArg! "prompts_id" |>.as! String
   let mod :Name := module
   let theorems_raw : String := match args.flag? "theorems" with
   | some x => x |>.as! String
@@ -109,7 +110,7 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
 
 
   -- IO.println theorems
-  getPrompts mod outputDirectory python_cmd theorems
+  getPrompts mod outputDirectory python_cmd theorems prompts_id
   return 0
 
 
@@ -125,6 +126,7 @@ def get_prompts : Cmd := `[Cli|
     file : ModuleName; "Lean module to get prompts for."
     outputDirectory : String; "Where to save the Json output."
     pythonCommand : String; "Path to python executable."
+    prompts_id : String; "ID for the prompts, used to identify the source of the prompts in the database."
 
   EXTENSIONS:
     defaultValues! #[("theorems", "")]
