@@ -247,7 +247,7 @@ def get_prompt_eval_batched (mod : Name) (cmds_ci : Array (CompilationStep × Co
   IO.println s!"==== GOT {prompt_data.size} prompts from {mod}!!! ===="
 
   let rag_strings : Array Json ← do
-      let items ← retrieve_batch_indep cmds_ci python_cmd
+      let items ← retrieve_batch_indep cmds_ci mod "" python_cmd
       let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
       pure x
   IO.println s!"==== GOT {rag_strings.size} prompts from RAG!!! ===="

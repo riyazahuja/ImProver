@@ -100,12 +100,12 @@ def run_inference(df, args, metric_config):
     )
     ds = vllm_processor(ds).materialize()
 
-    run_output_dir = os.path.join("evals", args.run_id, "readability")
+    run_output_dir = os.path.join("evals", args.runID, "readability")
     os.makedirs(run_output_dir, exist_ok=True)
 
     ds.repartition(16).write_parquet(f"local://{run_output_dir}")
 
-    con = duckdb.connect(os.path.join("evals", args.run_id, "readability.duckdb"))
+    con = duckdb.connect(os.path.join("evals", args.runID, "readability.duckdb"))
     con.execute(
         f"""
         CREATE TABLE IF NOT EXISTS scores AS
@@ -266,7 +266,7 @@ def get_readability_scores(readability_connection,args):
     #     condition = "WHERE is_og = TRUE"
     # else:
     #     condition = "WHERE is_og = FALSE"
-    prompts=True
+        
     
     if readability_connection:
         try:
@@ -313,7 +313,7 @@ def get_readability_scores(readability_connection,args):
         return None
 
 def parse_readabilityDB(args):
-    readabilityDB_path = os.path.join("evals", args.run_id, "readability.duckdb")
+    readabilityDB_path = os.path.join("evals", args.runID, "readability.duckdb")
     if readabilityDB_path:
         try:
             readability_connection = duckdb.connect(readabilityDB_path)
@@ -322,48 +322,48 @@ def parse_readabilityDB(args):
             print(f"Error connecting to existing database: {e}")
             readability_connection = None
             
-    # # Query the database to get scores for original/new proof pairs
-    # readability_scores_data = get_readability_scores(readability_connection,args)
-    # if readability_scores_data is not None:
-    #     # Create the directory if it doesn't exist
-    #     os.makedirs("prompts", exist_ok=True)
+    # Query the database to get scores for original/new proof pairs
+    readability_scores_data = get_readability_scores(readability_connection,args)
+    if readability_scores_data is not None:
+        # Create the directory if it doesn't exist
+        os.makedirs("prompts", exist_ok=True)
 
-    #     # Connect to or create the database
-    #     prompt_db_path = os.path.join("prompts", "readability.duckdb")
-    #     try:
-    #         prompt_connection = duckdb.connect(prompt_db_path)
-    #         print(f"Connected to prompt database at {prompt_db_path}")
+        # Connect to or create the database
+        prompt_db_path = os.path.join("prompts", "readability.duckdb")
+        try:
+            prompt_connection = duckdb.connect(prompt_db_path)
+            print(f"Connected to prompt database at {prompt_db_path}")
             
-    #         # Create the table if it doesn't exist
-    #         prompt_connection.execute("""
-    #             CREATE TABLE IF NOT EXISTS readability_scores (
-    #                 module VARCHAR,
-    #                 decl VARCHAR,
-    #                 score FLOAT,
-    #                 PRIMARY KEY (module, decl)
-    #             )
-    #         """)
+            # Create the table if it doesn't exist
+            prompt_connection.execute("""
+                CREATE TABLE IF NOT EXISTS readability_scores (
+                    module VARCHAR,
+                    decl VARCHAR,
+                    score FLOAT,
+                    PRIMARY KEY (module, decl)
+                )
+            """)
             
-    #         # Register the DataFrame as a view
-    #         prompt_connection.register('temp_scores', readability_scores_data)
+            # Register the DataFrame as a view
+            prompt_connection.register('temp_scores', readability_scores_data)
             
-    #         # Clear existing scores and insert new ones in a transaction
-    #         prompt_connection.execute("BEGIN TRANSACTION")
-    #         prompt_connection.execute("DELETE FROM readability_scores")
-    #         prompt_connection.execute("INSERT INTO readability_scores SELECT module, decl, score FROM temp_scores")
-    #         prompt_connection.execute("COMMIT")
+            # Clear existing scores and insert new ones in a transaction
+            prompt_connection.execute("BEGIN TRANSACTION")
+            prompt_connection.execute("DELETE FROM readability_scores")
+            prompt_connection.execute("INSERT INTO readability_scores SELECT module, decl, score FROM temp_scores")
+            prompt_connection.execute("COMMIT")
             
-    #         print(f"Successfully stored {len(readability_scores_data)} readability scores in {prompt_db_path}")
-    #         prompt_connection.close()
+            print(f"Successfully stored {len(readability_scores_data)} readability scores in {prompt_db_path}")
+            prompt_connection.close()
             
-    #     except Exception as e:
-    #         print(f"Error storing readability scores: {e}")
+        except Exception as e:
+            print(f"Error storing readability scores: {e}")
     
-    model_scores_data = get_readability_scores(readability_connection,args)#,prompts=False)
+    model_scores_data = get_readability_scores(readability_connection,args,prompts=False)
     print(f"Model scores data: {model_scores_data}")
     if model_scores_data is not None:
         # Open connection to eval database
-        eval_db_path = os.path.join("evals", args.run_id, "eval.duckdb")
+        eval_db_path = os.path.join("evals", args.runID, "eval.duckdb")
         prompt_db_path = os.path.join("prompts", "readability.duckdb")
 
         try:
@@ -421,7 +421,7 @@ def parse_readabilityDB(args):
                         [0, 0, delta, int(rowid)]
                     )
                     
-                    print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: og={0}, new={new_score}, delta={delta}")
+                    print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: og={og_score}, new={new_score}, delta={delta}")
                 else:
                     print(f"Warning: No original score found for module {module}, decl {decl}")
             
@@ -460,7 +460,7 @@ def main(args):
     
     
     # Try to open the eval.duckdb file
-    eval_db_path = os.path.join("evals", args.run_id, "eval.duckdb")
+    eval_db_path = os.path.join("evals", args.runID, "eval.duckdb")
     try:
         eval_connection = duckdb.connect(eval_db_path)
         print(f"Successfully connected to {eval_db_path}")
@@ -537,7 +537,7 @@ JOIN   evaluation_results AS b
        AND b.is_og = FALSE
        AND b.new_correct = TRUE;"""
 
-    df_pairs = eval_connection.execute(query).fetchall()
+    df_pairs = con.execute(query).fetchall()
     # Couldn't be bothered to use pandas here
     for original, new in df_pairs:
         assert original['decl'] == new['decl'], "Mismatched decls in proof pair (Tate messed up his SQL)"
@@ -553,7 +553,7 @@ JOIN   evaluation_results AS b
     randomize_order(proof_data)
 
     # Load run config to get metric information
-    run_config_path = os.path.join("evals", args.run_id, "config.json")
+    run_config_path = os.path.join("evals", args.runID, "config.json")
     try:
         with open(run_config_path, 'r') as f:
             run_config = json.load(f)
@@ -595,7 +595,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generates and infers the LLM-based readability metric on a collection of proofs"
     )
-    parser.add_argument("run_id", type=str, help="Run ID to use for evaluation")
+    parser.add_argument("runID", type=str, help="Run ID to use for evaluation")
     parser.add_argument("prompts_id", type=str, help="Prompt ID to use for evaluation")
     parser.add_argument(
         "--model",

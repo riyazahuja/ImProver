@@ -83,7 +83,7 @@ def create_vectordb(prompt_id="final_final_train"):
     )
 
 
-    for name, module, text, messages in conn.execute("SELECT name, module, generated_text, messages FROM prompts").fetchall():
+    for name, module, text, messages in conn.execute("SELECT name, module, generated_text, messages FROM informal_data").fetchall():
         src = messages[0]["content"].split("<FORMAL>")[-1].split("</FORMAL>")[0].strip()
         informal_statement, informal_proof = process_informalization(text)
         if not informal_statement:

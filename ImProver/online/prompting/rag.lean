@@ -129,7 +129,7 @@ def retrieve_batch (steps : Array (CompilationStep × ConstantInfo)) (config: Im
 
 
 
-def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) (prompt_id : String)
+def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) (mod : Name) (prompt_id : String)
   (python_cmd : String := "/home/riyaza/miniconda3/envs/env/bin/python") : IO (Array (CompilationStep × (List String))) := do
   IO.println "Retrieving batch independently"
 
@@ -155,7 +155,7 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) (prom
   let data : Json := Json.mkObj
     [("queries", Json.arr <| steps.map (fun (cmd, ci) =>
       Json.mkObj
-        [("module", Json.str cmd.after.mainModule.toString),
+        [("module", Json.str mod.toString),
          ("name", Json.str ci.name.toString)]
     )),
       ("k", Json.num 10)
@@ -172,6 +172,12 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) (prom
   }
 
   let stdout := out.stdout.trim
+  IO.println "================================================"
+  IO.println "\n>>> RAG OUTPUT <<<\n"
+  IO.println stdout
+  IO.println "\n>>> RAG ERROR <<<\n"
+  IO.println out.stderr
+  IO.println "================================================"
   -- IO.println out.stderr
   -- IO.println "OUT"
   -- IO.println out.stdout

@@ -224,7 +224,7 @@ def main(args):
         llm_args = argparse.Namespace(
             run_id=args.run_id,
             prompts_id=args.prompt_id,
-            inference=True,
+            # inference=True,
             # output_dir=args.output_dir,
             model=args.model,
             split=args.split,
