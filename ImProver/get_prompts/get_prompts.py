@@ -13,6 +13,7 @@ from datetime import datetime
 import argparse
 from multiprocessing import cpu_count
 import torch
+import json
 from .informalize import main as informalizer_main
 
 SYSTEM_PROMPTS = {
@@ -156,6 +157,37 @@ def main(args):
     if args.informalize:
         print("[IMPROVER: Informalizing theorems...]")
         informalizer_main(args)
+    # TODO: (im looking at you riyaz)
+    # config = json.load(open(os.path.join("prompts", args.prompts_id, "config.json"), "r"))
+    config = {"rag": True, "k": 6}  # Temporary hardcoded config for testing
+    if config.get("rag", False):
+        try:
+            config_json = json.load(open(os.path.join("prompts", args.prompts_id, "config.json"), "r"))
+            if "rag" in config_json and config_json["rag"]:
+                assert args.informalize, "RAG requires informalization to be enabled."
+                from ..online.prompting.rag import add_to_db, get_rag_string
+                import duckdb
+                add_to_db(args.prompts_id, k=config.get("k", 6))
+                informal_conn = duckdb.connect(os.path.join("prompts", args.prompts_id, "informal_data.duckdb"))
+                
+                all_prompt_files = []
+                for a, b, c in os.walk(os.path.join("prompts", args.prompts_id, "src")):
+                    for file in c:
+                        if file.endswith(".json"):
+                            all_prompt_files.append(os.path.join(a, file))
+                            contents = json.load(open(os.path.join(a, file), "r"))
+                            for prompt in contents:
+                                name = prompt["id"]["name"]
+                                module = prompt["id"]["module"]
+                                rag = get_rag_string(informal_conn, name, module, k=config.get("k", 6))
+                                prompt["rag"] = [rag] if rag else []
+                            json.dump(contents, open(os.path.join(a, file), "w"), indent=4)
+                informal_conn.close()
+                print(f"[IMPROVER: RAG setup complete for prompts {args.prompts_id} with {len(all_prompt_files)} files.]")
+
+
+        except (FileNotFoundError, json.JSONDecodeError):
+            print("[IMPROVER: Bad RAG configuration found, skipping RAG setup.]")
 
     
     
