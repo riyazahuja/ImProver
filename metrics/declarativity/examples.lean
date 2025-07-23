@@ -8,7 +8,7 @@ import Mathlib.Data.Nat.Prime.Basic
 
 
 @[improver_example have_reuse, version unoptimized]
-theorem baz {a b c d : ℝ} :
+theorem foo {a b c d : ℝ} :
     max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
   rcases le_total a b with h_ab | h_ba
   · rcases le_total c d with h_cd | h_dc
@@ -54,7 +54,7 @@ theorem baz {a b c d : ℝ} :
 
 
 @[improver_example have_reuse, version optimized]
-theorem baz' {a b c d : ℝ} :
+theorem foo' {a b c d : ℝ} :
     max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
   have lemma_add_distrib : ∀ (x y z : ℝ), z + max x y = max (z + x) (z + y) := by
     intro x y z

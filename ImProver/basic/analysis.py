@@ -339,107 +339,6 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
         # This might be an issue if training command expects this file.
         # Create an empty table? Or let training command handle missing file.
         # For now, if it's empty, the file might not be created or will be empty.
-        
-    # Distribution change analysis: compare og_score and new_score distributions in collected_rows_for_raw_db
-
-    import numpy as np
-
-    dist_csv_path = os.path.join(analysis_base_path, "score_distribution_stats.csv")
-    dist_plot_path = os.path.join(analysis_base_path, "score_distribution_plot.png")
-
-    if collected_rows_for_raw_db:
-        og_scores = []
-        new_scores = []
-        og_unscored = 0
-        new_unscored = 0
-
-        for row in collected_rows_for_raw_db:
-            og_score = row.get("og_score")
-            new_score = row.get("new_score")
-
-            og_score_val = parse_json_field_as_float(og_score)
-            new_score_val = parse_json_field_as_float(new_score)
-
-            if og_score_val is not None:
-                og_scores.append(og_score_val)
-            else:
-                og_unscored += 1
-
-            if new_score_val is not None:
-                new_scores.append(new_score_val)
-            else:
-                new_unscored += 1
-
-        # Compute statistics
-        def get_stats(arr):
-            if not arr:
-                return {"count": 0, "mean": np.nan, "std": np.nan, "min": np.nan, "max": np.nan, "median": np.nan}
-            arr_np = np.array(arr)
-            return {
-                "count": len(arr),
-                "mean": np.mean(arr_np),
-                "std": np.std(arr_np),
-                "min": np.min(arr_np),
-                "max": np.max(arr_np),
-                "median": np.median(arr_np)
-            }
-
-        og_stats = get_stats(og_scores)
-        new_stats = get_stats(new_scores)
-
-        # Save stats to CSV
-        try:
-            import csv
-            with open(dist_csv_path, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(["", "og_score", "new_score"])
-                for stat in ["count", "mean", "std", "min", "max", "median"]:
-                    writer.writerow([stat, og_stats[stat], new_stats[stat]])
-                writer.writerow(["unscored_count", og_unscored, new_unscored])
-            print(f"Score distribution stats saved to {dist_csv_path}")
-        except Exception as e:
-            print(f"Error saving score distribution stats CSV: {e}")
-
-        # Plot distributions and unscored counts
-        try:
-            import matplotlib.pyplot as plt
-
-            plt.figure(figsize=(12, 7))
-            bins = 30
-
-            # Plot histograms
-            if og_scores:
-                plt.hist(og_scores, bins=bins, alpha=0.5, label="Original Scores", color="blue", edgecolor="black")
-            if new_scores:
-                plt.hist(new_scores, bins=bins, alpha=0.5, label="New Scores", color="orange", edgecolor="black")
-
-            # Add bars for unscored counts, offset to the right of the main histograms
-            max_score = max(
-                [max(og_scores) if og_scores else 0, max(new_scores) if new_scores else 0, 1]
-            )
-            bar_xs = [max_score + 1, max_score + 2]
-            bar_heights = [og_unscored, new_unscored]
-            bar_labels = ["Unscored (Original)", "Unscored (New)"]
-            bar_colors = ["blue", "orange"]
-            plt.bar(bar_xs, bar_heights, width=0.7, color=bar_colors, alpha=0.7, label=bar_labels)
-
-            # Annotate unscored bars
-            for x, h, label in zip(bar_xs, bar_heights, bar_labels):
-                plt.text(x, h + 0.5, f"{h}", ha="center", va="bottom", fontsize=10)
-
-            plt.xlabel("Score (or Unscored)")
-            plt.ylabel("Count")
-            plt.title("Distribution of Original vs New Scores (Best-of-N)")
-            plt.legend()
-            plt.grid(True, axis='y')
-            plt.tight_layout()
-            plt.savefig(dist_plot_path)
-            print(f"Score distribution plot saved to {dist_plot_path}")
-            plt.close()
-        except Exception as e:
-            print(f"Error generating score distribution plot: {e}")
-
-    
 
     # Create and save CSV and plot
     if graph_data_points:
@@ -447,12 +346,12 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
         try:
             df_graph.to_csv(csv_path, index=False)
             print(f"Analysis data saved to {csv_path}")
-            multiplier = -1 if metric_objective == "min" else 1
+            
             plt.figure(figsize=(12, 7))
             plt.plot(df_graph['n_value'], df_graph['accuracy'], marker='o', label='Accuracy')
-            # plt.plot(df_graph['n_value'], df_graph['nonzero_accuracy'], marker='s', label='Nonzero Accuracy')
-            plt.plot(df_graph['n_value'], multiplier * df_graph['improvement'], marker='s', label='Improvement')
-            # plt.plot(df_graph['n_value'], -df_graph['nonzero_improvement'], marker='x', label='Nonzero Improvement')
+            plt.plot(df_graph['n_value'], df_graph['nonzero_accuracy'], marker='s', label='Nonzero Accuracy')
+            plt.plot(df_graph['n_value'], -df_graph['improvement'], marker='^', label='Improvement')
+            plt.plot(df_graph['n_value'], -df_graph['nonzero_improvement'], marker='x', label='Nonzero Improvement')
             
             plt.xlabel("n Value (Number of samples considered per (decl,module))")
             plt.ylabel("Metric Value")
