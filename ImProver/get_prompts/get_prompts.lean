@@ -73,11 +73,12 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
 
   IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ===="
 
-  let outputs_raw ← getPromptsAux targets_new mod python_cmd fileName prompts_id
-  let outputs := outputs_raw.map (fun x => x.1) |>.flatten
+  let theorems_raw ← getPromptsAux targets_new mod python_cmd fileName prompts_id
+  let theorems := theorems_raw.map (fun x => x.1) |>.flatten
 
+  let output : FileData := {theorems := theorems, module := mod, filePath := fileName, importGraph := none}
 
-  let json_data := Json.arr <| outputs.toArray.map (ToJson.toJson)
+  let json_data := ToJson.toJson output
 
   let json_path := outputDirectory ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
   IO.println s!"Writing to {json_path}"

@@ -136,19 +136,19 @@ def prompts():
     pass
 
 
-@prompts.command('get')
+@prompts.command('extract_lean')
 @click.argument('dataset_path', required=False)
 @click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
-@click.option('--informalize', is_flag=True, default=False)
-@click.option('--include_context', is_flag=True, default=False)
-@click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-@click.option('--gpus', default=None)
+# @click.option('--informalize', is_flag=True, default=False)
+# @click.option('--include_context', is_flag=True, default=False)
+# @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+# @click.option('--gpus', default=None)
 @click.option('--config', type=click.Path(exists=True), default=None)
-def prompts_get(**kwargs):
+def prompts_extract_lean(**kwargs):
     """Generate prompts."""
-    from ImProver.get_prompts.get_prompts import main as gp_main
+    from ImProver.get_prompts.extraction import main as extraction_main
 
     config = kwargs.pop('config')
     defaults = kwargs.copy()
@@ -157,7 +157,7 @@ def prompts_get(**kwargs):
     params = get_default_gpus(params)
     args = argparse.Namespace(**params)
 
-    gp_main(args)
+    extraction_main(args)
 
 
 @prompts.command('informalize')
@@ -181,6 +181,56 @@ def informalize(dataset_path, prompts_id, split, include_context, model, cpus, g
 
     args = argparse.Namespace(**params)
     informalize_main(args)
+
+@prompts.command('rag')
+@click.argument('dataset_path', required=False)
+@click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+@click.option('--split', default='train')
+@click.option('--cpus', default=multiprocessing.cpu_count())
+# @click.option('--informalize', is_flag=True, default=False)
+# @click.option('--include_context', is_flag=True, default=False)
+# @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+# @click.option('--gpus', default=None)
+@click.option('--k', default=10)
+@click.option('--config', type=click.Path(exists=True), default=None)
+def prompts_rag(**kwargs):
+    """Generate prompts."""
+    from ImProver.get_prompts.rag import main as rag_main
+
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+
+    rag_main(args)
+
+
+@prompts.command('get')
+@click.argument('dataset_path', required=False)
+@click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+@click.option('--split', default='train')
+@click.option('--cpus', default=multiprocessing.cpu_count())
+@click.option('--informalize', is_flag=True, default=False)
+@click.option('--include_context', is_flag=True, default=False)
+@click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+@click.option('--gpus', default=None)
+@click.option('--k', default=10)
+@click.option('--config', type=click.Path(exists=True), default=None)
+def prompts_get(**kwargs):
+    """Generate prompts."""
+    from ImProver.get_prompts.get_prompts import main as gp_main
+
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+
+    gp_main(args)
+
 
 # ----- Run group -----
 @cli.group()
@@ -269,7 +319,6 @@ def run_analysis(**kwargs):
 
 @run.command('llm_metric')
 @click.argument('run_id', required=False)
-@click.argument('prompts_id', required=False)
 @click.option('--model', default=None)
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
@@ -282,7 +331,7 @@ def run_llm_metric(**kwargs):
     config = kwargs.pop('config')
     defaults = kwargs.copy()
     params = apply_config(kwargs, defaults, config)
-    require_params(params, ['run_id', 'prompts_id'])
+    require_params(params, ['run_id'])
     params = get_default_gpus(params)
 
     args = argparse.Namespace(**params)
