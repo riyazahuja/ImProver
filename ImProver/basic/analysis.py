@@ -349,10 +349,10 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
             
             plt.figure(figsize=(12, 7))
             plt.plot(df_graph['n_value'], df_graph['accuracy'], marker='o', label='Accuracy')
-            plt.plot(df_graph['n_value'], df_graph['nonzero_accuracy'], marker='s', label='Nonzero Accuracy')
-            plt.plot(df_graph['n_value'], -df_graph['improvement'], marker='^', label='Improvement')
-            plt.plot(df_graph['n_value'], -df_graph['nonzero_improvement'], marker='x', label='Nonzero Improvement')
-            
+            # plt.plot(df_graph['n_value'], df_graph['nonzero_accuracy'], marker='s', label='Nonzero Accuracy')
+            plt.plot(df_graph['n_value'], -df_graph['improvement'], marker='s', label='Improvement')
+            # plt.plot(df_graph['n_value'], -df_graph['nonzero_improvement'], marker='x', label='Nonzero Improvement')
+
             plt.xlabel("n Value (Number of samples considered per (decl,module))")
             plt.ylabel("Metric Value")
             plt.title(f"Best-of-N Analysis (Metric: {metric_name}, N_config: {n_config_val})")
@@ -371,6 +371,9 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
             # BoN might still be considered partially successful if raw_db was made
     else:
         print("No data points for graph and CSV.")
+
+
+    
 
     print("Best-of-N analysis finished.")
     return True # Indicate success

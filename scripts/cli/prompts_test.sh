@@ -20,4 +20,4 @@ lake build get_prompts
 sleep 5
 
 
-./improver prompts get --config /home/riyaza/eval_improver/improver/configs/prompts.yaml
+./improver prompts rag --config /home/riyaza/eval_improver/improver/configs/prompts.yaml

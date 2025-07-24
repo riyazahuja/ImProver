@@ -91,9 +91,9 @@ def run_inference(df, args, metric_config):
                 ],
             sampling_params=dict(
                 # n=args.n,
-                truncate_prompt_tokens=8192 - 128,
+                truncate_prompt_tokens=8192 - 512,
                 # temperature=0.3,
-                max_tokens=128,
+                max_tokens=512,
             ),
         ),
         postprocess=postprocess,
@@ -212,7 +212,7 @@ You will think about this criterion, and score which proof is better by giving a
 
 
 
-
+first_time = True
 
 def aggregate_scores(rows, metric_config):
     #given a list of rows with the same rowid, module, and decl, get the final score
@@ -221,7 +221,13 @@ def aggregate_scores(rows, metric_config):
     # and for each item in the group corresponds to a distinct category. Then the answer column (actually the min(answer, points)) is 
     # the final score for that item/category. Then you must simply sum up the scores for each category to get the final score for the group.
     # normalize this group score by the total points available, and then take the mean of these values across the groups. this is the final final score.
-        
+    global first_time
+    if first_time:
+        first_time = False
+
+        # print(f">>> Aggregating scores for {len(rows)} rows [{rows[0]['module']}, {rows[0]['decl']}]")
+        # for row in rows:
+        #     print(f"  {row['prompt_idx']}: {row['answer']} / {row['points']}\t| {row['prompt']}")
         
     # Group rows by prompt_idx
     prompt_groups = {}
@@ -261,12 +267,13 @@ def aggregate_scores(rows, metric_config):
     
     return sum(normalized_scores) / len(normalized_scores)
 
-def get_readability_scores(readability_connection,args):
+def get_readability_scores(readability_connection,args, metric_config):
     # if prompts:
     #     condition = "WHERE is_og = TRUE"
     # else:
     #     condition = "WHERE is_og = FALSE"
     prompts=True
+    
     
     if readability_connection:
         try:
@@ -278,7 +285,7 @@ def get_readability_scores(readability_connection,args):
                 # Group by module and decl
                 grouped_data = {}
                 for _, row in result.iterrows():
-                    key = (row['module'], row['decl'], None if prompts else row['rowid'])
+                    key = (row['module'], row['decl'], int(row['rowid']))
                     if key not in grouped_data:
                         grouped_data[key] = []
                     grouped_data[key].append(row.to_dict())
@@ -286,14 +293,15 @@ def get_readability_scores(readability_connection,args):
                 # Calculate scores for each group
                 final_scores = []
                 for (module, decl, rowid), rows in grouped_data.items():
-                    score = aggregate_scores(rows)
+                    score = aggregate_scores(rows, metric_config)
                     data = {
                         'module': module,
                         'decl': decl,
-                        'score': score
+                        'score': score,
+                        'rowid': rowid
                     }
-                    if not prompts:
-                        data['rowid'] = rowid
+                    # if not prompts:
+                    #     data['rowid'] = rowid
                         
                     final_scores.append(data)
                 
@@ -312,7 +320,7 @@ def get_readability_scores(readability_connection,args):
         print("No readability database connection")
         return None
 
-def parse_readabilityDB(args):
+def parse_readabilityDB(args, metric_config):
     readabilityDB_path = os.path.join("evals", args.run_id, "readability.duckdb")
     if readabilityDB_path:
         try:
@@ -359,19 +367,19 @@ def parse_readabilityDB(args):
     #     except Exception as e:
     #         print(f"Error storing readability scores: {e}")
     
-    model_scores_data = get_readability_scores(readability_connection,args)#,prompts=False)
+    model_scores_data = get_readability_scores(readability_connection,args, metric_config)#,prompts=False)
     print(f"Model scores data: {model_scores_data}")
     if model_scores_data is not None:
         # Open connection to eval database
         eval_db_path = os.path.join("evals", args.run_id, "eval.duckdb")
-        prompt_db_path = os.path.join("prompts", "readability.duckdb")
+        # prompt_db_path = os.path.join("prompts", "readability.duckdb")
 
         try:
             eval_connection = duckdb.connect(eval_db_path)
-            prompt_connection = duckdb.connect(prompt_db_path)
+            # prompt_connection = duckdb.connect(prompt_db_path)
     
             print(f"Connected to evaluation database at {eval_db_path}")
-            print(f"Connected to prompt database at {prompt_db_path}")
+            # print(f"Connected to prompt database at {prompt_db_path}")
             # First duplicate the evaluation_results to make a evaluation_results_legacy table
             try:
                 # Check if the legacy table already exists
@@ -396,34 +404,34 @@ def parse_readabilityDB(args):
                 rowid = row['rowid']
                 module = row['module']
                 decl = row['decl']
-                new_score = row['score']
+                score = row['score']
                 
                 # Get the original score from the prompt database
-                result = prompt_connection.execute(
-                    "SELECT score FROM readability_scores WHERE module = ? AND decl = ?",
-                    [module, decl]
-                ).fetchone()
+                # result = prompt_connection.execute(
+                #     "SELECT score FROM readability_scores WHERE module = ? AND decl = ?",
+                #     [module, decl]
+                # ).fetchone()
                 
-                if result:
-                    delta = float(result[0]) / 10
+                # if result:
+                # delta = float(result[0]) / 10
+                
+                # Update the row in the eval database
+                eval_connection.execute(
+                    """
+                    UPDATE evaluation_results 
+                    SET 
+                        new_score = ?,
+                        og_score = ?,
+                        delta = ?
+                    WHERE 
+                        rowid = ?
+                    """,
+                    [0, 0, score, int(rowid)]
+                )
                     
-                    # Update the row in the eval database
-                    eval_connection.execute(
-                        """
-                        UPDATE evaluation_results 
-                        SET 
-                            new_score = ?,
-                            og_score = ?,
-                            delta = ?
-                        WHERE 
-                            rowid = ?
-                        """,
-                        [0, 0, delta, int(rowid)]
-                    )
-                    
-                    print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: og={0}, new={new_score}, delta={delta}")
-                else:
-                    print(f"Warning: No original score found for module {module}, decl {decl}")
+                print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: delta={score}")
+                # else:
+                #     print(f"Warning: No original score found for module {module}, decl {decl}")
             
             # Commit the changes
             eval_connection.commit()
@@ -431,7 +439,7 @@ def parse_readabilityDB(args):
             
             # Close connections
             eval_connection.close()
-            prompt_connection.close()
+
             
         except Exception as e:
             print(f"Error updating scores in evaluation database: {e}")
@@ -447,16 +455,6 @@ def randomize_order(proof_data):
 
 
 def main(args):
-
-    promptDB_path = os.path.join("prompts", args.prompts_id, "readability.duckdb")
-    promptDB_connection = None
-    if os.path.exists(promptDB_path):
-        try:
-            promptDB_connection = duckdb.connect(promptDB_path)
-            print(f"Connected to existing database at {promptDB_path}")
-        except Exception as e:
-            print(f"Error connecting to existing database: {e}")
-            promptDB_connection = None
     
     
     # Try to open the eval.duckdb file
@@ -469,33 +467,6 @@ def main(args):
 
     # Initialize our dataframe to hold proofs for evaluation
     proof_data = []
-
-    # If we don't have a prompt database connection
-    # if promptDB_connection is None:
-    #     print("No prompt database connection. Will fetch original proofs from eval database.")
-    #     # Get one row per module+decl with original proofs
-    #     original_proofs = eval_connection.execute("""
-    #         SELECT 
-    #             MIN(rowid) as rowid, 
-    #             module, 
-    #             decl, 
-    #             ANY_VALUE(og_raw) as og_raw
-    #         FROM 
-    #             evaluation_results 
-    #         GROUP BY 
-    #             module, decl
-    #     """).fetchall()
-        
-    #     # Add original proofs to our data
-    #     for _, module, decl, old_raw in original_proofs:
-    #         if old_raw:  # Ensure we have a valid proof
-    #             proof_data.append({
-    #                 'module': module,
-    #                 'decl': decl,
-    #                 'proof': old_raw,
-    #                 'rowid': None,
-    #                 'is_og': True
-    #             })
 
     # # Get all improved proofs that are marked as correct
     # improved_proofs = eval_connection.execute("""
@@ -522,32 +493,33 @@ def main(args):
     #         })
 
     # Get all pairs of original and improved proofs that are marked as correct and have non-empty proofs
-    query = """
-SELECT a.decl,
-       struct_pack(a.*) AS row_a,
-       struct_pack(b.*) AS row_b
-FROM   evaluation_results AS a
-JOIN   evaluation_results AS b
-       ON  a.decl = b.decl
-       AND a.module = b.module
-       AND a.og_raw != ""
-       AND b.new_raw != ""
-       AND a.rowid != b.rowid
-       AND a.is_og = TRUE
-       AND b.is_og = FALSE
-       AND b.new_correct = TRUE;"""
+#     query = """
+# SELECT a.decl,
+#        struct_pack(a.*) AS row_a,
+#        struct_pack(b.*) AS row_b
+# FROM   evaluation_results AS a
+# JOIN   evaluation_results AS b
+#        ON  a.decl = b.decl
+#        AND a.module = b.module
+#        AND a.og_raw != ''
+#        AND b.new_raw != ''
+#        AND a.rowid != b.rowid
+#        AND a.is_og = TRUE
+#        AND b.is_og = FALSE
+#        AND b.new_correct = TRUE;"""
+    query = """SELECT module, decl, og_raw, new_trimmed, rowid 
+FROM evaluation_results
+WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct = TRUE"""
 
     df_pairs = eval_connection.execute(query).fetchall()
     # Couldn't be bothered to use pandas here
-    for original, new in df_pairs:
-        assert original['decl'] == new['decl'], "Mismatched decls in proof pair (Tate messed up his SQL)"
-        assert original['is_og'] == True and new['is_og'] == False, "Tate probably messed up his SQL"
+    for module, decl, og_raw, new_trimmed, rowid in df_pairs:
         proof_data.append({
-            'module': original['module'],
-            'decl': original['decl'],
-            'proof1': original['og_raw'],
-            'proof2': new['new_raw'],
-            'rowid': int(original['rowid']),
+            'module': module,
+            'decl': decl,
+            'proof1': og_raw,
+            'proof2': new_trimmed,
+            'rowid': int(rowid),
         })
     
     randomize_order(proof_data)
@@ -585,7 +557,7 @@ JOIN   evaluation_results AS b
     output_path = run_inference(proof_df, args, metric_config)
     
     
-    parse_readabilityDB(args)
+    parse_readabilityDB(args, metric_config)
     
 
 
@@ -596,7 +568,6 @@ if __name__ == "__main__":
         description="Generates and infers the LLM-based readability metric on a collection of proofs"
     )
     parser.add_argument("run_id", type=str, help="Run ID to use for evaluation")
-    parser.add_argument("prompts_id", type=str, help="Prompt ID to use for evaluation")
     parser.add_argument(
         "--model",
         type=str,

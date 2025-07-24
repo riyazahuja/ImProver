@@ -72,8 +72,16 @@ def add_to_db(prompt_id, k=6):
     assert conn is not None, "Failed to connect to the database."
         # Add rag_docs column if it doesn't exist
     try:
+        print(f"[IMPROVER: Adding rag_docs column to {prompt_id} informal data table...]")
+        # INSERT_YOUR_CODE
+        # Ensure the prompts table exists as a copy of informal_data if not already present
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS prompts AS 
+            SELECT * FROM informal_data
+        """)
         conn.execute("ALTER TABLE prompts ADD COLUMN rag_docs TEXT")
-    except Exception:
+    except Exception as e:
+        print(f"[IMPROVER: Error adding rag_docs column to {prompt_id} informal data table: {e}]")
         # Column already exists: everything's already populated
         return
 

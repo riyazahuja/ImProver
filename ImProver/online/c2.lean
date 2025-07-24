@@ -276,6 +276,16 @@ structure TheoremData where
   C0_dependencies : Array TheoremID := #[]
   C1_dependencies : Array TheoremID := #[]
   C2_dependencies : Array TheoremID := #[]
+  informal_statement : Option String := none
+  informal_proof : Option String := none
 
   -- fromSrc : Bool := false
+  deriving Inhabited, ToJson, FromJson
+
+
+structure FileData where
+  theorems : List TheoremData
+  module : Name
+  filePath : String
+  importGraph : Option (List Name) := none
   deriving Inhabited, ToJson, FromJson
