@@ -8,7 +8,7 @@ import Mathlib.Data.Nat.Prime.Basic
 
 import ImProver.metrics.tagger
 
-
+namespace dependencyExamples
 
 @[improver_example strong_tactics, version unoptimized]
 theorem foo {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
@@ -134,3 +134,6 @@ example (a b c : ℝ) (h : a ≤ b) : c - Real.exp b ≤ c - Real.exp a := by
 
 @[improver_example gcongr, version optimized]
 example (a b c : ℝ) (h : a ≤ b) : c - Real.exp b ≤ c - Real.exp a := by gcongr
+
+
+end dependencyExamples
