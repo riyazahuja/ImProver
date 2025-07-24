@@ -102,11 +102,11 @@ def getExamples (mod : Name) (outputFile : String) (python_cmd : String) : IO Un
 
     -- ensure that the inner array contains two elements, one unoptimized and one optimized. if this is confirmed,
     -- then flatten this array to get a single item of type Name × CompilationStep × ConstantInfo × String, where the compilationstep, constantinfo, are from the item corresponding to the unoptimized version.
-    -- if this is unable to be confirmed, print an error message on how this tagName has an unexpected number of versions, and continue to the next tagName.
+    -- if this is unable to be confirmed, print an error message on how this tagName has an unexpected number of versions, aind continue to the next tagName.
 
     let validPairs ← checkValidity grouped
 
-    let raw_data : List (List TheoremData × Nat) ← getPromptsAux (validPairs.map (fun (_, cmd, ci, _) => (cmd, ci))) mod python_cmd fileName
+    let raw_data : List (List TheoremData × Nat) ← getPromptsAux (validPairs.map (fun (_, cmd, ci, _) => (cmd, ci))) mod python_cmd fileName ""
     let mut results : Array (Name × ExampleData) := #[]
 
     for i in [0:validPairs.size] do

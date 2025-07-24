@@ -4,6 +4,7 @@ import Mathlib.Data.Set.Function
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Data.Real.Basic
 
+namespace lengthExamples
 
 @[improver_example inlining, version unoptimized]
 theorem foo {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y := by
@@ -143,3 +144,6 @@ theorem qux {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
 @[improver_example strong_tactics, version optimized]
 theorem qux' {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
   linarith
+
+
+end lengthExamples

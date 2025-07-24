@@ -258,7 +258,7 @@ def aggregate_scores(rows, metric_config):
         group_score = sum(item["answer"] for item in group)
         
         # Normalize by dividing by total points
-        normalized_score = group_score
+        normalized_score = group_score / total_available_points
         normalized_scores.append(normalized_score)
     
     # Return the mean of normalized scores across all groups
@@ -554,7 +554,7 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
 
     # returns the path to the directory containing run metadata and the parquet lake
 
-    output_path = run_inference(proof_df, args, metric_config)
+    # output_path = run_inference(proof_df, args, metric_config)
     
     
     parse_readabilityDB(args, metric_config)

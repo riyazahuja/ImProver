@@ -210,7 +210,7 @@ def construct_prompts(config_data, data, args):
             
             prompt += f"<EXAMPLES>\n\n"
             num_examples = len(examples_data.items())if args.examples == -1 else min(args.examples,len(examples_data.items()))
-            for nameTag, example in examples_data.items()[: num_examples]:
+            for nameTag, example in list(examples_data.items())[: num_examples]:
                 try:
                     ex_prompt = "<EXAMPLE>\n\n"
                     

@@ -6,6 +6,8 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Nat.Factorization.Basic
 import Mathlib.Data.Nat.Prime.Basic
 
+namespace declarativityExamples
+
 
 @[improver_example have_reuse, version unoptimized]
 theorem foo {a b c d : ℝ} :
@@ -127,3 +129,5 @@ theorem bar'{m n : ℕ} (coprime_mn : m.Coprime n) : m ^ 2 ≠ 2 * n ^ 2 := by
 
 
 end
+
+end declarativityExamples
