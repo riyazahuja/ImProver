@@ -73,7 +73,70 @@ def getInformalData (mods : List Name) (promptsDirectory : String) : IO (Except 
 
   return .ok output
 
+namespace OLeanSearch
+-- Written by Tate :D
+open Lean System IO Core Meta Elab
 
+def CoreM.withImportModules {α : Type} (modules : Array Name) (run : CoreM α)
+    (searchPath : Option Lean.SearchPath := none) (options : Options := {})
+    (trustLevel : UInt32 := 0) (fileName := "") :
+    IO α := unsafe do
+  if let some sp := searchPath then searchPathRef.set sp
+  Lean.withImportModules (modules.map (fun m => Import.mk m false)) options (trustLevel := trustLevel) fun env =>
+    let ctx := {fileName, options, fileMap := default}
+    let state := {env}
+    Prod.fst <$> (CoreM.toIO · ctx state) do
+      run
+
+structure DeclInfo where
+  nameString : String
+  moduleString : String
+  kind : String
+  src : String
+deriving Repr, ToJson
+
+def findLean (mod : Name) : IO FilePath := do
+  let srcSearchPath : Lean.SearchPath ← initSrcSearchPath
+  if let some fname ← srcSearchPath.findModuleWithExt "lean" mod then
+    return fname
+  else
+    let fname := FilePath.mk ((← findOLean mod).toString.replace ".lake/build/lib/" "") |>.withExtension "lean"
+    if !(← fname.pathExists) then
+      throw <| IO.userError s!"Path to {mod} not found"
+    return fname
+
+def getAllConstantInfos (modules : Array Name) : IO (List DeclInfo) := do
+  initSearchPath (← getLibDir (← findSysroot))
+  unsafe Lean.enableInitializersExecution
+  let env ← importModules (modules.map (Import.mk · false)) Options.empty (leakEnv := true)
+
+  return ← CoreM.withImportModules modules do
+    let mut infos := []
+    for ⟨name, ci⟩ in env.constants do
+      let mod ← Lean.findModuleOf? name
+      match mod with
+      | none => continue
+      | some module =>
+        -- if (ci.isTheorem || ci.isDefinition) && (module != Name.anonymous) && (!module.toString.startsWith "Lean") && (!module.toString.startsWith "Batteries") && (!module.toString.startsWith "Aesop") && (!module.toString.startsWith "Init") && (!module.toString.startsWith "Std") then
+        if (ci.isTheorem || ci.isDefinition) && (module != Name.anonymous) && (modules.contains module) then
+
+          let kind := if ci.isTheorem then "theorem" else "definition"
+          match (← findDeclarationRanges? name) with
+          | none => continue
+          | some rgs =>
+            let modulePath ← findLean module
+            let fileContents ← IO.FS.readFile modulePath.toString
+
+            let declTextList := if rgs.range.pos.line == 0 then [] else
+              fileContents.splitOn "\n"
+                |>.drop (rgs.range.pos.line - 1)
+                |>.take (rgs.range.endPos.line - rgs.range.pos.line + 1)
+            let declText := "\n".intercalate declTextList
+
+            infos := (DeclInfo.mk name.toString module.toString kind declText) :: infos
+
+    return infos
+end OLeanSearch
 
 
 def augmentData (mods : List Name) (promptsDirectory : String) : IO Unit := do
@@ -82,16 +145,17 @@ def augmentData (mods : List Name) (promptsDirectory : String) : IO Unit := do
   let graph : NameMap NameSet ← CoreM.withImportModules mods.toArray do
     return transitiveClosure (importGraph (← getEnv))
 
-  let informal_data? ← getInformalData mods promptsDirectory
+  -- let informal_data? ← getInformalData mods promptsDirectory
 
-  if not informal_data?.isOk then
-    let msg := match informal_data? with
-      | .error e => e
-      | .ok _ => "Unknown error"
-    IO.println s!"[ERROR] {msg}"
-    return
+  -- if not informal_data?.isOk then
+  --   let msg := match informal_data? with
+  --     | .error e => e
+  --     | .ok _ => "Unknown error"
+  --   IO.println s!"[ERROR] {msg}"
+  --   return
 
-  let informal_data := informal_data?.toOption.get!
+  -- let informal_data := informal_data?.toOption.get!
+  let informal_data := Std.HashMap.empty.insert `Mathlib.Algebra.Group.Basic (Std.HashMap.empty.insert "div_eq_div_mul_div" ("informal_statement", "informal_proof"))
 
 
   for mod in mods do
@@ -133,11 +197,32 @@ def augmentData (mods : List Name) (promptsDirectory : String) : IO Unit := do
 
     IO.FS.writeFile json_path (ToJson.toJson augmented_file_data |>.pretty)
 
-
   let all_descendants := graph.toList.map (fun (_, imports) => imports.toList) |>.flatten
   let all_descendants_deduped := all_descendants.eraseDups
   let all_descendants_deduped_trimmed := all_descendants_deduped.filter (fun mod => not (mods.contains mod))
+  -- let all_descendants_deduped_trimmed := [`Mathlib.Algebra.Group.Basic]
+  let all_declarations ← OLeanSearch.getAllConstantInfos all_descendants_deduped_trimmed.toArray
 
+  match all_declarations.length with
+  | 0 => return
+  | _ =>
+    let database_path := promptsDirectory ++ "/dependency_data.duckdb"
+    -- This is an awful way to do this, but should be ok for now
+    let SQL_cmd := "CREATE TABLE IF NOT EXISTS dependency_data (module TEXT, decl TEXT, kind TEXT); " ++
+                  "INSERT INTO dependency_data (module, decl, kind) VALUES " ++
+                  ((all_declarations.map (fun d =>
+                    s!"('{d.moduleString.replace "'" "''"}', '{d.nameString.replace "'" "''"}', '{d.kind.replace "'" "''"}')")) |>.foldr (fun acc x => acc ++ ",\n" ++ x) "") ++ ";"
+
+    let output ← IO.Process.output {
+      cmd := "duckdb"
+      args := #[database_path, "-c", SQL_cmd]}
+
+    if output.exitCode != 0 then
+      IO.println SQL_cmd
+      IO.println s!"[ERROR] Error running dependency duckdb: {output.stderr}"
+      return
+
+-- #eval augmentData [`Mathlib.Algebra.Group.Basic, `Mathlib.Algebra.Group.Defs] "/home/trowney/ImProver/prompts/final_final_train"
 
 -- -- Given: all_descendants_deduped_trimmed : List Name
 -- -- Goal: For each module in this list, efficiently extract the source code (as a string) of every statement (def, theorem, etc.) in the module, using the .olean files.
@@ -205,13 +290,12 @@ def augmentData (mods : List Name) (promptsDirectory : String) : IO Unit := do
 
 def preprocessRagCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
-  let modules_raw : String := match args.flag? "modules" with
-  | some x => x |>.as! String
-  | none => ""
+  -- let modules_raw : String := match args.flag? "modules" with
+  -- | some x => x |>.as! String
+  -- | none => ""
+  let modules_raw := args.positionalArg! "modules" |>.as! String
   let modules : List String := if modules_raw.isEmpty then [] else modules_raw.splitOn ","
   let mods := modules.map (fun m => m.toName)
-
-
 
   augmentData mods outputDirectory
   return 0
