@@ -69,3 +69,8 @@ lean_exe get_examples where
 lean_exe eval_improver where
   root := `ImProver.basic.eval_improver
   supportInterpreter := true
+
+@[default_target]
+lean_exe preprocess_rag where
+  root := `ImProver.get_prompts.preprocess_rag
+  supportInterpreter := true
