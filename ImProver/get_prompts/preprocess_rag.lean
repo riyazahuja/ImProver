@@ -145,17 +145,17 @@ def augmentData (mods : List Name) (promptsDirectory : String) : IO Unit := do
   let graph : NameMap NameSet ← CoreM.withImportModules mods.toArray do
     return transitiveClosure (importGraph (← getEnv))
 
-  -- let informal_data? ← getInformalData mods promptsDirectory
+  let informal_data? ← getInformalData mods promptsDirectory
 
-  -- if not informal_data?.isOk then
-  --   let msg := match informal_data? with
-  --     | .error e => e
-  --     | .ok _ => "Unknown error"
-  --   IO.println s!"[ERROR] {msg}"
-  --   return
+  if not informal_data?.isOk then
+    let msg := match informal_data? with
+      | .error e => e
+      | .ok _ => "Unknown error"
+    IO.println s!"[ERROR] {msg}"
+    return
 
-  -- let informal_data := informal_data?.toOption.get!
-  let informal_data := Std.HashMap.empty.insert `Mathlib.Algebra.Group.Basic (Std.HashMap.empty.insert "div_eq_div_mul_div" ("informal_statement", "informal_proof"))
+  let informal_data := informal_data?.toOption.get!
+  -- let informal_data := Std.HashMap.empty.insert `Mathlib.Algebra.Group.Basic (Std.HashMap.empty.insert "div_eq_div_mul_div" ("informal_statement", "informal_proof"))
 
 
   for mod in mods do
