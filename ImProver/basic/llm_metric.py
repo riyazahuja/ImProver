@@ -188,7 +188,7 @@ def strip_lean_comments(src: str) -> str:
 
 
 
-def calculate_prompt(proof1, proof2, metric_config):
+def calculate_prompt(proof1, proof2, original_first, metric_config):
     ret = []
     for i, rubric in enumerate(metric_config["llm"]["rubric"]):
         if rubric.get("comments", True):
@@ -207,7 +207,10 @@ And here is the second proof:
 
 You will think about this criterion, and score which proof is better by giving a number between 0 and 9, where 0 means the first proof is much better, 9 means the second proof is much better, and 5 means they are equally good or equally bad. You will then print out ONLY the score you gave these proofs (a single number), without anything else. """
         )
-        ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i})
+        if original_first:
+            ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i, "original": proof1, "improved": proof2})
+        else:
+            ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i, "original": proof2, "improved": proof1})
     return ret
 
 
@@ -236,6 +239,7 @@ def aggregate_scores(rows, metric_config):
         if idx not in prompt_groups:
             prompt_groups[idx] = []
         prompt_groups[idx].append(row)
+
     
     # Calculate total available points
     total_available_points = sum(rubric['points'] for rubric in metric_config["llm"]["rubric"])
@@ -264,8 +268,14 @@ def aggregate_scores(rows, metric_config):
     # Return the mean of normalized scores across all groups
     if not normalized_scores:
         return 0  # Return 0 if no valid groups were found
-    
-    return sum(normalized_scores) / len(normalized_scores)
+
+    length_diff_penalty_factor = 0.25
+
+    total = sum(normalized_scores)
+    if len(rows[0]["original"].split("\n")) / len(rows[0]["improved"].split("\n")) > 2 or len(rows[0]["improved"].split("\n")) / len(rows[0]["original"].split("\n")) > 2:
+        total -= length_diff_penalty_factor * total_available_points
+
+    return total / len(normalized_scores)
 
 def get_readability_scores(readability_connection,args, metric_config):
     # if prompts:
@@ -545,7 +555,7 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
 
     data = []
     for item in proof_data:
-        prompts = calculate_prompt(item["proof1"], item["proof2"], metric_config)
+        prompts = calculate_prompt(item["proof1"], item["proof2"], item["original_first"], metric_config)
         data.extend([{**prompt, **item} for prompt in prompts])
     
     proof_df = pd.DataFrame(data)
@@ -554,7 +564,7 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
 
     # returns the path to the directory containing run metadata and the parquet lake
 
-    # output_path = run_inference(proof_df, args, metric_config)
+    output_path = run_inference(proof_df, args, metric_config)
     
     
     parse_readabilityDB(args, metric_config)
