@@ -148,6 +148,7 @@ def Environment.getModuleForWithSelf? (env : Environment) (declName : Name) (cur
   | some idx => do
     env.header.moduleNames[idx.toNat]!
 
+#where
 
 def get_context (step:CompilationStep)
   (allowed_kinds : List String := ["theorem", "def","theorem (internal)", "def (internal)"] )

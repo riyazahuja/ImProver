@@ -145,84 +145,13 @@ def augmentData (mods : List Name) (promptsDirectory : String) : IO Unit := do
   let graph : NameMap NameSet ← CoreM.withImportModules mods.toArray do
     return transitiveClosure (importGraph (← getEnv))
 
-  let informal_data? ← getInformalData mods promptsDirectory
-
-  if not informal_data?.isOk then
-    let msg := match informal_data? with
-      | .error e => e
-      | .ok _ => "Unknown error"
-    IO.println s!"[ERROR] {msg}"
-    return
-
-  let informal_data := informal_data?.toOption.get!
-  -- let informal_data := Std.HashMap.empty.insert `Mathlib.Algebra.Group.Basic (Std.HashMap.empty.insert "div_eq_div_mul_div" ("informal_statement", "informal_proof"))
-
-
-  for mod in mods do
-    let json_path := promptsDirectory ++ "/src/" ++ mod.toString.replace "." "/" ++ ".json"
-    let json_contents ← IO.FS.readFile json_path
-    let json? := Json.parse json_contents |>.toOption
-    if json?.isNone then
-      IO.println s!"[ERROR] Error parsing JSON for {mod}: {json_contents}"
-      continue
-
-    let json := json?.get!
-    let file_data? := @FromJson.fromJson? FileData _ json |>.toOption
-    if file_data?.isNone then
-      IO.println s!"[ERROR] Error parsing JSON for {mod}: {json_contents}"
-      continue
-
-    let file_data : FileData := file_data?.get!
-
-
-    let declMap? := informal_data[mod]?
-    if declMap?.isNone then
-      IO.println s!"[ERROR] No informal data for {mod}"
-      continue
-
-    let declMap := declMap?.get!
-
-    let augmented_theorems := file_data.theorems.map (fun thm =>
-      let informal_data? := declMap[thm.id.name.toString]?
-      match informal_data? with
-        | some (informal_statement, informal_proof) =>
-        -- TODO double check that this works if one of the fields is null
-          {thm with informal_statement := some informal_statement, informal_proof := some informal_proof}
-        | none => thm
-    )
-
-    let importgraph := graph.find? mod |>.map (fun x => x.toList)
-
-    let augmented_file_data := {file_data with theorems := augmented_theorems, importGraph := importgraph}
-
-    IO.FS.writeFile json_path (ToJson.toJson augmented_file_data |>.pretty)
 
   let all_descendants := graph.toList.map (fun (_, imports) => imports.toList) |>.flatten
   let all_descendants_deduped := all_descendants.eraseDups
   let all_descendants_deduped_trimmed := all_descendants_deduped.filter (fun mod => not (mods.contains mod))
-  -- let all_descendants_deduped_trimmed := [`Mathlib.Algebra.Group.Basic]
-  let all_declarations ← OLeanSearch.getAllConstantInfos all_descendants_deduped_trimmed.toArray
+  IO.println s!">> All descendants deduped trimmed: {all_descendants_deduped_trimmed}"
 
-  match all_declarations.length with
-  | 0 => return
-  | _ =>
-    let database_path := promptsDirectory ++ "/dependency_data.duckdb"
-    -- This is an awful way to do this, but should be ok for now
-    let SQL_cmd := "CREATE TABLE IF NOT EXISTS dependency_data (module TEXT, decl TEXT, kind TEXT); " ++
-                  "INSERT INTO dependency_data (module, decl, kind) VALUES " ++
-                  ((all_declarations.map (fun d =>
-                    s!"('{d.moduleString.replace "'" "''"}', '{d.nameString.replace "'" "''"}', '{d.kind.replace "'" "''"}')")) |>.foldr (fun acc x => acc ++ ",\n" ++ x) "") ++ ";"
-
-    let output ← IO.Process.output {
-      cmd := "duckdb"
-      args := #[database_path, "-c", SQL_cmd]}
-
-    if output.exitCode != 0 then
-      IO.println SQL_cmd
-      IO.println s!"[ERROR] Error running dependency duckdb: {output.stderr}"
-      return
-
--- #eval augmentData [`Mathlib.Algebra.Group.Basic, `Mathlib.Algebra.Group.Defs] "/home/trowney/ImProver/prompts/final_final_train"
+#eval augmentData [`Mathlib.Algebra.Group.Basic, `Mathlib.Algebra.Group.Defs] "/home/trowney/ImProver/prompts/final_final_train"
 
 -- -- Given: all_descendants_deduped_trimmed : List Name
 -- -- Goal: For each module in this list, efficiently extract the source code (as a string) of every statement (def, theorem, etc.) in the module, using the .olean files.
