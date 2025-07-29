@@ -136,86 +136,83 @@ def prompts():
     pass
 
 
-@prompts.command('extract_lean')
-@click.argument('dataset_path', required=False)
-@click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
-@click.option('--split', default='train')
-@click.option('--cpus', default=multiprocessing.cpu_count())
-# @click.option('--informalize', is_flag=True, default=False)
+# @prompts.command('extract_lean')
+# @click.argument('dataset_path', required=False)
+# @click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+# @click.option('--split', default='train')
+# @click.option('--cpus', default=multiprocessing.cpu_count())
+# # @click.option('--informalize', is_flag=True, default=False)
+# # @click.option('--include_context', is_flag=True, default=False)
+# # @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+# # @click.option('--gpus', default=None)
+# @click.option('--config', type=click.Path(exists=True), default=None)
+# def prompts_extract_lean(**kwargs):
+#     """Generate prompts."""
+#     from ImProver.get_prompts.extraction import main as extraction_main
+
+#     config = kwargs.pop('config')
+#     defaults = kwargs.copy()
+#     params = apply_config(kwargs, defaults, config)
+#     require_params(params, ['dataset_path'])
+#     params = get_default_gpus(params)
+#     args = argparse.Namespace(**params)
+
+#     extraction_main(args)
+
+
+# @prompts.command('informalize')
+# @click.argument('dataset_path', required=False)
+# @click.argument('prompts_id', required=False)
+# @click.option('--split', default='train')
 # @click.option('--include_context', is_flag=True, default=False)
 # @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+# @click.option('--cpus', default=multiprocessing.cpu_count())
 # @click.option('--gpus', default=None)
-@click.option('--config', type=click.Path(exists=True), default=None)
-def prompts_extract_lean(**kwargs):
-    """Generate prompts."""
-    from ImProver.get_prompts.extraction import main as extraction_main
+# @click.option('--config', type=click.Path(exists=True), default=None)
+# def informalize(dataset_path, prompts_id, split, include_context, model, cpus, gpus, config):
+#     """Informalize theorems."""
+#     from ImProver.get_prompts.informalize import main as informalize_main
 
-    config = kwargs.pop('config')
-    defaults = kwargs.copy()
-    params = apply_config(kwargs, defaults, config)
-    require_params(params, ['dataset_path'])
-    params = get_default_gpus(params)
-    args = argparse.Namespace(**params)
+#     defaults = dict(dataset_path=dataset_path, prompts_id=prompts_id, split=split,
+#                     include_context=include_context, model=model, cpus=cpus, gpus=gpus)
+#     params = apply_config(defaults, defaults, config)
+#     require_params(params, ['dataset_path', 'prompts_id'])
+#     params = get_default_gpus(params)
 
-    extraction_main(args)
+#     args = argparse.Namespace(**params)
+#     informalize_main(args)
 
+# @prompts.command('rag')
+# @click.argument('dataset_path', required=False)
+# @click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+# @click.option('--split', default='train')
+# @click.option('--cpus', default=multiprocessing.cpu_count())
+# # @click.option('--informalize', is_flag=True, default=False)
+# # @click.option('--include_context', is_flag=True, default=False)
+# # @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+# # @click.option('--gpus', default=None)
+# @click.option('--k', default=10)
+# @click.option('--config', type=click.Path(exists=True), default=None)
+# def prompts_rag(**kwargs):
+#     """Generate prompts."""
+#     from ImProver.get_prompts.rag import main as rag_main
 
-@prompts.command('informalize')
-@click.argument('dataset_path', required=False)
-@click.argument('prompts_id', required=False)
-@click.option('--split', default='train')
-@click.option('--include_context', is_flag=True, default=False)
-@click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-@click.option('--cpus', default=multiprocessing.cpu_count())
-@click.option('--gpus', default=None)
-@click.option('--config', type=click.Path(exists=True), default=None)
-def informalize(dataset_path, prompts_id, split, include_context, model, cpus, gpus, config):
-    """Informalize theorems."""
-    from ImProver.get_prompts.informalize import main as informalize_main
+#     config = kwargs.pop('config')
+#     defaults = kwargs.copy()
+#     params = apply_config(kwargs, defaults, config)
+#     require_params(params, ['dataset_path'])
+#     params = get_default_gpus(params)
+#     args = argparse.Namespace(**params)
 
-    defaults = dict(dataset_path=dataset_path, prompts_id=prompts_id, split=split,
-                    include_context=include_context, model=model, cpus=cpus, gpus=gpus)
-    params = apply_config(defaults, defaults, config)
-    require_params(params, ['dataset_path', 'prompts_id'])
-    params = get_default_gpus(params)
-
-    args = argparse.Namespace(**params)
-    informalize_main(args)
-
-@prompts.command('rag')
-@click.argument('dataset_path', required=False)
-@click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
-@click.option('--split', default='train')
-@click.option('--cpus', default=multiprocessing.cpu_count())
-# @click.option('--informalize', is_flag=True, default=False)
-# @click.option('--include_context', is_flag=True, default=False)
-# @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-# @click.option('--gpus', default=None)
-@click.option('--k', default=10)
-@click.option('--config', type=click.Path(exists=True), default=None)
-def prompts_rag(**kwargs):
-    """Generate prompts."""
-    from ImProver.get_prompts.rag import main as rag_main
-
-    config = kwargs.pop('config')
-    defaults = kwargs.copy()
-    params = apply_config(kwargs, defaults, config)
-    require_params(params, ['dataset_path'])
-    params = get_default_gpus(params)
-    args = argparse.Namespace(**params)
-
-    rag_main(args)
+#     rag_main(args)
 
 
 @prompts.command('get')
 @click.argument('dataset_path', required=False)
 @click.option('--prompts_id', default=f"prompts_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+@click.option('--rag_id', default=f"rag_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
-@click.option('--informalize', is_flag=True, default=False)
-@click.option('--include_context', is_flag=True, default=False)
-@click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-@click.option('--gpus', default=None)
 @click.option('--k', default=10)
 @click.option('--config', type=click.Path(exists=True), default=None)
 def prompts_get(**kwargs):
@@ -230,6 +227,84 @@ def prompts_get(**kwargs):
     args = argparse.Namespace(**params)
 
     gp_main(args)
+
+# ----- RAG group -----
+@cli.group()
+def rag():
+    """RAG building utilities."""
+    pass
+
+@rag.command('build')
+@click.argument('dataset_path', required=False)
+@click.option('--rag_id', default=f"rag_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+@click.option('--max_depth', default=2)
+@click.option('--include_context', is_flag=True, default=False)
+@click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+@click.option('--cpus', default=multiprocessing.cpu_count())
+@click.option('--gpus', default=None)
+@click.option('--config', type=click.Path(exists=True), default=None)
+def rag_build(**kwargs):
+    """Build a RAG."""
+    from ImProver.build.rag import main as rag_main
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+    rag_main(args)
+
+@rag.command('preprocess')
+@click.argument('dataset_path', required=False)
+@click.option('--rag_id', default=f"rag_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+@click.option('--config', type=click.Path(exists=True), default=None)
+def rag_preprocess(**kwargs):
+    """Preprocess a RAG."""
+    from ImProver.build.preprocess_rag import main as preprocess_rag_main
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['dataset_path'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+    preprocess_rag_main(args)
+
+
+@rag.command('informalize')
+@click.argument('rag_id', required=False)
+@click.option('--max_depth', default=2)
+@click.option('--include_context', is_flag=True, default=False)
+@click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+@click.option('--cpus', default=multiprocessing.cpu_count())
+@click.option('--gpus', default=None)
+@click.option('--config', type=click.Path(exists=True), default=None)
+def rag_informalize(**kwargs):
+    """Informalize a RAG."""
+    from ImProver.build.informalize import main as informalize_main
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['rag_id'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+    informalize_main(args)
+
+
+@rag.command('build_db')
+@click.argument('rag_id', required=False)
+@click.option('--config', type=click.Path(exists=True), default=None)
+def rag_build_db(**kwargs):
+    """Build a RAG database."""
+    from ImProver.build.build_db import main as build_db_main
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['rag_id'])
+    params = get_default_gpus(params)
+    args = argparse.Namespace(**params)
+    build_db_main(args)
+
+
 
 
 # ----- Run group -----

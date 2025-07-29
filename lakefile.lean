@@ -71,6 +71,6 @@ lean_exe eval_improver where
   supportInterpreter := true
 
 @[default_target]
-lean_exe build_rag where
-  root := `ImProver.build.rag
+lean_exe preprocess_rag where
+  root := `ImProver.build.preprocess_rag
   supportInterpreter := true

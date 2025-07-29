@@ -159,7 +159,6 @@ def retrieve_batch_indep (steps : Array (CompilationStep × ConstantInfo)) (mod 
          ("name", Json.str ci.name.toString)]
     )),
       ("k", Json.num 10)
-    --  ("imports", Json.arr <| List.toArray <| config.retrievalFilter.map (fun n => Json.str (n.toString)))
     ]
   IO.println data.compress
   let out ← IO.Process.output {

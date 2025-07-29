@@ -73,18 +73,87 @@ def getScopes (cmd : CompilationStep) (fileName : String) : IO (String × String
   return (prescopes, postscopes)
 
 
-
-def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod : Name) (python_cmd : String) (fileName: String) (prompt_id : String) : IO (List (List TheoremData × Nat)) := do
-  -- let rag_strings : Array Json ← do
-  --   let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new mod prompt_id (python_cmd := python_cmd)
-  --   let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
-  --   pure x
+-- def getIDsRAG (targets_new : Array (CompilationStep × ConstantInfo))
+--     (mod : Name) (python_cmd : String) (rag_id : String)
+--     (informal_data : NameMap (String × String))
+--     : IO (Array (CompilationStep × ConstantInfo × TheoremID)) := do
 
 
-  -- IO.println s!"==== Got {rag_strings.size} prompts from RAG ===="
 
-  -- let targets_new_with_id : Array (CompilationStep × ConstantInfo × (Array (CompilationStep × ConstantInfo))) :=
-  --   targets_new.mapIdx (fun i target => (target.1, target.2, targets_new.extract 0 i))
+def getRagItems (targets_new : Array (CompilationStep × ConstantInfo))
+    (mod : Name) (rag_id : String) (python_cmd : String) (k : Nat)
+    : IO (Option (Array (String × String × (Array RagItem)))) := do
+
+    let data : Json := Json.mkObj
+        [("queries", Json.arr <| targets_new.map (fun (_, ci) =>
+            Json.mkObj
+            [("module", Json.str mod.toString),
+                ("name", Json.str ci.name.toString)]
+        )),
+            ("k", Json.num k)
+        ]
+    IO.println data.pretty
+    let out ← IO.Process.output {
+    cmd := python_cmd,
+    -- cmd := "/Users/ahuja/Desktop/ImProver_new/.venv/bin/python3",
+    args := #["ImProver/get_prompts/rag.py",rag_id,
+        data.compress
+    ]
+    }
+
+    let stdout := out.stdout.trim
+
+    let after_output := stdout.splitAtString "<OUTPUT>" |>.getD ("","") |>.2
+    let output_raw := after_output.splitAtString "</OUTPUT>" |>.getD ("","") |>.1
+
+    -- IO.println s!"STDOUT: {output_raw}\n\n"
+
+    let json? := Json.parse output_raw.trim |>.toOption
+
+    -- IO.println s!"JSON: {json?}"
+
+
+    if json?.isNone then
+        return none
+    let json := json?.get!
+
+    let outputs? := fromJson? json |>.toOption
+
+    if outputs?.isNone then
+        return none
+    let outputs : Array RagOutput := outputs?.get!
+
+    let outputs_trimmed := outputs.map (fun o => (o.informal_statement, o.informal_proof, o.results.toArray))
+    return some outputs_trimmed
+
+
+
+
+
+def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
+(mod : Name) (python_cmd : String) (fileName: String) (rag_id : String) (k : Nat)
+: IO (List (List TheoremData × Nat)) := do
+
+--   let informal_data : NameMap (String × String) := ( ← getInformalData rag_id mod ) |>.getD default
+
+--   let targets_new_with_rag : Array (CompilationStep × ConstantInfo × TheoremID) := getIDsRAG targets_new mod python_cmd rag_id informal_data
+
+  let rag_items? ← getRagItems targets_new mod rag_id python_cmd k
+  if rag_items?.isNone then
+    return []
+  let rag_items := rag_items?.get!
+
+
+--   let rag_strings : Array Json ← do
+--     let items ← if targets_new.isEmpty then pure #[] else retrieve_batch_indep targets_new mod rag_id (python_cmd := python_cmd)
+--     let x := items.map (fun (_, (b : List String)) => Json.arr <| b.map (fun x=> Json.str x) |>.toArray)
+--     pure x
+
+
+--   IO.println s!"==== Got {rag_strings.size} prompts from RAG ===="
+
+--   let targets_new_with_id : Array (CompilationStep × ConstantInfo × (Array (CompilationStep × ConstantInfo))) :=
+--     targets_new.mapIdx (fun i target => (target.1, target.2, targets_new.extract 0 i))
   let targets_new_with_id : Array (CompilationStep × ConstantInfo × TheoremID) ←
     targets_new.mapM (fun target => do
       let id ← getNormalId target mod
@@ -96,9 +165,13 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
       (cmd, ci, id, deps))
 
 
+--   let targets_new_cumulative_with_informal : Array (CompilationStep × ConstantInfo × TheoremID × (Array TheoremID) × (Option String) × (Option String)) :=
+--     targets_new_cumulative.map (fun i (cmd, ci, id, deps) =>
+
+  let full_data := targets_new_cumulative.zip rag_items
 
   let mut outputs := []
-  for ((cmd, ci, id, prev_ids), target_idx) in (targets_new_cumulative).zipIdx do
+  for (((cmd, ci, id, prev_ids), (informal_statement, informal_proof, rag_items)), target_idx) in (full_data).zipIdx do
     IO.println s!"Processing {ci.name.toString} in {mod.toString}"
     -- eventually want annotation on partial proofs, but for now, ignore
     let annotation_string : String ← insert_state_comments cmd
@@ -153,7 +226,6 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
     -- let id : TheoremID := {name := ci.name, module := mod, content := some srcCommand, compilationAlias := some srcCommand}
     -- let id ← getNormalId (cmd, ci) mod
 
-
     let mainData : TheoremData :=
       { id := id,
         C0_dependencies := prev_ids,
@@ -162,9 +234,11 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo)) (mod :
         annotation := annotation_string,
         content_sorry := pfAsSorry,
         goal := initialGoal,
-        -- rag := rag,
+        rag := rag_items,
         prescopes := prescopes,
-        postscopes := postscopes
+        postscopes := postscopes,
+        informal_statement := informal_statement,
+        informal_proof := informal_proof
         }
 
     outputs := ((mainData :: extracted_thms),target_idx) :: outputs
