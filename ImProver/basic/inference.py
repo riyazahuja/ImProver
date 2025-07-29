@@ -159,7 +159,7 @@ def construct_prompt_core(config_data, item, args):
     if args.goal_state:
         prompt += f"<GOAL_STATE>\n{item['goal_state']}\n</GOAL_STATE>\n\n"
 
-    prompt += f"\n<CURRENT>\n{item['content_sorry'] if config_data["input_sorry"] else item['id']['content']}\n</CURRENT>\n\n"
+    prompt += f"\n<CURRENT>\n{item['content_sorry'] if config_data["scoring"]["input_sorry"] else item['id']['content']}\n</CURRENT>\n\n"
     prompt += "<IMPROVED>"
 
     return prompt

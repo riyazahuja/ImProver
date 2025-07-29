@@ -1,64 +1,9 @@
-import Cli
-import TrainingData.InfoTree.Basic
-import TrainingData.InfoTree.TacticInvocation.Basic
-import ImportGraph.RequiredModules
-import ImProver.online.prompting.state_comments
-
-import Lean.Util.SearchPath
-import Mathlib.Lean.CoreM
-import Mathlib.Control.Basic
-import Mathlib.Lean.Expr.Basic
-import Batteries.Lean.HashMap
-import TrainingData.Frontend
-import TrainingData.InfoTree.ToJson
-import TrainingData.InfoTree.TacticInvocation.Basic
-import TrainingData.Utils.Range
-import Mathlib.Data.String.Defs
-import Mathlib.Lean.CoreM
-import Mathlib.Tactic.Change
-import Batteries.Lean.HashSet
-import Batteries.Data.List.Basic
-import Cli
+import TrainingData.Utils.state_comments
 
 
-open Lean Core Elab IO Meta Term Command Tactic Cli System
+open Lean Core Elab IO Meta Term Command Tactic System
 
 set_option autoImplicit true
-
-
-/- Configuration options for ImProver below -/
-structure ImProverConfig where
-  targetModule : Name
-  decls : Option (List Name) := none
-  model : String := "DEBUG"
-  endpoint : String := "http://0.0.0.0:8000/v1/chat/completions"
-  best_of_n : Nat := 1
-  annotation? : Bool := false
-  context? : Bool := false
-  rag? : Nat := 0
-  proofAsSorry? : Bool := false
-  jsonPath : Option String := none
-  metric := "length"
-  prompt := "default"
-  retrievalFilter : List Name := []
-  example_file : Option String := none
-
-
-/- Helper structure for containing info about potentially improved theorems (used in ImProver below) -/
-structure ImprovedTheoremInstance where
-  name : String
-  originalTheorem : String
-  modelOutput : String
-  annotatedOutput : String
-  oldCorrect : Bool
-  newCorrect : Bool
-  oldScore : Option Float
-  newScore : Option Float
-  delta : Option Float
-  old_msgs : List String
-  new_msgs : List String
-  original_prompt : String
-  config : ImProverConfig
 
 
 /- Helper function to return plaintext of a theorem annotated with goal states -/
@@ -87,17 +32,6 @@ def annotateTheorems (targetModule : Name) (decls : Option (List Name)) (proofAs
     IO.println s!"{state_comments}"
 
   return annotatedTheorems
-
-
-
-
-
-
-
-
-
-
-
 
 
 

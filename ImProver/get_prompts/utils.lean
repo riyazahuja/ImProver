@@ -1,24 +1,7 @@
-import ImProver.online.prompting.state_comments
-import ImProver.online.prompting.context
-import Cli
-import ImProver.online.prompting.prompts
-import ImProver.online.prompting.rag
-import TrainingData.InfoTree.Basic
-import TrainingData.InfoTree.TacticInvocation.Basic
-import TrainingData.Utils.HumanTheorem
-import ImportGraph.RequiredModules
-import ImportGraph.Imports
-import TrainingData.TreeParser
-import TrainingData.ExtractGoal
-import Lean.Util.SearchPath
-import Mathlib.Lean.CoreM
-import Mathlib.Control.Basic
-import Mathlib.Lean.Expr.Basic
-import Batteries.Lean.HashMap
-import ImProver.online.c2
 import ImProver.get_prompts.where_with_end
+import TrainingData.Utils.c2
 
-open Lean Core Elab IO Meta Term Command Tactic Cli
+open Lean Core Elab IO Meta Term Command Tactic
 
 set_option autoImplicit true
 
@@ -128,6 +111,25 @@ def getRagItems (targets_new : Array (CompilationStep × ConstantInfo))
 
 
 
+
+def proofAsSorry (cmd : CompilationStep) : Option String := do
+  let tactics := InfoTree.tactics_new cmd.trees |>.map (fun t => (t.pp, FileMap.ofPosition t.ctx.fileMap t.range.1))
+    if tactics.isEmpty then
+      let splitAt? := cmd.src.toString.splitAtString ":="
+      match splitAt? with
+      | none => none
+      | some (before, _) =>
+        let new_thm := before ++ ":= by sorry"
+        some new_thm
+    else
+      let (_, range) := tactics[0]!
+
+      let cmd_rng := cmd.stx.getPos?
+
+      let sstr : Substring := ⟨cmd.src.str, cmd_rng.getD 0,  range⟩
+
+      let new_thm := sstr.toString ++ "sorry"
+      some new_thm
 
 
 def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))

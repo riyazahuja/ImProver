@@ -1,26 +1,7 @@
--- import ImProver.online.prompting.state_comments
--- import ImProver.online.prompting.context
 import Cli
--- import ImProver.online.prompting.prompts
-import ImProver.online.inference.inference
-import ImProver.online.evaluation.eval
-import ImProver.online.utils
-import ImProver.online.c2
-import ImProver.online.prompting.rag
-import TrainingData.InfoTree.Basic
-import TrainingData.InfoTree.TacticInvocation.Basic
+import TrainingData.Utils.c2
 import TrainingData.Utils.HumanTheorem
-import ImportGraph.RequiredModules
-import ImportGraph.Imports
 import metrics.router
-
-
-import Lean.Util.SearchPath
-import Mathlib.Lean.CoreM
-import Mathlib.Control.Basic
-import Mathlib.Lean.Expr.Basic
-import Batteries.Lean.HashMap
--- import Compfiles
 
 open Lean Core Elab IO Meta Term Command Tactic Cli
 

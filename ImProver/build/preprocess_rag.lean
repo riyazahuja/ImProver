@@ -1,33 +1,9 @@
 import Cli.Basic
-import ImportGraph.Imports
-import Mathlib.Lean.CoreM
-import Cli
-import TrainingData.InfoTree.Basic
-import TrainingData.InfoTree.TacticInvocation.Basic
-import ImportGraph.RequiredModules
-
-
-import Lean.Util.SearchPath
-import Mathlib.Lean.CoreM
-import Mathlib.Control.Basic
-import Mathlib.Lean.Expr.Basic
-import Batteries.Lean.HashMap
-import TrainingData.Frontend
-import TrainingData.InfoTree.ToJson
-import TrainingData.InfoTree.TacticInvocation.Basic
-import TrainingData.Utils.Range
-import Mathlib.Data.String.Defs
-import Mathlib.Lean.CoreM
-import Mathlib.Tactic.Change
-import Batteries.Lean.HashSet
-import Batteries.Data.List.Basic
-import Cli
-import ImProver.online.prompting.context
-
+import TrainingData.Utils.context
 
 open Lean Cli Environment NameMap
 open Lean Lean.Core Lean.Elab IO Lean.Elab.IO Lean.Meta Lean.Elab.Term Lean.Elab.Command Lean.Meta.Tactic
-  Lean.Elab.Tactic Lean.Tactic Cli System String Cli.String
+  Lean.Elab.Tactic Cli System String Cli.String
 
 set_option autoImplicit true
 

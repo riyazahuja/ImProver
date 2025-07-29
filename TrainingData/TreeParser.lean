@@ -2,7 +2,7 @@ import Lean
 import Lean.Meta.Basic
 import Lean.Meta.CollectMVars
 import Init.Data.String.Basic
-import ImProver.online.utils
+import TrainingData.Utils.utils
 
 open Lean Elab Server Std String
 

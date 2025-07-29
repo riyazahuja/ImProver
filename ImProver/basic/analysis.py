@@ -532,7 +532,7 @@ def main(args):
     try:
         with open(metric_config_path, 'r') as f:
             metric_config = json.load(f)
-        METRIC_SPECIFICATIONS = metric_config.get("minmax", "min")
+        METRIC_SPECIFICATIONS = metric_config.get("scoring", {}).get("minmax", "min")
     except FileNotFoundError:
         print(f"Error: Metric config file not found at {metric_config_path}")
         return
