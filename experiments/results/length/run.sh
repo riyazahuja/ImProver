@@ -9,6 +9,6 @@ python /home/riyaza/eval_improver/improver/experiments/expert_iteration.py \
     --base-name length_full \
     --iterations 5 \
     --cpus 16 \
-    --gres gpu:A6000:8 \
+    --gres gpu:A6000:7 \
     --mem 150G \
     --output-dir /data/user_data/riyaza/saved_models/length \

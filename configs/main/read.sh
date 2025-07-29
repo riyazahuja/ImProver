@@ -5,7 +5,7 @@
 #SBATCH --error=logs/read_model_base_DS2.err
 #SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:A6000:8
+#SBATCH --gres=gpu:A6000:7
 #SBATCH --mem=150G
     
 
@@ -23,4 +23,4 @@ lake build eval_improver
 sleep 5
 
 
-./improver run llm_metric --config /home/riyaza/eval_improver/improver/configs/main/read.yaml
+./improver run pipeline --config /home/riyaza/eval_improver/improver/configs/main/read.yaml

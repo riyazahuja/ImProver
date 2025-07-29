@@ -86,7 +86,9 @@ example : True := by
             "lake", "exe", "get_examples", 
             example_module, 
             example_json_path,
-            sys.executable
+            sys.executable,
+            args.rag_id,
+            str(args.k)
         ]
         subprocess.run(cmd, check=True)
         print(" ".join(cmd))
@@ -222,6 +224,10 @@ def get_parser():
     parser.add_argument("--sorry_ok", action="store_true", help="Allow sorry_ok")
     parser.add_argument("--correctness_condition", default="none", help="Condition for correctness")
     parser.add_argument("--example_file", default=None, help="Path to example file")
+    
+    parser.add_argument("--rag_id", default=None, help="RAG ID")
+    parser.add_argument("--k", default=5, help="Number of RAG results to use for each prompt")
+    
     parser.add_argument("--llm_metric", action="store_true", help="Use an LLM-based metric")
     parser.add_argument("--metric_model", default=None, help="Model name for LLM metric")
     parser.add_argument("--rubric", default=None, help="JSON rubric")

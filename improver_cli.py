@@ -89,6 +89,8 @@ def metrics():
 @click.option('--sorry_ok', is_flag=True, default=False)
 @click.option('--correctness_condition', default='none')
 @click.option('--example_file', default=None)
+@click.option('--rag_id', default=None)
+@click.option('--k', default=5)
 @click.option('--llm_metric', is_flag=True, default=False)
 @click.option('--metric_model', default=None)
 @click.option('--rubric', default=None)
@@ -115,6 +117,8 @@ def metrics_add(**kwargs):
 
 @metrics.command('reload')
 @click.option('--names', default=None)
+@click.option('--rag_id', default=None)
+@click.option('--k', default=5)
 @click.option('--config', type=click.Path(exists=True), default=None)
 def metrics_reload(**kwargs):
     """Reload existing metric(s)."""

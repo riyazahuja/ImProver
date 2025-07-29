@@ -234,6 +234,9 @@ def main():
     
     parser.add_argument("--output-dir", default="/data/user_data/riyaza/saved_models", help="Output directory for the model")
     parser.add_argument("--HF-username", default="riyazahuja", help="HF username")
+    
+    parser.add_argument("--start_iteration", default=0, type=int, help="starting iteration")
+    
     args = parser.parse_args()
 
     inf_template = load_yaml(args.inf_template)
@@ -247,7 +250,7 @@ def main():
     prompt_id_map = {"test": args.prompt_id_test, "train": args.prompt_id_train}
     additional_vars = "source $HOME/miniconda3/bin/activate env\nexport HF_HOME=\"/data/user_data/riyaza/HF\""
     
-    for iteration in range(1, args.iterations + 1):
+    for iteration in range(args.start_iteration, args.iterations):
         iteration_tag = f"iteration_{iteration}"
         print(f"\n=== Iteration {iteration}/{args.iterations} ({iteration_tag}) ===")
 
