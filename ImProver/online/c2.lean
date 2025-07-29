@@ -277,7 +277,14 @@ structure RagMetadata where
 structure RagItem where
   page_content : String
   metadata : RagMetadata
-  deriving Inhabited, FromJson, ToJson
+  deriving Inhabited, FromJson
+
+instance : ToJson RagItem where
+  toJson m := Json.mkObj [
+    ("name", Json.str m.metadata.name),
+    ("module", Json.str m.metadata.module),
+    ("content", Json.str m.metadata.formal)
+  ]
 
 structure RagOutput where
     name : String
