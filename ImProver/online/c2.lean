@@ -265,6 +265,31 @@ structure TheoremID where
   kind : String := "theorem"
   deriving Inhabited, ToJson, FromJson, Repr
 
+structure RagMetadata where
+  name : String
+  module : String
+  informal_statement : String
+  informal_proof : String
+  formal : String
+  deriving Inhabited, FromJson, ToJson
+
+
+structure RagItem where
+  page_content : String
+  metadata : RagMetadata
+  deriving Inhabited, FromJson, ToJson
+
+structure RagOutput where
+    name : String
+    module : String
+    full_imports : List String
+    text : String
+    informal_statement : String
+    informal_proof : String
+    results : List RagItem
+    deriving Inhabited, FromJson, ToJson
+
+
 structure TheoremData where
   id : TheoremID
   annotation : String := ""
@@ -272,7 +297,7 @@ structure TheoremData where
   goal : String := ""
   prescopes: String := ""
   postscopes: String := ""
-  -- rag : Json := Json.arr #[]
+  rag : Array RagItem := #[]
   C0_dependencies : Array TheoremID := #[]
   C1_dependencies : Array TheoremID := #[]
   C2_dependencies : Array TheoremID := #[]

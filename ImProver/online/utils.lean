@@ -134,6 +134,8 @@ def String.splitAtString (s : String) (pattern : String): Option (String × Stri
     loop 0
 
 
+
+
 def getInitialProofState2 (cmd : CompilationStep) : IO String := do
   let env := cmd.after
   let ci? := cmd.diff.get? 0

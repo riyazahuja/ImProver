@@ -26,7 +26,7 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 set_option autoImplicit true
 
 
-def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String) (prompts_id : String): IO Unit := do
+def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String) (rag_id : String) (k : Nat): IO Unit := do
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean mod).toString
   -- let scope_import := "import ImProver.get_prompts.where_with_end\n"
@@ -73,12 +73,12 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
 
   IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ===="
 
-  let theorems_raw ← getPromptsAux targets_new mod python_cmd fileName prompts_id
+  let theorems_raw ← getPromptsAux targets_new mod python_cmd fileName rag_id k
   let theorems := theorems_raw.map (fun x => x.1) |>.flatten
 
-  let output : FileData := {theorems := theorems, module := mod, filePath := fileName, importGraph := none}
 
-  let json_data := ToJson.toJson output
+
+  let json_data := ToJson.toJson theorems
 
   let json_path := outputDirectory ++ "/" ++ mod.toString.replace "." "/" ++ ".json"
   IO.println s!"Writing to {json_path}"
@@ -102,16 +102,18 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
-  let prompts_id := args.positionalArg! "prompts_id" |>.as! String
+  let rag_id := args.positionalArg! "rag_id" |>.as! String
   let mod :Name := module
   let theorems_raw : String := match args.flag? "theorems" with
   | some x => x |>.as! String
   | none => ""
   let theorems : List String := if theorems_raw.isEmpty then [] else theorems_raw.splitOn ","
 
+  let k := args.positionalArg! "k" |>.as! Nat
+
 
   -- IO.println theorems
-  getPrompts mod outputDirectory python_cmd theorems prompts_id
+  getPrompts mod outputDirectory python_cmd theorems rag_id k
   return 0
 
 
@@ -127,7 +129,8 @@ def get_prompts : Cmd := `[Cli|
     file : ModuleName; "Lean module to get prompts for."
     outputDirectory : String; "Where to save the Json output."
     pythonCommand : String; "Path to python executable."
-    prompts_id : String; "ID for the prompts, used to identify the source of the prompts in the database."
+    rag_id : String; "ID for the rag directory, used to identify the source of the prompts in the database."
+    k : Nat; "Number of RAG results to use for each prompt."
 
   EXTENSIONS:
     defaultValues! #[("theorems", "")]
