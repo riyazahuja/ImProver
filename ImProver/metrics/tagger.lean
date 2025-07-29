@@ -1,6 +1,6 @@
 import ImProver.get_prompts.utils
 
-open Lean Core Elab IO Meta Term Command Tactic Cli
+open Lean Core Elab IO Meta Term Command Tactic
 
 inductive Version : Type
   | optimized

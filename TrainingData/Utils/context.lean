@@ -1,27 +1,13 @@
-import Cli
-import TrainingData.InfoTree.Basic
-import TrainingData.InfoTree.TacticInvocation.Basic
-import ImportGraph.RequiredModules
-
-
-import Lean.Util.SearchPath
-import Mathlib.Lean.CoreM
+import ImportGraph.Imports
+import Lean.Compiler.LCNF.ConfigOptions
+import Lean.Elab.PreDefinition.MkInhabitant
+import Lean.Replay
 import Mathlib.Control.Basic
-import Mathlib.Lean.Expr.Basic
-import Batteries.Lean.HashMap
-import TrainingData.Frontend
-import TrainingData.InfoTree.ToJson
-import TrainingData.InfoTree.TacticInvocation.Basic
-import TrainingData.Utils.Range
-import Mathlib.Data.String.Defs
 import Mathlib.Lean.CoreM
-import Mathlib.Tactic.Change
-import Batteries.Lean.HashSet
-import Batteries.Data.List.Basic
-import Cli
+import TrainingData.Frontend
 
 
-open Lean Core Elab IO Meta Term Command Tactic Cli System String
+open Lean Core Elab IO Meta Term Command Tactic System String
 
 set_option autoImplicit true
 
@@ -181,7 +167,7 @@ def get_context (step:CompilationStep)
         pure out
 
     let possibilities := c :: prefixes.map (fun p => Name.append p c)
-    let included? := pf_env.constants.find? c |>.map (fun x => x.all)
+    -- let included? := pf_env.constants.find? c |>.map (fun x => x.all)
     -- IO.println s!"included? {c} : {included?}"
     -- IO.println s!"possibilities: {"\n".intercalate (possibilities.map (fun p => p.toString))}"
 
