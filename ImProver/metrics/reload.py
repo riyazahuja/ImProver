@@ -7,7 +7,8 @@ def get_parser():
 
     parser = argparse.ArgumentParser(description="Reload metric(s).")
     parser.add_argument("--names", default=None, help="Name of the metric to reload, comma-separated. If not provided, reloads all metrics.")
-    
+    parser.add_argument("--rag_id", default=None, help="RAG ID")
+    parser.add_argument("--k", default=5, help="Number of RAG results to use for each prompt")
 
     return parser
 
@@ -57,7 +58,7 @@ def main(args):
     # Run get_examples for each module
     for example_module, output_path in example_modules:
         try:
-            cmd = ["lake", "exe", "get_examples", example_module, output_path, sys.executable]
+            cmd = ["lake", "exe", "get_examples", example_module, output_path, sys.executable, args.rag_id, str(args.k)]
             subprocess.run(cmd, check=True)
             print(f"Extracted examples from {example_module} to {output_path}")
         except subprocess.CalledProcessError as e:

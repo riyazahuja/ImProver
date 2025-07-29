@@ -67,7 +67,7 @@ def checkValidity (grouped : Array (Name × Array (CompilationStep × ConstantIn
 
   return validPairs
 
-def getExamples (mod : Name) (outputFile : String) (python_cmd : String) : IO Unit := do
+def getExamples (mod : Name) (outputFile : String) (python_cmd : String) (rag_id : String) (k : Nat) : IO Unit := do
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean mod).toString
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
@@ -106,7 +106,7 @@ def getExamples (mod : Name) (outputFile : String) (python_cmd : String) : IO Un
 
     let validPairs ← checkValidity grouped
 
-    let raw_data : List (List TheoremData × Nat) ← getPromptsAux (validPairs.map (fun (_, cmd, ci, _) => (cmd, ci))) mod python_cmd fileName ""
+    let raw_data : List (List TheoremData × Nat) ← getPromptsAux (validPairs.map (fun (_, cmd, ci, _) => (cmd, ci))) mod python_cmd fileName rag_id k
     let mut results : Array (Name × ExampleData) := #[]
 
     for i in [0:validPairs.size] do
@@ -149,11 +149,13 @@ def getExamplesCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputFile := args.positionalArg! "outputFile" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
+  let rag_id := args.positionalArg! "rag_id" |>.as! String
+  let k := args.positionalArg! "k" |>.as! Nat
 
 
 
 
-  getExamples mod outputFile python_cmd
+  getExamples mod outputFile python_cmd rag_id k
   return 0
 
 
@@ -165,7 +167,8 @@ def get_examples : Cmd := `[Cli|
     file : ModuleName; "Lean module to get prompts for."
     outputFile : String; "Where to save the Json output."
     pythonCommand : String; "Path to python executable."
-
+    rag_id : String; "ID for the rag directory, used to identify the source of the prompts in the database."
+    k : Nat; "Number of RAG results to use for each prompt."
 ]
 
 
