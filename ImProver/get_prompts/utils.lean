@@ -133,17 +133,27 @@ def proofAsSorry (cmd : CompilationStep) : Option String := do
 
 
 def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
-(mod : Name) (python_cmd : String) (fileName: String) (rag_id : String) (k : Nat)
+(mod : Name) (python_cmd : String) (fileName: String) (rag_id : Option String) (k : Nat)
 : IO (List (List TheoremData × Nat)) := do
 
 --   let informal_data : NameMap (String × String) := ( ← getInformalData rag_id mod ) |>.getD default
 
 --   let targets_new_with_rag : Array (CompilationStep × ConstantInfo × TheoremID) := getIDsRAG targets_new mod python_cmd rag_id informal_data
 
-  let rag_items? ← getRagItems targets_new mod rag_id python_cmd k
-  if rag_items?.isNone then
-    return []
-  let rag_items := rag_items?.get!
+
+  let io_rag_items : IO (Array (String × String × (Array RagItem))) := do
+
+    if rag_id.isNone then
+      return targets_new.map (fun _ => ("", "", #[]))
+
+    let rag_items? ← getRagItems targets_new mod rag_id.get! python_cmd k
+    if rag_items?.isNone then
+      return targets_new.map (fun _ => ("", "", #[]))
+    let rag_items := rag_items?.get!
+    return rag_items
+
+  let rag_items ← io_rag_items
+
 
 
 --   let rag_strings : Array Json ← do

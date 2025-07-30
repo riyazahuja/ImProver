@@ -68,7 +68,7 @@ def checkValidity (grouped : Array (Name × Array (CompilationStep × ConstantIn
 
   return validPairs
 
-def getExamples (mod : Name) (outputFile : String) (python_cmd : String) (rag_id : String) (k : Nat) : IO Unit := do
+def getExamples (mod : Name) (outputFile : String) (python_cmd : String) (rag_id : Option String) (k : Nat) : IO Unit := do
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean mod).toString
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
@@ -150,8 +150,10 @@ def getExamplesCLI (args : Cli.Parsed) : IO UInt32 := do
   let outputFile := args.positionalArg! "outputFile" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
   let mod :Name := module
-  let rag_id := args.positionalArg! "rag_id" |>.as! String
+  let rag_id_raw := args.positionalArg! "rag_id" |>.as! String
   let k := args.positionalArg! "k" |>.as! Nat
+
+  let rag_id := if rag_id_raw == "none" then none else some rag_id_raw
 
 
 

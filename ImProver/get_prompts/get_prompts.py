@@ -75,7 +75,7 @@ async def calculate_prompt(file_info, args):
         return
 
     
-    
+    rag_id = args.rag_id if args.rag_id else "none"
     
     st = time.time()
     if len(theorems)!=0:
@@ -86,7 +86,7 @@ async def calculate_prompt(file_info, args):
             file.replace("/", ".").replace(".lean", ""),
             os.path.join("prompts", args.prompts_id, "src"),
             sys.executable,
-            args.rag_id,
+            rag_id,
             args.k,
             "--theorems",
             ",".join(theorems) if theorems else ""
@@ -99,7 +99,7 @@ async def calculate_prompt(file_info, args):
             file.replace("/", ".").replace(".lean", ""),
             os.path.join("prompts", args.prompts_id, "src"),
             sys.executable,
-            args.rag_id,
+            rag_id,
             str(args.k),
         ]
     print(" ".join(cmd))
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
     parser.add_argument("--prompts_id", type=str, default="prompts_" + time),
-    parser.add_argument("--rag_id", type=str, default="rag_" + time),
+    parser.add_argument("--rag_id", type=str, default=None),
     parser.add_argument(
         "--split",
         type=str,
