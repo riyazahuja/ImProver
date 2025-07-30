@@ -216,6 +216,11 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
 
         else none
 
+      let final_trimmed := if correct then
+        head.src.toString
+      else
+        trimmed_output
+
       let out := {
         module := mod,
         decl := ci.name.toString,
@@ -228,7 +233,8 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         delta := delta,
         og_raw := original.src.toString,
         new_raw := model_output,
-        new_trimmed := trimmed_output,
+        -- new_trimmed := trimmed_output,
+        new_trimmed := final_trimmed,
         original_prompt := prompt,
         decl_idx := decl_idx
       }

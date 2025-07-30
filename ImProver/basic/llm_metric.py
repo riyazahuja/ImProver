@@ -69,24 +69,63 @@ def run_inference(df, args, metric_config):
 
     def postprocess(row):
         text = row["generated_text"]
-        match = re.search(r"(\d+)$", text)
-        if match:
-            score = int(match.group()[-1]) # Extract the last number from the text
-        else:
-            print(f"Warning: No score found in generated text: {text}. Might need to increase number of generated tokens. ")
-            score = 0
-        # Will score everything between 0 (first is better) and 10 (second is better), so we need to scale it to the rubric points
-        if row["original_first"]:
-            score = (score - 5) / 10 * row["points"]
-        else:
-            score = (5 - score) / 10 * row["points"]
-        return dict(answer=score, **row)
+        
+        import re
 
+        # Search for <SCORE>...</SCORE> in the text
+        match = re.search(r"<SCORE>(.*?)</SCORE>", text, re.DOTALL)
+        if match:
+            score_str = match.group(1).strip()
+        else:
+            # If no <SCORE> tag, try to find <SCORE> and go to end
+            match_start = re.search(r"<SCORE>(.*)", text, re.DOTALL)
+            if match_start:
+                score_str = match_start.group(1).strip()
+            else:
+                # If no <SCORE> tag at all, try from beginning
+                score_str = text.strip()
+                if not score_str:
+                    return dict(answer=None, **row)
+
+        # Now, try to parse score_str as an integer between -5 and 5 inclusive
+        try:
+            score = int(score_str)
+            if score < -5 or score > 5:
+                score = None
+        except Exception:
+            score = None
+
+        # scaled_score = score / 5 # now its between -1 and 1
+
+
+        return dict(answer=score, **row)
+        
+        # IGNORE vvvv (OLD CODE)
+        # match = re.search(r"(\d+)$", text)
+        # if match:
+        #     score = int(match.group()[-1]) # Extract the last number from the text
+        # else:
+        #     print(f"Warning: No score found in generated text: {text}. Might need to increase number of generated tokens. ")
+        #     score = 0
+        # # Will score everything between 0 (first is better) and 10 (second is better), so we need to scale it to the rubric points
+        # if row["original_first"]:
+        #     score = (score - 5) / 10 * row["points"]
+        # else:
+        #     score = (5 - score) / 10 * row["points"]
+        # return dict(answer=score, **row)
+
+    
+    
+        
+    system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them.
+Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final score wrapped in<SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive, 
+where -5 means the first proof is much better, 5 means the second proof is much better, and 0 means they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs."""
+        
     vllm_processor = build_llm_processor(
         config,
         preprocess=lambda row: dict(
             messages=[
-                {"role": "system", "content": "You are a helpful expert in evaluating proofs in the Lean4 language. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them. Think carefully about your answer, listen to EXACTLY what the user tells you to do, and output ONLY the final score of which proof is better, without anything else."},
+                {"role": "system", "content": system},
                 {"role": "user", "content": row["raw_prompt"]}
                 ],
             sampling_params=dict(
@@ -195,17 +234,16 @@ def calculate_prompt(proof1, proof2, original_first, metric_config):
             proof1, proof2 = strip_lean_comments(proof1), strip_lean_comments(proof2)
         prompt = (
             rubric["text"]
-            + f"""Here is the first proof:
-```lean
+            + f"""Here are the two proofs:
+
+<FIRST_PROOF>
 {proof1}
-```
+</FIRST_PROOF>
 
-And here is the second proof:
-```lean
+<SECOND_PROOF>
 {proof2}
-```
-
-You will think about this criterion, and score which proof is better by giving a number between 0 and 9, where 0 means the first proof is much better, 9 means the second proof is much better, and 5 means they are equally good or equally bad. You will then print out ONLY the score you gave these proofs (a single number), without anything else. """
+</SECOND_PROOF>
+"""
         )
         if original_first:
             ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i, "original": proof1, "improved": proof2})
@@ -259,21 +297,26 @@ def aggregate_scores(rows, metric_config):
             continue
             
         # Calculate score for each category
-        group_score = sum(item["answer"] for item in group)
-        
-        # Normalize by dividing by total points
-        normalized_score = group_score / total_available_points
+        total_score = 0
+        for category in group:
+            s_i = category['answer']
+            if s_i is None:
+                continue
+            flip = 1 if category['original_first'] else -1
+            total_score += flip * s_i * category['points'] / 5
+        normalized_score = total_score / total_available_points
+                
         normalized_scores.append(normalized_score)
     
     # Return the mean of normalized scores across all groups
     if not normalized_scores:
         return 0  # Return 0 if no valid groups were found
 
-    length_diff_penalty_factor = 0.25
+    # length_diff_penalty_factor = 0.25
 
     total = sum(normalized_scores)
-    if len(rows[0]["original"].split("\n")) / len(rows[0]["improved"].split("\n")) > 2 or len(rows[0]["improved"].split("\n")) / len(rows[0]["original"].split("\n")) > 2:
-        total -= length_diff_penalty_factor * total_available_points
+    # if len(rows[0]["original"].split("\n")) / len(rows[0]["improved"].split("\n")) > 2 or len(rows[0]["improved"].split("\n")) / len(rows[0]["original"].split("\n")) > 2:
+    #     total -= length_diff_penalty_factor * total_available_points
 
     return total / len(normalized_scores)
 
@@ -564,10 +607,12 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
 
     # returns the path to the directory containing run metadata and the parquet lake
 
-    output_path = run_inference(proof_df, args, metric_config)
+    # output_path = run_inference(proof_df, args, metric_config)
     
     
     parse_readabilityDB(args, metric_config)
+    
+    ray.shutdown()
     
 
 

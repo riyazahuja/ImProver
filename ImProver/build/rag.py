@@ -15,8 +15,8 @@ def main(args):
     
     # MAX_PROMPT_TOKENS = 16384 - 2048   # model context minus generation tokens
 
-    # preprocess_rag_main(args)
-    # informalize_main(args)
+    preprocess_rag_main(args)
+    informalize_main(args)
     build_db_main(args)
     
 

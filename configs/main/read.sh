@@ -23,4 +23,4 @@ lake build eval_improver
 sleep 5
 
 
-./improver run pipeline --config /home/riyaza/eval_improver/improver/configs/main/read.yaml
+./improver run llm_metric --config /home/riyaza/eval_improver/improver/configs/main/read.yaml
