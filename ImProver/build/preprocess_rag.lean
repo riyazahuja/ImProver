@@ -9,6 +9,7 @@ set_option autoImplicit true
 
 
 
+
 structure RAGModule where
   module : Name
   imports : Array Name
@@ -25,6 +26,11 @@ instance : ToJson (Array RAGModule) where
       ("depth", toJson m.depth)]))
 
   Json.mkObj (modules.toList)
+
+
+
+
+
 
 
 

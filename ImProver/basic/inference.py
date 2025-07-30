@@ -273,6 +273,8 @@ def main(args):
 
     # returns the path to the directory containing run metadata and the parquet lake
     output_path = run_inference(df, args)
+    
+    ray.shutdown()
 
     # we should also initialize + index the duckDB stuff
 
