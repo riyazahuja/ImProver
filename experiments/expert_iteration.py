@@ -106,7 +106,7 @@ def sbatch_header(job_name: str, cpus: int, gres: str, mem: str, extra: str = ""
 def make_inference_sbatch(inference_config: str, run_id: str, prompt_id: str, split: str, model: str, script_path: Path, stdout_path: Path, stderr_path: Path, job_name: str, cpus: int, gres: str, mem: str, additional_vars : str = ""):
 
     num_gpus = int(gres.split(":")[-1])
-    cuda_visible_devices = ",".join(list(range(num_gpus)))
+    cuda_visible_devices = ",".join(list([str(i) for i in range(num_gpus)]))
     
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -148,7 +148,7 @@ export model=\"{model}\"
 def make_training_sbatch(train_config_path: Path, base_model: str, model_name: str, datasets: list, output_dir: str, hub_model_id: str, wandb_project: str, script_path: Path, stdout_path: Path, stderr_path: Path, job_name: str, cpus: int, gres: str, mem: str, additional_vars: str = ""):
 
     num_gpus = int(gres.split(":")[-1])
-    cuda_visible_devices = ",".join(list(range(num_gpus)))
+    cuda_visible_devices = ",".join(list([str(i) for i in range(num_gpus)]))
     
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -262,7 +262,7 @@ def main():
         
         train_run_id = ""
         for split in ("test", "train"):
-            run_id = f"{args.base_name}_{split}_{iteration_tag}"
+            run_id = f"{args.base_name}_eval_{split}_{iteration_tag}"
             if split == "train":
                 train_run_id = run_id
             prompt_id = prompt_id_map[split]
@@ -281,7 +281,7 @@ def main():
             
             job_name = run_id
             
-            make_inference_sbatch(inf_template, run_id, prompt_id, split, current_model, script_path, stdout_path, stderr_path, job_name,args.cpus, args.gres, args.mem, additional_vars)
+            make_inference_sbatch(args.inf_template, run_id, prompt_id, split, current_model, script_path, stdout_path, stderr_path, job_name,args.cpus, args.gres, args.mem, additional_vars)
             
             
             jobid = submit_and_get_jobid(script_path)
@@ -299,7 +299,7 @@ def main():
         run_id = f"{args.base_name}_train_{iteration_tag}"
         training_dataset_path = f"evals/{train_run_id}/analysis/BoN/train.jsonl"
         
-        datasets = json.loads([{"path": training_dataset_path, "type": "alpaca"}])
+        datasets = json.dumps([{"path": training_dataset_path, "type": "alpaca"}])
         
         output_dir = args.output_dir
         
@@ -318,7 +318,7 @@ def main():
         
         job_name = run_id
         
-        make_training_sbatch(train_template, base_model, model_name, datasets, output_dir, hub_model_id, wandb_project, script_path, stdout_path, stderr_path, job_name, args.cpus, args.gres, args.mem, additional_vars)
+        make_training_sbatch(args.train_template, base_model, model_name, datasets, output_dir, hub_model_id, wandb_project, script_path, stdout_path, stderr_path, job_name, args.cpus, args.gres, args.mem, additional_vars)
 
         train_jobid = submit_and_get_jobid(script_path, dependency=dependency_str)
 

@@ -81,13 +81,14 @@ example : True := by
     example_json_path = os.path.join(metric_path, f"examples.json")
 
     # Run lake exe get_examples to convert Lean examples to JSON
+    rag_id = args.rag_id if args.rag_id else "none"
     try:
         cmd = [
             "lake", "exe", "get_examples", 
             example_module, 
             example_json_path,
             sys.executable,
-            args.rag_id,
+            rag_id,
             str(args.k)
         ]
         subprocess.run(cmd, check=True)

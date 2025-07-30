@@ -9,7 +9,7 @@ open Lean Core Elab IO Meta Term Command Tactic Cli
 set_option autoImplicit true
 
 
-def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String) (rag_id : String) (k : Nat): IO Unit := do
+def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (theorems : List String) (rag_id : Option String) (k : Nat): IO Unit := do
   searchPathRef.set compile_time_search_path%
   let fileName := (← findLean mod).toString
   -- let scope_import := "import ImProver.get_prompts.where_with_end\n"
@@ -85,7 +85,7 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
   let outputDirectory := args.positionalArg! "outputDirectory" |>.as! String
   let python_cmd := args.positionalArg! "pythonCommand" |>.as! String
-  let rag_id := args.positionalArg! "rag_id" |>.as! String
+  let rag_id_raw := args.positionalArg! "rag_id" |>.as! String
   let mod :Name := module
   let theorems_raw : String := match args.flag? "theorems" with
   | some x => x |>.as! String
@@ -94,6 +94,7 @@ def getPromptsCLI (args : Cli.Parsed) : IO UInt32 := do
 
   let k := args.positionalArg! "k" |>.as! Nat
 
+  let rag_id := if rag_id_raw == "none" then none else some rag_id_raw
 
   -- IO.println theorems
   getPrompts mod outputDirectory python_cmd theorems rag_id k

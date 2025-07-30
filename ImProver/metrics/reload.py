@@ -58,7 +58,8 @@ def main(args):
     # Run get_examples for each module
     for example_module, output_path in example_modules:
         try:
-            cmd = ["lake", "exe", "get_examples", example_module, output_path, sys.executable, args.rag_id, str(args.k)]
+            rag_id = args.rag_id if args.rag_id else "none" 
+            cmd = ["lake", "exe", "get_examples", example_module, output_path, sys.executable, rag_id, str(args.k)]
             subprocess.run(cmd, check=True)
             print(f"Extracted examples from {example_module} to {output_path}")
         except subprocess.CalledProcessError as e:
