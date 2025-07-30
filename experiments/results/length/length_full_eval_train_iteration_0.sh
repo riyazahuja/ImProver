@@ -3,15 +3,15 @@
 #SBATCH --job-name=length_full_eval_train_iteration_0
 #SBATCH --output=logs/length_full/length_full_eval_train_iteration_0.out
 #SBATCH --error=logs/length_full/length_full_eval_train_iteration_0.err
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:A6000:7
+#SBATCH --gres=gpu:A6000:8
 #SBATCH --mem=150G
 
 source $HOME/miniconda3/bin/activate env
 export HF_HOME="/data/user_data/riyaza/HF"
 export DEEPSPEED_LOG_LEVEL=DEBUG
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export PYTHONUNBUFFERED=1
 
 cd /home/riyaza/eval_improver/improver
