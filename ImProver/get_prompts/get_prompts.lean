@@ -54,7 +54,7 @@ def getPrompts (mod : Name) (outputDirectory : String) (python_cmd : String) (th
       continue
     targets_new := targets_new.push (cmd, ci)
 
-  IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ===="
+  IO.println s!"==== Got {targets_new.size} targets from {mod.toString} ==== [rag_id : {rag_id}]"
 
   let theorems_raw ← getPromptsAux targets_new mod python_cmd fileName rag_id k
   let theorems := theorems_raw.map (fun x => x.1) |>.flatten

@@ -146,6 +146,7 @@ def prompts():
 @click.option('--rag_id', default=None)
 @click.option('--split', default='train')
 @click.option('--cpus', default=multiprocessing.cpu_count())
+@click.option('--timeout', default=1800)
 @click.option('--k', default=10)
 @click.option('--config', type=click.Path(exists=True), default=None)
 def prompts_get(**kwargs):
@@ -171,10 +172,28 @@ def rag():
 @click.option('--dataset_path', required=False, help="Path to the dataset.")
 @click.option('--rag_id', default=f"rag_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
 @click.option('--max_depth', default=2)
+@click.option('--split', default=None)
 @click.option('--include_context', is_flag=True, default=False)
 @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
 @click.option('--cpus', default=multiprocessing.cpu_count())
 @click.option('--gpus', default=None)
+
+@click.option('--nccl_p2p', is_flag=True, default=False)
+@click.option('--ray_timeout', default=1800)
+@click.option('--num_blocks', default=16)
+@click.option('--engine_cpu_resources', default=None)
+@click.option('--engine_gpu_resources', default=1)
+@click.option('--concurrency', default=None)
+@click.option('--tensor_parallel_size', default=1)
+@click.option('--enable_chunked_prefill', is_flag=True, default=True)
+@click.option('--max_model_len', default=16384)
+@click.option('--max_num_batched_tokens', default=65536)
+@click.option('--max_concurrent_batches', default=32)
+@click.option('--batch_size', default=32)
+@click.option('--truncate_prompt_tokens', default=14336)
+@click.option('--max_tokens', default=2048)
+
+
 @click.option('--config', type=click.Path(exists=True), default=None)
 def rag_build(**kwargs):
     """Build a RAG."""
@@ -190,6 +209,8 @@ def rag_build(**kwargs):
 @rag.command('preprocess')
 @click.option('--dataset_path', required=False, help="Path to the dataset.")
 @click.option('--rag_id', default=f"rag_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+@click.option('--cpus', default=multiprocessing.cpu_count())
+@click.option('--split', default=None)
 @click.option('--config', type=click.Path(exists=True), default=None)
 def rag_preprocess(**kwargs):
     """Preprocess a RAG."""
@@ -210,6 +231,22 @@ def rag_preprocess(**kwargs):
 @click.option('--model', default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
 @click.option('--cpus', default=multiprocessing.cpu_count())
 @click.option('--gpus', default=None)
+
+@click.option('--nccl_p2p', is_flag=True, default=False)
+@click.option('--ray_timeout', default=1800)
+@click.option('--num_blocks', default=16)
+@click.option('--engine_cpu_resources', default=None)
+@click.option('--engine_gpu_resources', default=1)
+@click.option('--concurrency', default=None)
+@click.option('--tensor_parallel_size', default=1)
+@click.option('--enable_chunked_prefill', is_flag=True, default=True)
+@click.option('--max_model_len', default=16384)
+@click.option('--max_num_batched_tokens', default=65536)
+@click.option('--max_concurrent_batches', default=32)
+@click.option('--batch_size', default=32)
+@click.option('--truncate_prompt_tokens', default=14336)
+@click.option('--max_tokens', default=2048)
+
 @click.option('--config', type=click.Path(exists=True), default=None)
 def rag_informalize(**kwargs):
     """Informalize a RAG."""

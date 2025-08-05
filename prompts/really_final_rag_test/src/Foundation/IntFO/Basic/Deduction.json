@@ -1,0 +1,1477 @@
+[{"rag":
+  [{"name": "LO.FirstOrder.Semiformulaᵢ.complexity_rew",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "@[simp] lemma complexity_rew (ω : Rew L ξ₁ n₁ ξ₂ n₂) (φ : Semiformulaᵢ L ξ₁ n₁) : (ω ▹ φ).complexity = φ.complexity := by\n  induction φ using rec' generalizing n₂ <;> simp [*, rew_rel]"},
+   {"name": "LO.FirstOrder.Semiformulaᵢ.rew_rel",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "lemma rew_rel (ω : Rew L ξ₁ n₁ ξ₂ n₂) {k} (r : L.Rel k) (v : Fin k → Semiterm L ξ₁ n₁) :\n    ω ▹ rel r v = rel r fun i ↦ ω (v i) := rfl"},
+   {"name": "LO.FirstOrder.Semiformulaᵢ.rewAux",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "def rewAux ⦃n₁ n₂ : ℕ⦄ : Rew L ξ₁ n₁ ξ₂ n₂ → Semiformulaᵢ L ξ₁ n₁ → Semiformulaᵢ L ξ₂ n₂\n  | _, ⊤        => ⊤\n  | _, ⊥        => ⊥\n  | ω, rel r v  => rel r (ω ∘ v)\n  | ω, φ ⋏ ψ    => rewAux ω φ ⋏ rewAux ω ψ\n  | ω, φ ⋎ ψ    => rewAux ω φ ⋎ rewAux ω ψ\n  | ω, φ ➝ ψ    => rewAux ω φ ➝ rewAux ω ψ\n  | ω, ∀' φ     => ∀' rewAux ω.q φ\n  | ω, ∃' φ     => ∃' rewAux ω.q φ"},
+   {"name": "Fintype.card_lex",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[simp]\ntheorem Fintype.card_lex (α : Type*) [Fintype α] : Fintype.card (Lex α) = Fintype.card α :=\n  rfl"},
+   {"name": "Finset.card_mono",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "@[mono]\ntheorem card_mono : Monotone (@card α) := by apply card_le_card"},
+   {"name": "Finset.lt_wf",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem lt_wf {α} : WellFounded (@LT.lt (Finset α) _) :=\n  have H : Subrelation (@LT.lt (Finset α) _) (InvImage (· < ·) card) := fun {_ _} hxy =>\n    card_lt_card hxy\n  Subrelation.wf H <| InvImage.wf _ <| (Nat.lt_wfRel).2"},
+   {"name": "Finset.card_sdiff_add_card_eq_card",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_sdiff_add_card_eq_card {s t : Finset α} (h : s ⊆ t) : #(t \\ s) + #s = #t :=\n  ((Nat.sub_eq_iff_eq_add (card_le_card h)).mp (card_sdiff h).symm).symm"},
+   {"name": "LO.FirstOrder.Semiformulaᵢ.rew",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "def rew (ω : Rew L ξ₁ n₁ ξ₂ n₂) : Semiformulaᵢ L ξ₁ n₁ →ˡᶜ Semiformulaᵢ L ξ₂ n₂ where\n  toTr := rewAux ω\n  map_top' := rfl\n  map_bot' := rfl\n  map_neg' := by simp [Semiformulaᵢ.neg_def, rewAux]\n  map_and' := fun _ _ ↦ rfl\n  map_or' := fun _ _ ↦ rfl\n  map_imply' := fun _ _ ↦ rfl"},
+   {"name": "LO.FirstOrder.Semiformulaᵢ.IsNegative.rew",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "@[simp] lemma IsNegative.rew {ω : Rew L ξ₁ n₁ ξ₂ n₂} {φ : Semiformulaᵢ L ξ₁ n₁} :\n    (ω ▹ φ).IsNegative ↔ φ.IsNegative := by\n  induction φ using rec' generalizing n₂ <;> simp [rew_rel, *]"},
+   {"name": "Finset.one_lt_card",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem one_lt_card : 1 < #s ↔ ∃ a ∈ s, ∃ b ∈ s, a ≠ b := by\n  rw [← not_iff_not]\n  push_neg\n  exact card_le_one"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "For any term $b$ and any function $f$ that rewrites terms, the depth of $b$ remains the same after rewriting, meaning that $\\| \\text{rewrite } f \\, b \\| = \\| b \\|$.",
+  "informal_proof":
+  "We prove this statement by induction on the term $b$.\n\n1. **Base Case (Variables):**  \n   If $b$ is a variable, its depth is $0$. Since a variable cannot be rewritten into a deeper structure, $\\| \\text{rewrite } f \\, b \\| = 0 = \\| b \\|$. \n\n2. **Base Case (Abstractions):**  \n   If $b$ is an abstraction $\\lambda x. c$, its depth is $\\| c \\| + 1$. Rewriting $b$ would only affect the subterm $c$, but by the inductive hypothesis, $\\| \\text{rewrite } f \\, c \\| = \\| c \\|$. Therefore, $\\| \\text{rewrite } f \\, b \\| = \\| \\text{rewrite } f \\, c \\| + 1 = \\| c \\| + 1 = \\| b \\|$. \n\n3. **Inductive Step (Applications):**  \n   If $b$ is an application $c_1 \\, c_2$, its depth is $\\max(\\| c_1 \\|, \\| c_2 \\|) + 1$. After rewriting, we have $\\text{rewrite } f \\, b = \\text{rewrite } f \\, c_1 \\, \\text{rewrite } f \\, c_2$. By the inductive hypothesis, $\\| \\text{rewrite } f \\, c_1 \\| = \\| c_1 \\|$ and $\\| \\text{rewrite } f \\, c_2 \\| = \\| c_2 \\|$. Thus, $\\| \\text{rewrite } f \\, b \\| = \\max(\\| \\text{rewrite } f \\, c_1 \\|, \\| \\text{rewrite } f \\, c_2 \\|) + 1 = \\max(\\| c_1 \\|, \\| c_2 \\|) + 1 = \\| b \\|$. \n\nIn all cases, the depth remains invariant under rewriting, completing the proof.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_rewrite",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_rewrite (f : ℕ → SyntacticTerm L) (b : Λ ⊢ φ) : ‖rewrite f b‖ = ‖b‖ := by\n  induction b generalizing f <;> simp [rewrite, *]\n\n",
+   "compilationAlias":
+   "@[simp] lemma depth_rewrite (f : ℕ → SyntacticTerm L) (b : Λ ⊢ φ) : ‖rewrite f b‖ = ‖b‖ := by\n  induction b generalizing f <;> simp [rewrite, *]\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nf : Nat → LO.FirstOrder.SyntacticTerm L\nφ_2 ψ : LO.FirstOrder.SyntacticFormulaᵢ L\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.rewrite f (LO.FirstOrder.HilbertProofᵢ.or₁ φ_2 ψ)) (LO.FirstOrder.HilbertProofᵢ.or₁ (LO.FirstOrder.Semiformulaᵢ.rewAux (LO.FirstOrder.Rew.rewrite f) φ_2) (LO.FirstOrder.Semiformulaᵢ.rewAux (LO.FirstOrder.Rew.rewrite f) ψ))",
+  "content_sorry":
+  "@[simp] lemma depth_rewrite (f : ℕ → SyntacticTerm L) (b : Λ ⊢ φ) : ‖rewrite f b‖ = ‖b‖ := by\n  sorry",
+  "annotation":
+  "@[simp] lemma depth_rewrite (f : ℕ → SyntacticTerm L) (b : Λ ⊢ φ) : ‖rewrite f b‖ = ‖b‖ := by\n  /-\n    L : LO.FirstOrder.Language\n    Λ : LO.FirstOrder.Hilbertᵢ L\n    φ : LO.FirstOrder.SyntacticFormulaᵢ L\n    f : Nat → LO.FirstOrder.SyntacticTerm L\n    b : LO.System.Prf Λ φ\n    ⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.rewrite f …\n  -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n                                 /-\n                                   🎉 no goals\n                                 -/\n  induction b generalizing f <;> simp [rewrite, *]\n                                 /-\n                                   🎉 no goals\n                                 -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LO.FirstOrder.SyntacticTerm",
+    "module": "Foundation.Logic.Predicate.Term",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "abbrev SyntacticTerm (L : Language) := SyntacticSemiterm L 0",
+    "compilationAlias":
+    "abbrev SyntacticTerm (L : Language) := SyntacticSemiterm L 0"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_cast",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_cast (b : Λ ⊢ φ) (e : φ = ψ) : ‖HilbertProofᵢ.cast b e‖ = ‖b‖ := by rcases e; rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma depth_cast (b : Λ ⊢ φ) (e : φ = ψ) : ‖HilbertProofᵢ.cast b e‖ = ‖b‖ := by rcases e; rfl\n\n"}]},
+ {"rag":
+  [{"name": "LO.FirstOrder.Semiformulaᵢ.complexity_rew",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "@[simp] lemma complexity_rew (ω : Rew L ξ₁ n₁ ξ₂ n₂) (φ : Semiformulaᵢ L ξ₁ n₁) : (ω ▹ φ).complexity = φ.complexity := by\n  induction φ using rec' generalizing n₂ <;> simp [*, rew_rel]"},
+   {"name": "Fin.cast_eq_cast'",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "/-- A reversed version of `Fin.cast_eq_cast` that is easier to rewrite with. -/\ntheorem Fin.cast_eq_cast' {n m : ℕ} (h : Fin n = Fin m) :\n    _root_.cast h = Fin.cast (fin_injective h) := by\n  cases fin_injective h\n  rfl"},
+   {"name": "Fin.val_eq_val_of_heq",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fin.val_eq_val_of_heq {k l : ℕ} {i : Fin k} {j : Fin l} (h : HEq i j) :\n    (i : ℕ) = (j : ℕ) :=\n  (Fin.heq_ext_iff (fin_injective (type_eq_of_heq h))).1 h"},
+   {"name": "Fin.cast_eq_cast'",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "/-- A reversed version of `Fin.cast_eq_cast` that is easier to rewrite with. -/\ntheorem Fin.cast_eq_cast' {n m : ℕ} (h : Fin n = Fin m) :\n    _root_.cast h = Fin.cast (fin_injective h) := by\n  cases fin_injective h\n  rfl"},
+   {"name": "Fin.val_eq_val_of_heq",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fin.val_eq_val_of_heq {k l : ℕ} {i : Fin k} {j : Fin l} (h : HEq i j) :\n    (i : ℕ) = (j : ℕ) :=\n  (Fin.heq_ext_iff (fin_injective (type_eq_of_heq h))).1 h"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Fin.val_eq_val_of_heq",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fin.val_eq_val_of_heq {k l : ℕ} {i : Fin k} {j : Fin l} (h : HEq i j) :\n    (i : ℕ) = (j : ℕ) :=\n  (Fin.heq_ext_iff (fin_injective (type_eq_of_heq h))).1 h"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Fin.val_eq_val_of_heq",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fin.val_eq_val_of_heq {k l : ℕ} {i : Fin k} {j : Fin l} (h : HEq i j) :\n    (i : ℕ) = (j : ℕ) :=\n  (Fin.heq_ext_iff (fin_injective (type_eq_of_heq h))).1 h"},
+   {"name": "Finset.toRight_image_swap",
+    "module": "Mathlib.Data.Finset.Sum",
+    "content":
+    "lemma toRight_image_swap : (u.image Sum.swap).toRight = u.toLeft := by\n  ext x; simp"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "If two expressions $\\varphi$ and $\\psi$ are equal, then casting a proof from one to the other does not change the depth of the proof.",
+  "informal_proof":
+  "Consider two equal expressions $\\varphi$ and $\\psi$. Since $\\varphi = \\psi$, any proof of $\\varphi$ can be directly applied to $\\psi$ without altering its structure. Therefore, the depth of the proof, which reflects its complexity or length, remains unchanged when casting the proof from $\\varphi$ to $\\psi$.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_cast",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_cast (b : Λ ⊢ φ) (e : φ = ψ) : ‖HilbertProofᵢ.cast b e‖ = ‖b‖ := by rcases e; rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma depth_cast (b : Λ ⊢ φ) (e : φ = ψ) : ‖HilbertProofᵢ.cast b e‖ = ‖b‖ := by rcases e; rfl\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ ψ : LO.FirstOrder.SyntacticFormulaᵢ L\nb : LO.System.Prf Λ φ\ne : Eq φ ψ\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.cast b e)) (LO.FirstOrder.HilbertProofᵢ.depth b)",
+  "content_sorry":
+  "@[simp] lemma depth_cast (b : Λ ⊢ φ) (e : φ = ψ) : ‖HilbertProofᵢ.cast b e‖ = ‖b‖ := by sorry",
+  "annotation":
+  "                                                                                        /-\n                                                                                          L : LO.FirstOrder.Language\n                                                                                          Λ : LO.FirstOrder.Hilbertᵢ L\n                                                                                          φ ψ : LO.FirstOrder.SyntacticFormulaᵢ L\n                                                                                          b : LO.System.Prf Λ φ\n                                                                                          e : Eq φ ψ\n                                                                                          ⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.cast b e) …\n                                                                                        -/\n@[simp] lemma depth_cast (b : Λ ⊢ φ) (e : φ = ψ) : ‖HilbertProofᵢ.cast b e‖ = ‖b‖ := by rcases e; rfl\n                                                                                                  /-\n                                                                                                    🎉 no goals\n                                                                                                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n"}]},
+ {"rag":
+  [{"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Finite.wellFounded_of_trans_of_irrefl",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem wellFounded_of_trans_of_irrefl (r : α → α → Prop) [IsTrans α r] [IsIrrefl α r] :\n    WellFounded r := by\n  classical\n  cases nonempty_fintype α\n  have (x y) (hxy : r x y) : #{z | r z x} < #{z | r z y} :=\n    Finset.card_lt_card <| by\n      simp only [Finset.lt_iff_ssubset.symm, lt_iff_le_not_le, Finset.le_iff_subset,\n          Finset.subset_iff, mem_filter, true_and, mem_univ, hxy]\n      exact\n        ⟨fun z hzx => _root_.trans hzx hxy,\n          not_forall_of_exists_not ⟨x, Classical.not_imp.2 ⟨hxy, irrefl x⟩⟩⟩\n  exact Subrelation.wf (this _ _) (measure _).wf"},
+   {"name": "Fintype.card_prop",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[simp]\ntheorem Fintype.card_prop : Fintype.card Prop = 2 :=\n  rfl"},
+   {"name": "Prop.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedLT : WellFoundedLT Prop := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Finite.to_wellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance (priority := 100) to_wellFoundedLT [Preorder α] : WellFoundedLT α :=\n  ⟨wellFounded_of_trans_of_irrefl _⟩"},
+   {"name": "Finite.wellFounded_of_trans_of_irrefl",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem wellFounded_of_trans_of_irrefl (r : α → α → Prop) [IsTrans α r] [IsIrrefl α r] :\n    WellFounded r := by\n  classical\n  cases nonempty_fintype α\n  have (x y) (hxy : r x y) : #{z | r z x} < #{z | r z y} :=\n    Finset.card_lt_card <| by\n      simp only [Finset.lt_iff_ssubset.symm, lt_iff_le_not_le, Finset.le_iff_subset,\n          Finset.subset_iff, mem_filter, true_and, mem_univ, hxy]\n      exact\n        ⟨fun z hzx => _root_.trans hzx hxy,\n          not_forall_of_exists_not ⟨x, Classical.not_imp.2 ⟨hxy, irrefl x⟩⟩⟩\n  exact Subrelation.wf (this _ _) (measure _).wf"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "` and `<PROOF>`. If there's no formal proof, just an empty proof tag, but in this case, since the proof is `rfl`, I think a brief explanation is appropriate.\n\nPutting it all together, I'll craft a statement saying the depth is zero and a proof that this holds by reflexivity or by definition of the terms involved.\n</think>\n\n<STATEMENT>\nThe depth of the expression `ex₂` with context `Λ`, and propositions `φ` and `ψ`, is zero.",
+  "informal_proof":
+  "`. If there's no formal proof, just an empty proof tag, but in this case, since the proof is `rfl`, I think a brief explanation is appropriate.\n\nPutting it all together, I'll craft a statement saying the depth is zero and a proof that this holds by reflexivity or by definition of the terms involved.\n</think>\n\n<STATEMENT>\nThe depth of the expression `ex₂` with context `Λ`, and propositions `φ` and `ψ`, is zero.\n</STATEMENT>\n<PROOF>\nBy reflexivity, the equality holds true by the definition of the depth operator and the properties of `ex₂`, indicating that the depth is inherently zero in this context.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₂",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ : LO.FirstOrder.SyntacticSemiformulaᵢ L (HAdd.hAdd 0 1)\nψ : LO.FirstOrder.SyntacticSemiformulaᵢ L 0\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.ex₂ φ ψ)) 0",
+  "content_sorry": "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_ex₂ (φ ψ) : ‖ex₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Finset.one_lt_card_iff_nontrivial",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem one_lt_card_iff_nontrivial : 1 < #s ↔ s.Nontrivial := by\n  rw [← not_iff_not, not_lt, Finset.Nontrivial, ← Set.nontrivial_coe_sort,\n    not_nontrivial_iff_subsingleton, card_le_one_iff_subsingleton_coe, coe_sort_coe]"},
+   {"name": "Finset.two_lt_card_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem two_lt_card_iff : 2 < #s ↔ ∃ a b c, a ∈ s ∧ b ∈ s ∧ c ∈ s ∧ a ≠ b ∧ a ≠ c ∧ b ≠ c := by\n  classical\n    simp_rw [lt_iff_add_one_le, le_card_iff_exists_subset_card, reduceAdd, card_eq_three,\n      ← exists_and_left, exists_comm (α := Finset α)]\n    constructor\n    · rintro ⟨a, b, c, t, hsub, hab, hac, hbc, rfl⟩\n      exact ⟨a, b, c, by simp_all [insert_subset_iff]⟩\n    · rintro ⟨a, b, c, ha, hb, hc, hab, hac, hbc⟩\n      exact ⟨a, b, c, {a, b, c}, by simp_all [insert_subset_iff]⟩"},
+   {"name": "Fintype.exists_unique_iff_card_one",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[deprecated (since := \"2024-12-17\")] alias exists_unique_iff_card_one := existsUnique_iff_card_one"},
+   {"name": "Finset.card_le_one",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one : #s ≤ 1 ↔ ∀ a ∈ s, ∀ b ∈ s, a = b := by\n  obtain rfl | ⟨x, hx⟩ := s.eq_empty_or_nonempty\n  · simp\n  refine (Nat.succ_le_of_lt (card_pos.2 ⟨x, hx⟩)).le_iff_eq.trans (card_eq_one.trans ⟨?_, ?_⟩)\n  · rintro ⟨y, rfl⟩\n    simp\n  · exact fun h => ⟨x, eq_singleton_iff_unique_mem.2 ⟨hx, fun y hy => h _ hy _ hx⟩⟩"},
+   {"name": "Finset.card_le_one",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one : #s ≤ 1 ↔ ∀ a ∈ s, ∀ b ∈ s, a = b := by\n  obtain rfl | ⟨x, hx⟩ := s.eq_empty_or_nonempty\n  · simp\n  refine (Nat.succ_le_of_lt (card_pos.2 ⟨x, hx⟩)).le_iff_eq.trans (card_eq_one.trans ⟨?_, ?_⟩)\n  · rintro ⟨y, rfl⟩\n    simp\n  · exact fun h => ⟨x, eq_singleton_iff_unique_mem.2 ⟨hx, fun y hy => h _ hy _ hx⟩⟩"},
+   {"name": "Finset.card_le_one",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one : #s ≤ 1 ↔ ∀ a ∈ s, ∀ b ∈ s, a = b := by\n  obtain rfl | ⟨x, hx⟩ := s.eq_empty_or_nonempty\n  · simp\n  refine (Nat.succ_le_of_lt (card_pos.2 ⟨x, hx⟩)).le_iff_eq.trans (card_eq_one.trans ⟨?_, ?_⟩)\n  · rintro ⟨y, rfl⟩\n    simp\n  · exact fun h => ⟨x, eq_singleton_iff_unique_mem.2 ⟨hx, fun y hy => h _ hy _ hx⟩⟩"},
+   {"name": "Finset.one_le_card",
+    "module": "Mathlib.Data.Finset.Card",
+    "content": "@[simp] lemma one_le_card : 1 ≤ #s ↔ s.Nonempty := card_pos"},
+   {"name": "Finset.card_sdiff_add_card_eq_card",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_sdiff_add_card_eq_card {s t : Finset α} (h : s ⊆ t) : #(t \\ s) + #s = #t :=\n  ((Nat.sub_eq_iff_eq_add (card_le_card h)).mp (card_sdiff h).symm).symm"},
+   {"name": "Finset.eq_of_subset_of_card_le",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem eq_of_subset_of_card_le {s t : Finset α} (h : s ⊆ t) (h₂ : #t ≤ #s) : s = t :=\n  eq_of_veq <| Multiset.eq_of_le_of_card_le (val_le_iff.mpr h) h₂"},
+   {"name": "Finset.card_le_one",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one : #s ≤ 1 ↔ ∀ a ∈ s, ∀ b ∈ s, a = b := by\n  obtain rfl | ⟨x, hx⟩ := s.eq_empty_or_nonempty\n  · simp\n  refine (Nat.succ_le_of_lt (card_pos.2 ⟨x, hx⟩)).le_iff_eq.trans (card_eq_one.trans ⟨?_, ?_⟩)\n  · rintro ⟨y, rfl⟩\n    simp\n  · exact fun h => ⟨x, eq_singleton_iff_unique_mem.2 ⟨hx, fun y hy => h _ hy _ hx⟩⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "For all terms $t$ and $\\varphi$, the norm of $\\text{ex}_1(\\Lambda := \\Lambda) t \\varphi$ is equal to zero.",
+  "informal_proof":
+  "The statement asserts that the norm of $\\text{ex}_1(\\Lambda := \\Lambda) t \\varphi$ is always zero, which holds by definition. Thus, the equality is trivially true as both sides are definitionally equivalent.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_ex₁",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nt : LO.FirstOrder.Semiterm L Nat 0\nφ : LO.FirstOrder.SyntacticSemiformulaᵢ L (Nat.succ 0)\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.ex₁ t φ)) 0",
+  "content_sorry": "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_ex₁ (t φ) : ‖ex₁ (Λ := Λ) t φ‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Fintype.card_prop",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[simp]\ntheorem Fintype.card_prop : Fintype.card Prop = 2 :=\n  rfl"},
+   {"name": "Fintype.exists_unique_iff_card_one",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[deprecated (since := \"2024-12-17\")] alias exists_unique_iff_card_one := existsUnique_iff_card_one"},
+   {"name": "Even.nsmul_left",
+    "module": "Mathlib.Algebra.Group.Even",
+    "content": "to_additive (attr := simp) Even.nsmul_left"},
+   {"name": "Finset.card_filter_le",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_filter_le (s : Finset α) (p : α → Prop) [DecidablePred p] :\n    #(s.filter p) ≤ #s :=\n  card_le_card <| filter_subset _ _"},
+   {"name": "Finset.card_le_one_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one_iff : #s ≤ 1 ↔ ∀ {a b}, a ∈ s → b ∈ s → a = b := by\n  rw [card_le_one]\n  tauto"},
+   {"name": "Fintype.card_subtype_lt",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fintype.card_subtype_lt [Fintype α] {p : α → Prop} [DecidablePred p] {x : α} (hx : ¬p x) :\n    Fintype.card { x // p x } < Fintype.card α :=\n  Fintype.card_lt_of_injective_of_not_mem (b := x) (↑) Subtype.coe_injective <| by\n    rwa [Subtype.range_coe_subtype]"},
+   {"name": "Fintype.exists_unique_iff_card_one",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[deprecated (since := \"2024-12-17\")] alias exists_unique_iff_card_one := existsUnique_iff_card_one"},
+   {"name": "Finset.card_filter_le_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "lemma card_filter_le_iff (s : Finset α) (P : α → Prop) [DecidablePred P] (n : ℕ) :\n    #(s.filter P) ≤ n ↔ ∀ s' ⊆ s, n < #s' → ∃ a ∈ s', ¬ P a :=\n  (s.1.card_filter_le_iff P n).trans ⟨fun H s' hs' h ↦ H s'.1 (by aesop) h,\n    fun H s' hs' h ↦ H ⟨s', nodup_of_le hs' s.2⟩ (fun _ hx ↦ Multiset.subset_of_le hs' hx) h⟩"},
+   {"name": "Fintype.card_prop",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[simp]\ntheorem Fintype.card_prop : Fintype.card Prop = 2 :=\n  rfl"},
+   {"name": "Finset.surj_on_of_inj_on_of_card_le",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "lemma surj_on_of_inj_on_of_card_le (f : ∀ a ∈ s, β) (hf : ∀ a ha, f a ha ∈ t)\n    (hinj : ∀ a₁ a₂ ha₁ ha₂, f a₁ ha₁ = f a₂ ha₂ → a₁ = a₂) (hst : #t ≤ #s) :\n    ∀ b ∈ t, ∃ a ha, b = f a ha := by\n  let f' : s → β := fun a ↦ f a a.2\n  have hinj' : Set.InjOn f' s.attach := fun x hx y hy hxy ↦ Subtype.ext (hinj _ _ x.2 y.2 hxy)\n  have hmapsto' : Set.MapsTo f' s.attach t := fun x hx ↦ hf _ _\n  intro b hb\n  obtain ⟨a, ha, rfl⟩ := surjOn_of_injOn_of_card_le _ hmapsto' hinj' (by rwa [card_attach]) hb\n  exact ⟨a, a.2, rfl⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "For any propositions φ and ψ, the measure of the set of functions in Λ satisfying both φ and ψ is zero.",
+  "informal_proof":
+  "By definition, the measure of the set of functions satisfying both φ and ψ in Λ is zero. This equality holds by rfl, meaning it is true by the very construction or properties of the measure. The proof is straightforward as it directly follows from the definition of the measure in question.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₂",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ : LO.FirstOrder.SyntacticSemiformulaᵢ L 0\nψ : LO.FirstOrder.SyntacticSemiformulaᵢ L (HAdd.hAdd 0 1)\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.all₂ φ ψ)) 0",
+  "content_sorry": "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_all₂ (φ ψ) : ‖all₂ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Finset.card_le_one_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one_iff : #s ≤ 1 ↔ ∀ {a b}, a ∈ s → b ∈ s → a = b := by\n  rw [card_le_one]\n  tauto"},
+   {"name": "Fintype.card_lex",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[simp]\ntheorem Fintype.card_lex (α : Type*) [Fintype α] : Fintype.card (Lex α) = Fintype.card α :=\n  rfl"},
+   {"name": "Finset.card_le_one",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one : #s ≤ 1 ↔ ∀ a ∈ s, ∀ b ∈ s, a = b := by\n  obtain rfl | ⟨x, hx⟩ := s.eq_empty_or_nonempty\n  · simp\n  refine (Nat.succ_le_of_lt (card_pos.2 ⟨x, hx⟩)).le_iff_eq.trans (card_eq_one.trans ⟨?_, ?_⟩)\n  · rintro ⟨y, rfl⟩\n    simp\n  · exact fun h => ⟨x, eq_singleton_iff_unique_mem.2 ⟨hx, fun y hy => h _ hy _ hx⟩⟩"},
+   {"name": "Finite.to_wellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance (priority := 100) to_wellFoundedLT [Preorder α] : WellFoundedLT α :=\n  ⟨wellFounded_of_trans_of_irrefl _⟩"},
+   {"name": "Finset.eq_iff_card_ge_of_superset",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem eq_iff_card_ge_of_superset (hst : s ⊆ t) : #t ≤ #s ↔ t = s :=\n  (eq_iff_card_le_of_subset hst).trans eq_comm"},
+   {"name": "Finset.surj_on_of_inj_on_of_card_le",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "lemma surj_on_of_inj_on_of_card_le (f : ∀ a ∈ s, β) (hf : ∀ a ha, f a ha ∈ t)\n    (hinj : ∀ a₁ a₂ ha₁ ha₂, f a₁ ha₁ = f a₂ ha₂ → a₁ = a₂) (hst : #t ≤ #s) :\n    ∀ b ∈ t, ∃ a ha, b = f a ha := by\n  let f' : s → β := fun a ↦ f a a.2\n  have hinj' : Set.InjOn f' s.attach := fun x hx y hy hxy ↦ Subtype.ext (hinj _ _ x.2 y.2 hxy)\n  have hmapsto' : Set.MapsTo f' s.attach t := fun x hx ↦ hf _ _\n  intro b hb\n  obtain ⟨a, ha, rfl⟩ := surjOn_of_injOn_of_card_le _ hmapsto' hinj' (by rwa [card_attach]) hb\n  exact ⟨a, a.2, rfl⟩"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "List.Nodup.length_le_card",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem List.Nodup.length_le_card {α : Type*} [Fintype α] {l : List α} (h : l.Nodup) :\n    l.length ≤ Fintype.card α := by\n  classical exact List.toFinset_card_of_nodup h ▸ l.toFinset.card_le_univ"},
+   {"name": "Fintype.card_fin_lt_of_le",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fintype.card_fin_lt_of_le {m n : ℕ} (h : m ≤ n) :\n    Fintype.card {i : Fin n // i < m} = m := by\n  conv_rhs => rw [← Fintype.card_fin m]\n  apply Fintype.card_congr\n  exact { toFun := fun ⟨⟨i, _⟩, hi⟩ ↦ ⟨i, hi⟩\n          invFun := fun ⟨i, hi⟩ ↦ ⟨⟨i, lt_of_lt_of_le hi h⟩, hi⟩\n          left_inv := fun i ↦ rfl\n          right_inv := fun i ↦ rfl }"},
+   {"name": "Fintype.card_range_le",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem card_range_le {α β : Type*} (f : α → β) [Fintype α] [Fintype (Set.range f)] :\n    Fintype.card (Set.range f) ≤ Fintype.card α :=\n  Fintype.card_le_of_surjective (fun a => ⟨f a, by simp⟩) fun ⟨_, a, ha⟩ => ⟨a, by simpa using ha⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "For any φ and t, the depth of all₁ (Λ := Λ) φ t is zero.",
+  "informal_proof":
+  "The proof of the statement is straightforward, as it is proven by reflexivity. This means that the expression ‖all₁ (Λ := Λ) φ t‖ is definitionally equal to 0, requiring no further demonstration beyond stating the equality.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_all₁",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ : LO.FirstOrder.SyntacticSemiformulaᵢ L (HAdd.hAdd 0 1)\nt : LO.FirstOrder.Semiterm L Nat 0\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.all₁ φ t)) 0",
+  "content_sorry": "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_all₁ (φ t) : ‖all₁ (Λ := Λ) φ t‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Finset.card_le_one_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one_iff : #s ≤ 1 ↔ ∀ {a b}, a ∈ s → b ∈ s → a = b := by\n  rw [card_le_one]\n  tauto"},
+   {"name": "Finite.to_wellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance (priority := 100) to_wellFoundedLT [Preorder α] : WellFoundedLT α :=\n  ⟨wellFounded_of_trans_of_irrefl _⟩"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "For any expressions $\\varphi$ and $\\psi$, the depth of $\\mathsf{or\\_one}(\\varphi, \\psi)$ is zero.",
+  "informal_proof":
+  "By definition, the depth of $\\mathsf{or\\_one}(\\varphi, \\psi)$ is zero. Therefore, the equality holds trivially by the reflexivity of equality.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_or₁",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ ψ : LO.FirstOrder.SyntacticFormulaᵢ L\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.or₁ φ ψ)) 0",
+  "content_sorry": "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_or₁ (φ ψ) : ‖or₁ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Finset.lt_wf",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem lt_wf {α} : WellFounded (@LT.lt (Finset α) _) :=\n  have H : Subrelation (@LT.lt (Finset α) _) (InvImage (· < ·) card) := fun {_ _} hxy =>\n    card_lt_card hxy\n  Subrelation.wf H <| InvImage.wf _ <| (Nat.lt_wfRel).2"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Finset.two_lt_card_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem two_lt_card_iff : 2 < #s ↔ ∃ a b c, a ∈ s ∧ b ∈ s ∧ c ∈ s ∧ a ≠ b ∧ a ≠ c ∧ b ≠ c := by\n  classical\n    simp_rw [lt_iff_add_one_le, le_card_iff_exists_subset_card, reduceAdd, card_eq_three,\n      ← exists_and_left, exists_comm (α := Finset α)]\n    constructor\n    · rintro ⟨a, b, c, t, hsub, hab, hac, hbc, rfl⟩\n      exact ⟨a, b, c, by simp_all [insert_subset_iff]⟩\n    · rintro ⟨a, b, c, ha, hb, hc, hab, hac, hbc⟩\n      exact ⟨a, b, c, {a, b, c}, by simp_all [insert_subset_iff]⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "and <PROOF> tags. The statement should introduce and₃ and its depth, and the proof should briefly mention that it's by reflexivity.\n\nI should be careful to use natural language, avoid Lean4 syntax in the informal parts, and make sure it's understandable to someone without formal proof assistant knowledge.\n\nLet me draft the statement and proof:\n\n<STATEMENT>\n\nThe depth of the three-argument conjunction constructor, `and₃`, with respect to the propositions `φ` and `ψ`, is trivially zero.",
+  "informal_proof":
+  "tags. The statement should introduce and₃ and its depth, and the proof should briefly mention that it's by reflexivity.\n\nI should be careful to use natural language, avoid Lean4 syntax in the informal parts, and make sure it's understandable to someone without formal proof assistant knowledge.\n\nLet me draft the statement and proof:\n\n<STATEMENT>\n\nThe depth of the three-argument conjunction constructor, `and₃`, with respect to the propositions `φ` and `ψ`, is trivially zero.\n\n</STATEMENT>\n\n<PROOF>\n\nThe proof is trivially true by reflexivity, meaning that by definition, the depth of `and₃` with respect to any propositions `φ` and `ψ` is zero. There is no need for further justification as the statement holds by the nature of the constructor and the way depth is measured in this context.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_and₃",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ ψ : LO.FirstOrder.SyntacticFormulaᵢ L\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.and₃ φ ψ)) 0",
+  "content_sorry": "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_and₃ (φ ψ) : ‖and₃ (Λ := Λ) φ ψ‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Fintype.card_prop",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[simp]\ntheorem Fintype.card_prop : Fintype.card Prop = 2 :=\n  rfl"},
+   {"name": "Fintype.exists_unique_iff_card_one",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "@[deprecated (since := \"2024-12-17\")] alias exists_unique_iff_card_one := existsUnique_iff_card_one"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "LO.FirstOrder.Semiformulaᵢ.rew",
+    "module": "Foundation.IntFO.Basic.Rew",
+    "content":
+    "def rew (ω : Rew L ξ₁ n₁ ξ₂ n₂) : Semiformulaᵢ L ξ₁ n₁ →ˡᶜ Semiformulaᵢ L ξ₂ n₂ where\n  toTr := rewAux ω\n  map_top' := rfl\n  map_bot' := rfl\n  map_neg' := by simp [Semiformulaᵢ.neg_def, rewAux]\n  map_and' := fun _ _ ↦ rfl\n  map_or' := fun _ _ ↦ rfl\n  map_imply' := fun _ _ ↦ rfl"},
+   {"name": "Finset.exists_mem_ne",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "lemma exists_mem_ne (hs : 1 < #s) (a : α) : ∃ b ∈ s, b ≠ a := by\n  have : Nonempty α := ⟨a⟩\n  by_contra!\n  exact hs.not_le (card_le_one_iff_subset_singleton.2 ⟨a, subset_singleton_iff'.2 this⟩)"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Even.add",
+    "module": "Mathlib.Algebra.Group.Even",
+    "content": "to_additive"},
+   {"name": "Prop.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedLT : WellFoundedLT Prop := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Even.nsmul_left",
+    "module": "Mathlib.Algebra.Group.Even",
+    "content": "to_additive (attr := simp) Even.nsmul_left"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "tags, and the informal proof in <PROOF> tags. Since there's no actual proof to speak of, the proof section will be brief, just stating that the equality holds by definition.\n\nI should make sure the language is clear and accessible, avoiding any Lean4 jargon. I'll explain the norm and the `imply₂` function in simple terms, assuming the reader has a basic understanding of logic and formal proofs.\n\nSo, putting it all together, the informal statement will clarify what the norm is measuring and what `imply₂` does, while the proof will succinctly explain that the equality is trivially true by definition.\n</think>\n\n<STATEMENT>\n\nThe lemma asserts that the norm of `imply₂` applied to any three propositions φ, ψ, and χ is equal to 0. This norm likely measures a specific property related to the implication structure, and the equation holds by definition due to the reflexivity of equality (`rfl`).",
+  "informal_proof":
+  "tags. Since there's no actual proof to speak of, the proof section will be brief, just stating that the equality holds by definition.\n\nI should make sure the language is clear and accessible, avoiding any Lean4 jargon. I'll explain the norm and the `imply₂` function in simple terms, assuming the reader has a basic understanding of logic and formal proofs.\n\nSo, putting it all together, the informal statement will clarify what the norm is measuring and what `imply₂` does, while the proof will succinctly explain that the equality is trivially true by definition.\n</think>\n\n<STATEMENT>\n\nThe lemma asserts that the norm of `imply₂` applied to any three propositions φ, ψ, and χ is equal to 0. This norm likely measures a specific property related to the implication structure, and the equation holds by definition due to the reflexivity of equality (`rfl`).\n</STATEMENT>\n\n<PROOF>\n\nThe proof is straightforward and relies on the reflexivity of equality (`rfl`), meaning the left-hand side and the right-hand side of the equation are definitionally the same. Therefore, the equality holds trivially without the need for further proof.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_imply₂",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ ψ χ : LO.FirstOrder.SyntacticFormulaᵢ L\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.imply₂ φ ψ χ)) 0",
+  "content_sorry":
+  "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := by sorry",
+  "annotation":
+  "@[simp] lemma depth_imply₂ (φ ψ χ) : ‖imply₂ (Λ := Λ) φ ψ χ‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"}]},
+ {"rag":
+  [{"name": "Finset.card_empty",
+    "module": "Mathlib.Data.Finset.Card",
+    "content": "@[simp]\ntheorem card_empty : #(∅ : Finset α) = 0 :=\n  rfl"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Fintype.card_ofIsEmpty",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "/-- Note: this lemma is specifically about `Fintype.ofIsEmpty`. For a statement about\narbitrary `Fintype` instances, use `Fintype.card_eq_zero`. -/\ntheorem card_ofIsEmpty [IsEmpty α] : @Fintype.card α Fintype.ofIsEmpty = 0 :=\n  rfl"},
+   {"name": "Fintype.card_empty",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content": "theorem Fintype.card_empty : Fintype.card Empty = 0 :=\n  rfl"},
+   {"name": "Fintype.card_pempty",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "theorem Fintype.card_pempty : Fintype.card PEmpty = 0 :=\n  rfl"},
+   {"name": "Fintype.card_empty",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content": "theorem Fintype.card_empty : Fintype.card Empty = 0 :=\n  rfl"},
+   {"name": "Finset.card_empty",
+    "module": "Mathlib.Data.Finset.Card",
+    "content": "@[simp]\ntheorem card_empty : #(∅ : Finset α) = 0 :=\n  rfl"},
+   {"name": "Fintype.card_of_isEmpty",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content": "alias card_of_isEmpty := card_eq_zero"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "The depth of the trivial truth proof in the empty context is zero.",
+  "informal_proof":
+  "The statement asserts that the depth of the proof of a trivially true statement in an empty context is zero. Since the proof is straightforward and does not involve any nested structures or complexity, its depth is indeed zero by definition.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_verum",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth LO.FirstOrder.HilbertProofᵢ.verum) 0",
+  "content_sorry":
+  "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := by sorry",
+  "annotation": "@[simp] lemma depth_verum : ‖(verum : Λ ⊢ ⊤)‖ = 0 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+   {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"}]},
+ {"rag":
+  [{"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Prop.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedLT : WellFoundedLT Prop := inferInstance"},
+   {"name": "Bool.instWellFoundedLT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedLT : WellFoundedLT Bool := inferInstance"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "For any term \\( b \\) in the context \\( \\Lambda \\), the depth of \\( \\text{gen } b \\) is exactly one more than the depth of \\( b \\).",
+  "informal_proof":
+  "The statement is self-evident by definition, as the depth of an extended term \\( \\text{gen } b \\) is naturally one greater than that of its base term \\( b \\). Hence, the proof follows directly by reflexivity.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_gen",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ : LO.FirstOrder.SyntacticSemiformulaᵢ L (HAdd.hAdd 0 1)\nb : LO.System.Prf Λ (LO.FirstOrder.Rewriting.free φ)\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.gen b)) (HAdd.hAdd (LO.FirstOrder.HilbertProofᵢ.depth b) 1)",
+  "content_sorry":
+  "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := by sorry",
+  "annotation":
+  "@[simp] lemma depth_gen (b : Λ ⊢ Rewriting.free φ) : ‖gen b‖ = ‖b‖ + 1 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "LO.FirstOrder.Rewriting.free",
+    "module": "Foundation.Logic.Predicate.Rew",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "abbrev free [Rewriting L ℕ F ℕ F] (φ : F (n + 1)) : F n := @Rew.free L n ▹ φ",
+    "compilationAlias":
+    "abbrev free [Rewriting L ℕ F ℕ F] (φ : F (n + 1)) : F n := @Rew.free L n ▹ φ"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+    "module": "Foundation.IntFO.Basic.Deduction",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+    "compilationAlias":
+    "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"}]},
+ {"rag":
+  [{"name": "Finset.maximal_iff_forall_insert",
+    "module": "Mathlib.Order.CompleteLattice.Finset",
+    "content":
+    "theorem maximal_iff_forall_insert (hP : ∀ ⦃s t⦄, P t → s ⊆ t → P s) :\n    Maximal P s ↔ P s ∧ ∀ x ∉ s, ¬ P (insert x s) := by\n  simp only [Maximal, and_congr_right_iff]\n  exact fun _ ↦ ⟨fun h x hxs hx ↦ hxs <| h hx (subset_insert _ _) (mem_insert_self x s),\n    fun h t ht hst x hxt ↦ by_contra fun hxs ↦ h x hxs (hP ht (insert_subset hxt hst))⟩"},
+   {"name": "Finset.card_le_three",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_three : #{a, b, c} ≤ 3 :=\n  (card_insert_le _ _).trans (Nat.succ_le_succ card_le_two)"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Finset.card_le_four",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_four : #{a, b, c, d} ≤ 4 :=\n  (card_insert_le _ _).trans (Nat.succ_le_succ card_le_three)"},
+   {"name": "Multiset.toFinset_card_le",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem Multiset.toFinset_card_le : #m.toFinset ≤ Multiset.card m :=\n  card_le_card <| dedup_le _"},
+   {"name": "Finset.card_le_six",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_six : #{a, b, c, d, e, f} ≤ 6 :=\n  (card_insert_le _ _).trans (Nat.succ_le_succ card_le_five)"},
+   {"name": "Bool.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Bool.instWellFoundedGT : WellFoundedGT Bool := inferInstance"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"},
+   {"name": "Finset.card_le_one_iff",
+    "module": "Mathlib.Data.Finset.Card",
+    "content":
+    "theorem card_le_one_iff : #s ≤ 1 ↔ ∀ {a b}, a ∈ s → b ∈ s → a = b := by\n  rw [card_le_one]\n  tauto"},
+   {"name": "Prop.instWellFoundedGT",
+    "module": "Mathlib.Data.Fintype.Card",
+    "content":
+    "instance Prop.instWellFoundedGT : WellFoundedGT Prop := inferInstance"}],
+  "prescopes":
+  "namespace LO.FirstOrder.HilbertProofᵢ\n\nopen LO.FirstOrder.Semiformulaᵢ LO.System.FiniteContext LO.FirstOrder.Rewriting LO.FirstOrder.LawfulSyntacticRewriting\n\nvariable {L : Language} {T : Theory L} {Λ : Hilbertᵢ L}",
+  "postscopes": "end LO.FirstOrder.HilbertProofᵢ",
+  "informal_statement":
+  "for the informal statement and <PROOF> for the informal proof.\n\nI'm a bit rusty on the exact meaning of MDP in this context, but I think it stands for \"Multiplicative Depth\" or something similar in proof theory, where combining proofs affects their overall depth. But for the purposes of this exercise, I can proceed by assuming that MDP refers to a known operation on proofs whose depth can be calculated as the maximum of the individual depths plus one.\n\nSo, putting it all together, the informal statement will explain that when using MDP to combine two proofs, the depth of the resulting proof is just the maximum of the depths of the original proofs plus one. Since the proof is rfl, the informal proof will simply explain that this follows directly from the definition.\n\nI should also mention that the proof is straightforward because it's based on the rfl tactic, which depends on the definitions already in place. This means no additional steps or reasoning are needed beyond confirming that the definitions hold.\n\nAlright, I think I'm ready to draft the informal statement and proof now.\n</think>\n\n<STATEMENT>\n\nThe depth of a combined derivation using MDP is equal to the maximum depth of the individual derivations plus one.",
+  "informal_proof":
+  "for the informal proof.\n\nI'm a bit rusty on the exact meaning of MDP in this context, but I think it stands for \"Multiplicative Depth\" or something similar in proof theory, where combining proofs affects their overall depth. But for the purposes of this exercise, I can proceed by assuming that MDP refers to a known operation on proofs whose depth can be calculated as the maximum of the individual depths plus one.\n\nSo, putting it all together, the informal statement will explain that when using MDP to combine two proofs, the depth of the resulting proof is just the maximum of the depths of the original proofs plus one. Since the proof is rfl, the informal proof will simply explain that this follows directly from the definition.\n\nI should also mention that the proof is straightforward because it's based on the rfl tactic, which depends on the definitions already in place. This means no additional steps or reasoning are needed beyond confirming that the definitions hold.\n\nAlright, I think I'm ready to draft the informal statement and proof now.\n</think>\n\n<STATEMENT>\n\nThe depth of a combined derivation using MDP is equal to the maximum depth of the individual derivations plus one.\n\n</STATEMENT>\n<PROOF>\n\nThe proof of this statement is straightforward due to the definitions involved and the rfl tactic used. The rfl tactic indicates that both sides of the equation are definitionally equal, meaning the lemma holds true by the very way depth and MDP are defined. No additional steps are required to prove this relationship because it is inherently captured by the existing definitions.",
+  "id":
+  {"name": "LO.FirstOrder.HilbertProofᵢ.depth_mdp",
+   "module": "Foundation.IntFO.Basic.Deduction",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+   "compilationAlias":
+   "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nΛ : LO.FirstOrder.Hilbertᵢ L\nφ ψ : LO.FirstOrder.SyntacticFormulaᵢ L\nb : LO.System.Prf Λ (LO.Arrow.arrow φ ψ)\nd : LO.System.Prf Λ φ\n⊢ Eq (LO.FirstOrder.HilbertProofᵢ.depth (LO.FirstOrder.HilbertProofᵢ.mdp b d)) (HAdd.hAdd (Max.max (LO.FirstOrder.HilbertProofᵢ.depth b) (LO.FirstOrder.HilbertProofᵢ.depth d)) 1)",
+  "content_sorry":
+  "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := by sorry",
+  "annotation":
+  "@[simp] lemma depth_mdp (b : Λ ⊢ φ ➝ ψ) (d : Λ ⊢ φ) : ‖mdp b d‖ = max ‖b‖ ‖d‖ + 1 := rfl\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"}],
+  "C0_dependencies": []}]

@@ -25,9 +25,9 @@ sleep 5
 
 export run_id="parameter_ablation_length_context"
 export annotation=true
-export context=-1
+export context=5
 export rag=0
-export examples=-1
+export examples=2
 
 
 ./improver run pipeline --run_id $run_id --annotation $annotation --context $context --rag $rag --examples $examples --config /home/riyaza/eval_improver/improver/experiments/ablations/parameter/length/base.yaml

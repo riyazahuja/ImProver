@@ -8,15 +8,6 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import math
 
-# Hard-coded metric specifications (value: "min" or "max")
-# METRIC_SPECIFICATIONS = {
-#     "length": "min",
-#     "declarativity": "max",
-#     "completion": "min",
-#     "dependency": "min",
-#     "readability": "max",
-#     "conjecturer" : "min"
-# }
 
 def get_db_connection(db_path):
     """Establishes a connection to a DuckDB database."""
@@ -166,38 +157,39 @@ def calculate_nonzero_improvement(rows, metric_name, metric_spec_map):
                 
     return sum(relevant_deltas) / len(relevant_deltas) if relevant_deltas else 0.0
 
+
+
+
+
 # --- Analysis Commands ---
 
+
+# make bon database, metric vs n graph, distribution shift graph, and pass/improvement rate graph. 
+# mark bon database entries with an improvement rate    
 def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFICATIONS):
     print("Starting Best-of-N analysis...")
     metric_name = config['metric']
     n_config_val = int(config['n'])
     metric_objective = METRIC_SPECIFICATIONS
 
-    # if not metric_objective:
-    #     print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
-    #     return False
-
     analysis_base_path = os.path.join(run_dir_path, run_id, "analysis", "BoN")
-
     os.makedirs(analysis_base_path, exist_ok=True)
 
     raw_db_path = os.path.join(analysis_base_path, "raw.duckdb")
     plot_path = os.path.join(analysis_base_path, "BoN.png")
     csv_path = os.path.join(analysis_base_path, "data.csv")
+    hist_og_vs_new_path = os.path.join(analysis_base_path, "score_distribution.png")
+    hist_imprate_path = os.path.join(analysis_base_path, "improvement_rate_distribution.png")
 
     tick_size = max(math.floor(n_config_val / 16), 1)
-    
-    # Ensure '1' is the first tick, and N_config is the last.
-    # Intermediate ticks are t, 2t, ..., up to 15t.
-    tick_n_values = [1] 
-    for i in range(1, 16): # t, 2t, ..., 15t
+    tick_n_values = [1]
+    for i in range(1, 16):
         val = i * tick_size
-        if val < n_config_val and val not in tick_n_values : # ensure distinct and less than N
-             tick_n_values.append(val)
+        if val < n_config_val and val not in tick_n_values:
+            tick_n_values.append(val)
     if n_config_val not in tick_n_values:
-         tick_n_values.append(n_config_val)
-    tick_n_values = sorted(list(set(tick_n_values))) # Unique, sorted
+        tick_n_values.append(n_config_val)
+    tick_n_values = sorted(list(set(tick_n_values)))
 
     print(f"Config: metric='{metric_name}' (objective: {metric_objective}), N={n_config_val}, tick_size={tick_size}")
     print(f"Tick n values for analysis: {tick_n_values}")
@@ -208,20 +200,26 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
         if not distinct_pairs:
             print("No (decl, module) pairs found in eval.duckdb. Aborting BoN.")
             return False
-        
-        # Fetch all data once to avoid multiple queries per (decl,module) inside loop
-        # Assuming rowid or an implicit order gives us the "L[0]...L[n]" behavior
-        all_data_query = "SELECT original_prompt,og_score,og_raw,list_transform(og_errors, x -> CAST(x as VARCHAR))::VARCHAR[] AS og_errors,new_trimmed, new_score,new_raw,list_transform(new_errors, x -> CAST(x as VARCHAR))::VARCHAR[] AS new_errors,new_correct, module, delta, decl,rowid FROM evaluation_results ORDER BY module, decl, rowid" # Added rowid for stable slicing
+
+        all_data_query = (
+            "SELECT original_prompt,og_score,og_raw,"
+            "list_transform(og_errors, x -> CAST(x as VARCHAR))::VARCHAR[] AS og_errors,"
+            "new_trimmed, new_score,new_raw,"
+            "list_transform(new_errors, x -> CAST(x as VARCHAR))::VARCHAR[] AS new_errors,"
+            "new_correct, module, delta, decl,rowid "
+            "FROM evaluation_results ORDER BY module, decl, rowid"
+        )
         all_data_df = db_con.execute(all_data_query).fetchdf()
-        # print(all_data_df)
-        # Convert to list of dicts for easier processing as in original plan
         all_data_rows = all_data_df.to_dict('records')
     except Exception as e:
         print(f"Database error during BoN setup: {e}")
         return False
 
     graph_data_points = []
-    collected_rows_for_raw_db = [] # For the final N_config tick
+    collected_rows_for_raw_db = []
+    collected_improvement_rates = []
+    collected_og_scores = []
+    collected_new_scores = []
 
     # Pre-group data by (decl, module)
     grouped_data = {}
@@ -231,22 +229,15 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
             grouped_data[pair] = []
         grouped_data[pair].append(row)
 
-
     for n_val in tick_n_values:
-        current_tick_best_rows_for_measures = [] # Rows for calculating measures at this n_val
+        current_tick_best_rows_for_measures = []
 
         for decl_val, module_val in distinct_pairs:
             pair_key = (decl_val, module_val)
-            # L_dm = db_con.execute(f"SELECT * FROM eval WHERE decl = ? AND module = ? ORDER BY rowid LIMIT ?", # Assuming rowid implies order
-            #                       [decl_val, module_val, n_val]).fetchall()
-            # L_dm_dicts = [dict(zip([col[0] for col in db_con.description], row)) for row in L_dm]
-            
             L_dm_all_for_pair = grouped_data.get(pair_key, [])
             sub_list_for_dm = L_dm_all_for_pair[:n_val]
 
-
             if not sub_list_for_dm:
-                # print(f"No data for ({decl_val}, {module_val}) at n_val={n_val}")
                 continue
 
             # Rows that are correct and have a parsable delta
@@ -259,19 +250,17 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
 
             best_row_in_sub_list = None
             if correct_rows_with_delta:
-                # Choose the row with *best* delta
                 if metric_objective == "min":
                     best_row_in_sub_list = min(
                         correct_rows_with_delta,
                         key=lambda r: get_delta(r)
-                    )  # most negative percent change
+                    )
                 else:  # "max"
                     best_row_in_sub_list = max(
                         correct_rows_with_delta,
                         key=lambda r: get_delta(r)
                     )
             elif correct_rows:
-                # Fall back to rows that at least have a new_score
                 correct_rows_with_score = [
                     r for r in correct_rows
                     if parse_json_field_as_float(r.get('new_score')) is not None
@@ -281,21 +270,51 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
                 else:
                     best_row_in_sub_list = correct_rows[0]
             else:
-                # No correct rows at all – keep first attempt
                 best_row_in_sub_list = sub_list_for_dm[0]
 
             if best_row_in_sub_list:
                 current_tick_best_rows_for_measures.append(best_row_in_sub_list)
-                if n_val == n_config_val: # Collect for raw.duckdb only at the final N_config tick
-                    collected_rows_for_raw_db.append(best_row_in_sub_list)
-        
+                if n_val == n_config_val:
+                    # Calculate improvement rate for this (decl, module) group
+                    count_improved = 0
+                    for r in sub_list_for_dm:
+                        if r.get('new_correct'):
+                            delta = get_delta(r)
+                            if delta is not None:
+                                if metric_objective == "min" and delta < 0:
+                                    count_improved += 1
+                                elif metric_objective == "max" and delta > 0:
+                                    count_improved += 1
+                    improvement_rate = count_improved / n_config_val if n_config_val > 0 else 0.0
+                    # Add improvement_rate to the row for raw.duckdb
+                    row_for_raw = {k: v for k, v in best_row_in_sub_list.items() if k != 'rowid'}
+                    row_for_raw['improvement_rate'] = improvement_rate
+                    collected_rows_for_raw_db.append(row_for_raw)
+                    collected_improvement_rates.append(improvement_rate)
+                    # For histogram: og_score and new_score
+                    og_score = parse_json_field_as_float(best_row_in_sub_list.get('og_score'))
+                    new_score = parse_json_field_as_float(best_row_in_sub_list.get('new_score'))
+                    delta = get_delta(best_row_in_sub_list)
+                    # For the distribution shift plot, only count new_score as "new" if it is an improvement (delta<0 for min, delta>0 for max), else use og_score
+                    if og_score is not None:
+                        collected_og_scores.append(og_score)
+                        if new_score is not None and delta is not None:
+                            if (metric_objective == "min" and delta < 0) or (metric_objective == "max" and delta > 0):
+                                collected_new_scores.append(new_score)
+                            else:
+                                collected_new_scores.append(og_score)
+                        else:
+                            # If new_score is None, treat as og_score for overlay
+                            collected_new_scores.append(og_score)
+                    # If og_score is None, skip both for this item
+
         # Calculate measures for the current_tick_best_rows_for_measures
         if current_tick_best_rows_for_measures:
             acc = calculate_accuracy(current_tick_best_rows_for_measures)
             non_zero_acc = calculate_nonzero_accuracy(current_tick_best_rows_for_measures, metric_name, METRIC_SPECIFICATIONS)
             impr = calculate_improvement(current_tick_best_rows_for_measures, metric_name, METRIC_SPECIFICATIONS)
             non_zero_impr = calculate_nonzero_improvement(current_tick_best_rows_for_measures, metric_name, METRIC_SPECIFICATIONS)
-            
+
             graph_data_points.append({
                 'n_value': n_val,
                 'accuracy': acc,
@@ -310,35 +329,22 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
                 'n_value': n_val, 'accuracy': 0, 'nonzero_accuracy': 0, 'improvement': 0, 'nonzero_improvement': 0
             })
 
-
     # Save collected_rows_for_raw_db to raw.duckdb
     if collected_rows_for_raw_db:
         print(f"Saving {len(collected_rows_for_raw_db)} rows to {raw_db_path}...")
-        # Need to get column names and types from original table or ensure dict keys match
-        # For simplicity, create a DataFrame then write to DuckDB
-        # Remove 'rowid' if it was added and not part of original schema for raw.duckdb
-        df_raw = pd.DataFrame([ {k:v for k,v in row.items() if k != 'rowid'} for row in collected_rows_for_raw_db])
-        
+        df_raw = pd.DataFrame(collected_rows_for_raw_db)
         try:
-            # If raw_db_path exists, DuckDB might error on connect if it's not a valid DB
-            # It's safer to delete if exists, or use a new table name if appending
             if os.path.exists(raw_db_path):
-                os.remove(raw_db_path) # Remove old raw.duckdb to ensure clean write
-
+                os.remove(raw_db_path)
             con_raw = duckdb.connect(database=str(raw_db_path))
-            # Infer schema from DataFrame; ensure it matches original if necessary
-            # For now, let DuckDB infer from DataFrame
             con_raw.execute("CREATE TABLE best_results AS SELECT * FROM df_raw")
             con_raw.close()
             print(f"Successfully saved to {raw_db_path}")
         except Exception as e:
             print(f"Error saving to raw.duckdb: {e}")
-            return False # Indicate BoN failed if raw_db cannot be created
+            return False
     else:
         print("No rows collected for raw.duckdb.")
-        # This might be an issue if training command expects this file.
-        # Create an empty table? Or let training command handle missing file.
-        # For now, if it's empty, the file might not be created or will be empty.
 
     # Create and save CSV and plot
     if graph_data_points:
@@ -349,35 +355,139 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
             multiplier = -1 if metric_objective == "min" else 1
             plt.figure(figsize=(12, 7))
             plt.plot(df_graph['n_value'], df_graph['accuracy'], marker='o', label='Accuracy')
-            # plt.plot(df_graph['n_value'], df_graph['nonzero_accuracy'], marker='s', label='Nonzero Accuracy')
             plt.plot(df_graph['n_value'], multiplier * df_graph['improvement'], marker='^', label='Improvement')
-            # plt.plot(df_graph['n_value'], multiplier * df_graph['nonzero_improvement'], marker='x', label='Nonzero Improvement')
-
             plt.xlabel("n Value (Number of samples considered per (decl,module))")
             plt.ylabel("Metric Value")
             plt.title(f"Best-of-N Analysis (Metric: {metric_name}, N_config: {n_config_val})")
             plt.legend()
             plt.grid(True)
-            plt.ylim(0, 1)  # Set y-axis limits from 0 to 1
-            plt.xticks(tick_n_values)  # Ensure all tick points are shown
+            plt.ylim(0, 1)
+            plt.xticks(tick_n_values)
             plt.tight_layout()
             plt.savefig(plot_path)
             print(f"Analysis plot saved to {plot_path}")
-            # plt.show() # Optionally show plot
             plt.close()
-
         except Exception as e:
             print(f"Error generating CSV/plot: {e}")
-            # BoN might still be considered partially successful if raw_db was made
     else:
         print("No data points for graph and CSV.")
 
+    # --- Additional Plots: Score Distribution and Improvement Rate Histogram ---
 
-    
+    # 1. Enhanced Histogram of og_score and new_score (distribution shift)
+    if collected_og_scores and collected_new_scores:
+        try:
+            import numpy as np
+
+            plt.figure(figsize=(14, 8))
+            bins = 30
+
+            # Compute means and medians
+            og_mean = np.mean(collected_og_scores)
+            new_mean = np.mean(collected_new_scores)
+            og_median = np.median(collected_og_scores)
+            new_median = np.median(collected_new_scores)
+
+            # Plot side-by-side (grouped) histograms for original and new scores
+
+            # Compute common bin edges for both histograms
+            all_scores = collected_og_scores + collected_new_scores
+            bins_edges = np.histogram_bin_edges(all_scores, bins=bins)
+
+            # Compute histogram counts for each group
+            og_hist, _ = np.histogram(collected_og_scores, bins=bins_edges, density=True)
+            new_hist, _ = np.histogram(collected_new_scores, bins=bins_edges, density=True)
+
+            # Compute bin centers and width for bar plotting
+            bin_centers = 0.5 * (bins_edges[:-1] + bins_edges[1:])
+            width = (bins_edges[1] - bins_edges[0]) * 0.4  # 40% of bin width for each bar
+
+            # Plot side-by-side bars
+            plt.bar(bin_centers - width/2, og_hist, width=width, alpha=0.8, label='Original Score', color='blue', edgecolor='black')
+            plt.bar(bin_centers + width/2, new_hist, width=width, alpha=0.8, label='New Score', color='orange', edgecolor='black')
+
+            # Plot mean and median lines
+            plt.axvline(og_mean, color='blue', linestyle='--', linewidth=2, label=f'Original Mean: {og_mean:.2f}')
+            plt.axvline(new_mean, color='orange', linestyle='--', linewidth=2, label=f'New Mean: {new_mean:.2f}')
+            plt.axvline(og_median, color='blue', linestyle=':', linewidth=2, label=f'Original Median: {og_median:.2f}')
+            plt.axvline(new_median, color='orange', linestyle=':', linewidth=2, label=f'New Median: {new_median:.2f}')
+
+            # Annotate means and medians
+            plt.text(og_mean, plt.ylim()[1]*0.95, f"{og_mean:.2f}", color='blue', ha='right', va='top', fontsize=10, rotation=90)
+            plt.text(new_mean, plt.ylim()[1]*0.95, f"{new_mean:.2f}", color='orange', ha='left', va='top', fontsize=10, rotation=90)
+            plt.text(og_median, plt.ylim()[1]*0.85, f"{og_median:.2f}", color='blue', ha='right', va='top', fontsize=10, rotation=90)
+            plt.text(new_median, plt.ylim()[1]*0.85, f"{new_median:.2f}", color='orange', ha='left', va='top', fontsize=10, rotation=90)
+
+            # Optionally, show arrows for mean shift
+            plt.annotate('', xy=(new_mean, plt.ylim()[1]*0.8), xytext=(og_mean, plt.ylim()[1]*0.8),
+                         arrowprops=dict(facecolor='gray', shrink=0.05, width=2, headwidth=8, alpha=0.5))
+            plt.text((og_mean + new_mean)/2, plt.ylim()[1]*0.82, "Mean Shift", color='gray', ha='center', fontsize=10)
+
+            plt.xlabel("Score")
+            plt.ylabel("Density")
+            plt.title(f"Score Distribution Shift (Best-of-N, N={n_config_val})\n"
+                      f"Original Mean: {og_mean:.2f}, New Mean: {new_mean:.2f} | "
+                      f"Original Median: {og_median:.2f}, New Median: {new_median:.2f}")
+            plt.legend()
+            plt.grid(True, linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(hist_og_vs_new_path)
+            print(f"Score distribution plot saved to {hist_og_vs_new_path}")
+            plt.close()
+        except Exception as e:
+            print(f"Error generating score distribution plot: {e}")
+    else:
+        print("Not enough data for score distribution plot.")
+
+
+    # 2. Histogram and curve of improvement rates
+    if collected_improvement_rates:
+        try:
+            import numpy as np
+
+            plt.figure(figsize=(14, 8))
+            bins = 20
+
+            # Histogram
+            n, bins_edges, patches = plt.hist(collected_improvement_rates, bins=bins, alpha=0.7, color='green', edgecolor='black', density=True, label='Improvement Rate Histogram')
+
+            # Mean and median
+            imp_mean = np.mean(collected_improvement_rates)
+            imp_median = np.median(collected_improvement_rates)
+
+            # Plot mean and median lines
+            plt.axvline(imp_mean, color='red', linestyle='--', linewidth=2, label=f'Mean: {imp_mean:.2f}')
+            plt.axvline(imp_median, color='purple', linestyle=':', linewidth=2, label=f'Median: {imp_median:.2f}')
+
+            # Annotate mean and median
+            plt.text(imp_mean, plt.ylim()[1]*0.95, f"{imp_mean:.2f}", color='red', ha='right', va='top', fontsize=10, rotation=90)
+            plt.text(imp_median, plt.ylim()[1]*0.85, f"{imp_median:.2f}", color='purple', ha='left', va='top', fontsize=10, rotation=90)
+
+            # Optionally, plot a smoothed curve (moving average) over the histogram
+            # We'll use a simple moving average of the histogram values for a "curve"
+            bin_centers = 0.5 * (bins_edges[1:] + bins_edges[:-1])
+            if len(n) > 2:
+                window = max(2, int(len(n) / 8))
+                smooth = np.convolve(n, np.ones(window)/window, mode='same')
+                plt.plot(bin_centers, smooth, color='black', linewidth=2, label='Smoothed Curve')
+
+            plt.xlabel("Improvement Rate")
+            plt.ylabel("Density")
+            plt.title(f"Improvement Rate Distribution (Best-of-N, N={n_config_val})\n"
+                      f"Mean: {imp_mean:.2f}, Median: {imp_median:.2f}")
+            plt.legend()
+            plt.grid(True, linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(hist_imprate_path)
+            print(f"Improvement rate distribution plot saved to {hist_imprate_path}")
+            plt.close()
+        except Exception as e:
+            print(f"Error generating improvement rate distribution plot: {e}")
+    else:
+        print("Not enough data for improvement rate distribution plot.")
 
     print("Best-of-N analysis finished.")
-    return True # Indicate success
-
+    return True
 
 def extract_improved_content(text):
     start_tag = "<IMPROVED>"
@@ -509,6 +619,7 @@ def get_parser():
     parser.add_argument("run_id", help="Identifier for the run.")
     parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data (default: True)", default=True)
     parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
+    parser.add_argument("--prev_iter_id", default=None, help="run_id of previous iteration (must have analysis complete)")
     return parser
 
 def main(args):
@@ -551,12 +662,20 @@ def main(args):
     # For Training, it handles its own connections (to raw.duckdb, and to eval.duckdb if BoN needs to run).
 
     db_con_eval = get_db_connection(db_path)
-    if db_con_eval:
-        run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config, METRIC_SPECIFICATIONS)
-        db_con_eval.close()
+
+    # make bon database, metric vs n graph, distribution shift graph, and pass/improvement rate graph. 
+    # mark bon database entries with a pass rate and improvement rate    
+    run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config, METRIC_SPECIFICATIONS)
     
-    if args.training_data:
-        run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, args.thinking)
+
+    # make basic full training data, raw training data (i.e. with thinking), frontier training data from prev run,
+    # do each of those three with improvement rate < improvement threshold
+    # todo make improvement rate for certain metrics = pass rate.
+    # also make dpo data for each of those three    
+    run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, args.thinking)
+        
+    
+    
     
 if __name__ == "__main__":
     parser = get_parser()

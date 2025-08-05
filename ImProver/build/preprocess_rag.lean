@@ -1,5 +1,7 @@
 import Cli.Basic
 import TrainingData.Utils.context
+import Batteries.Data.String.Matcher
+
 
 open Lean Cli Environment NameMap
 open Lean Lean.Core Lean.Elab IO Lean.Elab.IO Lean.Meta Lean.Elab.Term Lean.Elab.Command Lean.Meta.Tactic
@@ -15,17 +17,17 @@ structure RAGModule where
   imports : Array Name
   fullImports : Array Name
   depth : Nat
-  deriving Inhabited
+  deriving Inhabited, ToJson, FromJson
 
-instance : ToJson (Array RAGModule) where
-  toJson m :=
-  let modules := m.map (fun m =>
-    (m.module.toString, Json.mkObj [
-      ("imports", toJson m.imports),
-      ("fullImports", toJson m.fullImports),
-      ("depth", toJson m.depth)]))
+-- instance : ToJson (Array RAGModule) where
+--   toJson m :=
+--   let modules := m.map (fun m =>
+--     (m.module.toString, Json.mkObj [
+--       ("imports", toJson m.imports),
+--       ("fullImports", toJson m.fullImports),
+--       ("depth", toJson m.depth)]))
 
-  Json.mkObj (modules.toList)
+--   Json.mkObj (modules.toList)
 
 
 
@@ -74,7 +76,7 @@ def test (mods : List Name) (test_mod : Name) : IO UInt32 := do
 Save this into a database of each item being typed as `(module, imports, all_imports)` in one
 table and `(module, decl, kind, contents)` in onther table.
 -/
-def getModuleData (mods : List Name) : CoreM (Array RAGModule) := do
+def getModuleData (mods : Array Name) : CoreM (Array RAGModule) := do
   let env ← getEnv
   let ig := importGraph env
 
@@ -84,21 +86,25 @@ def getModuleData (mods : List Name) : CoreM (Array RAGModule) := do
   -- Compute the depth of each module from the starting modules (mods)
   -- We'll use a BFS to assign depths, starting from mods (depth 0)
   let mut depthMap : NameMap Nat := {}
-  let mut queue : Array (Name × Nat) := mods.toArray.map (fun m => (m, 0))
-  let mut seen : NameSet := {}
+  let mut queue : Array (Name × Nat) := mods.map (fun m => (m, 0))
+  -- let mut seen : NameSet := {}
   while !queue.isEmpty do
     let (curr, d) := Array.back! queue
     queue := queue.pop
-    if seen.contains curr then
-      continue
-    seen := seen.insert curr
-    if depthMap.contains curr then
-      continue
-    depthMap := depthMap.insert curr d
+    -- Always update to the smallest depth found so far
+    match depthMap.find? curr with
+    | some prevD =>
+      if d < prevD then
+        depthMap := depthMap.insert curr d
+      else
+        -- If we've already found a smaller or equal depth, skip further processing
+        continue
+    | none =>
+      depthMap := depthMap.insert curr d
     if let some directImports := ig.find? curr then
       for imp in directImports do
-        if !seen.contains imp then
-          queue := queue.push (imp, d + 1)
+        -- Always enqueue, since a shorter path may be found
+        queue := queue.push (imp, d + 1)
 
   -- Now, for every module in ig, build a RAGModule with its depth (if present), direct imports, and full imports
   let out : Array RAGModule :=
@@ -110,6 +116,16 @@ def getModuleData (mods : List Name) : CoreM (Array RAGModule) := do
 
   return out
 
+def isHumanDecl (n : Name) : CoreM (Option DeclarationRange):= do
+  let rng ← findDeclarationRanges? n
+  if rng.isNone then
+    return none
+  else
+    return rng.get!.range
+
+
+
+
 def getDeclData (mods : List Name) : CoreM (Array RAGDecl) := do
   let env ← getEnv
   let decls := env.constants.map₁.toList.map (fun (n, cinfo) => (n, cinfo))
@@ -119,40 +135,39 @@ def getDeclData (mods : List Name) : CoreM (Array RAGDecl) := do
   IO.println s!"There are {decls_filtered.length} declarations in the environment after filtering"
   let decls_with_kind := decls_filtered.map (fun (n, ci, m) => (n, ci, m, getKind' ci))
 
-  let decls_with_range ← decls_with_kind.mapM (fun (n, ci, m, k) => do
-    return (n, ci, m, k, (← findDeclarationRanges? n))
+  let decls_filter_by_range ← decls_with_kind.filterMapM (fun (n, ci, m, k) => do
+    let rng? ← isHumanDecl n
+    return rng?.map (fun rng => (n,ci,m,k,rng))
+    -- return (n, ci, m, k, (← findDeclarationRanges? n))
     )
 
+  -- let total_non_null := decls_with_range.filter (fun (_,_,_,_,rgs) => rgs.isSome)
+  IO.println s!"There are {decls_filter_by_range.length} declarations in the environment after filtering for human theorems"
+
   let mut decls_filtered_grouped := Std.HashMap.empty
-  for (n, ci, m, k, rgs) in decls_with_range do
+  for (n, ci, m, k, rgs) in decls_filter_by_range do
 
     if let some decls := decls_filtered_grouped[m]? then
       decls_filtered_grouped := decls_filtered_grouped.insert m (decls.push (n, ci, k, rgs))
     else
       decls_filtered_grouped :=decls_filtered_grouped.insert m #[(n, ci, k, rgs)]
 
-
-
-
-
   let mut output : Array RAGDecl := #[]
 
   for (m,decls) in decls_filtered_grouped do
     let modulePath ← findLean m
     let fileContents ← IO.FS.readFile modulePath.toString
+    let fileMap := fileContents.toFileMap
 
-    for (n, _, k, rgs?) in decls do
-      if rgs?.isNone then
-        continue
-      let rgs := rgs?.get!.range
+    for (n, _, k, rgs) in decls do
+      -- Use proper position-based extraction instead of line-based
+      let declText := fileMap.source.extract (fileMap.ofPosition rgs.pos) (fileMap.ofPosition rgs.endPos)
+      let realName := match n.eraseMacroScopes with
+        | .str _ last => last
+        | x => x.toString
 
-
-      let declTextList := if rgs.pos.line == 0 then [] else
-        fileContents.splitOn "\n"
-          |>.drop (rgs.pos.line - 1)
-          |>.take (rgs.endPos.line - rgs.pos.line + 1)
-      let declText := "\n".intercalate declTextList
-      output := output.push { decl := n, kind := k, module := m, content := declText }
+      if String.containsSubstr declText realName then
+        output := output.push { decl := n, kind := k, module := m, content := declText }
 
   IO.println s!"There are {output.size} declarations in the output"
 
@@ -164,10 +179,12 @@ def getDeclData (mods : List Name) : CoreM (Array RAGDecl) := do
 
 
 
-def buildRag (mods : List Name) (output_dir : String) : IO Unit := do
+def buildRag (mods : Array Name) (output_dir : String) : IO Unit := do
   initSearchPath (← getLibDir (← findSysroot))
 
-  let _ ← CoreM.withImportModules mods.toArray do
+
+  IO.println s!"Building RAG for project: {mods}"
+  let _ ← CoreM.withImportModules mods do
 
     let module_data : Array RAGModule ← getModuleData mods
     let all_modules := module_data.map (fun m => m.module)
@@ -191,7 +208,8 @@ def buildRagCLI (args : Cli.Parsed) : IO UInt32 := do
 
   let modules_raw := args.positionalArg! "modules" |>.as! String
   let modules : List String := if modules_raw.isEmpty then [] else modules_raw.splitOn ","
-  let mods := modules.map (fun m => m.toName)
+  -- let modules := module_projects.map (fun m => m.splitOn ",")
+  let mods := modules.map (fun m => m.toName) |>.toArray
 
 
   let output_dir := args.positionalArg! "output_dir" |>.as! String
@@ -208,8 +226,9 @@ def build_rag : Cmd := `[Cli|
 
 
   ARGS:
-    modules : String; "List of modules to include in the prompts, separated by \",\"."
     output_dir : String; "Directory to write the RAG to."
+    modules : String; "List of modules to include in the prompts, separated by \",\"."
+
 
 ]
 

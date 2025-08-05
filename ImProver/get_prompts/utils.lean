@@ -66,7 +66,7 @@ def getScopes (cmd : CompilationStep) (fileName : String) : IO (String × String
 def getRagItems (targets_new : Array (CompilationStep × ConstantInfo))
     (mod : Name) (rag_id : String) (python_cmd : String) (k : Nat)
     : IO (Option (Array (String × String × (Array RagItem)))) := do
-
+    IO.println s!"Getting rag items for {targets_new.size} targets with rag_id {rag_id} and k {k}"
     let data : Json := Json.mkObj
         [("queries", Json.arr <| targets_new.map (fun (_, ci) =>
             Json.mkObj
@@ -85,7 +85,8 @@ def getRagItems (targets_new : Array (CompilationStep × ConstantInfo))
     }
 
     let stdout := out.stdout.trim
-
+    IO.println s!"STDOUT: {stdout}"
+    IO.println s!"STDERR: {out.stderr}"
     let after_output := stdout.splitAtString "<OUTPUT>" |>.getD ("","") |>.2
     let output_raw := after_output.splitAtString "</OUTPUT>" |>.getD ("","") |>.1
 

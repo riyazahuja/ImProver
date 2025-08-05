@@ -87,7 +87,7 @@ async def calculate_prompt(file_info, args):
             os.path.join("prompts", args.prompts_id, "src"),
             sys.executable,
             rag_id,
-            args.k,
+            str(args.k),
             "--theorems",
             ",".join(theorems) if theorems else ""
         ]
@@ -108,11 +108,19 @@ async def calculate_prompt(file_info, args):
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
 
-        stdout, stderr = await proc.communicate()
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=args.timeout)
+        # print(stdout.decode())
+        # print("--------------------------------")
+        # print(stderr.decode())
+        # print("--------------------------------")
         if proc.returncode != 0:
             print(f">>> Error extracting prompts on {file}: {stderr.decode()}\n")
         else:
             print(f">>> success on {file}! (took {time.time()-st}s)\n")
+        return
+    except asyncio.TimeoutError:
+        print(f">>> Timeout after {args.timeout}s on {file}")
+        proc.terminate()
         return
     except Exception as e:
         print(f">>> Exception running improver on {file}: {str(e)}")
@@ -127,7 +135,7 @@ async def main_async(args):
     files_to_process = []
     for repo in dataset.keys():
         files_to_process = files_to_process + dataset[repo]
-
+    print(files_to_process)
     semaphore = asyncio.Semaphore(args.cpus)
 
     async def run_with_semaphore(file_info):
@@ -163,8 +171,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate prompts for ImProver")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    parser.add_argument("--prompts_id", type=str, default="prompts_" + time),
-    parser.add_argument("--rag_id", type=str, default=None),
+    parser.add_argument("--prompts_id", type=str, default="prompts_" + time)
+    parser.add_argument("--rag_id", type=str, default=None)
     parser.add_argument(
         "--split",
         type=str,
@@ -176,6 +184,18 @@ if __name__ == "__main__":
         type=int,
         default=cpu_count(),
         help="Number of CPUs to use (default: all available)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=1800,
+        help="Timeout in seconds for subprocess calls (default: 300)",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=5,
+        help="Number of retrieved items for RAG (default: 5)",
     )
 
     

@@ -10,7 +10,7 @@ if not HF_TOKEN:
 
 login(token=HF_TOKEN)
 
-repo_name = "riyazahuja/coder_completion_informal"
+repo_name = "riyazahuja/length_full_iteration_0"
 
 # create_repo(repo_name, private=False)
 

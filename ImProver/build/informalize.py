@@ -12,6 +12,7 @@ import multiprocessing
 import torch
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 from transformers import AutoTokenizer
+from packaging.version import Version
 
 
 
@@ -216,82 +217,163 @@ Input:
 
 
 def collect_prompts(rag_dir, max_depth, tokenizer, MAX_PROMPT_TOKENS, include_context=False):
-    decls_path = os.path.join(rag_dir, "decl_data.json")
-    modules_path = os.path.join(rag_dir, "module_data.json")
-    with open(decls_path, "r") as f:
-        decls = json.load(f)
-    with open(modules_path, "r") as f:
-        modules = json.load(f)
     
+    data_conn = os.path.join(rag_dir, "data.duckdb")
+    
+    
+    
+    # decls_path = os.path.join(rag_dir, "decl_data.json")
+    # modules_path = os.path.join(rag_dir, "module_data.json")
+    # with open(decls_path, "r") as f:
+    #     decls = json.load(f)
+    # with open(modules_path, "r") as f:
+    #     modules = json.load(f)
+    
+    
+    # Use DuckDB to query decls whose module is in module_data and whose module's depth < max_depth
+    con = duckdb.connect(data_conn)
+    query = f"""
+        SELECT d.*, m.depth
+        FROM decl_data d
+        JOIN module_data m
+        ON d.module = m.module
+        WHERE m.depth < {max_depth}
+    """
+    decls = con.execute(query).fetchall()
+    columns = [desc[0] for desc in con.description]
+    decls = [dict(zip(columns, row)) for row in decls]
+    con.close()
+    
+    
+    
+    #TEMPORARY: REMOVE EVENTUALLY
+    # informal_data_path = "/home/riyaza/eval_improver/improver/rag/final_rag_real/informal_data.duckdb"
+    # con = duckdb.connect(informal_data_path)
+    # all_distinct_modules = con.execute("SELECT DISTINCT module FROM informal_data").fetchall()
+    # all_distinct_modules = [row[0] for row in all_distinct_modules]
+    # con.close()
+    
+    
+    
+    
+    
+    
+    
+
     all_prompts = []
     truncation_count = 0
     for decl in decls:
-        prompt = build_prompt(decl)
-        # tokens = tokenizer.encode(prompt, add_special_tokens=False)
-        # if len(tokens) > MAX_PROMPT_TOKENS:
-        #     truncation_count += 1
-        #     tokens = tokens[-MAX_PROMPT_TOKENS:]
-        #     prompt = tokenizer.decode(tokens)
-        all_prompts.append({"prompt": prompt,
-                            "module" : decl['module'],
-                            "name" : decl['decl'],
-                            "text" : decl['content']})
+        
+        
+        # if decl['module'] in all_distinct_modules:
+        #     print(f"skipping {decl['module']} as it was already done")
+        #     continue
+        
+        
+        prompt = build_prompt(decl, include_context=include_context)
+        all_prompts.append({
+            "prompt": prompt,
+            "module": decl['module'],
+            "name": decl['decl'],
+            "text": decl['content']
+        })
+
+    print(f"Collected {len(all_prompts)} prompts")
+    filtered_prompts = all_prompts  # Already filtered by SQL
+    
+    # all_prompts = []
+    # truncation_count = 0
+    # for decl in decls:
+    #     prompt = build_prompt(decl)
+    #     # tokens = tokenizer.encode(prompt, add_special_tokens=False)
+    #     # if len(tokens) > MAX_PROMPT_TOKENS:
+    #     #     truncation_count += 1
+    #     #     tokens = tokens[-MAX_PROMPT_TOKENS:]
+    #     #     prompt = tokenizer.decode(tokens)
+    #     all_prompts.append({"prompt": prompt,
+    #                         "module" : decl['module'],
+    #                         "name" : decl['decl'],
+    #                         "text" : decl['content']})
         
     
     
-    print(f"Collected {len(all_prompts)} prompts")
-    filtered_prompts = [prompt for prompt in all_prompts if prompt['module'] in modules and modules[prompt['module']]['depth'] <= max_depth]
-    print(f"Filtered to {len(filtered_prompts)} prompts")
-    filtered_truncated_prompts = []
-    for prompt in filtered_prompts:
-        tokens = tokenizer.encode(prompt['prompt'], add_special_tokens=False)
-        if len(tokens) > MAX_PROMPT_TOKENS:
-            truncation_count += 1
-            tokens = tokens[-MAX_PROMPT_TOKENS:]
-            prompt['prompt'] = tokenizer.decode(tokens)
-        filtered_truncated_prompts.append(prompt)
-    print(f"Truncated to {len(filtered_truncated_prompts)} prompts")
+    # print(f"Collected {len(all_prompts)} prompts")
+    # filtered_prompts = [prompt for prompt in all_prompts if prompt['module'] in modules and modules[prompt['module']]['depth'] <= max_depth]
+    # print(f"Filtered to {len(filtered_prompts)} prompts")
     
     
-    #TEMP REMOVE EVENTUALLY
-    with open(os.path.join(rag_dir, "prompts.json"), "w") as f:
-        json.dump(filtered_truncated_prompts, f)
+    # filtered_truncated_prompts = []
+    # for prompt in filtered_prompts:
+    #     tokens = tokenizer.encode(prompt['prompt'], add_special_tokens=False)
+    #     if len(tokens) > MAX_PROMPT_TOKENS:
+    #         truncation_count += 1
+    #         tokens = tokens[-MAX_PROMPT_TOKENS:]
+    #         prompt['prompt'] = tokenizer.decode(tokens)
+    #     filtered_truncated_prompts.append(prompt)
+    # print(f"Truncated to {len(filtered_truncated_prompts)} prompts")
     
-    df = pd.DataFrame(filtered_truncated_prompts)
+    
+    # #TEMP REMOVE EVENTUALLY
+    # with open(os.path.join(rag_dir, "prompts.json"), "w") as f:
+    #     json.dump(filtered_truncated_prompts, f)
+    
+    df = pd.DataFrame(filtered_prompts)
     return df
     
     
 
 
-def run_inference(df, args):
-    os.environ["NCCL_P2P_DISABLE"] = "1"
-    ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
-    DataContext.get_current().wait_for_min_actors_s = 1800
+def run_inference(df, args,ray_init=True):
+    if args.nccl_p2p:
+        os.environ["NCCL_P2P_DISABLE"] = "0"
+    else:
+        os.environ["NCCL_P2P_DISABLE"] = "1"
+        
+    if ray_init:
+        try:
+            ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
+        except:
+            ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/riyaza/ray_tmp')
+            
+    DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
+    ctx = DataContext.get_current()
+    # ctx.progress_bar = True
+    # ctx.execution_options.verbose_progress = True
+    
+    assert Version(ray.__version__) >= Version(
+        "2.44.1"
+    ), "Ray version must be at least 2.44.1"
+
 
     config = vLLMEngineProcessorConfig(
         model_source=args.model,
-        engine_resources={"CPU": max(1, args.cpus // max(1, args.gpus)), "GPU": 1},
-        concurrency=max(1, args.gpus),
+        engine_resources={"CPU": args.engine_cpu_resources, "GPU": args.engine_gpu_resources},
+        concurrency=args.concurrency,
         engine_kwargs={
-            "tensor_parallel_size": 1,
-            "enable_chunked_prefill": True,
-            "max_model_len": 16384,
-            "max_num_batched_tokens": 65536,
+            "tensor_parallel_size": args.tensor_parallel_size,
+            "enable_chunked_prefill": args.enable_chunked_prefill,
+            "max_model_len": args.max_model_len,
+            "max_num_batched_tokens": args.max_num_batched_tokens,
+            # "max_num_batched_tokens": 4096,
+            # "max_model_len": 16384,
+            
         },
-        max_concurrent_batches=32,
-        batch_size=32,
+        max_concurrent_batches=args.max_concurrent_batches,
+        batch_size=args.batch_size,
     )
 
     processor = build_llm_processor(
         config,
         preprocess=lambda row: dict(
             messages=[{"role": "user", "content": row["prompt"]}],
-            sampling_params=dict(truncate_prompt_tokens=16384 - 2048, max_tokens=2048),
+            sampling_params=dict(
+                truncate_prompt_tokens=args.truncate_prompt_tokens, 
+                max_tokens=args.max_tokens),
         ),
         postprocess=lambda row: dict(answer=row["generated_text"], **row),
     )
+    ds = ray.data.from_pandas(df).repartition(args.num_blocks)
 
-    ds = ray.data.from_pandas(df).repartition(max(1, args.gpus) * 8)
     ds = processor(ds).materialize()
 
     output_dir = os.path.join("rag", args.rag_id, "informal_data")
@@ -304,7 +386,12 @@ def populate_database(output_dir, rag_dir):
     db_path = os.path.join(rag_dir, "informal_data.duckdb")
     con = duckdb.connect(db_path)
     con.execute("DROP TABLE IF EXISTS informal_data")
+    
+    
     con.execute(f"CREATE TABLE informal_data AS SELECT * FROM read_parquet('{output_dir}/*.parquet')")
+    # con.execute(f"CREATE TABLE informal_data AS SELECT * FROM read_parquet(['{output_dir}/*.parquet', '/home/riyaza/eval_improver/improver/rag/final_rag_real/informal_data/*.parquet'])")
+    
+    
     con.execute("ALTER TABLE informal_data ADD COLUMN IF NOT EXISTS informal_statement TEXT")
     con.execute("ALTER TABLE informal_data ADD COLUMN IF NOT EXISTS informal_proof TEXT")
     rows = con.execute("SELECT rowid, answer FROM informal_data").fetchall()
@@ -358,6 +445,109 @@ if __name__ == "__main__":
         default=available_gpus,
         help="Number of GPUs to use (default: all available)",
     )
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    parser.add_argument(
+        "--nccl_p2p",
+        type=bool,
+        default=False,
+        help="Enable NCCL P2P - set to false if nvidia-smi topo -m shows SYS between gpus, or something or another about PCIE? A6000 -> false. (default: False)",
+    )
+    parser.add_argument(
+        "--ray_timeout",
+        type=int,
+        default=1800,
+        help="Ray timeout in seconds (default: 1800)",
+    )
+    parser.add_argument(
+        "--num_blocks",
+        type=int,
+        default=16,
+        help="Number of blocks to repartition the dataset into (default: 16)",
+    )
+    parser.add_argument(
+        "--engine_cpu_resources",
+        type=int,
+        default=multiprocessing.cpu_count() // available_gpus,
+        help="Number of CPU resources for the engine (default: cpus // gpus)",
+    )
+    parser.add_argument(
+        "--engine_gpu_resources",
+        type=int,
+        default=1,
+        help="Number of GPU resources for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=available_gpus,
+        help="Concurrency for the engine (default: gpus)",
+    )
+    parser.add_argument(
+        "--tensor_parallel_size",
+        type=int,
+        default=1,
+        help="Tensor parallel size for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--enable_chunked_prefill",
+        type=bool,
+        default=True,
+        help="Enable chunked prefill for the engine (default: True)",
+    )
+    parser.add_argument(
+        "--max_model_len",
+        type=int,
+        default=16384,
+        help="Maximum model length for the engine (default: 16384)",
+    )
+    parser.add_argument(
+        "--max_num_batched_tokens",
+        type=int,
+        default=65536,
+        help="Maximum number of batched tokens for the engine (default: 65536)",
+    )
+    parser.add_argument(
+        "--max_concurrent_batches",
+        type=int,
+        default=32,
+        help="Maximum number of concurrent batches for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--truncate_prompt_tokens",
+        type=int,
+        default=16384 - 2048,
+        help="Number of prompt tokens to truncate (default: 16384 - 2048)",
+    )
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=2048,
+        help="Maximum number of tokens to generate (default: 2048)",
+    )
+    
+    
+    
+    
+    
+    
+    
+    
     args = parser.parse_args()
     
     main(args)
