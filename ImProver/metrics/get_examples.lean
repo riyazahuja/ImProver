@@ -106,15 +106,26 @@ def getExamples (mod : Name) (outputFile : String) (python_cmd : String) (rag_id
     -- if this is unable to be confirmed, print an error message on how this tagName has an unexpected number of versions, aind continue to the next tagName.
 
     let validPairs ← checkValidity grouped
+    IO.println <| "\n".intercalate <| validPairs.toList.map (fun (n,cs,ci,s) => s!"[{n.toString} | {ci.name.toString} | {s}]\n\n")
+
+
 
     let raw_data : List (List TheoremData × Nat) ← getPromptsAux (validPairs.map (fun (_, cmd, ci, _) => (cmd, ci))) mod python_cmd fileName rag_id k
+
+    let mut data_map : Std.HashMap Nat (List TheoremData) := default
+    for (datas, idx) in raw_data do
+      match data_map[idx]? with
+      | none => data_map := data_map.insert idx datas
+      | some old_items => data_map := data_map.insert idx (old_items ++ datas)
+
+
     let mut results : Array (Name × ExampleData) := #[]
 
     for i in [0:validPairs.size] do
       if h : i < validPairs.size then
         let (tagName, _, _, outputStr) := validPairs[i]
-        match raw_data.get? i with
-        | some (theoremDataList, _) =>
+        match data_map.get? i with
+        | some theoremDataList =>
           let realTheoremData := theoremDataList.filter (fun td => !td.id.isExtracted) |>.get! 0
           results := results.push (tagName, ⟨realTheoremData, outputStr⟩)
          | none =>
@@ -177,3 +188,6 @@ def get_examples : Cmd := `[Cli|
 
 def main (args : List String) : IO UInt32 :=
   get_examples.validate args
+
+
+#eval main ["metrics.length.examples","test.json","python","none","0"]

@@ -166,13 +166,13 @@ def calculate_nonzero_improvement(rows, metric_name, metric_spec_map):
 
 # make bon database, metric vs n graph, distribution shift graph, and pass/improvement rate graph. 
 # mark bon database entries with an improvement rate    
-def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFICATIONS):
+def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
     print("Starting Best-of-N analysis...")
     metric_name = config['metric']
     n_config_val = int(config['n'])
-    metric_objective = METRIC_SPECIFICATIONS
 
-    analysis_base_path = os.path.join(run_dir_path, run_id, "analysis", "BoN")
+
+    analysis_base_path = os.path.join("evals", run_id, "analysis", "BoN")
     os.makedirs(analysis_base_path, exist_ok=True)
 
     raw_db_path = os.path.join(analysis_base_path, "raw.duckdb")
@@ -311,9 +311,9 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
         # Calculate measures for the current_tick_best_rows_for_measures
         if current_tick_best_rows_for_measures:
             acc = calculate_accuracy(current_tick_best_rows_for_measures)
-            non_zero_acc = calculate_nonzero_accuracy(current_tick_best_rows_for_measures, metric_name, METRIC_SPECIFICATIONS)
-            impr = calculate_improvement(current_tick_best_rows_for_measures, metric_name, METRIC_SPECIFICATIONS)
-            non_zero_impr = calculate_nonzero_improvement(current_tick_best_rows_for_measures, metric_name, METRIC_SPECIFICATIONS)
+            non_zero_acc = calculate_nonzero_accuracy(current_tick_best_rows_for_measures, metric_name, metric_objective)
+            impr = calculate_improvement(current_tick_best_rows_for_measures, metric_name, metric_objective)
+            non_zero_impr = calculate_nonzero_improvement(current_tick_best_rows_for_measures, metric_name, metric_objective)
 
             graph_data_points.append({
                 'n_value': n_val,
@@ -487,148 +487,212 @@ def run_best_of_n_analysis(run_id, run_dir_path, db_con, config, METRIC_SPECIFIC
         print("Not enough data for improvement rate distribution plot.")
 
     print("Best-of-N analysis finished.")
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     return True
 
-def extract_improved_content(text):
-    start_tag = "<IMPROVED>"
-    end_tag = "</IMPROVED>"
 
-    start_index = text.find(start_tag)
-    end_index = text.find(end_tag)
 
-    if start_index != -1 and end_index != -1 and end_index > start_index:
-        # Both tags exist and properly ordered
-        return text[start_index + len(start_tag):end_index]
-    elif start_index != -1:
-        # Only start tag found
-        return text[start_index + len(start_tag):]
-    elif end_index != -1:
-        # Only end tag found
-        return text[:end_index]
-    else:
-        # Neither tag found
-        return text
 
-def run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, thinking_mode):
-    """Performs the training data extraction analysis."""
-    print("Starting training data extraction...")
-    metric_name = config['metric']
-    metric_objective = METRIC_SPECIFICATIONS
 
-    if not metric_objective:
-        print(f"Error: Metric '{metric_name}' not found in METRIC_SPECIFICATIONS.")
-        return
 
-    analysis_base_path = os.path.join(run_dir_path, run_id, "analysis", "BoN")
-    raw_db_path = os.path.join(analysis_base_path, "raw.duckdb")
 
-    if not os.path.exists(raw_db_path):
-        print(f"{raw_db_path} does not exist. Running Best-of-N analysis first...")
-        # Need a connection to the original eval.duckdb for BoN
-        eval_db_path = os.path.join(run_dir_path, run_id, "eval.duckdb")
-        if not os.path.exists(eval_db_path):
-            print(f"Error: eval.duckdb not found at {eval_db_path} for BoN pre-run.")
-            return
-        
-        db_con_eval = get_db_connection(eval_db_path)
-        if not db_con_eval:
-            return 
-        
-        bon_success = run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config, METRIC_SPECIFICATIONS)
-        db_con_eval.close()
-        if not bon_success or not raw_db_path.exists():
-            print("Best-of-N analysis failed or did not produce raw.duckdb. Cannot proceed with training analysis.")
-            return
-    
-    # Connect to the raw_db_path (which should now exist)
-    db_con_raw = get_db_connection(raw_db_path)
-    if not db_con_raw:
-        print(f"Failed to connect to {raw_db_path} for training analysis.")
-        return
 
+
+def make_training_data_json(run_id, db_path, n, metric_objective):
+    """
+    Generates a training_data.json file as specified in the prompt.
+    Args:
+        db_path (str): Path to eval.duckdb database.
+        n (int): Best-of-n value.
+        metric_objective (str): 'min' or 'max'.
+    """
+    import json
+
+    # Set delta_multiplier
+    delta_multiplier = 1 if metric_objective == "max" else -1
+
+    # Connect to DuckDB and fetch all rows
     try:
-        # Query the 'best_results' table (assuming this is the table name used in BoN)
-        query = "SELECT decl, module, new_raw, new_correct, delta, original_prompt, new_trimmed FROM best_results"
-        results = db_con_raw.execute(query).fetchall()
-        
-        # Convert to list of dicts for easier processing
-        cols = [desc[0] for desc in db_con_raw.description]
-        result_dicts = [dict(zip(cols, row)) for row in results]
-
-        # print("\n--- Training Data Candidates ---")
-        count = 0
-        pairs = []
-        errors =[]
-        for row in result_dicts:
-            if row.get('new_correct'):
-                delta = parse_json_field_as_float(row.get('delta'))
-                if delta is not None:
-                    condition_met = False
-                    if metric_objective == "min" and delta < 0:
-                        condition_met = True
-                    elif metric_objective == "max" and delta > 0:
-                        condition_met = True
-                    
-                    if condition_met:
-                        # print(f"DECL: {row['decl']}")
-                        # print(f"MODULE: {row['module']}")
-                        # print(f"NEW_RAW: {row['new_raw']}")
-                        # print("---")
-                        prompt = re.sub(r'\<\uFF5C.*?\uFF5C\>', '', row['original_prompt'])
-                        new = extract_improved_content(row['new_raw'])
-                        first = new.strip().split("\n")[0] if new else ""
-                        if row['decl'] not in first and row['decl'].split(".")[-1] not in first:
-                            new = row['new_raw']
-                            errors.append(row['decl'])
-                        new_trimmed = row['new_trimmed'] if row['new_trimmed'] else new
-                        
-                        output = new_trimmed.strip()
-                    
-                        
-                        if thinking_mode == "raw":
-                            output = row['new_raw'].strip()
-                        # TODO IMPLEMENT AUTO THINKING MODE
-                        
-                        # print(f"NEW: {new}")
-                        pair = {"instruction": prompt.strip(), "output": new_trimmed.strip() + "\n</IMPROVED>"}
-                        pairs.append(pair)
-                        
-                        # print(f"Pair: {new.strip()}")
-                        # print(f"PROMPT: {re.sub(r'\<\uFF5C.*?\uFF5C\>', '', row['original_prompt'])}")
-                        # print("===")
-                        count +=1
-        print(f"Found {count} training data candidates.")
-        json_output_path = os.path.join(analysis_base_path, "train.jsonl")
-        if pairs:
-            # print(pairs[:5])  # Print first 5 pairs for verification
-            with open(json_output_path, 'w') as f:
-                for pair in pairs:
-                    f.write(json.dumps(pair) + "\n")
-        print(f"Training data candidates saved to {json_output_path}")
-        print(f"{len(errors)} errors in decls: {errors}")
+        con = duckdb.connect(database=str(db_path), read_only=True)
+        query = (
+            "SELECT original_prompt, og_raw, new_trimmed, new_raw, new_correct, module, decl, delta "
+            "FROM evaluation_results "
+            "ORDER BY module, decl, rowid"
+        )
+        df = con.execute(query).fetchdf()
+        con.close()
     except Exception as e:
-        print(f"Error during training data extraction: {e}")
-    finally:
-        db_con_raw.close()
-    
-    print("Training data extraction finished.")
+        print(f"Error reading from database {db_path}: {e}")
+        return
+
+    # Group rows by (decl, module)
+    from collections import defaultdict
+
+    grouped = defaultdict(list)
+    for row in df.to_dict('records'):
+        key = (row['module'], row['decl'])
+        grouped[key].append(row)
+
+    # Only keep groups with exactly n rows
+    filtered_grouped = {k: v for k, v in grouped.items() if len(v) == n}
+
+    training_data = {}
+
+    for key, rows in filtered_grouped.items():
+        module, decl = key
+        prompt = rows[0].get("original_prompt")
+        original = rows[0].get("og_raw")
+
+        # Calculate pass_rate and improvement_rate
+        pass_count = sum(1 for r in rows if r.get("new_correct"))
+        pass_rate = pass_count / n if n > 0 else 0.0
+
+        improvement_count = 0
+        for r in rows:
+            delta = r.get("delta")
+            if r.get("new_correct") and delta is not None:
+                try:
+                    delta_val = float(delta)
+                except Exception:
+                    continue
+                if delta_multiplier * delta_val > 0:
+                    improvement_count += 1
+        improvement_rate = improvement_count / n if n > 0 else 0.0
+
+        # Subset of rows with new_correct==True and delta_multiplier*delta > 0
+        valid_rows = []
+        for r in rows:
+            if r.get("new_correct"):
+                delta = r.get("delta")
+                if delta is not None:
+                    try:
+                        delta_val = float(delta)
+                    except Exception:
+                        continue
+                    if delta_multiplier * delta_val > 0:
+                        valid_rows.append((delta_multiplier * delta_val, r))
+
+        # Sort valid_rows by delta_multiplier*delta descending
+        valid_rows_sorted = sorted(valid_rows, key=lambda x: x[0], reverse=True)
+
+        # Champion
+        if len(valid_rows_sorted) >= 1:
+            champion_row = valid_rows_sorted[0][1]
+            champion = {
+                "output": champion_row.get("new_trimmed"),
+                "cot_output": champion_row.get("new_raw"),
+                "delta": valid_rows_sorted[0][0]
+            }
+        else:
+            champion = {"output": None, "cot_output": None, "delta": None}
+
+        # Runner-up
+        if len(valid_rows_sorted) >= 2:
+            runner_up_row = valid_rows_sorted[1][1]
+            runner_up = {
+                "output": runner_up_row.get("new_trimmed"),
+                "cot_output": runner_up_row.get("new_raw"),
+                "delta": valid_rows_sorted[1][0]
+            }
+        else:
+            runner_up = {"output": None, "cot_output": None, "delta": None}
+
+        # Median
+        if len(valid_rows_sorted) >= 1:
+            median_idx = len(valid_rows_sorted) // 2
+            median_row = valid_rows_sorted[median_idx][1]
+            median = {
+                "output": median_row.get("new_trimmed"),
+                "cot_output": median_row.get("new_raw"),
+                "delta": valid_rows_sorted[median_idx][0]
+            }
+        else:
+            median = {"output": None, "cot_output": None, "delta": None}
+
+        # Worst pass
+        if len(valid_rows_sorted) >= 1:
+            worst_row = valid_rows_sorted[-1][1]
+            worst_pass = {
+                "output": worst_row.get("new_trimmed"),
+                "cot_output": worst_row.get("new_raw"),
+                "delta": valid_rows_sorted[-1][0]
+            }
+        else:
+            worst_pass = {"output": None, "cot_output": None, "delta": None}
+
+        # Invalid: any row with new_correct==False
+        invalid_row = next((r for r in rows if not r.get("new_correct")), None)
+        if invalid_row is not None:
+            invalid = {
+                "output": invalid_row.get("new_trimmed"),
+                "cot_output": invalid_row.get("new_raw"),
+                "delta": None
+            }
+        else:
+            invalid = {"output": None, "cot_output": None, "delta": None}
+
+        training_data[f"{module}_{decl}"] = {
+            "prompt": prompt,
+            "original": original,
+            "improvement_rate": improvement_rate,
+            "pass_rate": pass_rate,
+            "samples": {
+                "champion": champion,
+                "runner_up": runner_up,
+                "median": median,
+                "worst_pass": worst_pass,
+                "invalid": invalid
+            }
+        }
+
+    # Save to training_data.json in the same directory as db_path
+    out_dir = os.path.join("evals",run_id, "analysis", "BoN")
+    out_path = os.path.join(out_dir, "training_data.json")
+    try:
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(training_data, f, indent=2, ensure_ascii=False)
+        print(f"Saved training data to {out_path}")
+    except Exception as e:
+        print(f"Error saving training_data.json: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Perform analysis on experimental run data.")
     parser.add_argument("run_id", help="Identifier for the run.")
-    parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data (default: True)", default=True)
-    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw'.")
-    parser.add_argument("--prev_iter_id", default=None, help="run_id of previous iteration (must have analysis complete)")
+
     return parser
 
 def main(args):
 
-    run_id = args.run_id
-    run_dir_path = "evals"
-
-    db_path = os.path.join(run_dir_path, run_id, "eval.duckdb")
-    config_path = os.path.join(run_dir_path, run_id, "config.json")
+    db_path = os.path.join("evals", args.run_id, "eval.duckdb")
+    config_path = os.path.join("evals", args.run_id, "config.json")
 
     if not os.path.exists(db_path):
         print(f"Error: Database file not found at {db_path}")
@@ -643,7 +707,7 @@ def main(args):
     try:
         with open(metric_config_path, 'r') as f:
             metric_config = json.load(f)
-        METRIC_SPECIFICATIONS = metric_config.get("scoring", {}).get("minmax", "min")
+        metric_objective = metric_config.get("scoring", {}).get("minmax", "min")
     except FileNotFoundError:
         print(f"Error: Metric config file not found at {metric_config_path}")
         return
@@ -665,15 +729,12 @@ def main(args):
 
     # make bon database, metric vs n graph, distribution shift graph, and pass/improvement rate graph. 
     # mark bon database entries with a pass rate and improvement rate    
-    run_best_of_n_analysis(run_id, run_dir_path, db_con_eval, config, METRIC_SPECIFICATIONS)
+    run_best_of_n_analysis(args.run_id, db_con_eval, config, metric_objective)
+    db_con_eval.close()
     
+    
+    make_training_data_json(args.run_id, db_path, int(config['n']), metric_objective)
 
-    # make basic full training data, raw training data (i.e. with thinking), frontier training data from prev run,
-    # do each of those three with improvement rate < improvement threshold
-    # todo make improvement rate for certain metrics = pass rate.
-    # also make dpo data for each of those three    
-    run_training_analysis(run_id, run_dir_path, config, METRIC_SPECIFICATIONS, args.thinking)
-        
     
     
     

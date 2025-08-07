@@ -4,6 +4,7 @@ import datetime
 import multiprocessing
 import argparse
 from .inference import main as inference_main
+from .inference_server import main as inference_server_main
 from .eval_improver import main_async as eval_main
 from .analysis import main as analysis_main
 from .llm_metric import main as llm_main
@@ -50,6 +51,26 @@ def get_parser():
         default=0,
         help="Number of file context items (default: 0, -1 for all)",
     )
+    
+    #azure params
+    parser.add_argument(
+        "--azure",
+        default=False,
+        help="Use Azure for inference",
+    )
+    parser.add_argument(
+        "--server_concurrency",
+        type=int,
+        default=10,
+        help="Number of concurrent API requests (default: 10)",
+    )
+    parser.add_argument(
+        "--server_rate_limit",
+        type=int,
+        default=60,
+        help="Maximum requests per minute for rate limiting (default: 60)",
+    )
+    
     
     #inference hyperparams
     parser.add_argument(
@@ -173,6 +194,8 @@ def main(args):
         goal_state=args.goal_state,
         file_context=args.file_context,
         
+        server_concurrency=args.server_concurrency,
+        server_rate_limit=args.server_rate_limit,
         
         nccl_p2p=args.nccl_p2p,
         ray_timeout=args.ray_timeout,
@@ -191,7 +214,10 @@ def main(args):
         
         run_id=args.run_id
     )
-    inference_main(inference_args)
+    if args.azure:
+        inference_server_main(inference_args)
+    else:
+        inference_main(inference_args)
     
     # 2. Run Evaluation
     print(f"[IMPROVER: Evaluating run {args.run_id}...]")

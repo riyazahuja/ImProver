@@ -301,6 +301,10 @@ def run():
 @click.option('--goal_state', is_flag=True, default=False)
 @click.option('--file_context', default=0)
 
+@click.option('--azure', default=False)
+@click.option('--server_concurrency', default=10)
+@click.option('--server_rate_limit', default=60)
+
 @click.option('--nccl_p2p', is_flag=True, default=False)
 @click.option('--ray_timeout', default=1800)
 @click.option('--num_blocks', default=16)
@@ -319,6 +323,7 @@ def run():
 @click.option('--config', type=click.Path(exists=True), default=None)
 def run_inference(**kwargs):
     from ImProver.basic.inference import main as inference_main
+    from ImProver.basic.inference_server import main as server_inference_main
 
     config = kwargs.pop('config')
     defaults = kwargs.copy()
@@ -327,7 +332,10 @@ def run_inference(**kwargs):
     params = get_default_gpus(params)
 
     args = argparse.Namespace(**params)
-    inference_main(args)
+    if args.azure:
+        server_inference_main(args)
+    else:
+        inference_main(args)
 
 
 @run.command('eval')
@@ -428,6 +436,10 @@ def run_synthetic_thinking(**kwargs):
 @click.option('--goal_state', is_flag=True, default=False)
 @click.option('--file_context', default=0)
 
+@click.option('--azure', default=False)
+@click.option('--server_concurrency', default=10)
+@click.option('--server_rate_limit', default=60)
+
 @click.option('--nccl_p2p', is_flag=True, default=False)
 @click.option('--ray_timeout', default=1800)
 @click.option('--num_blocks', default=16)
@@ -459,6 +471,31 @@ def run_pipeline(**kwargs):
 
     args = argparse.Namespace(**params)
     pipeline_main(args)
+    
+    
+@run.command('training_data')
+@click.option('--run_id', required=False, help="Identifier for the run.")
+@click.option('--output_path', default=None, help="Output path for JSONL file (default: evals/[run_id]/analysis/BoN/training_data.jsonl)")
+@click.option('--thinking', is_flag=True, default=False, help="Use CoT output instead of regular output (default: False)")
+@click.option('--filter_threshold', type=float, default=1.0, help="Threshold for filtering high improvement rate items (default: 1.0)")
+@click.option('--prev_run_id', default=None, help="Previous run ID for replay buffer (default: None)")
+@click.option('--replay_buffer_split', type=float, default=None, help="Target proportion of replay items (default: None)")
+@click.option('--type', type=click.Choice(['sft', 'weighted_sft', 'dpo']), default="sft", help="Type of training dataset (default: sft)")
+@click.option('--tau', default=1.0, help="temperature value for weighted SFT")
+
+@click.option('--config', type=click.Path(exists=True), default=None)
+def run_pipeline(**kwargs):
+    from ImProver.basic.training_data import main as training_data_main
+
+    config = kwargs.pop('config')
+    defaults = kwargs.copy()
+    print(defaults)
+    params = apply_config(kwargs, defaults, config)
+    require_params(params, ['run_id'])
+    params = get_default_gpus(params)
+
+    args = argparse.Namespace(**params)
+    training_data_main(args)
 
 # ----- KG group -----
 @cli.group()

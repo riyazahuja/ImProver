@@ -10,7 +10,7 @@ import datetime
 import multiprocessing
 import argparse
 import duckdb
-
+from transformers import AutoTokenizer
 # nccl_p2p (default is False, A6000)
 # ray_timeout (def 1800s)
 # num_blocks (default 16)
@@ -86,19 +86,49 @@ def run_inference(df, args, ray_init=True):
         max_concurrent_batches=args.max_concurrent_batches,
         batch_size=args.batch_size,
     )
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
 
+    def preprocess_with_truncation(row):
+        # Truncate the prompt to fit within the model's context window
+        prompt = row["raw_prompt"]
+        tokens = tokenizer.encode(prompt)
+        
+        # Calculate available space for prompt (reserve space for generation)
+        max_prompt_tokens = args.max_model_len - args.max_tokens
+        
+        if len(tokens) > max_prompt_tokens:
+            # Truncate tokens and decode back to text
+            truncated_tokens = tokens[:max_prompt_tokens]
+            prompt = tokenizer.decode(truncated_tokens, skip_special_tokens=True)
+            print(f"Truncated prompt from {len(tokens)} to {len(truncated_tokens)} tokens")
+        
+        return dict(
+            messages=[{"role": "user", "content": prompt}],
+            sampling_params=dict(
+                # n=args.n,
+                # truncate_prompt_tokens=args.truncate_prompt_tokens,  # Remove this as we're handling truncation manually
+                # temperature=0.3,
+                max_tokens=args.max_tokens,
+                temperature=0.3,
+                top_p=0.9,
+                repetition_penalty=1.05,
+                stop=["</IMPROVED>"],
+                seed=int(row.get("prompt_idx", 0)),
+            ),
+        )
+    
     
     vllm_processor = build_llm_processor(
         config,
-        preprocess=lambda row: dict(
-            messages=[{"role": "user", "content": row["raw_prompt"]}],
-            sampling_params=dict(
-                # n=args.n,
-                truncate_prompt_tokens=args.truncate_prompt_tokens,
-                # temperature=0.3,
-                max_tokens=args.max_tokens,
-            ),
-        ),
+        preprocess=preprocess_with_truncation,#lambda row: dict(
+        #     messages=[{"role": "user", "content": row["raw_prompt"]}],
+        #     sampling_params=dict(
+        #         # n=args.n,
+        #         truncate_prompt_tokens=args.truncate_prompt_tokens,
+        #         # temperature=0.3,
+        #         max_tokens=args.max_tokens,
+        #     ),
+        # ),
         postprocess= lambda row : dict(answer=row["generated_text"], **row),
     )
     ds = vllm_processor(ds).materialize()
@@ -128,39 +158,42 @@ def run_inference(df, args, ray_init=True):
     return run_output_dir
 
 
-def construct_prompt_core(config_data, item, args):
+def construct_prompt_core(config_data, item, file_context, context,rag, annotation, goal_state, system):
     prompt = ""
     
-    if args.file_context != 0:
+    if file_context != 0:
         prompt += f"<FILE_CONTEXT>\n"
-        num_deps = len(item["C0_dependencies"])if args.file_context == -1 else min(args.file_context,len(item["C0_dependencies"]))
+        num_deps = len(item["C0_dependencies"])if file_context == -1 else min(file_context,len(item["C0_dependencies"]))
         for context in item["C0_dependencies"][: num_deps]:
             prompt += f"<ITEM>\n--name={context['name']}\n--type={context['kind']}\n{context['content']}\n</ITEM>\n"
         prompt += f"</FILE_CONTEXT>\n\n"
     
-    if args.context != 0:
+    if context != 0:
             
         prompt += f"<CONTEXT>\n"
-        num_deps = len(item["C1_dependencies"])if args.context == -1 else min(args.context,len(item["C1_dependencies"]))
+        num_deps = len(item["C1_dependencies"])if context == -1 else min(context,len(item["C1_dependencies"]))
         for context in item["C1_dependencies"][: num_deps]:
             prompt += f"<ITEM>\n--name={context['name']}\n--type={context['kind']}\n{context['content']}\n</ITEM>\n"
         prompt += f"</CONTEXT>\n\n"
 
-    if args.rag != 0:
-        prompt += f"<RAG>\n"
-        num_rag = len(item["rag"])if args.rag == -1 else min(args.rag,len(item["rag"]))
+    if rag != 0:
+        prompt += f"<RETRIEVED>\n"
+        num_rag = len(item["rag"])if rag == -1 else min(rag,len(item["rag"]))
         for rag in item["rag"][: num_rag]:
             prompt += f"<DOC>\n{rag}\n</DOC>\n"
-        prompt += f"</RAG>\n\n"
+        prompt += f"</RETRIEVED>\n\n"
 
-    if args.annotation:
+    if annotation:
         prompt += f"<ANNOTATION>\n{item['annotation']}\n</ANNOTATION>\n\n"
         
-    if args.goal_state:
+    if goal_state:
         prompt += f"<GOAL_STATE>\n{item['goal_state']}\n</GOAL_STATE>\n\n"
+    
+    if system:
+        prompt += "As a reminder: " + config_data["prompts"]["system_prompt"]+"\n"
 
     prompt += f"\n<CURRENT>\n{item['content_sorry'] if config_data["scoring"]["input_sorry"] else item['id']['content']}\n</CURRENT>\n\n"
-    prompt += "<IMPROVED>"
+    # prompt += "<IMPROVED>"
 
     return prompt
 
@@ -214,16 +247,16 @@ def construct_prompts(config_data, data, args):
                 try:
                     ex_prompt = "<EXAMPLE>\n\n"
                     
-                    ex_prompt += construct_prompt_core(config_data, example, args)
+                    ex_prompt += construct_prompt_core(config_data, example, 0, 0,0,False,False,False)
                     
-                    ex_prompt += f"\n{example['improved']}\n</IMPROVED>\n\n"
+                    ex_prompt += f"\n<IMPROVED>\n{example['improved']}\n</IMPROVED>\n\n"
                     ex_prompt += f"</EXAMPLE>\n\n"
                     prompt += ex_prompt
                 except:
                     pass
             prompt += f"</EXAMPLES>\n\n"
         
-        prompt += construct_prompt_core(config_data, item, args)
+        prompt += construct_prompt_core(config_data, item, args.file_context, args.context,args.rag,args.annotation,args.goal_state,True)
 
         data = {
             "decl": name,
