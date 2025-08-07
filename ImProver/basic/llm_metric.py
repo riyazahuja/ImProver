@@ -607,7 +607,7 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
 
     # returns the path to the directory containing run metadata and the parquet lake
 
-    # output_path = run_inference(proof_df, args, metric_config)
+    output_path = run_inference(proof_df, args, metric_config)
     
     
     parse_readabilityDB(args, metric_config)

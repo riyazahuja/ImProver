@@ -377,18 +377,22 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
       IO.println s!">>> Error parsing JSON: {json?}"
       return none
 
+    IO.println s!"json: {json??.get!.compress}"
+
     let variant_tuples? :=
       let json := json??.get!
       match json with
       | .arr variants =>
         some (variants.filterMap (fun v =>
-          let model_answer := (v : Json).getObjVal? "answer"
-          let prompt := (v : Json).getObjVal? "prompt"
-          let decl_idx := (v : Json).getObjVal? "decl_idx"
+          let model_answer := (v : Json).getObjVal? "answer" |>.toOption
+          let prompt := match (v : Json).getObjVal? "prompt" |>.toOption with
+            | some p => some p
+            | none => (v: Json).getObjVal? "raw_prompt" |>.toOption
+          let decl_idx := (v : Json).getObjVal? "decl_idx" |>.toOption
           -- match (model_answer.toOption, prompt.toOption) with
           -- | (some (Json.str answer), some (Json.str prompt)) => some (cmd, ci, answer, prompt)
           -- | _ => none
-          match (model_answer.toOption, prompt.toOption, decl_idx.toOption) with
+          match (model_answer, prompt, decl_idx) with
           | (some (Json.str answer), some (Json.str prompt), some (Json.str decl_idx)) => some (cmd, ci, answer, prompt, decl_idx)
           | (some (Json.str answer), some (Json.str prompt), some (Json.num decl_idx)) => some (cmd, ci, answer, prompt, decl_idx.toString)
           | _ => none
