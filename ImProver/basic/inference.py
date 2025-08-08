@@ -39,7 +39,8 @@ def run_inference(df, args, ray_init=True):
         try:
             ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
         except:
-            ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/riyaza/ray_tmp')
+            import getpass
+            ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/' + getpass.getuser() + '/ray_tmp')
             
     DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
     ctx = DataContext.get_current()

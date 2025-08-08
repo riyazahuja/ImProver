@@ -12,16 +12,19 @@ import multiprocessing
 import argparse
 import duckdb
 import random
+import difflib
 
 
 
-def run_inference(df, args, metric_config):
+def run_inference(df, args, metric_config, use_heuristics=True):
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
     os.environ["NCCL_P2P_DISABLE"] = "1"
-    ray.init(
-        num_cpus=args.cpus, num_gpus=args.gpus
-    )  # , _temp_dir='/home/riyaza/ray_tmp')
+    try:
+        ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
+    except:
+        import getpass
+        ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/' + getpass.getuser() + '/ray_tmp')
     DataContext.get_current().wait_for_min_actors_s = 1800
     ctx = DataContext.get_current()
     # ctx.progress_bar = True
@@ -41,7 +44,7 @@ def run_inference(df, args, metric_config):
 
     df2 = pd.concat(df2_parts, ignore_index=True)
     # Use df2 instead of df for the Ray dataset
-    ds = ray.data.from_pandas(df2).repartition(args.gpus * 12)
+    ds = ray.data.from_pandas(df2).repartition(512)
     # ds = ray.data.from_pandas(df).repartition(args.gpus * 4)
     # ds = ray.data.read_text("s3://anonymous@air-example-data/prompts.txt")
     print(ds.schema())
@@ -53,23 +56,35 @@ def run_inference(df, args, metric_config):
 
     config = vLLMEngineProcessorConfig(
         model_source=args.model if args.model else metric_config['llm']['metric_model'],
-        engine_resources={"CPU": args.cpus // args.gpus, "GPU": 1},
+        engine_resources={"CPU": 2, "GPU": 1},
         concurrency=args.gpus,
         engine_kwargs={
             "tensor_parallel_size": 1,
             "enable_chunked_prefill": True,
-            "max_model_len": 8192,
-            "max_num_batched_tokens": 65536,
+            "max_model_len": 16384,
+            "max_num_batched_tokens": 49152,
             # "max_num_batched_tokens": 4096,
             # "max_model_len": 16384,
         },
-        max_concurrent_batches=32,
-        batch_size=32,
+        max_concurrent_batches=12,
+        batch_size=8,
     )
 
     def postprocess(row):
+        if row["original"].strip() == row["improved"].strip():
+            # This is kinda jank, but I don't want to do more filtering so we'll do inference on these anyway
+            return dict(answer=0, **row)
+
+        # CUSTOM HEURISTICS
+        if use_heuristics:
+            if row["improved"].strip().startswith(row["original"].strip()):
+                # If the "improved" proof is just the original proof with extra spam on the end, we consider it worse
+                return dict(answer=(-5 if row["original_first"] else 5), **row)
+            if "".join([li[2] for li in difflib.ndiff(row["original"].replace("\n", "").replace(" ", ""), row["improved"].replace("\n", "").replace(" ", "")) if li[0] != ' ']) in ["by", "byapply", "byexact"]:
+                # If the improved version is just a proof term changed into "by apply" or "by exact", we say they're the same
+                return dict(answer=0, **row)
+
         text = row["generated_text"]
-        
         import re
 
         # Search for <SCORE>...</SCORE> in the text
@@ -84,15 +99,23 @@ def run_inference(df, args, metric_config):
             else:
                 # If no <SCORE> tag at all, try from beginning
                 score_str = text.strip()
-                if not score_str:
-                    return dict(answer=None, **row)
+        if not score_str:
+            return dict(answer=None, **row)
 
         # Now, try to parse score_str as an integer between -5 and 5 inclusive
-        try:
-            score = int(score_str)
-            if score < -5 or score > 5:
-                score = None
-        except Exception:
+        # try:
+        #     score = int(score_str)
+        #     if score < -5 or score > 5:
+        #         score = None
+        # except Exception:
+        #     score = None
+        if score_str.lower() == "first":
+            score = -5
+        elif score_str.lower() == "second":
+            score = 5
+        elif score_str.lower() == "same":
+            score = 0
+        else:
             score = None
 
         # scaled_score = score / 5 # now its between -1 and 1
@@ -117,22 +140,25 @@ def run_inference(df, args, metric_config):
     
     
         
+#     system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them.
+# Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final score wrapped in<SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive, 
+# where -5 means the first proof is much better, 5 means the second proof is much better, and 0 means they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs."""
+
     system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them.
-Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final score wrapped in<SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive, 
-where -5 means the first proof is much better, 5 means the second proof is much better, and 0 means they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs."""
-        
+    # Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final answer wrapped in <SCORE>...</SCORE> tags: write <SCORE>FIRST</SCORE> if the first proof is better, <SCORE>SECOND</SCORE> if the second proof is better, and <SCORE>SAME</SCORE> if they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs. It is VERY IMPORTANT to do this; make SURE the tags you output are in the correct format, and match the proof that you have determined to be better!"""
+
     vllm_processor = build_llm_processor(
         config,
         preprocess=lambda row: dict(
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": row["raw_prompt"]}
+                {"role": "user", "content": row["raw_prompt"]} # + "\nRemember, output your final score wrapped in <SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive; DO NOT FORGET that -5 means that the FIRST proof is much better, 5 means the SECOND proof is much better, and 0 means they are of the same quality; THIS IS VERY IMPORTANT!\n"},
                 ],
             sampling_params=dict(
                 # n=args.n,
-                truncate_prompt_tokens=8192 - 512,
+                truncate_prompt_tokens=16384 - 1024,
                 # temperature=0.3,
-                max_tokens=512,
+                max_tokens=1024,
             ),
         ),
         postprocess=postprocess,
@@ -607,7 +633,7 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
 
     # returns the path to the directory containing run metadata and the parquet lake
 
-    # output_path = run_inference(proof_df, args, metric_config)
+    output_path = run_inference(proof_df, args, metric_config)
     
     
     parse_readabilityDB(args, metric_config)
@@ -653,7 +679,8 @@ if __name__ == "__main__":
         default=available_gpus,
         help="Number of GPUs to use (default: all available)",
     )
-    parser.add_argument("--n", type=int, default=3, help="Best-of-n value (default: 3)")
+    #TODO: change back to n=3
+    parser.add_argument("--n", type=int, default=1, help="Best-of-n value (default: 3)")
 
     args = parser.parse_args()
 
