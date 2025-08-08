@@ -112,7 +112,9 @@ def create_sft_dataset(data: Dict[str, Any], thinking: bool = False) -> List[Dic
     dataset = []
     
     for key, item in data.items():
-        champion = item["samples"]["champion"]
+        #choose top num_samples samples
+        champion = item['valid_samples'][0]
+        
         if champion["output"] is None:
             continue
         
@@ -122,7 +124,7 @@ def create_sft_dataset(data: Dict[str, Any], thinking: bool = False) -> List[Dic
         
         dataset.append({
             "instruction": item["prompt"],
-            "input": "",
+            # "input": "",
             "output": output_text
         })
     
@@ -152,21 +154,46 @@ def group_and_weight_by_key(deduped_dataset, tau=1.0):
         scores = [item["score"] for item in items]
         weights = softmax(scores, tau)
         for item, w in zip(items, weights):
-            item["weight"] = w / len(list(grouped.keys()))
+            item["weight"] = w #/ len(list(grouped.keys()))
     # Flatten back to a list
     return [item for items in grouped.values() for item in items]
 
-def create_weighted_sft_dataset(data: Dict[str, Any], thinking: bool = False, tau: float = 1.0) -> List[Dict[str, Any]]:
+def create_weighted_sft_dataset(data: Dict[str, Any], thinking: bool = False, tau: float = 1.0, num_samples : int = 1) -> List[Dict[str, Any]]:
     """Create weighted SFT dataset with scores."""
     dataset = []
     
     for key, item in data.items():
-        samples = item["samples"]
+        samples = item["valid_samples"]
+        
+        unique_samples = []
+        # Deduplicate samples by the "output" attribute
+        seen_outputs = set()
+        for s in samples:
+            out = s.get("output")
+            if out is not None and out not in seen_outputs:
+                unique_samples.append(s)
+                seen_outputs.add(out)
+                
+        
+        
+        # Make a list of samples taken from the samples array uniformly spaced with total length num_samples,
+        # in the same order, and always including the element at index 0.
+        if not unique_samples:
+            selected_samples = []
+        elif num_samples >= len(unique_samples) or num_samples == -1:
+            selected_samples = list(unique_samples)
+        else:
+            # Always include index 0, then select the rest uniformly spaced
+            indices = [0]
+            if num_samples > 1:
+                step = (len(unique_samples) - 1) / (num_samples - 1)
+                indices += [round(i * step) for i in range(1, num_samples)]
+            selected_samples = [samples[i] for i in indices if i < len(unique_samples)]
+
         
         # Include all samples except invalid
-        for sample_name, sample in samples.items():
-            if sample_name == "invalid" or sample["output"] is None:
-                continue
+        for sample in selected_samples:
+
             
             output_text = sample["cot_output"] if thinking else sample["output"]
             if output_text is None:
@@ -180,40 +207,69 @@ def create_weighted_sft_dataset(data: Dict[str, Any], thinking: bool = False, ta
                 "score": sample["delta"] if sample["delta"] is not None else 0.0
             })
     # Deduplicate the dataset by output_text before returning
-    seen_outputs = set()
-    deduped_dataset = []
-    for item in dataset:
-        output_text = (item["key"],item["output"])
-        if output_text not in seen_outputs:
-            deduped_dataset.append(item)#{k:v for k,v in item.items() if k!="key"})
-            seen_outputs.add(output_text)
+    # seen_outputs = set()
+    # deduped_dataset = []
+    # for item in dataset:
+    #     output_text = (item["key"],item["output"])
+    #     if output_text not in seen_outputs:
+    #         deduped_dataset.append(item)#{k:v for k,v in item.items() if k!="key"})
+    #         seen_outputs.add(output_text)
 
-    weighted_dataset_raw = group_and_weight_by_key(deduped_dataset, tau)
+    weighted_dataset_raw = group_and_weight_by_key(dataset, tau)
     
-    weighted_dataset = {k:v for k,v in weighted_dataset_raw if k!="key" and k!='score'}
+    weighted_dataset = [{k:v for k,v in item.items() if k!="score" and k!="key"} for item in weighted_dataset_raw]
     
     return weighted_dataset
 
 
-def create_dpo_dataset(data: Dict[str, Any], thinking: bool = False) -> List[Dict[str, str]]:
+def create_dpo_dataset(data: Dict[str, Any], thinking: bool = False, num_samples : int = 1) -> List[Dict[str, str]]:
     """Create DPO preference pairs dataset."""
     dataset = []
     
     for key, item in data.items():
-        samples = item["samples"]
-        champion = samples["champion"]
         
-        if champion["output"] is None:
-            continue
+        samples = item["valid_samples"][1:]
+        invalid_samples = item["invalid_samples"]
+        invalid = invalid_samples[0] if invalid_samples else None
+
+        champion = item["valid_samples"][0]
+        
+        
         
         champion_text = champion["cot_output"] if thinking else champion["output"]
         if champion_text is None:
             continue
         
+        unique_samples = []
+        # Deduplicate samples by the "output" attribute
+        seen_outputs = set([champion.get("delta")])
+        for s in samples:
+            # out = s.get("output")
+            delta = s.get("delta")
+            if delta is not None and delta not in seen_outputs:
+                unique_samples.append(s)
+                seen_outputs.add(delta)
+                
+        
+        
+        # Make a list of samples taken from the samples array uniformly spaced with total length num_samples,
+        # in the same order, and always including the element at index 0.
+        if not unique_samples:
+            selected_samples = []
+        elif num_samples >= len(unique_samples) or num_samples == -1:
+            selected_samples = list(unique_samples)
+        else:
+            # Always include index 0, then select the rest uniformly spaced
+            indices = [0]
+            if num_samples > 1:
+                step = (len(unique_samples) - 1) / (num_samples - 1)
+                indices += [round(i * step) for i in range(1, num_samples)]
+            
+            selected_samples = [samples[i] for i in indices if i < len(unique_samples)]
+
+        
         # Create pairs with all other samples
-        for sample_name, sample in samples.items():
-            if sample_name == "champion" or sample["output"] is None or sample_name == "invalid" :
-                continue
+        for sample in selected_samples:
             
             rejected_text = sample["cot_output"] if thinking else sample["output"]
             if rejected_text is None:
@@ -223,22 +279,21 @@ def create_dpo_dataset(data: Dict[str, Any], thinking: bool = False) -> List[Dic
                 continue
             
             dataset.append({
-                "key" : key,
                 "instruction": item["prompt"],
                 "chosen_response": champion_text,
                 "rejected_response": rejected_text
             })
+        
+        if invalid:
+            dataset.append({
+                    "instruction": item["prompt"],
+                    "chosen_response": champion_text,
+                    "rejected_response": invalid['cot_output'] if thinking else invalid['output']
+                })
     
-    # Deduplicate the dataset by output_text before returning
-    seen_outputs = set()
-    deduped_dataset = []
-    for item in dataset:
-        output_text = (item["key"],item["rejected_response"])
-        if output_text not in seen_outputs:
-            deduped_dataset.append({k:v for k,v in item.items() if k!="key"})
-            seen_outputs.add(output_text)
+   
     
-    return deduped_dataset
+    return dataset
 
 
 def save_jsonl(dataset: List[Dict[str, Any]], output_path: str):
@@ -254,9 +309,11 @@ def save_jsonl(dataset: List[Dict[str, Any]], output_path: str):
         print(f"Error saving to {output_path}: {e}")
 
 
-def main(run_id: str, output_path: Optional[str] = None, thinking: bool = False, 
-         filter_threshold: float = 1.0, prev_run_id: Optional[str] = None, 
-         replay_buffer_split: Optional[float] = None, training_type: str = "sft", tau: float = 1.0):
+def main(args):
+    # run_id: str, output_path: Optional[str] = None, thinking: bool = False, 
+    #      filter_threshold: float = 1.0, prev_run_id: Optional[str] = None, 
+    #      replay_buffer_split: Optional[float] = None, training_type: str = "sft",
+    #      tau: float = 1.0, num_samples:int = 1):
     """
     Generate training dataset from analysis results.
     
@@ -271,11 +328,12 @@ def main(run_id: str, output_path: Optional[str] = None, thinking: bool = False,
     """
     
     # Set default output path
-    if output_path is None:
-        output_path = os.path.join("evals", run_id, "analysis", "BoN", "training_data.jsonl")
+    if args.output_path is None:
+        print(args.run_id)
+        args.output_path = os.path.join("evals", args.run_id, "analysis", "BoN", "training_data.jsonl")
     
     # Load training data
-    data = load_training_data_json(run_id)
+    data = load_training_data_json(args.run_id)
     if not data:
         print("No training data found. Exiting.")
         return
@@ -287,37 +345,37 @@ def main(run_id: str, output_path: Optional[str] = None, thinking: bool = False,
     print(f"After filtering improvement_rate > 0: {len(data)} items")
     
     # Mark replay items if prev_run_id and replay_buffer_split are provided
-    if prev_run_id and replay_buffer_split is not None:
-        data = mark_replay_items(data, prev_run_id)
+    if args.prev_run_id and args.replay_buffer_split is not None:
+        data = mark_replay_items(data, args.prev_run_id)
         replay_count = sum(1 for item in data.values() if item.get("split") == "replay")
         frontier_count = sum(1 for item in data.values() if item.get("split") == "frontier")
         print(f"Marked items - Replay: {replay_count}, Frontier: {frontier_count}")
     
     # Filter by improvement rate threshold
-    data, high_improvement_data = filter_by_improvement_rate(data, filter_threshold)
-    print(f"After filtering improvement_rate < {filter_threshold}: {len(data)} items")
+    data, high_improvement_data = filter_by_improvement_rate(data, args.filter_threshold)
+    print(f"After filtering improvement_rate < {args.filter_threshold}: {len(data)} items")
     print(f"High improvement items set aside: {len(high_improvement_data)} items")
     
     # Adjust replay proportion if needed
-    if prev_run_id and replay_buffer_split is not None:
-        data = adjust_replay_proportion(data, high_improvement_data, replay_buffer_split)
+    if args.prev_run_id and args.replay_buffer_split is not None:
+        data = adjust_replay_proportion(data, high_improvement_data, args.replay_buffer_split)
         replay_count = sum(1 for item in data.values() if item.get("split") == "replay")
         frontier_count = sum(1 for item in data.values() if item.get("split") == "frontier")
         print(f"After replay adjustment - Replay: {replay_count}, Frontier: {frontier_count}")
     
     # Create dataset based on training type
-    if training_type == "sft":
-        dataset = create_sft_dataset(data, thinking)
-    elif training_type == "weighted_sft":
-        dataset = create_weighted_sft_dataset(data, thinking, tau)
-    elif training_type == "dpo":
-        dataset = create_dpo_dataset(data, thinking)
+    if args.type == "sft":
+        dataset = create_sft_dataset(data, args.thinking)
+    elif args.type == "weighted_sft":
+        dataset = create_weighted_sft_dataset(data, args.thinking, args.tau, args.num_samples)
+    elif args.type == "dpo":
+        dataset = create_dpo_dataset(data, args.thinking, args.num_samples)
     else:
-        print(f"Unknown training type: {training_type}")
+        print(f"Unknown training type: {args.type}")
         return
     
     # Save dataset
-    save_jsonl(dataset, output_path)
+    save_jsonl(dataset, args.output_path)
 
 
 def get_parser():
@@ -330,11 +388,13 @@ def get_parser():
     parser.add_argument("--replay_buffer_split", type=float, default=None, help="Target proportion of replay items (default: None)")
     parser.add_argument("--type", choices=["sft", "weighted_sft", "dpo"], default="sft", help="Type of training dataset (default: sft)")
     parser.add_argument("--tau", default=1.0, help="temperature value for weighted SFT")
+    parser.add_argument("--num_samples", default=1, help="Number of samples to include (weighted SFT ignores invalid, DPO gets 1 invalid) (-1 means all)")
+    
     return parser
 
 
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    main(args.run_id, args.output_path, args.thinking, args.filter_threshold, 
-         args.prev_run_id, args.replay_buffer_split, args.type)
+    main(args)#.run_id, args.output_path, args.thinking, args.filter_threshold, 
+         #args.prev_run_id, args.replay_buffer_split, args.type, args.tau, args.num_samples)

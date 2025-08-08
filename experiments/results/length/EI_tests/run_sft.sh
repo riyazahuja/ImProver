@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=sft_i1
-#SBATCH --output=logs/EI_tests/sft_i1.out
-#SBATCH --error=logs/EI_tests/sft_i1.err
+#SBATCH --job-name=r1_qwen7b_32k_lora
+#SBATCH --output=logs/EI_tests/r1_qwen7b_32k_lora.out
+#SBATCH --error=logs/EI_tests/r1_qwen7b_32k_lora.err
 #SBATCH --cpus-per-task=16
 #SBATCH --time=1-00:00:00
 #SBATCH --gres=gpu:A6000:8
@@ -18,8 +18,9 @@ export NCCL_BLOCKING=1
 
 cd /home/riyaza/eval_improver/improver
 
-./improver run training_data [RUN_ID]
+
 
 sleep 5
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/results/length/EI_tests/sft.yaml
+accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/results/length/EI_tests/sft.yaml --no_save_optimizer_state
+
