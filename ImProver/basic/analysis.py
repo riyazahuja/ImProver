@@ -589,73 +589,40 @@ def make_training_data_json(run_id, db_path, n, metric_objective):
         valid_rows_sorted = sorted(valid_rows, key=lambda x: x[0], reverse=True)
 
         # Champion
-        if len(valid_rows_sorted) >= 1:
-            champion_row = valid_rows_sorted[0][1]
-            champion = {
-                "output": champion_row.get("new_trimmed"),
-                "cot_output": champion_row.get("new_raw"),
-                "delta": valid_rows_sorted[0][0]
-            }
-        else:
-            champion = {"output": None, "cot_output": None, "delta": None}
+        # if len(valid_rows_sorted) >= 1:
+        #     champion_row = valid_rows_sorted[0][1]
+        #     champion = {
+        #         "output": champion_row.get("new_trimmed"),
+        #         "cot_output": champion_row.get("new_raw"),
+        #         "delta": valid_rows_sorted[0][0]
+        #     }
+        # else:
+        #     champion = {"output": None, "cot_output": None, "delta": None}
 
-        # Runner-up
-        if len(valid_rows_sorted) >= 2:
-            runner_up_row = valid_rows_sorted[1][1]
-            runner_up = {
-                "output": runner_up_row.get("new_trimmed"),
-                "cot_output": runner_up_row.get("new_raw"),
-                "delta": valid_rows_sorted[1][0]
-            }
-        else:
-            runner_up = {"output": None, "cot_output": None, "delta": None}
-
-        # Median
-        if len(valid_rows_sorted) >= 1:
-            median_idx = len(valid_rows_sorted) // 2
-            median_row = valid_rows_sorted[median_idx][1]
-            median = {
-                "output": median_row.get("new_trimmed"),
-                "cot_output": median_row.get("new_raw"),
-                "delta": valid_rows_sorted[median_idx][0]
-            }
-        else:
-            median = {"output": None, "cot_output": None, "delta": None}
-
-        # Worst pass
-        if len(valid_rows_sorted) >= 1:
-            worst_row = valid_rows_sorted[-1][1]
-            worst_pass = {
-                "output": worst_row.get("new_trimmed"),
-                "cot_output": worst_row.get("new_raw"),
-                "delta": valid_rows_sorted[-1][0]
-            }
-        else:
-            worst_pass = {"output": None, "cot_output": None, "delta": None}
+        output_valid = []
+        for delta,row in valid_rows_sorted:
+            output_valid.append({
+                "output": row.get("new_trimmed"),
+                "cot_output": row.get("new_raw"),
+                "delta": delta
+            })
 
         # Invalid: any row with new_correct==False
-        invalid_row = next((r for r in rows if not r.get("new_correct")), None)
-        if invalid_row is not None:
-            invalid = {
-                "output": invalid_row.get("new_trimmed"),
-                "cot_output": invalid_row.get("new_raw"),
+        output_invalid = []
+        for row in [r for r in rows if not r.get("new_correct")]:
+            output_invalid.append({
+                "output": row.get("new_trimmed"),
+                "cot_output": row.get("new_raw"),
                 "delta": None
-            }
-        else:
-            invalid = {"output": None, "cot_output": None, "delta": None}
+            })
 
         training_data[f"{module}_{decl}"] = {
             "prompt": prompt,
             "original": original,
             "improvement_rate": improvement_rate,
             "pass_rate": pass_rate,
-            "samples": {
-                "champion": champion,
-                "runner_up": runner_up,
-                "median": median,
-                "worst_pass": worst_pass,
-                "invalid": invalid
-            }
+            "valid_samples": output_valid,
+            "invalid_samples": output_invalid
         }
 
     # Save to training_data.json in the same directory as db_path

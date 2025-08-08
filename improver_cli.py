@@ -482,6 +482,7 @@ def run_pipeline(**kwargs):
 @click.option('--replay_buffer_split', type=float, default=None, help="Target proportion of replay items (default: None)")
 @click.option('--type', type=click.Choice(['sft', 'weighted_sft', 'dpo']), default="sft", help="Type of training dataset (default: sft)")
 @click.option('--tau', default=1.0, help="temperature value for weighted SFT")
+@click.option('--num_samples', default=1, help="Number of samples to include (weighted SFT ignores invalid, DPO gets 1 invalid) (-1 means all)")
 
 @click.option('--config', type=click.Path(exists=True), default=None)
 def run_pipeline(**kwargs):

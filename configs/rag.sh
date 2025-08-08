@@ -23,4 +23,4 @@ lake build preprocess_rag
 sleep 5
 ulimit -s 65536
 
-./improver rag informalize --config /home/riyaza/eval_improver/improver/configs/rag.yaml
+./improver rag build --config /home/riyaza/eval_improver/improver/configs/rag.yaml

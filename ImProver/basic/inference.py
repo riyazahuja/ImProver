@@ -148,11 +148,15 @@ def run_inference(df, args, ray_init=True):
     ds.repartition(16).write_parquet(f"local://{output_path}")
 
     con = duckdb.connect(os.path.join(run_output_dir, "data.duckdb"))
+    # Check if run_data exists, drop if so, then create it
+    force= True
+    if force and con.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'run_data'").fetchone()[0] > 0:
+        con.execute("DROP TABLE run_data")
     con.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS run_data AS
+        CREATE TABLE run_data AS
         SELECT * FROM read_parquet('{output_path}/*.parquet');
-    """
+        """
     )
 
     return run_output_dir

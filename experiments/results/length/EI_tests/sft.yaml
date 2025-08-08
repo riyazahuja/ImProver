@@ -1,63 +1,56 @@
-base_model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-# optionally might have model_type or tokenizer_type
-# model_type: AutoModelForCausalLM
-# tokenizer_type: AutoTokenizer
-# Automatically upload checkpoint and final model to HF
-# hub_model_id: riyazahuja/length_full_iteration_1_base
-
+# ------------- train_32k_deepseek-r1-qwen7b-lora.yaml -------------
+base_model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B   # 128 k ctx support
 trust_remote_code: true
 
-load_in_8bit: false
-load_in_4bit: false
-strict: false
+hub_model_id: riyazahuja/r1_qwen7b_32k_lora
 
-deepspeed: /home/riyaza/deepspeed_configs/zero3_bf16_cpuoffload_params.json
+# =====  Quant-efficient loading  =====
+load_in_4bit: true
+bnb4_quant_type: nf4
+bnb4_compute_dtype: bf16
 
-datasets:
-  - path: /home/riyaza/eval_improver/improver/experiments/results/length/EI_tests/sft_training.jsonl
-    type: alpaca
-dataset_prepared_path:
-val_set_size: 0.05
-output_dir: /data/user_data/riyaza/saved_models/sft_i1
+# =====  LoRA headroom  =====
+adapter: lora
+lora_r: 64
+lora_alpha: 128
+lora_dropout: 0.1
+lora_target_modules: [q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj]
 
-sequence_len: 16384
-sample_packing: false
-pad_to_sequence_len:
 
-wandb_project: "sft_i1"
-wandb_entity:
-wandb_watch:
-wandb_name:
-wandb_log_model:
 
-gradient_accumulation_steps: 6
-micro_batch_size: 1
-num_epochs: 2
+# =====  Long-context & memory tricks  =====
+sequence_len: 32768          # max prompt length
+sample_packing: false        # keep each long sample intact
+flash_attn_2: true           # needs FlashAttention-2 compiled
+gradient_checkpointing: true
+
+# =====  Training hyper-params  =====
+micro_batch_size: 2
+gradient_accumulation_steps: 4   # → effective BS = 8
+num_epochs: 4
+learning_rate: 5e-5
 optimizer: adamw_torch
 lr_scheduler: cosine
-learning_rate: 0.00005
+weight_decay: 0.0
+# warmup_steps: 100
 
-train_on_inputs: false
-group_by_length: true
-bf16: auto
-fp16: 
-tf32: false
+# =====  Multi-GPU scaling  =====
+deepspeed: /home/riyaza/deepspeed_configs/zero3_bf16_cpuoffload_params_16b_fls.json
+bf16: true                    # activations in bfloat16
+tf32: false                   # turn on if you prefer
+zero3_save_16bit_model: false
 
-gradient_checkpointing: true
-early_stopping_patience:
-resume_from_checkpoint: 
-local_rank:
-logging_steps: 2
-xformers_attention:
-flash_attention:
+# =====  Dataset =====
+datasets:
+  - path: /home/riyaza/eval_improver/improver/experiments/results/length/EI_tests/sft_dataset_trimmed.jsonl
+    type: alpaca
+val_set_size: 0.05
 
-warmup_steps: 100
+output_dir: /data/user_data/riyaza/saved_models/r1_qwen7b_32k_lora
+wandb_project: "r1_qwen7b_32k_lora"
+
+# =====  Evaluation / saves  =====
 evals_per_epoch: 2
-eval_table_size:
 eval_max_new_tokens: 1024
 saves_per_epoch: 1
-debug:
-weight_decay: 0.0
-fsdp:
-fsdp_config:
-special_tokens:
+logging_steps: 2
