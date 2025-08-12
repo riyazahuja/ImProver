@@ -23,9 +23,22 @@ structure Instance where
   new_raw : String
   new_trimmed : String
   original_prompt : String
-  decl_idx : String
-  recgen : Option (List TheoremData) := none
+  decl_idx : Nat
+  prompt_idx : Nat
+  messages : String
 deriving Inhabited, ToJson
+
+
+structure PayloadItem where
+  module : String
+  decl : String
+  decl_idx : Nat
+  prompt_idx : Nat
+  generated_text : String
+  raw_prompt : String
+  messages : String
+  deriving Inhabited, FromJson, ToJson
+
 
 
 def String.getTagged (s: String) (tag : String) : Option String :=
@@ -85,7 +98,7 @@ def isDefEq (a : CompilationStep) (b : CompilationStep) : IO Bool := -- eventual
 
 
 
-def getInstances (preinstances : Array (CompilationStep × ConstantInfo × String × String × Option CompilationStep × String × String))
+def getInstances (preinstances : Array (CompilationStep × ConstantInfo × PayloadItem × String × Option CompilationStep))
 (metric : String) (mod : String) (sorryOk : Bool) (correctnessCondition : String)
 : IO (List Instance) := do
   -- correctness condition is either
@@ -95,7 +108,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
 
   let mut instances : List Instance := []
 
-  for (original, ci, model_output,trimmed_output, new?, prompt, decl_idx) in preinstances do
+  for (original, ci, item,trimmed_output, new?) in preinstances do
 
     let oldMsgs ← original.msgs.filterMapM (fun msg => do
         let m ← msg.data.toString
@@ -132,10 +145,12 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         new_score := none,
         delta := none,
         og_raw := original.src.toString,
-        new_raw := model_output,
+        new_raw := item.generated_text,
         new_trimmed := trimmed_output,
-        original_prompt := prompt,
-        decl_idx := decl_idx
+        original_prompt := item.raw_prompt,
+        decl_idx := item.decl_idx,
+        prompt_idx := item.prompt_idx,
+        messages := item.messages
       }
 
       instances := out :: instances
@@ -232,11 +247,13 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         new_score := metric_score,
         delta := delta,
         og_raw := original.src.toString,
-        new_raw := model_output,
+        new_raw := item.generated_text,
         -- new_trimmed := trimmed_output,
         new_trimmed := final_trimmed,
-        original_prompt := prompt,
-        decl_idx := decl_idx
+        original_prompt := item.raw_prompt,
+        decl_idx := item.decl_idx
+        prompt_idx := item.prompt_idx,
+        messages := item.messages
       }
 
       instances := out :: instances
@@ -293,7 +310,8 @@ def withTimeout (timeout : UInt32) (x : IO α) : IO α := do
 
 
 
-def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath : String) (sorryOk : Bool) (correctnessCondition : String) : IO UInt32 := do
+def evalImprover (mod : Name) (metric : String) --(outputPath : String)
+ (sorryOk : Bool) (correctnessCondition : String) (payload : Array PayloadItem) : IO UInt32 := do
   searchPathRef.set compile_time_search_path%
   IO.println s!"Running eval_improver for {mod} with metric {metric}"
 
@@ -347,65 +365,10 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
   -- let mut preinstances := []
   -- for (cmd, ci) in targets_new do
   --type: : Array (BaseIO (Task (Except Error (Array (CompilationStep × ConstantInfo × String × String)))))
-  let preinstances_runner := (targets_new.map fun (cmd,ci) => (do--IO.asTask do
-    let SQL_escaped_name := ci.name.toString.replace "'" "''"
-    -- let SQL_escaped_file := "prompts_test." ++ mod.toString.replace "'" "''"
-    let SQL_escaped_file := mod.toString.replace "'" "''"
-    let SQL_cmd : String := s!"SELECT * FROM run_data WHERE decl = '{SQL_escaped_name}' AND module = '{SQL_escaped_file}';"
-    IO.println s!"== [[{ci.name}]] =="
-    let output ← IO.Process.output {
-      cmd := "duckdb"--"/home/riyaza/.local/bin/duckdb",
-      args := #[s!"{runPath}/data.duckdb", "--readonly", "--json", "-c", SQL_cmd]}
-    -- IO.println s!"DuckDB output: {output.stdout}"
-    -- IO.println s!"DuckDB err: {output.stderr}"
-    -- IO.println s!"SQL command: {SQL_cmd}"
-    if output.exitCode != 0 then
-      -- IO.println s!"Error running duckdb: {output.stderr}"
-      -- break
-      return some #[]
-
-    let json? := output.stdout
-    -- IO.println s!"DuckDB output: {json?}"
-    -- IO.println s!"DuckDB err: {output.stderr}"
-    -- IO.println s!"DuckDB exit code: {output.exitCode}"
-    -- IO.println s!"[==> variant_tuples?"--\n===={json?}\n===="
-    -- IO.println "\n\n"
-    -- IO.println s!"DuckDB output: {json?}"
-    -- IO.println "\n\n"
-    let json?? := Json.parse json? |>.toOption
-    if json??.isNone then
-      IO.println s!">>> Error parsing JSON: {json?}"
-      return none
-
-    IO.println s!"json: {json??.get!.compress}"
-
-    let variant_tuples? :=
-      let json := json??.get!
-      match json with
-      | .arr variants =>
-        some (variants.filterMap (fun v =>
-          let model_answer := (v : Json).getObjVal? "answer" |>.toOption
-          let prompt := match (v : Json).getObjVal? "prompt" |>.toOption with
-            | some p => some p
-            | none => (v: Json).getObjVal? "raw_prompt" |>.toOption
-          let decl_idx := (v : Json).getObjVal? "decl_idx" |>.toOption
-          -- match (model_answer.toOption, prompt.toOption) with
-          -- | (some (Json.str answer), some (Json.str prompt)) => some (cmd, ci, answer, prompt)
-          -- | _ => none
-          match (model_answer, prompt, decl_idx) with
-          | (some (Json.str answer), some (Json.str prompt), some (Json.str decl_idx)) => some (cmd, ci, answer, prompt, decl_idx)
-          | (some (Json.str answer), some (Json.str prompt), some (Json.num decl_idx)) => some (cmd, ci, answer, prompt, decl_idx.toString)
-          | _ => none
-        ))
-      | _ =>
-        none
-    -- IO.println s!"<== variant_tuples? completed]"
-    return some (variant_tuples?.getD #[])
-    -- IO.sleep 1000
-  ))
-
-  let preinstances' ← preinstances_runner.mapM id
-  let preinstances :=  preinstances'.filterMap id |>.flatten
+  let preinstances := (targets_new.map fun (cmd,ci) =>
+    let payload_items := payload.filter (fun p => p.decl == ci.name.toString)
+    payload_items.map (fun item => (cmd, ci, item))
+  ) |>.flatten
 
 
   IO.println s!"Found {preinstances.size} variants"
@@ -413,25 +376,16 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
 
 
   /- Multithreading stuff to verify each new proof on separate threads -/
-  let tasks := preinstances.map fun (original, ci, model_output, prompt,decl_idx) => do --IO.asTask do
+  let tasks := preinstances.map fun (original, ci, item) => do --IO.asTask do
 
     IO.println s!"Evaluating {ci.name}"
     let contentsBefore : Substring := match original.src with
       | ⟨s, b, _⟩ => ⟨s, 0, b⟩
-    -- IO.println "--------"
-    -- IO.println s!"Original:"
-    -- IO.println original.src.toString
-    -- IO.println "--------"
-    -- IO.println s!"New:"
-    -- IO.println model_output
-    -- IO.println "--------"
-    -- IO.println s!"{model_output.trim.splitAtString "<IMPROVED>"}"
-    -- IO.println "--------"
-    -- IO.println s!"{model_output.trim.splitAtString "</IMPROVED>"}"
 
-    let nonthinking_tokens := match model_output.trim.splitAtString "</think>" with
+
+    let nonthinking_tokens := match item.generated_text.trim.splitAtString "</think>" with
       | some (_, after) => after
-      | none => model_output.trim
+      | none => item.generated_text.trim
     let trimmed_output? := match (nonthinking_tokens.trim.splitAtString "<IMPROVED>", nonthinking_tokens.trim.splitAtString "</IMPROVED>") with
     | (some (_, after), none) => some after
     | (none, some (before, _)) => some before
@@ -441,27 +395,7 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
       | some (l,_) => some l
       | none => none
     | _ => none
-    let trimmed_output := trimmed_output?.getD (model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim)
-    -- let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
-    -- remove everything before the first <IMPROVED> tag and after the first </IMPROVED> tag
-    -- let trimmed_output := match model_output.trim.getTagged "IMPROVED" with -- first match things in <IMPROVED>...</IMPROVED>
-    --   | some x => x
-    --   | none =>
-    --     let endTagged := model_output.trim.splitAtString "</IMPROVED>"
-    --     match endTagged with
-    --     | some (before, _) => before
-    --     | none =>
-    --       let endTagged := model_output.trim.splitAtString "<IMPROVED>"
-    --       match endTagged with
-    --       | some (_, after) => after
-    --       | none =>
-    --         let half_tagged := model_output.trim.getBetween "</IMPROVED>" "</IMPROVED>"
-    --         match half_tagged with
-    --         | some x => x
-    --         | none => model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
-
-    -- IO.println s!"trimmed output (length: {trimmed_output.length})"
-
+    let trimmed_output := trimmed_output?.getD (item.generated_text.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim)
 
 
     let elaborated_steps := Lean.Elab.IO.compilationSteps
@@ -482,13 +416,13 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
       IO.println "DONE"
       IO.println "============="
       return match head? with
-        | none => (original, ci, model_output, trimmed_output, none, prompt, decl_idx)
-        | some (head, _) => (original, ci, model_output,trimmed_output, some head, prompt, decl_idx)
+        | none => (original, ci, item, trimmed_output, none)
+        | some (head, _) => (original, ci, item,trimmed_output, some head)
 
     catch e =>
       IO.println s!"Error elaborating {ci.name}: {e}"
       IO.println "============="
-      return (original, ci, model_output, trimmed_output, none, prompt, decl_idx)
+      return (original, ci, item, trimmed_output, none)
 
     -- let head? ← elaborated_steps.uncons
 
@@ -501,20 +435,24 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
 
   let outputJson := Json.arr <| instances.map (fun i => ToJson.toJson i) |>.toArray
 
-  IO.println s!"Writing to {outputPath}"
-  -- let trajectories := Json.arr (trajectories_json.toArray)
-  -- match json_path with
-  -- | some path =>
-  if not (← System.FilePath.pathExists outputPath) then
-    let parent := System.FilePath.parent outputPath
-    match parent with
-    | some path =>
-      IO.println path
-      IO.FS.createDirAll path
-    | none => pure ()
+  -- IO.println s!"Writing to {outputPath}"
+  -- -- let trajectories := Json.arr (trajectories_json.toArray)
+  -- -- match json_path with
+  -- -- | some path =>
+  -- if not (← System.FilePath.pathExists outputPath) then
+  --   let parent := System.FilePath.parent outputPath
+  --   match parent with
+  --   | some path =>
+  --     IO.println path
+  --     IO.FS.createDirAll path
+  --   | none =>
+  --     IO.println s!"No parent path, not creating directory\n{outputPath}"
+  --     pure ()
 
 
-  IO.FS.writeFile outputPath (outputJson.compress)
+  -- IO.FS.writeFile outputPath (outputJson.compress)
+
+  IO.println s!"<FINAL_ANSWER>\n{outputJson.compress}\n</FINAL_ANSWER>"
 
   -- let valid := if (preinstances.size == targets_new.size) && (targets_new.size == instances.length) then
   --   0
@@ -526,21 +464,61 @@ def evalImprover (mod : Name) (metric : String) (runPath : String) (outputPath :
   -- return valid
   -- | none => pure ()
 
+-- structure PayloadItem where
+--   __chunk
+--   __group
+--   batch_uuid
+--   decl
+--   decl_idx
+--   embeddings
+--   generated_text
+--   generated_tokens
+--   messages
+--   metrics
+--   module
+--   num_generated_tokens
+--   num_input_tokens
+--   params
+--   prompt
+--   prompt_idx
+--   prompt_token_ids
+--   raw_prompt
+--   request_id
+--   time_taken_llm
+
+
 
 
 def evalImproverCLI (args : Cli.Parsed) : IO UInt32 := do
   let module := args.positionalArg! "file" |>.as! ModuleName
   let metric := args.positionalArg! "metric" |>.as! String
-  let runPath := args.positionalArg! "runPath" |>.as! String
-  let outputPath := args.positionalArg! "outputPath" |>.as! String
+  -- let runPath := args.positionalArg! "runPath" |>.as! String
+  -- let outputPath := args.positionalArg! "outputPath" |>.as! String
   let mod :Name := module
-
+  let payload_bytes := args.positionalArg! "payload_bytes" |>.as! Nat |>.toUSize
   let sorryOk_raw := args.positionalArg! "sorryOk" |>.as! String
   let sorryOk := sorryOk_raw == "true" || sorryOk_raw == "1" || sorryOk_raw == "True"
   let correctnessCondition := args.positionalArg! "correctnessCondition" |>.as! String
 
-
-  evalImprover mod metric runPath outputPath sorryOk correctnessCondition
+  let payload_raw : ByteArray ← (← getStdin).read payload_bytes
+  let payload_str? := String.fromUTF8? payload_raw
+  match payload_str? with
+  | none =>
+    IO.println "Error: could not decode stdin as UTF-8"
+    return 1
+  | some payload =>
+    let payload_json? := Json.parse payload |>.toOption
+    if payload_json?.isNone then
+      IO.println "Error: could not parse stdin as JSON"
+      return 1
+    let payload_json := payload_json?.get!
+    let payload? := @FromJson.fromJson? (Array PayloadItem) _ payload_json |>.toOption
+    if payload?.isNone then
+      IO.println s!"Error: could not parse JSON as PayloadItem: {payload_json.compress}"
+      return 1
+    let payload := payload?.get!
+    evalImprover mod metric --outputPath
+      sorryOk correctnessCondition payload
 
 
 def eval_improver : Cmd := `[Cli|
@@ -551,10 +529,11 @@ def eval_improver : Cmd := `[Cli|
   ARGS:
     file : ModuleName; "Lean module to get prompts for."
     metric : String; "Metric to use for evaluation."
-    runPath : String; "Path to the run DB."
-    outputPath : String; "Where to save the Json output."
+    -- runPath : String; "Path to the run DB."
+    -- outputPath : String; "Where to save the Json output."
     sorryOk : String; "Whether to allow 'sorry' in the output."
     correctnessCondition : String; "Condition to check correctness of the output."
+    payload_bytes : Nat; "Number of bytes in the payload from stdin."
 ]
 
 
