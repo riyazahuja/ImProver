@@ -1,0 +1,219 @@
+[{"rag":
+  [{"name": "LO.Modal.Hilbert.normal_weakerThan_of_maxm",
+    "module": "Foundation.Modal.Hilbert.Basic",
+    "content":
+    "lemma normal_weakerThan_of_maxm [H₁.IsNormal] [H₂.IsNormal]\n  (hMaxm : ∀ {φ : Formula α}, φ ∈ H₁.axioms → H₂ ⊢! φ)\n  : H₁ ≤ₛ H₂ := by\n  apply System.weakerThan_iff.mpr;\n  intro φ h;\n  induction h using Deduction.inducition_with_necOnly! with\n  | hMaxm hp => exact hMaxm hp;\n  | hMdp ihpq ihp => exact ihpq ⨀ ihp;\n  | hNec ihp => exact nec! ihp;\n  | hImply₁ => exact imply₁!;\n  | hImply₂ => exact imply₂!;\n  | hElimContra => exact elim_contra!"},
+   {"name": "LO.Modal.Hilbert.Deduction.inducition!",
+    "module": "Foundation.Modal.Hilbert.Basic",
+    "content":
+    "noncomputable def inducition!\n  {motive  : (φ : Formula α) → H ⊢! φ → Sort*}\n  (hRules  : (r : InferenceRule α) → (hr : r ∈ H.rules) →\n             (hant : ∀ {φ}, φ ∈ r.antecedents → H ⊢! φ) →\n             (ih : ∀ {φ}, (hp : φ ∈ r.antecedents) →\n             motive φ (hant hp)) → motive r.consequence ⟨rule hr (λ hp => (hant hp).some)⟩)\n  (hMaxm     : ∀ {φ}, (h : φ ∈ H.axioms) → motive φ ⟨maxm h⟩)\n  (hMdp      : ∀ {φ ψ}, {hpq : H ⊢! φ ➝ ψ} → {hp : H ⊢! φ} → motive (φ ➝ ψ) hpq → motive φ hp → motive ψ ⟨mdp hpq.some hp.some⟩)\n  (hImply₁     : ∀ {φ ψ}, motive (φ ➝ ψ ➝ φ) $ ⟨imply₁ φ ψ⟩)\n  (hImply₂     : ∀ {φ ψ χ}, motive ((φ ➝ ψ ➝ χ) ➝ (φ ➝ ψ) ➝ φ ➝ χ) $ ⟨imply₂ φ ψ χ⟩)\n  (hElimContra : ∀ {φ ψ}, motive (Axioms.ElimContra φ ψ) $ ⟨ec φ ψ⟩)\n  : ∀ {φ}, (d : H ⊢! φ) → motive φ d := by\n  intro φ d;\n  induction d.some with\n  | maxm h => exact hMaxm h\n  | mdp hpq hp ihpq ihp => exact hMdp (ihpq ⟨hpq⟩) (ihp ⟨hp⟩)\n  | rule hr h ih => apply hRules _ hr; intro φ hp; exact ih hp ⟨h hp⟩;\n  | imply₁ => exact hImply₁\n  | imply₂ => exact hImply₂\n  | ec => exact hElimContra"},
+   {"name": "LO.Modal.Hilbert.Deduction.maxm",
+    "module": "Foundation.Modal.Hilbert.Basic",
+    "content": "| maxm {φ}     : φ ∈ H.axioms → Deduction H φ"},
+   {"name": "LO.Modal.Hilbert.Deduction.imply₁",
+    "module": "Foundation.Modal.Hilbert.Basic",
+    "content": "| imply₁ φ ψ   : Deduction H $ Axioms.Imply₁ φ ψ"},
+   {"name": "LO.System.contra₂'",
+    "module": "Foundation.Logic.HilbertStyle.Supplemental",
+    "content":
+    "def contra₂' [HasAxiomDNE \u0000\u0000] (b : \u0000\u0000 ⊢ ∼φ ➝ ψ) : \u0000\u0000 ⊢ ∼ψ ➝ φ := impTrans'' (contra₀' b) dne"},
+   {"name": "LO.Modal.Hilbert.Deduction.inducition_with_necOnly!",
+    "module": "Foundation.Modal.Hilbert.Basic",
+    "content":
+    "/-- Useful induction for normal modal logic. -/\nnoncomputable def inducition_with_necOnly! [H.HasNecOnly]\n  {motive  : (φ : Formula α) → H ⊢! φ → Prop}\n  (hMaxm   : ∀ {φ}, (h : φ ∈ H.axioms) → motive φ ⟨maxm h⟩)\n  (hMdp    : ∀ {φ ψ}, {hpq : H ⊢! φ ➝ ψ} → {hp : H ⊢! φ} → motive (φ ➝ ψ) hpq → motive φ hp → motive ψ (hpq ⨀ hp))\n  (hNec    : ∀ {φ}, {hp : H ⊢! φ} → (ihp : motive φ hp) → motive (□φ) (System.nec! hp))\n  (hImply₁   : ∀ {φ ψ}, motive (φ ➝ ψ ➝ φ) $ ⟨imply₁ φ ψ⟩)\n  (hImply₂   : ∀ {φ ψ χ}, motive ((φ ➝ ψ ➝ χ) ➝ (φ ➝ ψ) ➝ φ ➝ χ) $ ⟨imply₂ φ ψ χ⟩)\n  (hElimContra : ∀ {φ ψ}, motive (Axioms.ElimContra φ ψ) $ ⟨ec φ ψ⟩)\n  : ∀ {φ}, (d : H ⊢! φ) → motive φ d := by\n  intro φ d;\n  induction d using Deduction.inducition! with\n  | hMaxm h => exact hMaxm h\n  | hMdp ihpq ihp => exact hMdp (ihpq) (ihp);\n  | hRules rl hrl hant ih =>\n    rw [HasNecOnly.has_necessitation_only] at hrl;\n    obtain ⟨φ, rfl⟩ := hrl;\n    exact @hNec φ (hant (by simp)) $ ih (by simp);\n  | hImply₁ => exact hImply₁\n  | hImply₂ => exact hImply₂\n  | hElimContra => exact hElimContra"},
+   {"name": "LO.Modal.Formula.cases_neg",
+    "module": "Foundation.Modal.Formula",
+    "content":
+    "@[elab_as_elim]\ndef cases_neg [DecidableEq α] {C : Formula α → Sort w}\n    (hfalsum : C ⊥)\n    (hatom   : ∀ a : α, C (atom a))\n    (hneg    : ∀ φ : Formula α, C (∼φ))\n    (himp    : ∀ (φ ψ : Formula α), ψ ≠ ⊥ → C (φ ➝ ψ))\n    (hbox    : ∀ (φ : Formula α), C (□φ))\n    : (φ : Formula α) → C φ\n  | ⊥       => hfalsum\n  | atom a  => hatom a\n  | □φ      => hbox φ\n  | ∼φ      => hneg φ\n  | φ ➝ ψ  => if e : ψ = ⊥ then e ▸ hneg φ else himp φ ψ e"},
+   {"name": "LO.System.axiomFour!",
+    "module": "Foundation.Modal.System.Basic",
+    "content":
+    "@[simp] lemma axiomFour! : \u0000\u0000 ⊢! □φ ➝ □□φ := ⟨axiomFour⟩"},
+   {"name": "LO.Modal.Hilbert.Deduction.ec",
+    "module": "Foundation.Modal.Hilbert.Basic",
+    "content": "| ec φ ψ       : Deduction H $ Axioms.ElimContra φ ψ"},
+   {"name": "LO.System.dhyp",
+    "module": "Foundation.Logic.HilbertStyle.Basic",
+    "content":
+    "@[deprecated imply₁'] def dhyp [ModusPonens \u0000\u0000] [HasAxiomImply₁ \u0000\u0000] (ψ : F) (b : \u0000\u0000 ⊢ φ) : \u0000\u0000 ⊢ ψ ➝ φ := imply₁' b"}],
+  "prescopes":
+  "namespace LO.Modal\n\nopen LO.System LO.Modal.Formula LO.Modal.Hilbert.Deduction\n\nvariable [DecidableEq α] {φ : Formula α}",
+  "postscopes": "end LO.Modal",
+  "informal_statement":
+  "If the axioms of a normal Hilbert-style system \\( H₁ \\) are translated into another normal system \\( H₂ \\), such that each translated axiom in \\( H₂ \\) is provable under its respective normal system, then \\( H₁ \\) proving a formula \\( φ \\) implies that \\( H₂ \\) can prove \\( φ \\) with a box \\( \\Box φ \\).",
+  "informal_proof":
+  "First, we consider the translation of axioms from system \\( H₁ \\) to \\( H₂ \\), ensuring that each translated axiom in \\( H₂ \\) is indeed provable. This translation process is key to establishing the relationship between the two systems.\n\nNext, we apply induction on \\( d \\) to unravel the logical implications of these translated axioms. During this induction, we examine specific cases such as `hMaxm`, which handles the maximum element scenario, ensuring that the translation respects the maximum element's properties.\n\nSubsequently, we address the necessity conditions (`hNec`) that ensure any necessity in \\( H₁ \\) is preserved through translation in \\( H₂ \\). This step is crucial for maintaining the system's inductive strength.\n\nWe then consider the modal disjunction (`hMdp`), verifying that the disjunction operation is translated appropriately and that its provability is maintained across both systems. This ensures that complex logical structures remain intact during translation.\n\nFollowing that, we handle the elimination of contradictions (`hElimContra`), confirming that any contradictory statements in \\( H₁ \\) lead to contradictions in \\( H₂ \\). This step ensures the system's consistency is preserved in the translated form.\n\nNext, we examine implications in both directions (`hImply₂` and `hImply₁`), ensuring that the implications are bidirectionally preserved after translation. This is vital for maintaining the directionality of logical relationships.\n\nFinally, by systematically examining each of these cases, we conclude that if \\( H₁ \\) proves a formula \\( φ \\), then under the translation, \\( H₂ \\) proves \\( φ \\) with a box \\( \\Box φ \\). This comprehensive approach ensures the preservation of provability under translation across the two normal Hilbert systems.",
+  "id":
+  {"name": "LO.Modal._aux___unexpand_LO_Modal_Formula_BoxdotTranslation_1",
+   "module": "Foundation.Modal.Boxdot.Basic",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+   "compilationAlias": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.Modal.Hilbert.Basic\n\nnamespace LO.Modal\n\nopen System\nopen Formula\nopen Hilbert.Deduction\n\nvariable [DecidableEq α]\nvariable {φ : Formula α}\n\ndef Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\npostfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+  "annotation": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.Modal.Formula.BoxdotTranslation",
+    "module": "Foundation.Modal.Boxdot.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n",
+    "compilationAlias":
+    "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n"},
+   {"name": "LO.Modal.«term_ᵇ»",
+    "module": "Foundation.Modal.Boxdot.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+    "compilationAlias":
+    "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n"}]},
+ {"rag":
+  [{"name": "LO.System.and₃!",
+    "module": "Foundation.Logic.HilbertStyle.Basic",
+    "content":
+    "@[simp] lemma and₃! [HasAxiomAndInst \u0000\u0000] : \u0000\u0000 ⊢! φ ➝ ψ ➝ φ ⋏ ψ := ⟨and₃⟩"},
+   {"name": "LO.System.iffIntro",
+    "module": "Foundation.Logic.HilbertStyle.Basic",
+    "content":
+    "def iffIntro [HasAxiomAndInst \u0000\u0000] (b₁ : \u0000\u0000 ⊢ φ ➝ ψ) (b₂ : \u0000\u0000 ⊢ ψ ➝ φ) : \u0000\u0000 ⊢ φ ⭤ ψ := andIntro b₁ b₂"},
+   {"name": "LO.System.unprovable_iff!",
+    "module": "Foundation.Logic.HilbertStyle.Basic",
+    "content":
+    "lemma unprovable_iff! [HasAxiomAndInst \u0000\u0000] [HasAxiomAndElim \u0000\u0000] [HasAxiomImply₁ \u0000\u0000] [HasAxiomImply₂ \u0000\u0000] (H : \u0000\u0000 ⊢! φ ⭤ ψ) : \u0000\u0000 ⊬ φ ↔ \u0000\u0000 ⊬ ψ := by\n  constructor;\n  . intro hp hq; have := and₂'! H ⨀ hq; contradiction;\n  . intro hq hp; have := and₁'! H ⨀ hp; contradiction;"},
+   {"name": "LO.System.FaithfulTranslation.provable_iff",
+    "module": "Foundation.Logic.System",
+    "content":
+    "lemma provable_iff {\u0000\u0000 : S} {\u0000\u0000 : S'} (f : \u0000\u0000 ↝¹ \u0000\u0000) {φ} : \u0000\u0000 ⊢! f φ ↔ \u0000\u0000 ⊢! φ :=\n  ⟨fun h ↦ ⟨f.prfInv h.get⟩, fun h ↦ ⟨f.prf h.get⟩⟩"},
+   {"name": "LO.System.imp_replace_iff!",
+    "module": "Foundation.Logic.HilbertStyle.Supplemental",
+    "content":
+    "lemma imp_replace_iff! (hp : \u0000\u0000 ⊢! φ₁ ⭤ φ₂) (hq : \u0000\u0000 ⊢! ψ₁ ⭤ ψ₂) : \u0000\u0000 ⊢! (φ₁ ➝ ψ₁) ⭤ (φ₂ ➝ ψ₂) := ⟨impReplaceIff hp.some hq.some⟩"},
+   {"name": "LO.System.cast!",
+    "module": "Foundation.Logic.HilbertStyle.Basic",
+    "content":
+    "def cast! (e : φ = ψ) (b : \u0000\u0000 ⊢! φ) : \u0000\u0000 ⊢! ψ := ⟨cast e b.some⟩"},
+   {"name": "LO.System.Context.provable_iff_provable",
+    "module": "Foundation.Logic.HilbertStyle.Context",
+    "content":
+    "lemma provable_iff_provable {φ : F} : \u0000\u0000 ⊢! φ ↔ ∅ *⊢[\u0000\u0000]! φ := ⟨of!, emptyPrf!⟩"},
+   {"name": "HasSubset.Subset.trans_ssubset",
+    "module": "Mathlib.Order.RelClasses",
+    "content":
+    "alias HasSubset.Subset.trans_ssubset := ssubset_of_subset_of_ssubset"},
+   {"name": "Set.EqOn.mapsTo_iff",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem EqOn.mapsTo_iff (H : EqOn f₁ f₂ s) : MapsTo f₁ s t ↔ MapsTo f₂ s t :=\n  ⟨fun h => h.congr H, fun h => h.congr H.symm⟩"},
+   {"name": "LO.Modal.Formula.imp_inj",
+    "module": "Foundation.Modal.Formula",
+    "content":
+    "@[simp] lemma imp_inj (φ₁ ψ₁ φ₂ ψ₂ : Formula α) : φ₁ ➝ φ₂ = ψ₁ ➝ ψ₂ ↔ φ₁ = ψ₁ ∧ φ₂ = ψ₂ := by simp[Arrow.arrow]"}],
+  "prescopes":
+  "namespace LO.Modal\n\nopen LO.System LO.Modal.Formula LO.Modal.Hilbert.Deduction\n\nvariable [DecidableEq α] {φ : Formula α}",
+  "postscopes": "end LO.Modal",
+  "informal_statement": "",
+  "informal_proof":
+  "Given an arbitrary formula φ, we aim to establish the equivalence between H₁ ⊢! φᵇ and H₂ ⊢! φ.\n\nSuppose φ is provable in H₂, i.e., H₂ ⊢! φ. By the definition of `bdp`, this implies that H₁ ⊢! φᵇ.\n\nConversely, assume H₁ ⊢! φᵇ. Again, by the definition of `bdp`, this leads to H₂ ⊢! φ.\n\nTherefore, the equivalence H₁ ⊢! φᵇ ↔ H₂ ⊢! φ holds for all formulas φ.",
+  "id":
+  {"name": "LO.Modal.«term_ᵇ»",
+   "module": "Foundation.Modal.Boxdot.Basic",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+   "compilationAlias": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.Modal.Hilbert.Basic\n\nnamespace LO.Modal\n\nopen System\nopen Formula\nopen Hilbert.Deduction\n\nvariable [DecidableEq α]\nvariable {φ : Formula α}\n\ndef Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\npostfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+  "annotation": "postfix:90 \"ᵇ\" => Formula.BoxdotTranslation\n\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.Modal.Formula.BoxdotTranslation",
+    "module": "Foundation.Modal.Boxdot.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n",
+    "compilationAlias":
+    "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n"}]},
+ {"rag":
+  [{"name": "LO.Box.boxdot",
+    "module": "Foundation.Modal.LogicSymbol",
+    "content":
+    "@[match_pattern] abbrev boxdot [Wedge F] (φ : F) : F := φ ⋏ □φ"},
+   {"name": "LO.System.BoxBoxdot_BoxDotbox",
+    "module": "Foundation.Modal.System.K",
+    "content":
+    "def BoxBoxdot_BoxDotbox : \u0000\u0000 ⊢ □⊡φ ➝ ⊡□φ := impTrans'' distribute_box_and (impId _)"},
+   {"name": "LO.Modal.Formula.box",
+    "module": "Foundation.Modal.Formula",
+    "content": "| box    : Formula α → Formula α"},
+   {"name": "LO.Modal.Formula.ofNat_toNat",
+    "module": "Foundation.Modal.Formula",
+    "content":
+    "lemma ofNat_toNat : ∀ (φ : Formula α), ofNat (toNat φ) = some φ\n  | atom a  => by simp [toNat, ofNat, Nat.unpair_pair, encodek, Option.map_some'];\n  | ⊥       => by simp [toNat, ofNat]\n  | □φ      => by simp [toNat, ofNat, ofNat_toNat φ]\n  | φ ➝ ψ   => by simp [toNat, ofNat, ofNat_toNat φ, ofNat_toNat ψ]"},
+   {"name": "LO.Modal.Formula.box_eq",
+    "module": "Foundation.Modal.Formula",
+    "content": "lemma box_eq (φ : Formula α) : box φ = □φ := rfl"},
+   {"name": "LO.System.box_dne!",
+    "module": "Foundation.Modal.System.K",
+    "content":
+    "@[simp] lemma box_dne! : \u0000\u0000 ⊢! □(∼∼φ) ➝ □φ := ⟨box_dne⟩"},
+   {"name": "LO.Modal.Formula.toStr",
+    "module": "Foundation.Modal.Formula",
+    "content":
+    "def toStr : Formula α → String\n  -- | ⊤       => \"\\\\top\"\n  | ⊥       => \"\\\\bot\"\n  | atom a  => \"{\" ++ toString a ++ \"}\"\n  | □φ      => \"\\\\Box \" ++ toStr φ\n  -- | ◇φ      => \"\\\\Diamond \" ++ toStr φ\n  | φ ➝ ψ   => \"\\\\left(\" ++ toStr φ ++ \" \\\\to \" ++ toStr ψ ++ \"\\\\right)\""},
+   {"name": "LO.Modal.Formula",
+    "module": "Foundation.Modal.Formula",
+    "content":
+    "inductive Formula (α : Type u) : Type u where\n  | atom   : α → Formula α\n  | falsum : Formula α\n  | imp    : Formula α → Formula α → Formula α\n  | box    : Formula α → Formula α\n  deriving DecidableEq"},
+   {"name": "LO.Modal.Formula.rec'",
+    "module": "Foundation.Modal.Formula",
+    "content":
+    "@[elab_as_elim]\ndef rec' {C : Formula α → Sort w}\n  (hfalsum : C ⊥)\n  (hatom   : ∀ a : α, C (atom a))\n  (himp    : ∀ (φ ψ : Formula α), C φ → C ψ → C (φ ➝ ψ))\n  (hbox    : ∀ (φ : Formula α), C φ → C (□φ))\n  : (φ : Formula α) → C φ\n  | ⊥      => hfalsum\n  | atom a => hatom a\n  | φ ➝ ψ  => himp φ ψ (rec' hfalsum hatom himp hbox φ) (rec' hfalsum hatom himp hbox ψ)\n  | □φ     => hbox φ (rec' hfalsum hatom himp hbox φ)"},
+   {"name": "LO.System.boxdot_axiomT!",
+    "module": "Foundation.Modal.System.K",
+    "content":
+    "@[simp] lemma boxdot_axiomT! : \u0000\u0000 ⊢! ⊡φ ➝ φ := ⟨boxdotAxiomT⟩"}],
+  "prescopes":
+  "namespace LO.Modal\n\nopen LO.System LO.Modal.Formula LO.Modal.Hilbert.Deduction\n\nvariable [DecidableEq α] {φ : Formula α}",
+  "postscopes": "end LO.Modal",
+  "informal_statement":
+  "The BoxdotTranslation function takes a formula and translates it by applying specific transformation rules depending on the type of formula. For atomic formulas, it returns the formula as is. For the constant false (⊥), it returns ⊥. For implications, it translates both the antecedent and the consequent. For necessity (□), it applies the translation to the inside and wraps it with a boxdot (⊡).",
+  "informal_proof":
+  "We can understand the behavior of the BoxdotTranslation function by analyzing its behavior on different types of formulas.\n\n1. **Base Cases:**\n   - **Atomic Formulas:** For any atomic formula `a`, `BoxdotTranslation( a )` returns `a`. This means that simple atomic formulas remain unchanged under this translation.\n   - **Constant False (⊥):** For the constant `⊥` (false), `BoxdotTranslation(⊥)` returns `⊥`. This means that the constant false remains unchanged.\n   \n2. **Implication:** For an implication formula `φ ➝ ψ`, `BoxdotTranslation(φ ➝ ψ)` is defined as `BoxdotTranslation(φ) ➝ BoxdotTranslation(ψ)`. This means that the implication structure is preserved during the translation process.\n   \n3. **Necessity (□):** For a necessity formula `□φ`, `BoxdotTranslation(□φ)` is defined as `⊡BoxdotTranslation(φ)`. This means that necessity formulas are translated by applying the translation to their argument and then prefixing it with a boxdot.\n\nBy recursively applying these rules, the BoxdotTranslation function effectively translates any given formula while preserving its logical structure and meaning.",
+  "id":
+  {"name": "LO.Modal.Formula.BoxdotTranslation",
+   "module": "Foundation.Modal.Boxdot.Basic",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n",
+   "compilationAlias":
+   "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n"},
+  "goal":
+  "α : Type u_1\nmotive : LO.Modal.Formula α → Sort u_2\nx✝ : LO.Modal.Formula α\nh_1 : (a : α) → motive (LO.Modal.Formula.atom a)\nh_2 : Unit → motive LO.Modal.Formula.falsum\nh_3 : (φ ψ : LO.Modal.Formula α) → motive (φ.imp ψ)\nh_4 : (φ : LO.Modal.Formula α) → motive φ.box\n⊢ motive x✝",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.Modal.Hilbert.Basic\n\nnamespace LO.Modal\n\nopen System\nopen Formula\nopen Hilbert.Deduction\n\nvariable [DecidableEq α]\nvariable {φ : Formula α}\n\ndef Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n",
+  "annotation":
+  "def Formula.BoxdotTranslation : Formula α → Formula α\n  | atom a => .atom a\n  | ⊥ => ⊥\n  | φ ➝ ψ => (BoxdotTranslation φ) ➝ (BoxdotTranslation ψ)\n  | □φ => ⊡(BoxdotTranslation φ)\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies": []}]

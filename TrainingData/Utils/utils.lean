@@ -1,5 +1,5 @@
 import TrainingData.Utils.state_comments
-
+import TrainingData.Utils.AsciiCasing
 
 open Lean Core Elab IO Meta Term Command Tactic System
 
@@ -46,8 +46,10 @@ def _root_.Lean.Elab.Command.State.withOptions (state : Command.State) (options 
             opts := opts.insert k v
           opts } }
 
+open String
 
-def String.splitAtString (s : String) (pattern : String): Option (String × String) :=
+
+def String.splitAtString (s : String) (pattern : String) (case_sensitive : Bool := false): Option (String × String) :=
   if h : pattern.endPos.1 = 0 then none
   else
     have hPatt := Nat.zero_lt_of_ne_zero h
@@ -56,7 +58,13 @@ def String.splitAtString (s : String) (pattern : String): Option (String × Stri
         none
       else
         have := Nat.lt_of_lt_of_le (Nat.add_lt_add_left hPatt _) (Nat.ge_of_not_lt h)
-        if s.substrEq pos pattern 0 pattern.endPos.byteIdx then
+        let eq := if case_sensitive then
+            s.substrEq pos pattern 0 pattern.endPos.byteIdx
+          else
+            let sstr : Substring := ⟨s, pos, pos + pattern.endPos⟩
+            sstr.toString.beqCaseInsensitiveAsciiOnly pattern
+
+        if eq then
           -- Found a match, return split strings
           let before := s.extract 0 pos
           let after := s.extract (pos + pattern) s.endPos
@@ -66,6 +74,10 @@ def String.splitAtString (s : String) (pattern : String): Option (String × Stri
           loop (s.next pos)
       termination_by s.endPos.1 - pos.1
     loop 0
+
+
+
+
 
 
 
