@@ -329,11 +329,16 @@ def run_inference(df, args,ray_init=True):
     else:
         os.environ["NCCL_P2P_DISABLE"] = "1"
         
-    if ray_init:
-        try:
-            ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
-        except:
-            ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/riyaza/ray_tmp')
+    tmp_dir = os.environ.get("RAY_TMPDIR", f"/data/user_data/{os.getenv('USER','user')}/ray_tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir=tmp_dir)
+        
+    # if ray_init:
+    #     try:
+    #         ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
+    #     except:
+    #         ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/riyaza/ray_tmp')
             
     DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
     ctx = DataContext.get_current()
@@ -354,6 +359,10 @@ def run_inference(df, args,ray_init=True):
             "enable_chunked_prefill": args.enable_chunked_prefill,
             "max_model_len": args.max_model_len,
             "max_num_batched_tokens": args.max_num_batched_tokens,
+            
+            "gpu_memory_utilization":0.85,
+            "swap_space": 16
+            
             # "max_num_batched_tokens": 4096,
             # "max_model_len": 16384,
             

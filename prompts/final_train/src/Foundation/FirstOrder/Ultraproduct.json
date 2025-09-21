@@ -1,0 +1,2030 @@
+[{"rag":
+  [{"name": "LO.Compact",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "class Compact : Prop where\n  compact {T : Set F} :\n    Semantics.Satisfiable M T ↔ (∀ u : Finset F, ↑u ⊆ T → Semantics.Satisfiable M (u : Set F))"},
+   {"name": "LO.Compact.conseq_compact",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma conseq_compact [LogicalConnective F] [Semantics.Tarski M] [DecidableEq F] {f : F} :\n    T ⊨[M] f ↔ ∃ u : Finset F, ↑u ⊆ T ∧ u ⊨[M] f := by\n  simp [Semantics.consequence_iff_not_satisfiable, compact (T := insert (∼f) T)]\n  constructor\n  · intro ⟨u, ss, hu⟩\n    exact ⟨Finset.erase u (∼f), by simp [ss],\n      by simp; intro h; exact hu (Semantics.Satisfiable.of_subset h (by simp))⟩\n  · intro ⟨u, ss, hu⟩\n    exact ⟨insert (∼f) u,\n      by simpa using Set.insert_subset_insert ss, by simpa using hu⟩"},
+   {"name": "LO.FirstOrder.satisfiable_intro",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma satisfiable_intro (M : Type v) [Nonempty M] [s : Structure L M] (h : M ⊧ₘ* T) :\n    Semantics.Satisfiable (Struc.{v, u} L) T := ⟨s.toStruc, h⟩"},
+   {"name": "LO.Semantics.Satisfiable",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "def Satisfiable (T : Set F) : Prop := ∃ \u0000\u0000 : M, \u0000\u0000 ⊧* T"},
+   {"name": "LO.Semantics.satisfiableSet_iff_models_nonempty",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma satisfiableSet_iff_models_nonempty {T : Set F} :\n    Satisfiable M T ↔ (models M T).Nonempty :=\n  ⟨by rintro ⟨\u0000\u0000, h\u0000\u0000⟩; exact ⟨\u0000\u0000, h\u0000\u0000⟩, by rintro ⟨\u0000\u0000, h\u0000\u0000⟩; exact ⟨\u0000\u0000, h\u0000\u0000⟩⟩"},
+   {"name": "LO.Sound.consistent_of_satisfiable",
+    "module": "Foundation.Logic.System",
+    "content":
+    "lemma consistent_of_satisfiable [LogicalConnective F] [∀ \u0000\u0000 : M, Semantics.Meaningful \u0000\u0000] : Semantics.Satisfiable M T → System.Consistent \u0000\u0000 :=\n  fun H ↦ consistent_of_meaningful (Semantics.meaningful_iff_satisfiableSet.mp H)"},
+   {"name": "LO.FirstOrder.StructureModelOfSatAux",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "noncomputable def StructureModelOfSatAux (h : Semantics.Satisfiable (Struc.{v, u} L) T) :\n    { s : Structure L (ModelOfSat h) // ModelOfSat h ⊧ₘ* T } := by\n  choose _ s h using Classical.choose_spec (satisfiable_iff.mp h)\n  exact ⟨s, h⟩"},
+   {"name": "LO.Semantics.not_satisfiable_finset",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma not_satisfiable_finset [LogicalConnective F] [Tarski M] [DecidableEq F] (t : Finset F) :\n    ¬Satisfiable M (t : Set F) ↔ Valid M (t.image (∼·)).disj := by\n  simp [Satisfiable, realizeSet_iff, Valid, Finset.map_disj]"},
+   {"name": "LO.FirstOrder.unsatisfiable_iff",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma unsatisfiable_iff :\n    ¬Semantics.Satisfiable (Struc.{v, u} L) T ↔ ∀ (M : Type v) (_ : Nonempty M) (_ : Structure L M), ¬M ⊧ₘ* T := by\n  simpa using satisfiable_iff.not"},
+   {"name": "LO.FirstOrder.satisfiable_iff_eq",
+    "module": "Foundation.FirstOrder.Basic.Eq",
+    "content":
+    "lemma satisfiable_iff_eq {T : Theory L} [\u0000\u0000\u0000\u0000 ≼ T] :\n    Semantics.Satisfiable (Struc.{v, u} L) T ↔ (∃ (M : Type v) (_ : Nonempty M) (_ : Structure L M) (_ : Structure.Eq L M), M ⊧ₘ* T) := by\n  simp [satisfiable_iff]; constructor\n  · intro ⟨M, x, s, hM⟩;\n    haveI : Nonempty M := ⟨x⟩\n    have H : M ⊧ₘ* (\u0000\u0000\u0000\u0000 : Theory L) := models_of_subtheory hM\n    have e : Structure.Eq.QuotEq L M ≡ₑ[L] M := Structure.Eq.QuotEq.elementaryEquiv L M\n    exact ⟨Structure.Eq.QuotEq L M, ⟦x⟧, inferInstance, inferInstance, e.modelsTheory.mpr hM⟩\n  · intro ⟨M, i, s, _, hM⟩; exact ⟨M, i, s, hM⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Semiformula\n\nopen LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} {A : I → Type u} [s : (i : I) → FirstOrder.Structure L (A i)]\n  {𝓤 : Ultrafilter I} {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}",
+  "postscopes": "end LO.FirstOrder.Semiformula",
+  "informal_statement":
+  "The compactness theorem asserts that a theory \\( T \\) is satisfiable if and only if every finite subset of \\( T \\) is satisfiable.",
+  "informal_proof":
+  "To understand the compactness theorem, let's first clarify its meaning. A theory \\( T \\) in first-order logic is considered *satisfiable* if there exists at least one model that interprets all its sentences as true. The theorem establishes a crucial equivalence:\n\n1. **Forward Direction**: If the entire theory \\( T \\) is satisfiable (i.e., there exists a model that satisfies all sentences in \\( T \\)), then every finite subset \\( u \\) of \\( T \\) must also be satisfiable. This is because any model that satisfies \\( T \\) will automatically satisfy any finite collection of sentences within \\( T \\), as being a subset of \\( T \\).\n\n2. **Reverse Direction**: Conversely, if every finite subset of \\( T \\) is satisfiable, then the entire theory \\( T \\) is satisfiable. This follows from the compactness theorem in logic, which states that if every finite subset of a set of sentences has a model, then the entire set has a model. The idea is that models can be \"glued\" together from these finite satisfiable subsets to form a model for the entire theory \\( T \\).\n\nThus, the theorem establishes a deep connection between the satisfiability of infinite theories and their finite fragments, providing a powerful tool in model theory and logic. The equivalence holds because the compactness theorem ensures that the behavior of infinite theories can be understood through their finite components.",
+  "id":
+  {"name": "LO.FirstOrder.Semiformula.val_Uprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma val_Uprod [(i : I) → Nonempty (A i)] {φ : Formula L μ} :\n    Evalfm (Uprod A 𝓤) ε φ ↔ {i | Evalf (s i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  simp [Evalf, eval_Uprod, Matrix.empty_eq]\n\n",
+   "compilationAlias":
+   "lemma val_Uprod [(i : I) → Nonempty (A i)] {φ : Formula L μ} :\n    Evalfm (Uprod A 𝓤) ε φ ↔ {i | Evalf (s i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  simp [Evalf, eval_Uprod, Matrix.empty_eq]\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nμ : Type v\nI : Type u\nA : I → Type u\ns : (i : I) → LO.FirstOrder.Structure L (A i)\n𝓤 : Ultrafilter I\nε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\ninst✝ : ∀ (i : I), Nonempty (A i)\nφ : LO.FirstOrder.Formula L μ\n⊢ Iff ((LO.FirstOrder.Semiformula.Evalfm (LO.FirstOrder.Structure.Uprod A 𝓤) ε) φ) (Membership.mem 𝓤 (setOf fun i => (LO.FirstOrder.Semiformula.Evalf (s i) fun x => (ε x).val i) φ))",
+  "content_sorry":
+  "lemma val_Uprod [(i : I) → Nonempty (A i)] {φ : Formula L μ} :\n    Evalfm (Uprod A 𝓤) ε φ ↔ {i | Evalf (s i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\nend Semiterm\n\nopen Structure\n\nvariable {A} {𝓤}\n\nnamespace Semiformula\n\nvariable {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}\n\nlemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\nlemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\nlemma val_Uprod [(i : I) → Nonempty (A i)] {φ : Formula L μ} :\n    Evalfm (Uprod A 𝓤) ε φ ↔ {i | Evalf (s i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\nend Semiterm\n\nopen Structure\n\nvariable {A} {𝓤}\n\nnamespace Semiformula\n\nvariable {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}\n\nlemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\nlemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\nlemma val_Uprod [(i : I) → Nonempty (A i)] {φ : Formula L μ} :\n    Evalfm (Uprod A 𝓤) ε φ ↔ {i | Evalf (s i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  simp [Evalf, eval_Uprod, Matrix.empty_eq]\n\n",
+  "annotation":
+  "lemma val_Uprod [(i : I) → Nonempty (A i)] {φ : Formula L μ} :\n    Evalfm (Uprod A 𝓤) ε φ ↔ {i | Evalf (s i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  /-\n    L : LO.FirstOrder.Language\n    μ : Type v\n    I : Type u\n    A : I → Type u\n    s : (i : I) → LO.FirstOrder.Structure L (A i)\n    𝓤 : Ultrafilter I\n    ε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\n    inst✝ : ∀ (i : I), Nonempty (A i)\n    φ : LO.FirstOrder.Formula L μ\n    ⊢ Iff ((LO.FirstOrder.Semiformula.Evalfm (LO.FirstOrder.Structure.Uprod A 𝓤) ε …\n  -/\n  simp [Evalf, eval_Uprod, Matrix.empty_eq]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Matrix.empty_eq",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem empty_eq (v : Fin 0 → α) : v = ![] :=\n  Subsingleton.elim _ _",
+    "compilationAlias":
+    "theorem empty_eq (v : Fin 0 → α) : v = ![] :=\n  Subsingleton.elim _ _"},
+   {"name": "LO.FirstOrder.Semiformula.Evalf",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "abbrev Evalf (s : Structure L M) (ε : ξ → M) : Formula L ξ →ˡᶜ Prop := Eval s ![] ε",
+    "compilationAlias":
+    "abbrev Evalf (s : Structure L M) (ε : ξ → M) : Formula L ξ →ˡᶜ Prop := Eval s ![] ε"},
+   {"name": "LO.FirstOrder.Semiformula.Evalfm",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "abbrev Evalfm (M : Type w) [s : Structure L M] (ε : ξ → M) :\n    Formula L ξ →ˡᶜ Prop := Evalf s ε",
+    "compilationAlias":
+    "abbrev Evalfm (M : Type w) [s : Structure L M] (ε : ξ → M) :\n    Formula L ξ →ˡᶜ Prop := Evalf s ε"},
+   {"name": "LO.FirstOrder.Formula",
+    "module": "Foundation.FirstOrder.Basic.Syntax.Formula",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "abbrev Formula (L : Language) (ξ : Type*) := Semiformula L ξ 0",
+    "compilationAlias":
+    "abbrev Formula (L : Language) (ξ : Type*) := Semiformula L ξ 0"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+   {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+    "compilationAlias":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"},
+   {"name": "LO.FirstOrder.Structure.func_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n"},
+   {"name": "LO.FirstOrder.Structure.rel_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n"},
+   {"name": "LO.FirstOrder.Semiterm.val_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n",
+    "compilationAlias":
+    "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n"},
+   {"name": "LO.FirstOrder.Semiformula.val_vecCons_val_eq",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n",
+    "compilationAlias":
+    "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n"},
+   {"name": "LO.FirstOrder.Semiformula.eval_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\n",
+    "compilationAlias":
+    "lemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\n"}]},
+ {"rag":
+  [{"name": "LO.Compact",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "class Compact : Prop where\n  compact {T : Set F} :\n    Semantics.Satisfiable M T ↔ (∀ u : Finset F, ↑u ⊆ T → Semantics.Satisfiable M (u : Set F))"},
+   {"name": "LO.FirstOrder.satisfiable_intro",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma satisfiable_intro (M : Type v) [Nonempty M] [s : Structure L M] (h : M ⊧ₘ* T) :\n    Semantics.Satisfiable (Struc.{v, u} L) T := ⟨s.toStruc, h⟩"},
+   {"name": "LO.Semantics.Satisfiable",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "def Satisfiable (T : Set F) : Prop := ∃ \u0000\u0000 : M, \u0000\u0000 ⊧* T"},
+   {"name": "LO.Semantics.satisfiableSet_iff_models_nonempty",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma satisfiableSet_iff_models_nonempty {T : Set F} :\n    Satisfiable M T ↔ (models M T).Nonempty :=\n  ⟨by rintro ⟨\u0000\u0000, h\u0000\u0000⟩; exact ⟨\u0000\u0000, h\u0000\u0000⟩, by rintro ⟨\u0000\u0000, h\u0000\u0000⟩; exact ⟨\u0000\u0000, h\u0000\u0000⟩⟩"},
+   {"name": "LO.Compact.conseq_compact",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma conseq_compact [LogicalConnective F] [Semantics.Tarski M] [DecidableEq F] {f : F} :\n    T ⊨[M] f ↔ ∃ u : Finset F, ↑u ⊆ T ∧ u ⊨[M] f := by\n  simp [Semantics.consequence_iff_not_satisfiable, compact (T := insert (∼f) T)]\n  constructor\n  · intro ⟨u, ss, hu⟩\n    exact ⟨Finset.erase u (∼f), by simp [ss],\n      by simp; intro h; exact hu (Semantics.Satisfiable.of_subset h (by simp))⟩\n  · intro ⟨u, ss, hu⟩\n    exact ⟨insert (∼f) u,\n      by simpa using Set.insert_subset_insert ss, by simpa using hu⟩"},
+   {"name": "LO.FirstOrder.StructureModelOfSatAux",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "noncomputable def StructureModelOfSatAux (h : Semantics.Satisfiable (Struc.{v, u} L) T) :\n    { s : Structure L (ModelOfSat h) // ModelOfSat h ⊧ₘ* T } := by\n  choose _ s h using Classical.choose_spec (satisfiable_iff.mp h)\n  exact ⟨s, h⟩"},
+   {"name": "LO.Semantics.Satisfiable.of_subset",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma Satisfiable.of_subset {T U : Set F} (h : Satisfiable M U) (ss : T ⊆ U) : Satisfiable M T := by\n  rcases h with ⟨\u0000\u0000, h⟩; exact ⟨\u0000\u0000, RealizeSet.of_subset h ss⟩"},
+   {"name": "LO.Sound.consistent_of_satisfiable",
+    "module": "Foundation.Logic.System",
+    "content":
+    "lemma consistent_of_satisfiable [LogicalConnective F] [∀ \u0000\u0000 : M, Semantics.Meaningful \u0000\u0000] : Semantics.Satisfiable M T → System.Consistent \u0000\u0000 :=\n  fun H ↦ consistent_of_meaningful (Semantics.meaningful_iff_satisfiableSet.mp H)"},
+   {"name": "LO.FirstOrder.ModelOfSatEq.mod",
+    "module": "Foundation.FirstOrder.Basic.Eq",
+    "content": "instance mod : ModelOfSatEq sat ⊧ₘ* T := models sat"},
+   {"name": "LO.Semantics.not_satisfiable_finset",
+    "module": "Foundation.Logic.Semantics",
+    "content":
+    "lemma not_satisfiable_finset [LogicalConnective F] [Tarski M] [DecidableEq F] (t : Finset F) :\n    ¬Satisfiable M (t : Set F) ↔ Valid M (t.image (∼·)).disj := by\n  simp [Satisfiable, realizeSet_iff, Valid, Finset.map_disj]"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Semiformula\n\nopen LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} {A : I → Type u} [s : (i : I) → FirstOrder.Structure L (A i)]\n  {𝓤 : Ultrafilter I} {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}",
+  "postscopes": "end LO.FirstOrder.Semiformula",
+  "informal_statement":
+  "For every theory \\( T \\), \\( T \\) is satisfiable if and only if every finite subset of \\( T \\) is satisfiable.",
+  "informal_proof":
+  "We aim to prove that a theory \\( T \\) is satisfiable exactly when every finite subset of \\( T \\) is satisfiable.\n\nFirst, we consider the forward direction of the equivalence. Assume \\( T \\) is satisfiable. Then, any finite subset of \\( T \\) is also satisfiable, since any model of \\( T \\) is also a model of any of its finite subsets.\n\nFor the converse, assume that every finite subset of \\( T \\) is satisfiable. Our goal is to show that \\( T \\) itself is satisfiable. This is where the compactness theorem comes into play, which states that if every finite subset of a theory is satisfiable, then the entire theory is satisfiable.\n\nTo apply the compactness theorem, we consider the ultraproduct construction. Given the satisfiability of all finite subtheories, we can construct an ultraproduct using an appropriate ultrafilter. This ultraproduct will serve as a model for the entire theory \\( T \\), thereby demonstrating that \\( T \\) is satisfiable.\n\nThus, we have shown both directions of the equivalence, completing the proof.",
+  "id":
+  {"name": "LO.FirstOrder.Semiformula.eval_Uprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\n",
+   "compilationAlias":
+   "lemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\n"},
+  "goal":
+  "ξ : Type u_1\nL : LO.FirstOrder.Language\nM : Type w\ns : LO.FirstOrder.Structure L M\nn : Nat\ne : Fin n → M\nε : ξ → M\nk : Nat\nr : L.Rel k\nv : Fin k → LO.FirstOrder.Semiterm L ξ n\n⊢ Eq ((LO.FirstOrder.Semiformula.Eval s e ε) (LO.FirstOrder.Semiformula.nrel r v)) (Not (LO.FirstOrder.Structure.rel r fun i => LO.FirstOrder.Semiterm.val s e ε (v i)))",
+  "content_sorry":
+  "lemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\nend Semiterm\n\nopen Structure\n\nvariable {A} {𝓤}\n\nnamespace Semiformula\n\nvariable {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}\n\nlemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\nlemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\nend Semiterm\n\nopen Structure\n\nvariable {A} {𝓤}\n\nnamespace Semiformula\n\nvariable {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}\n\nlemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\nlemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  induction φ using rec' <;>\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\n",
+  "annotation":
+  "lemma eval_Uprod [(i : I) → Nonempty (A i)] {φ : Semiformula L μ n} :\n    Evalm (Uprod A 𝓤) e ε φ ↔ {i | Eval (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ} ∈ 𝓤 := by\n  /-\n    n : Nat\n    L : LO.FirstOrder.Language\n    μ : Type v\n    I : Type u\n    A : I → Type u\n    s : (i : I) → LO.FirstOrder.Structure L (A i)\n    𝓤 : Ultrafilter I\n    e : Fin n → LO.FirstOrder.Structure.Uprod A 𝓤\n    ε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\n    inst✝ : ∀ (i : I), Nonempty (A i)\n    φ : LO.FirstOrder.Semiformula L μ n\n    ⊢ Iff ((LO.FirstOrder.Semiformula.Evalm (LO.FirstOrder.Structure.Uprod A 𝓤) e  …\n  -/\n  induction φ using rec' <;>\n    /-\n      case hverum\n      n : Nat\n      L : LO.FirstOrder.Language\n      μ : Type v\n      I : Type u\n      A : I → Type u\n      s : (i : I) → LO.FirstOrder.Structure L (A i)\n      𝓤 : Ultrafilter I\n      ε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\n      inst✝ : ∀ (i : I), Nonempty (A i)\n      n✝ : Nat\n      e : Fin n✝ → LO.FirstOrder.Structure.Uprod A 𝓤\n      ⊢ Iff ((LO.FirstOrder.Semiformula.Evalm (LO.FirstOrder.Structure.Uprod A 𝓤) e  …\n    -/\n    /-\n      🎉 no goals\n    -/\n    /-\n      🎉 no goals\n    -/\n    simp [*, Prop.top_eq_true, Prop.bot_eq_false, eval_rel, eval_nrel, Semiterm.val_Uprod]\n  /-\n    case hverum\n    n : Nat\n    L : LO.FirstOrder.Language\n    μ : Type v\n    I : Type u\n    A : I → Type u\n    s : (i : I) → LO.FirstOrder.Structure L (A i)\n    𝓤 : Ultrafilter I\n    ε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\n    inst✝ : ∀ (i : I), Nonempty (A i)\n    n✝ : Nat\n    e : Fin n✝ → LO.FirstOrder.Structure.Uprod A 𝓤\n    ⊢ Membership.mem 𝓤 Set.univ\n  -/\n  case hverum => exact Filter.univ_mem\n  case hnrel k r v =>\n    exact Ultrafilter.compl_mem_iff_not_mem.symm\n  case hand =>\n    exact Filter.inter_mem_iff.symm\n  case hor φ ψ ihp ihq =>\n    exact Ultrafilter.union_mem_iff.symm\n  case hall φ _ =>\n    constructor\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => ¬Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      exact Filter.mem_of_superset (h z) (by\n        intro i hι a\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          by rw [val_vecCons_val_eq]; exact hι\n        by_contra hc\n        have : ¬Evalm (A i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => ¬(Eval (s i) (z :> fun x ↦ (e x).val i) _ φ)) ⟨a, hc⟩\n        contradiction)\n    · intro h x\n      exact Filter.mem_of_superset h (by intro i h; simpa [val_vecCons_val_eq] using h (x.val i))\n  case hex φ _ =>\n    constructor\n    · rintro ⟨x, hx⟩\n      exact Filter.mem_of_superset hx (by intro i h; use x.val i; simpa[val_vecCons_val_eq] using h)\n    · intro h\n      let z : Uprod A 𝓤 := ⟨fun i =>\n        Classical.epsilon (fun z => Eval (s i) (z :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ)⟩\n      use z\n      exact Filter.mem_of_superset h (by\n        intro i; rintro ⟨x, hx⟩\n        have : Eval (s i) (z.val i :> fun x ↦ (e x).val i) (fun x ↦ (ε x).val i) φ :=\n          Classical.epsilon_spec (p := fun z => Eval (s i) (z :> fun x ↦ (e x).val i) _ φ) ⟨x, hx⟩\n        rw[val_vecCons_val_eq] at this; exact this)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Classical.epsilon_spec",
+    "module": "Init.Classical",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem epsilon_spec {α : Sort u} {p : α → Prop} (hex : ∃ y, p y) : p (@epsilon α (nonempty_of_exists hex) p) :=\n  epsilon_spec_aux (nonempty_of_exists hex) p hex",
+    "compilationAlias":
+    "theorem epsilon_spec {α : Sort u} {p : α → Prop} (hex : ∃ y, p y) : p (@epsilon α (nonempty_of_exists hex) p) :=\n  epsilon_spec_aux (nonempty_of_exists hex) p hex"},
+   {"name": "Filter.mem_of_superset",
+    "module": "Mathlib.Order.Filter.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_of_superset {x y : Set α} (hx : x ∈ f) (hxy : x ⊆ y) : y ∈ f :=\n  f.sets_of_superset hx hxy",
+    "compilationAlias":
+    "theorem mem_of_superset {x y : Set α} (hx : x ∈ f) (hxy : x ⊆ y) : y ∈ f :=\n  f.sets_of_superset hx hxy"},
+   {"name": "Classical.epsilon",
+    "module": "Init.Classical",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- the Hilbert epsilon Function -/\nnoncomputable def epsilon {α : Sort u} [h : Nonempty α] (p : α → Prop) : α :=\n  (strongIndefiniteDescription p h).val",
+    "compilationAlias":
+    "/-- the Hilbert epsilon Function -/\nnoncomputable def epsilon {α : Sort u} [h : Nonempty α] (p : α → Prop) : α :=\n  (strongIndefiniteDescription p h).val"},
+   {"name": "Filter.univ_mem",
+    "module": "Mathlib.Order.Filter.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp]\ntheorem univ_mem : univ ∈ f :=\n  f.univ_sets",
+    "compilationAlias":
+    "@[simp]\ntheorem univ_mem : univ ∈ f :=\n  f.univ_sets"},
+   {"name": "LO.FirstOrder.Semiformula.eval_nrel",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma eval_nrel {k} {r : L.Rel k} {v} :\n    Eval s e ε (nrel r v) ↔ ¬s.rel r (fun i => Semiterm.val s e ε (v i)) := of_eq rfl",
+    "compilationAlias":
+    "lemma eval_nrel {k} {r : L.Rel k} {v} :\n    Eval s e ε (nrel r v) ↔ ¬s.rel r (fun i => Semiterm.val s e ε (v i)) := of_eq rfl"},
+   {"name": "LO.FirstOrder.Semiformula.eval_rel",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma eval_rel {k} {r : L.Rel k} {v} :\n    Eval s e ε (rel r v) ↔ s.rel r (fun i => Semiterm.val s e ε (v i)) := of_eq rfl",
+    "compilationAlias":
+    "lemma eval_rel {k} {r : L.Rel k} {v} :\n    Eval s e ε (rel r v) ↔ s.rel r (fun i => Semiterm.val s e ε (v i)) := of_eq rfl"},
+   {"name": "Prop.bot_eq_false",
+    "module": "Mathlib.Order.PropInstances",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem Prop.bot_eq_false : (⊥ : Prop) = False :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem Prop.bot_eq_false : (⊥ : Prop) = False :=\n  rfl"},
+   {"name": "Prop.top_eq_true",
+    "module": "Mathlib.Order.PropInstances",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem Prop.top_eq_true : (⊤ : Prop) = True :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem Prop.top_eq_true : (⊤ : Prop) = True :=\n  rfl"},
+   {"name": "LO.FirstOrder.Semiformula.rec'",
+    "module": "Foundation.FirstOrder.Basic.Syntax.Formula",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[elab_as_elim]\ndef rec' {C : ∀ n, Semiformula L ξ n → Sort w}\n  (hverum  : ∀ {n : ℕ}, C n ⊤)\n  (hfalsum : ∀ {n : ℕ}, C n ⊥)\n  (hrel    : ∀ {n k : ℕ} (r : L.Rel k) (v : Fin k → Semiterm L ξ n), C n (rel r v))\n  (hnrel   : ∀ {n k : ℕ} (r : L.Rel k) (v : Fin k → Semiterm L ξ n), C n (nrel r v))\n  (hand    : ∀ {n : ℕ} (φ ψ : Semiformula L ξ n), C n φ → C n ψ → C n (φ ⋏ ψ))\n  (hor     : ∀ {n : ℕ} (φ ψ : Semiformula L ξ n), C n φ → C n ψ → C n (φ ⋎ ψ))\n  (hall    : ∀ {n : ℕ} (φ : Semiformula L ξ (n + 1)), C (n + 1) φ → C n (∀' φ))\n  (hex     : ∀ {n : ℕ} (φ : Semiformula L ξ (n + 1)), C (n + 1) φ → C n (∃' φ)) :\n    ∀ {n : ℕ} (φ : Semiformula L ξ n), C n φ\n  | _, verum    => hverum\n  | _, falsum   => hfalsum\n  | _, rel r v  => hrel r v\n  | _, nrel r v => hnrel r v\n  | _, and φ ψ  => hand φ ψ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ) (rec' hverum hfalsum hrel hnrel hand hor hall hex ψ)\n  | _, or φ ψ   => hor φ ψ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ) (rec' hverum hfalsum hrel hnrel hand hor hall hex ψ)\n  | _, all φ    => hall φ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ)\n  | _, ex φ     => hex φ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ)",
+    "compilationAlias":
+    "@[elab_as_elim]\ndef rec' {C : ∀ n, Semiformula L ξ n → Sort w}\n  (hverum  : ∀ {n : ℕ}, C n ⊤)\n  (hfalsum : ∀ {n : ℕ}, C n ⊥)\n  (hrel    : ∀ {n k : ℕ} (r : L.Rel k) (v : Fin k → Semiterm L ξ n), C n (rel r v))\n  (hnrel   : ∀ {n k : ℕ} (r : L.Rel k) (v : Fin k → Semiterm L ξ n), C n (nrel r v))\n  (hand    : ∀ {n : ℕ} (φ ψ : Semiformula L ξ n), C n φ → C n ψ → C n (φ ⋏ ψ))\n  (hor     : ∀ {n : ℕ} (φ ψ : Semiformula L ξ n), C n φ → C n ψ → C n (φ ⋎ ψ))\n  (hall    : ∀ {n : ℕ} (φ : Semiformula L ξ (n + 1)), C (n + 1) φ → C n (∀' φ))\n  (hex     : ∀ {n : ℕ} (φ : Semiformula L ξ (n + 1)), C (n + 1) φ → C n (∃' φ)) :\n    ∀ {n : ℕ} (φ : Semiformula L ξ n), C n φ\n  | _, verum    => hverum\n  | _, falsum   => hfalsum\n  | _, rel r v  => hrel r v\n  | _, nrel r v => hnrel r v\n  | _, and φ ψ  => hand φ ψ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ) (rec' hverum hfalsum hrel hnrel hand hor hall hex ψ)\n  | _, or φ ψ   => hor φ ψ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ) (rec' hverum hfalsum hrel hnrel hand hor hall hex ψ)\n  | _, all φ    => hall φ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ)\n  | _, ex φ     => hex φ (rec' hverum hfalsum hrel hnrel hand hor hall hex φ)"},
+   {"name": "LO.FirstOrder.Semiformula.Eval",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def Eval (s : Structure L M) (e : Fin n → M) (ε : ξ → M) : Semiformula L ξ n →ˡᶜ Prop where\n  toTr := EvalAux s ε e\n  map_top' := rfl\n  map_bot' := rfl\n  map_and' := by simp [EvalAux]\n  map_or' := by simp [EvalAux]\n  map_neg' := by simp [EvalAux_neg]\n  map_imply' := by simp [imp_eq, EvalAux_neg, ←neg_eq, EvalAux, imp_iff_not_or]",
+    "compilationAlias":
+    "def Eval (s : Structure L M) (e : Fin n → M) (ε : ξ → M) : Semiformula L ξ n →ˡᶜ Prop where\n  toTr := EvalAux s ε e\n  map_top' := rfl\n  map_bot' := rfl\n  map_and' := by simp [EvalAux]\n  map_or' := by simp [EvalAux]\n  map_neg' := by simp [EvalAux_neg]\n  map_imply' := by simp [imp_eq, EvalAux_neg, ←neg_eq, EvalAux, imp_iff_not_or]"},
+   {"name": "LO.FirstOrder.Semiformula.Evalm",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "abbrev Evalm (M : Type w) [s : Structure L M] {n} (e : Fin n → M) (ε : ξ → M) :\n    Semiformula L ξ n →ˡᶜ Prop := Eval s e ε",
+    "compilationAlias":
+    "abbrev Evalm (M : Type w) [s : Structure L M] {n} (e : Fin n → M) (ε : ξ → M) :\n    Semiformula L ξ n →ˡᶜ Prop := Eval s e ε"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+   {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+    "compilationAlias":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"},
+   {"name": "LO.FirstOrder.Structure.func_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n"},
+   {"name": "LO.FirstOrder.Structure.rel_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n"},
+   {"name": "LO.FirstOrder.Semiterm.val_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n",
+    "compilationAlias":
+    "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n"},
+   {"name": "LO.FirstOrder.Semiformula.val_vecCons_val_eq",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n",
+    "compilationAlias":
+    "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n"}]},
+ {"rag":
+  [{"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.eq_pure_of_finite",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem eq_pure_of_finite [Finite α] (f : Ultrafilter α) : ∃ a, f = pure a :=\n  (eq_pure_of_finite_mem finite_univ univ_mem).imp fun _ ⟨_, ha⟩ => ha"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.eq_pure_of_finite",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem eq_pure_of_finite [Finite α] (f : Ultrafilter α) : ∃ a, f = pure a :=\n  (eq_pure_of_finite_mem finite_univ univ_mem).imp fun _ ⟨_, ha⟩ => ha"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"},
+   {"name": "Ultrafilter.exists_ultrafilter_of_finite_inter_nonempty",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem exists_ultrafilter_of_finite_inter_nonempty (S : Set (Set α))\n    (cond : ∀ T : Finset (Set α), (↑T : Set (Set α)) ⊆ S → (⋂₀ (↑T : Set (Set α))).Nonempty) :\n    ∃ F : Ultrafilter α, S ⊆ F.sets :=\n  haveI : NeBot (generate S) :=\n    generate_neBot_iff.2 fun _ hts ht =>\n      ht.coe_toFinset ▸ cond ht.toFinset (ht.coe_toFinset.symm ▸ hts)\n  ⟨of (generate S), fun _ ht => (of_le <| generate S) <| GenerateSets.basic ht⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Semiformula\n\nopen LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} {A : I → Type u} [s : (i : I) → FirstOrder.Structure L (A i)]\n  {𝓤 : Ultrafilter I} {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}",
+  "postscopes": "end LO.FirstOrder.Semiformula",
+  "informal_statement":
+  "For every finite subtheory \\( t \\) of a theory \\( T \\), the family \\( A(t) \\) is nonempty. Furthermore, for any finite set of such finite subtheories \\( t \\), the intersection of their corresponding \\( A(t) \\) sets is also nonempty. Therefore, there exists an ultrafilter \\( \\mathcal{U} \\) on the set of finite subtheories of \\( T \\) such that for every finite subtheory \\( t \\), the set \\( A(t) \\) is an element of \\( \\mathcal{U} \\).",
+  "informal_proof":
+  "To establish the existence of the desired ultrafilter \\( \\mathcal{U} \\), we proceed as follows:\n\n1. **Understanding the Setting**: We consider the set of all finite subtheories of a given theory \\( T \\). For each finite subtheory \\( t \\), the set \\( A(t) \\) is defined and is nonempty. Our goal is to extend this collection of sets into an ultrafilter.\n\n2. **Finite Intersection Property**: An ultrafilter must satisfy the finite intersection property, meaning that the intersection of any finite number of sets in the ultrafilter is also in the ultrafilter. Given that for every finite subtheory \\( t \\), \\( A(t) \\) is nonempty, and considering that the intersection of finitely many nonempty sets remains nonempty under the classical definition of nonempty, we confirm that the finite intersection property holds.\n\n3. **Application of the Ultrafilter Existence Lemma**: The lemma in question states that any family of sets with the finite intersection property is contained in some ultrafilter. Given that \\( \\{A(t)\\}_{t} \\) is such a family with the finite intersection property, we can apply this lemma.\n\n4. **Conclusion**: By the Ultrafilter Existence lemma, there exists an ultrafilter \\( \\mathcal{U} \\) on the set of finite subtheories of \\( T \\) such that \\( A(t) \\subseteq \\mathcal{U} \\) for every finite subtheory \\( t \\). This ultrafilter is the required \\( \\mathcal{U} \\) that satisfies the conditions.\n\nTherefore, the existence of such an ultrafilter is guaranteed by the Ultrafilter Existence lemma, and it is necessary because the finite intersection property ensures that the family can be extended to an ultrafilter. This selection of \\( \\mathcal{U} \\) serves the purpose of capturing the essential properties of the system in an ultrafilteroretic manner.",
+  "id":
+  {"name": "LO.FirstOrder.Semiformula.val_vecCons_val_eq",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n",
+   "compilationAlias":
+   "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n"},
+  "goal":
+  "n : Nat\nI : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ne : Fin n → LO.FirstOrder.Structure.Uprod A 𝓤\nz : LO.FirstOrder.Structure.Uprod A 𝓤\ni : I\n⊢ Eq (Matrix.vecCons (z.val i) fun x => (e x).val i) fun x => (Matrix.vecCons z e x).val i",
+  "content_sorry":
+  "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\nend Semiterm\n\nopen Structure\n\nvariable {A} {𝓤}\n\nnamespace Semiformula\n\nvariable {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}\n\nlemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\nend Semiterm\n\nopen Structure\n\nvariable {A} {𝓤}\n\nnamespace Semiformula\n\nvariable {e : Fin n → Uprod A 𝓤} {ε : μ → Uprod A 𝓤}\n\nlemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n\n",
+  "annotation":
+  "lemma val_vecCons_val_eq {z : Uprod A 𝓤} {i : I} :\n    (z.val i :> fun x ↦ (e x).val i) = (fun x ↦ ((z :> e) x).val i) := by\n  /-\n    n : Nat\n    I : Type u\n    A : I → Type u\n    𝓤 : Ultrafilter I\n    e : Fin n → LO.FirstOrder.Structure.Uprod A 𝓤\n    z : LO.FirstOrder.Structure.Uprod A 𝓤\n    i : I\n    ⊢ Eq (Matrix.vecCons (z.val i) fun x => (e x).val i) fun x => (Matrix.vecCons  …\n  -/\n  simp [Matrix.comp_vecCons (Uprod.val · i), Function.comp_def]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Function.comp_def",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl",
+    "compilationAlias":
+    "theorem Function.comp_def {α β δ} (f : β → δ) (g : α → β) : f ∘ g = fun x => f (g x) := rfl"},
+   {"name": "Matrix.comp_vecCons",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma comp_vecCons (f : α → β) (a : α) (s : Fin n → α) : (fun x => f $ (a :> s) x) = f a :> f ∘ s :=\nfunext (fun i => cases (by simp) (by simp) i)",
+    "compilationAlias":
+    "lemma comp_vecCons (f : α → β) (a : α) (s : Fin n → α) : (fun x => f $ (a :> s) x) = f a :> f ∘ s :=\nfunext (fun i => cases (by simp) (by simp) i)"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+   {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+    "compilationAlias":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"},
+   {"name": "LO.FirstOrder.Structure.func_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n"},
+   {"name": "LO.FirstOrder.Structure.rel_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n"},
+   {"name": "LO.FirstOrder.Semiterm.val_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n",
+    "compilationAlias":
+    "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n"}]},
+ {"rag":
+  [{"name": "Subtype.finite",
+    "module": "Mathlib.Data.Fintype.EquivFin",
+    "content":
+    "/-- This instance also provides `[Finite s]` for `s : Set α`. -/\ninstance Subtype.finite {α : Sort*} [Finite α] {p : α → Prop} : Finite { x // p x } :=\n  Finite.of_injective Subtype.val Subtype.coe_injective"},
+   {"name": "prop",
+    "module": "Mathlib.Data.Fintype.EquivFin",
+    "content":
+    "instance prop (p : Prop) : Finite p :=\n  Finite.of_subsingleton"},
+   {"name": "Infinite.exists_superset_card_eq",
+    "module": "Mathlib.Data.Fintype.EquivFin",
+    "content":
+    "/-- See `Infinite.exists_subset_card_eq` for a version that provides an arbitrary\n`s : Finset α` for any cardinality. -/\ntheorem exists_superset_card_eq [Infinite α] (s : Finset α) (n : ℕ) (hn : #s ≤ n) :\n    ∃ t : Finset α, s ⊆ t ∧ #t = n := by\n  induction' n with n IH generalizing s\n  · exact ⟨s, subset_refl _, Nat.eq_zero_of_le_zero hn⟩\n  · rcases hn.eq_or_lt with hn' | hn'\n    · exact ⟨s, subset_refl _, hn'⟩\n    obtain ⟨t, hs, ht⟩ := IH _ (Nat.le_of_lt_succ hn')\n    obtain ⟨x, hx⟩ := exists_not_mem_finset t\n    refine ⟨Finset.cons x t hx, hs.trans (Finset.subset_cons _), ?_⟩\n    simp [hx, ht]"},
+   {"name": "Fintype.subtypeEq",
+    "module": "Mathlib.Data.Fintype.Basic",
+    "content":
+    "/-- Short-circuit instance to decrease search for `Unique.fintype`,\nsince that relies on a subsingleton elimination for `Unique`. -/\ninstance Fintype.subtypeEq (y : α) : Fintype { x // x = y } :=\n  Fintype.subtype {y} (by simp)"},
+   {"name": "LO.System.Compact.finite_provable",
+    "module": "Foundation.Logic.System",
+    "content":
+    "lemma finite_provable {\u0000\u0000 : S} (h : \u0000\u0000 ⊢! f) : ∃ \u0000\u0000 : S, \u0000\u0000 ⊆ \u0000\u0000 ∧ Collection.Finite \u0000\u0000 ∧ \u0000\u0000 ⊢! f := by\n  rcases h with ⟨b⟩\n  exact ⟨φ b, φ_subset b, φ_finite b, ⟨φPrf b⟩⟩"},
+   {"name": "LO.System.FiniteContext.coe_subset_coe_iff",
+    "module": "Foundation.Logic.HilbertStyle.Context",
+    "content":
+    "@[simp] lemma coe_subset_coe_iff {Γ Δ : List F} : (Γ : FiniteContext F \u0000\u0000) ⊆ Δ ↔ Γ ⊆ Δ := iff_of_eq rfl"},
+   {"name": "prop",
+    "module": "Mathlib.Data.Fintype.EquivFin",
+    "content":
+    "instance prop (p : Prop) : Finite p :=\n  Finite.of_subsingleton"},
+   {"name": "prop",
+    "module": "Mathlib.Data.Fintype.EquivFin",
+    "content":
+    "instance prop (p : Prop) : Finite p :=\n  Finite.of_subsingleton"},
+   {"name": "Collection.Finite.of_subset",
+    "module": "Foundation.Vorspiel.Collection",
+    "content":
+    "lemma Finite.of_subset {a b : α} (ha : Finite a) (h : b ⊆ a) : Finite b :=\n  Set.Finite.subset ha (subset_iff_set_subset_set.mp h)"},
+   {"name": "LO.System.FiniteContext.Provable",
+    "module": "Foundation.Logic.HilbertStyle.Context",
+    "content":
+    "abbrev Provable (\u0000\u0000 : S) (Γ : List F) (φ : F) : Prop := (Γ : FiniteContext F \u0000\u0000) ⊢! φ"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Semiterm\n\nopen LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I) (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)",
+  "postscopes": "end LO.FirstOrder.Semiterm",
+  "informal_statement":
+  "If the metainference of Γ implies χ, then Γ metainferences the existence of a finite subtheory t of Γ such that t metainferences φ(t).",
+  "informal_proof":
+  "Given that the metainference Γ ⊢... χ holds, we aim to demonstrate that Γ also metainferences the existence of a finite subtheory t of Γ such that t ⊢... φ(t). \n\nFirst, consider the definition of FinSubtheory(Γ), which comprises all finite subsets of formulas from Γ. Since Γ metainferences χ, by the properties of metalogic, there exists a finite subset t of Γ that also satisfies the necessary conditions to metainfer φ(t). Specifically, due to the definition of FinSubtheory, t is a finite subset of Γ, and since χ holds for Γ, φ(t) must hold for this finite t. Therefore, Γ metainferences the existence of such a t where t metainferences φ(t).",
+  "id":
+  {"name": "LO.FirstOrder.Semiterm.val_Uprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n",
+   "compilationAlias":
+   "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n"},
+  "goal":
+  "n : Nat\nL : LO.FirstOrder.Language\nμ : Type v\nI : Type u\nA : I → Type u\ns : (i : I) → LO.FirstOrder.Structure L (A i)\n𝓤 : Ultrafilter I\ne : Fin n → LO.FirstOrder.Structure.Uprod A 𝓤\nε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\nt : LO.FirstOrder.Semiterm L μ n\n⊢ Eq (LO.FirstOrder.Semiterm.valm (LO.FirstOrder.Structure.Uprod A 𝓤) e ε t) { val := fun i => LO.FirstOrder.Semiterm.val (s i) (fun x => (e x).val i) (fun x => (ε x).val i) t }",
+  "content_sorry":
+  "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\nend Structure\n\nnamespace Semiterm\n\nopen Structure\n\nvariable (e : Fin n → Uprod A 𝓤) (ε : μ → Uprod A 𝓤)\n\nlemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n  by induction t <;> simp[*, val_func]\n\n",
+  "annotation":
+  "lemma val_Uprod (t : Semiterm L μ n) :\n    t.valm (Uprod A 𝓤) e ε = ⟨fun i ↦ t.val (s i) (fun x ↦ (e x).val i) (fun x ↦ (ε x).val i)⟩ :=\n     /-\n       n : Nat\n       L : LO.FirstOrder.Language\n       μ : Type v\n       I : Type u\n       A : I → Type u\n       s : (i : I) → LO.FirstOrder.Structure L (A i)\n       𝓤 : Ultrafilter I\n       e : Fin n → LO.FirstOrder.Structure.Uprod A 𝓤\n       ε : μ → LO.FirstOrder.Structure.Uprod A 𝓤\n       t : LO.FirstOrder.Semiterm L μ n\n       ⊢ Eq (LO.FirstOrder.Semiterm.valm (LO.FirstOrder.Structure.Uprod A 𝓤) e ε t) { …\n     -/\n                     /-\n                       🎉 no goals\n                     -/\n                     /-\n                       🎉 no goals\n                     -/\n  by induction t <;> simp[*, val_func]\n                     /-\n                       🎉 no goals\n                     -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LO.FirstOrder.Semiterm.val_func",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma val_func {k} (f : L.Func k) (v) :\n    val s e ε (func f v) = s.func f (fun i => (v i).val s e ε) := rfl",
+    "compilationAlias":
+    "lemma val_func {k} (f : L.Func k) (v) :\n    val s e ε (func f v) = s.func f (fun i => (v i).val s e ε) := rfl"},
+   {"name": "LO.FirstOrder.Semiterm.val",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def val (s : Structure L M) (e : Fin n → M) (ε : ξ → M) : Semiterm L ξ n → M\n  | #x       => e x\n  | &x       => ε x\n  | func f v => s.func f (fun i => (v i).val s e ε)",
+    "compilationAlias":
+    "def val (s : Structure L M) (e : Fin n → M) (ε : ξ → M) : Semiterm L ξ n → M\n  | #x       => e x\n  | &x       => ε x\n  | func f v => s.func f (fun i => (v i).val s e ε)"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+   {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+    "compilationAlias":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"},
+   {"name": "LO.FirstOrder.Structure.func_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n"},
+   {"name": "LO.FirstOrder.Structure.rel_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n"}]},
+ {"rag":
+  [{"name": "Rel.dom",
+    "module": "Mathlib.Data.Rel",
+    "content": "/-- Domain of a relation -/\ndef dom := { x | ∃ y, r x y }"},
+   {"name": "Part.Dom", "module": "Mathlib.Data.Part", "content": "Dom"},
+   {"name": "Rel.dom",
+    "module": "Mathlib.Data.Rel",
+    "content": "/-- Domain of a relation -/\ndef dom := { x | ∃ y, r x y }"},
+   {"name": "LO.FirstOrder.consequence_iff'",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma consequence_iff' {φ} :\n    T ⊨[Struc.{v, u} L] φ ↔ (∀ (M : Type v) [Nonempty M] [Structure L M] [M ⊧ₘ* T], M ⊧ₘ φ) :=\n  ⟨fun h _ _ s _ => Semantics.consequence_iff'.mp h s.toStruc,\n   fun h s hs => @h s.Dom s.nonempty s.struc hs⟩"},
+   {"name": "LO.FirstOrder.Semiformula",
+    "module": "Foundation.FirstOrder.Basic.Syntax.Formula",
+    "content":
+    "inductive Semiformula (L : Language) (ξ : Type*) : ℕ → Type _ where\n  | verum  {n} : Semiformula L ξ n\n  | falsum {n} : Semiformula L ξ n\n  | rel    {n} : {arity : ℕ} → L.Rel arity → (Fin arity → Semiterm L ξ n) → Semiformula L ξ n\n  | nrel   {n} : {arity : ℕ} → L.Rel arity → (Fin arity → Semiterm L ξ n) → Semiformula L ξ n\n  | and    {n} : Semiformula L ξ n → Semiformula L ξ n → Semiformula L ξ n\n  | or     {n} : Semiformula L ξ n → Semiformula L ξ n → Semiformula L ξ n\n  | all    {n} : Semiformula L ξ (n + 1) → Semiformula L ξ n\n  | ex     {n} : Semiformula L ξ (n + 1) → Semiformula L ξ n"},
+   {"name": "Part.dom_iff_mem",
+    "module": "Mathlib.Data.Part",
+    "content":
+    "theorem dom_iff_mem : ∀ {o : Part α}, o.Dom ↔ ∃ y, y ∈ o\n  | ⟨_, f⟩ => ⟨fun h => ⟨f h, h, rfl⟩, fun ⟨_, h, rfl⟩ => h⟩"},
+   {"name": "Part",
+    "module": "Mathlib.Data.Part",
+    "content":
+    "/-- `Part α` is the type of \"partial values\" of type `α`. It\n  is similar to `Option α` except the domain condition can be an\n  arbitrary proposition, not necessarily decidable. -/\nstructure Part.{u} (α : Type u) : Type u where\n  /-- The domain of a partial value -/\n  Dom : Prop\n  /-- Extract a value from a partial value given a proof of `Dom` -/\n  get : Dom → α"},
+   {"name": "LO.FirstOrder.Semiformula.all",
+    "module": "Foundation.FirstOrder.Basic.Syntax.Formula",
+    "content": "| all    {n} : Semiformula L ξ (n + 1) → Semiformula L ξ n"},
+   {"name": "LO.FirstOrder.Semiformula.verum",
+    "module": "Foundation.FirstOrder.Basic.Syntax.Formula",
+    "content": "| verum  {n} : Semiformula L ξ n"},
+   {"name": "Rel.dom",
+    "module": "Mathlib.Data.Rel",
+    "content": "/-- Domain of a relation -/\ndef dom := { x | ∃ y, r x y }"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "The `Semiformula.domain` is defined as the set of all indices `i` such that the formula `φ` is entailed by the structure `A_i` within the context `m`.",
+  "informal_proof":
+  "To prove the informal statement, we will demonstrate that the `Semiformula.domain` accurately captures all indices `i` where the entailment `A_i ⊧ₘ φ` holds.\n\n**Inclusion:** We first show that if `i` belongs to `Semiformula.domain`, then `A_i ⊧ₘ φ`. By the definition of `Semiformula.domain`, this is immediate, as membership in the domain directly corresponds to the condition `A_i ⊧ₘ φ`.\n\n**Exclusion:** Next, we demonstrate that if `A_i ⊧ₘ φ`, then `i` must be in `Semiformula.domain`. Once again, this follows directly from the definition, as the domain includes only those `i` that satisfy the entailment condition.\n\nTherefore, the `Semiformula.domain` precisely consists of all indices `i` where `φ` is entailed by `A_i` under the context `m`, aligning with our informal statement.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.rel_Uprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nI : Type u\nA : I → Type u\ns : (i : I) → LO.FirstOrder.Structure L (A i)\n𝓤 : Ultrafilter I\nk : Nat\nr : L.Rel k\nv : Fin k → LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Eq (LO.FirstOrder.Structure.rel r v) (Membership.mem 𝓤 (setOf fun i => LO.FirstOrder.Structure.rel r fun x => (v x).val i))",
+  "content_sorry":
+  "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := by sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := by exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+  "annotation":
+  "@[simp] lemma rel_Uprod {k} (r : L.Rel k) (v : Fin k → Uprod A 𝓤) :\n    Structure.rel r v ↔ {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤 := of_eq rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "of_eq",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem of_eq [IsRefl α r] : ∀ {a b}, a = b → r a b\n  | _, _, .refl _ => refl _",
+    "compilationAlias":
+    "theorem of_eq [IsRefl α r] : ∀ {a b}, a = b → r a b\n  | _, _, .refl _ => refl _"},
+   {"name": "LO.FirstOrder.Structure.rel",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  rel : ⦃k : ℕ⦄ → L.Rel k → (Fin k → M) → Prop",
+    "compilationAlias": "  rel : ⦃k : ℕ⦄ → L.Rel k → (Fin k → M) → Prop"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+   {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+    "compilationAlias":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"},
+   {"name": "LO.FirstOrder.Structure.func_Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+    "compilationAlias":
+    "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n"}]},
+ {"rag":
+  [{"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.iUnion₂_prod_const",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion₂_prod_const {s : ∀ i, κ i → Set α} {t : Set β} :\n    (⋃ (i) (j), s i j) ×ˢ t = ⋃ (i) (j), s i j ×ˢ t := by simp_rw [iUnion_prod_const]"},
+   {"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.iUnion_univ_pi",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion_univ_pi {ι : α → Type*} (t : (a : α) → ι a → Set (π a)) :\n    ⋃ x : (a : α) → ι a, pi univ (fun a => t a (x a)) = pi univ fun a => ⋃ j : ι a, t a j := by\n  ext\n  simp [Classical.skolem]"},
+   {"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.prod_iUnion₂",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem prod_iUnion₂ {s : Set α} {t : ∀ i, κ i → Set β} :\n    (s ×ˢ ⋃ (i) (j), t i j) = ⋃ (i) (j), s ×ˢ t i j := by simp_rw [prod_iUnion]"},
+   {"name": "Set.iUnion_prod'",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- Analogue of `iSup_prod` for sets. -/\nlemma iUnion_prod' (f : β × γ → Set α) : ⋃ x : β × γ, f x = ⋃ (i : β) (j : γ), f (i, j) :=\n  iSup_prod"},
+   {"name": "Set.iUnion_univ_pi",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion_univ_pi {ι : α → Type*} (t : (a : α) → ι a → Set (π a)) :\n    ⋃ x : (a : α) → ι a, pi univ (fun a => t a (x a)) = pi univ fun a => ⋃ j : ι a, t a j := by\n  ext\n  simp [Classical.skolem]"},
+   {"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "Set.iUnion_prod'",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- Analogue of `iSup_prod` for sets. -/\nlemma iUnion_prod' (f : β × γ → Set α) : ⋃ x : β × γ, f x = ⋃ (i : β) (j : γ), f (i, j) :=\n  iSup_prod"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "Let \\( I \\) be a non-empty index set and \\( \\{A_i\\}_{i \\in I} \\) be a family of non-empty sets. The uniform product of \\( A_i \\) over an ultrafilter \\( \\mathcal{U} \\) on \\( I \\) satisfies a formula \\( \\varphi \\) if and only if the set of all indices \\( i \\) for which \\( A_i \\) satisfies \\( \\varphi \\) is an element of \\( \\mathcal{U} \\).",
+  "informal_proof":
+  "We aim to show that the uniform product \\( \\prod_{\\mathcal{U}} A_i \\) satisfies the formula \\( \\varphi \\) if and only if the set of indices \\( I_\\varphi = \\{i \\in I \\mid A_i \\models \\varphi\\} \\) is in the ultrafilter \\( \\mathcal{U} \\).\n\n1. **Understanding Uniform Product**: The uniform product \\( \\prod_{\\mathcal{U}} A_i \\) is constructed by taking the Cartesian product of the families of sets weighted by the ultrafilter \\( \\mathcal{U} \\). Elements of \\( \\prod_{\\mathcal{U}} A_i \\) are equivalence classes of functions \\( f: I \\to \\bigcup A_i \\) where \\( f(i) \\in A_i \\), and two functions \\( f \\) and \\( g \\) are equivalent if \\( \\{i \\in I \\mid f(i) = g(i)\\} \\in \\mathcal{U} \\).\n\n2. **Logical Consequence in the Uniform Product**: The statement \\( \\prod_{\\mathcal{U}} A_i \\models \\varphi \\) means that for every function \\( f \\) representing an element in \\( \\prod_{\\mathcal{U}} A_i \\), \\( f \\) satisfies \\( \\varphi \\). Given the construction, this satisfaction is determined by the behaviors of the \\( A_i \\)s in a \"large\" subset of \\( I \\), as dictated by \\( \\mathcal{U} \\).\n\n3. **Characterization of \\( I_\\varphi \\)**: The set \\( I_\\varphi \\) contains all indices \\( i \\) where \\( A_i \\) individually satisfies \\( \\varphi \\). To ensure that \\( \\prod_{\\mathcal{U}} A_i \\models \\varphi \\), a necessary condition is that the set \\( I_\\varphi \\) is \"large\" enough, in the sense of being in \\( \\mathcal{U} \\). This is because if most \\( A_i \\)s satisfy \\( \\varphi \\), then any function \\( f \\) representing an element in \\( \\prod_{\\mathcal{U}} A_i \\) must have \\( f(i) = \\varphi \\) for most \\( i \\), hence \\( f \\) globally satisfies \\( \\varphi \\).\n\n4. **Equivalence**: \n   - **Forward Direction**: Assume \\( \\prod_{\\mathcal{U}} A_i \\models \\varphi \\). This means every function \\( f \\) in \\( \\prod_{\\mathcal{U}} A_i \\) satisfies \\( \\varphi \\). In particular, for almost all \\( i \\), \\( A_i \\) satisfies \\( \\varphi \\), meaning \\( I_\\varphi \\in \\mathcal{U} \\).\n   \n   - **Reverse Direction**: Assume \\( I_\\varphi \\in \\mathcal{U} \\). Then, for any function \\( f \\) in \\( \\prod_{\\mathcal{U}} A_i \\), since \\( f(i) \\in A_i \\) and \\( A_i \\models \\varphi \\) for \\( I_\\varphi \\), we have \\( f \\) satisfies \\( \\varphi \\) for most \\( i \\), hence \\( f \\) satisfies \\( \\varphi \\) globally.\n\nThe use of `simp` in the Lean4 code simplifies the proof by invoking known definitions and properties about ultrafilters and products, ultimately relying on the `Empty.eq_elim` lemma to handle cases where a certain condition fails, ensuring only the \"large\" set conditions are considered due to the ultrafilter's properties.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.func_Uprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+   "compilationAlias":
+   "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n"},
+  "goal":
+  "L : LO.FirstOrder.Language\nI : Type u\nA : I → Type u\ns : (i : I) → LO.FirstOrder.Structure L (A i)\n𝓤 : Ultrafilter I\nk : Nat\nf : L.Func k\nv : Fin k → LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Eq (LO.FirstOrder.Structure.func f v) { val := fun i => LO.FirstOrder.Structure.func f fun x => (v x).val i }",
+  "content_sorry":
+  "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := by sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := by exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+  "annotation":
+  "@[simp] lemma func_Uprod {k} (f : L.Func k) (v : Fin k → Uprod A 𝓤) :\n    Structure.func f v = ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩ := rfl\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "LO.FirstOrder.Structure.func",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  func : ⦃k : ℕ⦄ → L.Func k → (Fin k → M) → M",
+    "compilationAlias": "  func : ⦃k : ℕ⦄ → L.Func k → (Fin k → M) → M"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+   {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+    "compilationAlias":
+    "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"}]},
+ {"rag":
+  [{"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "LO.FirstOrder.Semiformula.eval_nrel₁",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "@[simp] lemma eval_nrel₁ {r : L.Rel 1} (t : Semiterm L ξ n) :\n    Eval s e ε (nrel r ![t]) ↔ ¬s.rel r ![t.val s e ε] := by\n  simp [eval_nrel]; apply of_eq; congr\n  funext i; cases' i using Fin.cases with i <;> simp"},
+   {"name": "Set.prod_iUnion₂",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem prod_iUnion₂ {s : Set α} {t : ∀ i, κ i → Set β} :\n    (s ×ˢ ⋃ (i) (j), t i j) = ⋃ (i) (j), s ×ˢ t i j := by simp_rw [prod_iUnion]"},
+   {"name": "Set.prod_iUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem prod_iUnion {s : Set α} {t : ι → Set β} : (s ×ˢ ⋃ i, t i) = ⋃ i, s ×ˢ t i := by\n  ext\n  simp"},
+   {"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "LO.FirstOrder.Semiformula.eval_exClosure",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "@[simp] lemma eval_exClosure {e'} {φ : Semiformula L ξ n'} :\n    Eval s e' ε (∃* φ) ↔ ∃ e, Eval s e ε φ := by\n  induction' n' with n' ih generalizing e' <;> simp [*, eq_finZeroElim, exClosure_succ]\n  constructor\n  · rintro ⟨e, x, h⟩; exact ⟨x :> e, h⟩\n  · rintro ⟨e, h⟩; exact ⟨Matrix.vecTail e, Matrix.vecHead e, by simpa using h⟩"},
+   {"name": "Set.pi_diff_pi_subset",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem pi_diff_pi_subset (i : Set α) (s t : ∀ a, Set (π a)) :\n    pi i s \\ pi i t ⊆ ⋃ a ∈ i, eval a ⁻¹' (s a \\ t a) := by\n  refine diff_subset_comm.2 fun x hx a ha => ?_\n  simp only [mem_diff, mem_pi, mem_iUnion, not_exists, mem_preimage, not_and, not_not,\n    eval_apply] at hx\n  exact hx.2 _ ha (hx.1 _ ha)"},
+   {"name": "LO.FirstOrder.Semiformula.eval_empty",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "@[simp] lemma eval_empty [h : IsEmpty o] (φ : Formula L o) :\n    Eval s e ε (@Rew.empty L o _ ξ n ▹ φ) ↔ Eval s ![] h.elim φ := by\n  simp [eval_rew, Function.comp_def, Matrix.empty_eq]\n  apply iff_of_eq; congr; funext x; exact h.elim' x"},
+   {"name": "LO.FirstOrder.Semiformula.evalm_uLift",
+    "module": "Foundation.FirstOrder.Basic.Model",
+    "content":
+    "lemma Semiformula.evalm_uLift {e : Fin n → ULift.{v'} M} {ε : ξ → ULift.{v'} M} {φ : Semiformula L ξ n} :\n    Semiformula.Evalm (ULift.{v'} M) e ε φ ↔ Semiformula.Evalm M (fun i ↦ (e i).down) (fun i ↦ (ε i).down) φ := by\n  induction φ using Semiformula.rec' <;>\n    simp [*, Semiformula.eval_rel, Semiformula.eval_nrel, Semiterm.valm_uLift, Matrix.comp_vecCons']"},
+   {"name": "LO.FirstOrder.Semiformula.eval_close₀",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma eval_close₀ [Nonempty M] (φ : SyntacticFormula L) :\n    Evalb s ![] (∀∀₀φ) ↔ ∀ f, Evalf s f φ := by\n  haveI : Inhabited M := Classical.inhabited_of_nonempty inferInstance\n  simp [Semiformula.close₀, ←eval_toEmpty (f := default), eval_close]"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "For any family of sets $\\{A_i\\}_{i \\in I}$, the evaluation of a formula $\\phi$ in the Uproduct of this family holds if and only if the set of indices $i$ for which $\\phi$ evaluated in $A_i$ holds is an element of the model $\\mathcal{U}$.",
+  "informal_proof":
+  "To establish this equivalence, we consider the evaluation of the formula $\\phi$ in the Uproduct of the family $\\{A_i\\}_{i \\in I}$. By the definition of evaluation in the Uproduct (encoded in the `eval_Uprod` simp lemma), the satisfaction of $\\phi$ in this structure directly corresponds to the membership of the set $\\{i \\mid \\phi^s(i) \\} (A_i) \\in \\mathcal{U}$. This correspondence is formalized by the simplification rule `simp` in Lean4, which effectively reduces the evaluation condition to the membership condition stated. Thus, the equivalence holds due to the fundamental properties of Uproduct evaluation as captured by these simplification lemmas.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.instNonemptyUprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+   "compilationAlias":
+   "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : Nonempty I\ninst✝ : ∀ (i : I), Nonempty (A i)\n⊢ Nonempty (LO.FirstOrder.Structure.Uprod A 𝓤)",
+  "content_sorry":
+  "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := by sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := by exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\ninstance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+  "annotation":
+  "instance [Nonempty I] [(i : I) → Nonempty (A i)] : Nonempty (Uprod A 𝓤) := Nonempty.map (⟨·⟩) inferInstance\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "inferInstance",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
+    "compilationAlias":
+    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"},
+   {"name": "Nonempty.map",
+    "module": "Mathlib.Logic.Nonempty",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given `f : α → β`, if `α` is nonempty then `β` is also nonempty.\n`Nonempty` cannot be a `functor`, because `Functor` is restricted to `Type`. -/\ntheorem Nonempty.map {α β} (f : α → β) : Nonempty α → Nonempty β\n  | ⟨h⟩ => ⟨f h⟩",
+    "compilationAlias":
+    "/-- Given `f : α → β`, if `α` is nonempty then `β` is also nonempty.\n`Nonempty` cannot be a `functor`, because `Functor` is restricted to `Type`. -/\ntheorem Nonempty.map {α β} (f : α → β) : Nonempty α → Nonempty β\n  | ⟨h⟩ => ⟨f h⟩"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.UprodStruc",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+    "compilationAlias":
+    "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"}]},
+ {"rag":
+  [{"name": "Set.iUnion_setOf",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion_setOf (P : ι → α → Prop) : ⋃ i, { x : α | P i x } = { x : α | ∃ i, P i x } := by\n  ext\n  exact mem_iUnion"},
+   {"name": "Set.iUnion_eq_univ_iff",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion_eq_univ_iff {f : ι → Set α} : ⋃ i, f i = univ ↔ ∀ x, ∃ i, x ∈ f i := by\n  simp only [eq_univ_iff_forall, mem_iUnion]"},
+   {"name": "Set.mem_iUnion₂",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem mem_iUnion₂ {x : γ} {s : ∀ i, κ i → Set γ} : (x ∈ ⋃ (i) (j), s i j) ↔ ∃ i j, x ∈ s i j := by\n  simp_rw [mem_iUnion]"},
+   {"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.iUnion_prod'",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- Analogue of `iSup_prod` for sets. -/\nlemma iUnion_prod' (f : β × γ → Set α) : ⋃ x : β × γ, f x = ⋃ (i : β) (j : γ), f (i, j) :=\n  iSup_prod"},
+   {"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.iUnion_univ_pi",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion_univ_pi {ι : α → Type*} (t : (a : α) → ι a → Set (π a)) :\n    ⋃ x : (a : α) → ι a, pi univ (fun a => t a (x a)) = pi univ fun a => ⋃ j : ι a, t a j := by\n  ext\n  simp [Classical.skolem]"},
+   {"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "Set.iUnion_univ_pi",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion_univ_pi {ι : α → Type*} (t : (a : α) → ι a → Set (π a)) :\n    ⋃ x : (a : α) → ι a, pi univ (fun a => t a (x a)) = pi univ fun a => ⋃ j : ι a, t a j := by\n  ext\n  simp [Classical.skolem]"},
+   {"name": "Set.pi_diff_pi_subset",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem pi_diff_pi_subset (i : Set α) (s t : ∀ a, Set (π a)) :\n    pi i s \\ pi i t ⊆ ⋃ a ∈ i, eval a ⁻¹' (s a \\ t a) := by\n  refine diff_subset_comm.2 fun x hx a ha => ?_\n  simp only [mem_diff, mem_pi, mem_iUnion, not_exists, mem_preimage, not_and, not_not,\n    eval_apply] at hx\n  exact hx.2 _ ha (hx.1 _ ha)"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "tags and the informal proof within <PROOF> tags, as per the instructions. Don't forget to wrap everything correctly.\n\nOkay, time to put this all together into a coherent informal explanation of the formal proof.\n</think>\n\n<STATEMENT>\n\nLet us consider a family of structures $\\{A_i\\}_{i \\in I}$ and an ultrafilter $\\mathcal{U}$ on the index set $I$. We aim to demonstrate that the ultraproduct $\\prod_{\\mathcal{U}} A_i$ satisfies a given formula $\\phi$ in the formal language if and only if the set of indices $i \\in I$ for which each $A_i$ individually satisfies $\\phi$ is an element of the ultrafilter $\\mathcal{U}$.",
+  "informal_proof":
+  "tags, as per the instructions. Don't forget to wrap everything correctly.\n\nOkay, time to put this all together into a coherent informal explanation of the formal proof.\n</think>\n\n<STATEMENT>\n\nLet us consider a family of structures $\\{A_i\\}_{i \\in I}$ and an ultrafilter $\\mathcal{U}$ on the index set $I$. We aim to demonstrate that the ultraproduct $\\prod_{\\mathcal{U}} A_i$ satisfies a given formula $\\phi$ in the formal language if and only if the set of indices $i \\in I$ for which each $A_i$ individually satisfies $\\phi$ is an element of the ultrafilter $\\mathcal{U}$.\n\n</STATEMENT>\n\n<PROOF>\n\nTo understand this equivalence, let us begin by grasping the concept of an ultraproduct. An ultraproduct is a construction that combines a family of mathematical structures into a new structure, using an ultrafilter to specify which aspects of the component structures are \"important\" or \"predominant\" in the resulting structure. Intuitively, elements in the ultraproduct are sequences where most components \" behave consistently\" with respect to the ultrafilter.\n\nThe formula $\\phi$ is a statement in a formal language, and saying that the ultraproduct $\\prod_{\\mathcal{U}} A_i$ satisfies $\\phi$ means that $\\phi$ holds true in this new, combined structure. On the other hand, the set $\\{i \\in I \\mid A_i \\text{ satisfies } \\phi\\}$ represents all the indices where the individual structures $A_i$ satisfy $\\phi$. The ultrafilter $\\mathcal{U}$ acts as a way to \"emphasize\" certain indices over others.\n\nThe equivalence stated in the problem can be intuitively understood as follows: if the ultraproduct $\\prod_{\\mathcal{U}} A_i$ satisfies $\\phi$, it is because the ultrafilter $\\mathcal{U}$ predominantly selects indices where $\\phi$ holds across the component structures $A_i$. Conversely, if $\\mathcal{U}$ predominantly contains the indices where each $A_i$ satisfies $\\phi$, then the ultraproduct will naturally satisfy $\\phi$ as well.\n\nThis relationship is significant because it bridges the behavior of individual structures to the behavior of their combination, offering a powerful tool to analyze properties across a family of structures using the properties of the individual members and the selector properties of the ultrafilter.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.UprodStruc",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+   "compilationAlias":
+   "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n"},
+  "goal": "",
+  "content_sorry":
+  "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := by sorry",
+  "content_full_by_exact":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := by exact?",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\ninstance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+  "annotation":
+  "instance UprodStruc : Structure L (Uprod A 𝓤) where\n  func := fun _ f v => ⟨fun i ↦ (s i).func f (fun x ↦ (v x).val i)⟩\n  rel  := fun _ r v => {i | (s i).rel r (fun x ↦ (v x).val i)} ∈ 𝓤\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LO.FirstOrder.Structure.rel",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  rel : ⦃k : ℕ⦄ → L.Rel k → (Fin k → M) → Prop",
+    "compilationAlias": "  rel : ⦃k : ℕ⦄ → L.Rel k → (Fin k → M) → Prop"},
+   {"name": "LO.FirstOrder.Structure.func",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "  func : ⦃k : ℕ⦄ → L.Func k → (Fin k → M) → M",
+    "compilationAlias": "  func : ⦃k : ℕ⦄ → L.Func k → (Fin k → M) → M"}],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"}]},
+ {"rag":
+  [{"name": "Matrix.comp₃",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "content":
+    "@[simp] lemma comp₃ (a₁ a₂ a₃ : α) : f ∘ ![a₁, a₂, a₃] = ![f a₁, f a₂, f a₃] := by simp [comp_vecCons'']"},
+   {"name": "Matrix.comp_vecCons",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "content":
+    "lemma comp_vecCons (f : α → β) (a : α) (s : Fin n → α) : (fun x => f $ (a :> s) x) = f a :> f ∘ s :=\nfunext (fun i => cases (by simp) (by simp) i)"},
+   {"name": "Matrix.comp_vecCons''",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "content":
+    "lemma comp_vecCons'' (f : α → β) (a : α) (s : Fin n → α) : f ∘ (a :> s) = f a :> f ∘ s :=\n  comp_vecCons f a s"},
+   {"name": "Matrix.vecHead_comp",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "content":
+    "@[simp] lemma vecHead_comp (f : α → β) (v : Fin (n + 1) → α) : vecHead (f ∘ v) = f (vecHead v) :=\n  by simp [vecHead]"},
+   {"name": "LO.FirstOrder.TransitiveRewriting.comp_app",
+    "module": "Foundation.Logic.Predicate.Rew",
+    "content": "comp_app"},
+   {"name": "Matrix.comp₂",
+    "module": "Foundation.Vorspiel.Vorspiel",
+    "content":
+    "@[simp] lemma comp₂ (a₁ a₂ : α) : f ∘ ![a₁, a₂] = ![f a₁, f a₂] := by simp [comp_vecCons'']"},
+   {"name": "LO.FirstOrder.Structure.Eq.eqv_funcExt",
+    "module": "Foundation.FirstOrder.Basic.Eq",
+    "content":
+    "lemma eqv_funcExt {k} (f : L.Func k) {v w : Fin k → M} (h : ∀ i, eqv L (v i) (w i)) :\n    eqv L (func f v) (func f w) := by\n  haveI : Inhabited M := Classical.inhabited_of_nonempty inferInstance\n  have := H.realize _ (eqAxiom.funcExt f (L := L)) (fun x ↦ Matrix.iget (Matrix.vecAppend rfl v w) x)\n  have : (∀ i, op(=).val ![v i, w i]) → op(=).val ![func f v, func f w] := by {\n    simpa [models_def, Matrix.vecAppend_eq_ite, Semiterm.val_func, Matrix.iget,\n      show ∀ i : Fin k, i < k + k from fun i ↦ lt_of_lt_of_le i.prop (by simp)] using\n      H.realize _ (eqAxiom.funcExt f (L := L)) (fun x ↦ Matrix.iget (Matrix.vecAppend rfl v w) x) }\n  exact this h"},
+   {"name": "Matrix.cons_vec_bit0_eq_alt0",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "content":
+    "@[simp]\ntheorem cons_vec_bit0_eq_alt0 (x : α) (u : Fin n → α) (i : Fin (n + 1)) :\n    vecCons x u (i + i) = vecAlt0 rfl (vecAppend rfl (vecCons x u) (vecCons x u)) i := by\n  rw [vecAlt0_vecAppend]; rfl"},
+   {"name": "Matrix.vecAlt0_vecAppend",
+    "module": "Mathlib.Data.Fin.VecNotation",
+    "content":
+    "theorem vecAlt0_vecAppend (v : Fin n → α) :\n    vecAlt0 rfl (vecAppend rfl v v) = v ∘ (fun n ↦ n + n) := by\n  ext i\n  simp_rw [Function.comp, vecAlt0, vecAppend_eq_ite]\n  split_ifs with h <;> congr\n  · rw [Fin.val_mk] at h\n    exact (Nat.mod_eq_of_lt h).symm\n  · rw [Fin.val_mk, not_lt] at h\n    simp only [Fin.ext_iff, Fin.val_add, Fin.val_mk, Nat.mod_eq_sub_mod h]\n    refine (Nat.mod_eq_of_lt ?_).symm\n    omega"},
+   {"name": "Nat.Primrec'.comp",
+    "module": "Mathlib.Computability.Primrec",
+    "content":
+    "| comp {m n f} (g : Fin n → List.Vector ℕ m → ℕ) :\n      Primrec' f → (∀ i, Primrec' (g i)) → Primrec' fun a => f (List.Vector.ofFn fun i => g i a)"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "For any tuple \\( A : I \\to A \\) and any index \\( i : I \\), applying the function \\( e \\) and then taking the \\( i \\)-th element is equivalent to first applying \\( e \\) to \\( A \\) and then taking the \\( i \\)-th element. This equality holds true when considering the corresponding components of the resulting vectors.",
+  "informal_proof":
+  "First, we utilize the definition of function composition provided by the `Matrix.comp_vecCons` lemma. This lemma states that applying a function and then taking the \\( i \\)-th component is the same as taking the \\( i \\)-th component after applying the function. We then simplify both sides of the equation using `Function.comp_def`, which breaks down the composition into its basic components. This simplification reveals that both sides of the equation reduce to the same expression, thereby proving the desired equality.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.Uprod.noConfusion",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+   "compilationAlias":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : SizeOf I\ninst✝ : (a : I) → SizeOf (A a)\nt : LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Nat",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "annotation":
+  "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"}]},
+ {"rag":
+  [{"name": "LO.FirstOrder.Semiterm.valm",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "abbrev valm (M : Type w) [s : Structure L M] {n} (e : Fin n → M) (ε : ξ → M) : Semiterm L ξ n → M := val s e ε"},
+   {"name": "LO.FirstOrder.Semiterm.val",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "def val (s : Structure L M) (e : Fin n → M) (ε : ξ → M) : Semiterm L ξ n → M\n  | #x       => e x\n  | &x       => ε x\n  | func f v => s.func f (fun i => (v i).val s e ε)"},
+   {"name": "LO.FirstOrder.Structure.HomClass.val_term",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Elementary",
+    "content":
+    "lemma val_term (e : Fin n → M₁) (ε : ξ → M₁) (t : Semiterm L ξ n) :\n    φ (t.val s₁ e ε) = t.val s₂ (φ ∘ e) (φ ∘ ε) := by\n  induction t <;> simp [*, Semiterm.val_func, HomClass.func, Function.comp_def]"},
+   {"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "LO.FirstOrder.Semiformula.eval_operator₂",
+    "module": "Foundation.FirstOrder.Basic.Operator",
+    "content":
+    "@[simp] lemma eval_operator₂ {o : Operator L 2} {t₁ t₂ : Semiterm L ξ n} :\n    Eval s e ε (o.operator ![t₁, t₂]) ↔ o.val ![t₁.val s e ε, t₂.val s e ε] := by\n  simp [eval_operator]; apply of_eq; congr; funext i; cases' i using Fin.cases with i <;> simp"},
+   {"name": "LO.FirstOrder.Semiterm.val_operator₂",
+    "module": "Foundation.FirstOrder.Basic.Operator",
+    "content":
+    "@[simp] lemma val_operator₂ (o : Operator L 2) (t u) :\n    val s e ε (o.operator ![t, u]) = o.val ![t.val s e ε, u.val s e ε] :=\n  by simp [val_operator]; congr; funext i; cases' i using Fin.cases with i <;> simp"},
+   {"name": "LO.FirstOrder.Semiterm.val_rewrite",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma val_rewrite (f : μ₁ → Semiterm L μ₂ n) (t : Semiterm L μ₁ n) :\n    (Rew.rewrite f t).val s e ε₂ = t.val s e (fun x => (f x).val s e ε₂) :=\n  by simp [val_rew]; congr"},
+   {"name": "LO.FirstOrder.Semiterm.val_bvar",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "@[simp] lemma val_bvar (x) : val s e ε (#x : Semiterm L ξ n) = e x := rfl"},
+   {"name": "LO.FirstOrder.Semiformula.eval_rel",
+    "module": "Foundation.FirstOrder.Basic.Semantics.Semantics",
+    "content":
+    "lemma eval_rel {k} {r : L.Rel k} {v} :\n    Eval s e ε (rel r v) ↔ s.rel r (fun i => Semiterm.val s e ε (v i)) := of_eq rfl"},
+   {"name": "LO.FirstOrder.Semiterm.valm_uLift",
+    "module": "Foundation.FirstOrder.Basic.Model",
+    "content":
+    "lemma Semiterm.valm_uLift {e : Fin n → ULift.{v'} M} {ε : ξ → ULift.{v'} M} {t : Semiterm L ξ n} :\n    Semiterm.valm (ULift.{v'} M) e ε t = ⟨Semiterm.valm M (fun i ↦ (e i).down) (fun i ↦ (ε i).down) t⟩ := by\n  induction t <;> simp [*, Semiterm.val_func]"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "For any semiterm `t` of type `Uprod A \u0000\u0000`, the valuation `t.valm` is equal to the function that maps each index `i` to `t.val(s(i))(ε(i))`, where `s(i)` and `ε(i)` are appropriately defined functions and terms indexed by `i`.",
+  "informal_proof":
+  "To prove this statement, we will use induction on the structure of the semiterm `t`.\n\n**Base Case: `t` is an atomic term.**\n\nIf `t` is an atomic term, say `x`, then `t.val` simply returns the value of `x`. In the case of `Uprod A \u0000\u0000`, each term `t` is constructed from a pair `(a, ε)`, where `a` has type `A` and `ε` is a family of terms indexed by the same type as `a`. Therefore, applying `t.val` to `a` and `ε` yields the correct valuation for each index `i`.\n\n**Inductive Step:**\n\nAssume that the statement holds for all terms of type `t'` where `t'` is structurally simpler than `t`. We need to show that it holds for `t` when it is constructed using operations on other terms.\n\nSuppose `t` is a composition of operations, such as projections or constructors. By the induction hypothesis, each component term in `t` is correctly valued according to the definition. When we apply the operations to form `t`, their valuations must align with the construction of `Uprod A \u0000\u0000` and the pairing of `s(i)` and `ε(i)` for each index `i`.\n\nFor example, if `t` is a projection operation selecting the first component, then the valuation `t.valm` will correspond exactly to `t.val(s(i))(ε(i))` for the first component, while the second component `ε(i)` is appropriately taken from the pair.\n\nBy ensuring that each operation respects the valuation rules and aligns with the structure of `Uprod A \u0000\u0000`, the induction step holds.\n\n**Conclusion:**\n\nBy induction on the structure of `t`, we have shown that for any semiterm `t` of type `Uprod A \u0000\u0000`, the valuation `t.valm` is equal to the function that maps each index `i` to `t.val(s(i))(ε(i))`.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.Uprod.recOn",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+   "compilationAlias":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : SizeOf I\ninst✝ : (a : I) → SizeOf (A a)\nt : LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Nat",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "annotation":
+  "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.rec",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "recursor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"}]},
+ {"rag":
+  [{"name": "Set.exists_set_mem_of_union_eq_top",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem exists_set_mem_of_union_eq_top {ι : Type*} (t : Set ι) (s : ι → Set β)\n    (w : ⋃ i ∈ t, s i = ⊤) (x : β) : ∃ i ∈ t, x ∈ s i := by\n  have p : x ∈ ⊤ := Set.mem_univ x\n  rw [← w, Set.mem_iUnion] at p\n  simpa using p"},
+   {"name": "Set.nonempty_of_union_eq_top_of_nonempty",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem nonempty_of_union_eq_top_of_nonempty {ι : Type*} (t : Set ι) (s : ι → Set α)\n    (H : Nonempty α) (w : ⋃ i ∈ t, s i = ⊤) : t.Nonempty := by\n  obtain ⟨x, m, -⟩ := exists_set_mem_of_union_eq_top t s w H.some\n  exact ⟨x, m⟩"},
+   {"name": "Set.exists_set_mem_of_union_eq_top",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem exists_set_mem_of_union_eq_top {ι : Type*} (t : Set ι) (s : ι → Set β)\n    (w : ⋃ i ∈ t, s i = ⊤) (x : β) : ∃ i ∈ t, x ∈ s i := by\n  have p : x ∈ ⊤ := Set.mem_univ x\n  rw [← w, Set.mem_iUnion] at p\n  simpa using p"},
+   {"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.image_projection_prod",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem image_projection_prod {ι : Type*} {α : ι → Type*} {v : ∀ i : ι, Set (α i)}\n    (hv : (pi univ v).Nonempty) (i : ι) :\n    ((fun x : ∀ i : ι, α i => x i) '' ⋂ k, (fun x : ∀ j : ι, α j => x k) ⁻¹' v k) = v i := by\n  classical\n    apply Subset.antisymm\n    · simp [iInter_subset]\n    · intro y y_in\n      simp only [mem_image, mem_iInter, mem_preimage]\n      rcases hv with ⟨z, hz⟩\n      refine ⟨Function.update z i y, ?_, update_self i y z⟩\n      rw [@forall_update_iff ι α _ z i y fun i t => t ∈ v i]\n      exact ⟨y_in, fun j _ => by simpa using hz j⟩"},
+   {"name": "Ultrafilter.eventually_exists_iff",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "lemma eventually_exists_iff [Finite β] {P : β → α → Prop} :\n    (∀ᶠ i in f, ∃ a, P a i) ↔ ∃ a, ∀ᶠ i in f, P a i := by\n  simpa using eventually_exists_mem_iff (f := f) (P := P) Set.finite_univ"},
+   {"name": "Set.iUnion₂_subset",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion₂_subset {s : ∀ i, κ i → Set α} {t : Set α} (h : ∀ i j, s i j ⊆ t) :\n    ⋃ (i) (j), s i j ⊆ t :=\n  iUnion_subset fun x => iUnion_subset (h x)"},
+   {"name": "List.mem_finRange",
+    "module": "Mathlib.Data.List.FinRange",
+    "content":
+    "@[simp]\ntheorem mem_finRange {n : ℕ} (a : Fin n) : a ∈ finRange n := by\n  rw [finRange_eq_pmap_range]\n  exact mem_pmap.2\n    ⟨a.1, mem_range.2 a.2, by\n      cases a\n      rfl⟩"},
+   {"name": "Set.setOf_exists",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem setOf_exists (p : ι → β → Prop) : { x | ∃ i, p i x } = ⋃ i, { x | p i x } :=\n  ext fun _ => mem_iUnion.symm"},
+   {"name": "Set.iUnion₂_subset_iUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem iUnion₂_subset_iUnion (κ : ι → Sort*) (s : ι → Set α) :\n    ⋃ (i) (_ : κ i), s i ⊆ ⋃ i, s i :=\n  iUnion_mono fun _ => iUnion_subset fun _ => Subset.rfl"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "For any relation \\( r \\) on the set \\( L \\) and any family of elements \\( v(i) \\) in \\( Uprod A \u0000\u0000 \\), the relation \\( r \\) holds for all \\( v(i) \\) if and only if the set of indices \\( i \\) for which \\( r \\) holds between \\( v(i) \\) is an element of the universe \\( \u0000\u0000 \\).",
+  "informal_proof":
+  "To establish this statement, we proceed in two directions.\n\n**Forward Direction**:  \nAssume that on all elements \\( v(i) \\), the relation \\( r \\) holds, i.e., \\( ∀i, r(v(i)) \\).\n\nSince the set of indices \\( \\{i \\mid r(v(i))\\} \\) includes all \\( i \\) where \\( r \\) holds, and given that \\( r \\) holds for all \\( v(i) \\), this set essentially includes all indices in \\( Fin k \\). Therefore, this set is not just a member of \\( \u0000\u0000 \\), but in fact, it contains \\( Fin k \\) entirely. This implies that \\( \\{i \\mid r(v(i))\\} \\) is an element of \\( \u0000\u0000 \\).\n\n**Backward Direction**:  \nConversely, assume that \\( \\{i \\mid r(v(i))\\} \\) is an element of \\( \u0000\u0000 \\).\n\nSince the set \\( \\{i \\mid r(v(i))\\} \\) is in \\( \u0000\u0000 \\), and it represents all indices where \\( r \\) holds for \\( v(i) \\), it follows that \\( r \\) holds for every \\( v(i) \\) (given that all such indices are included). Thus, \\( r \\) holds for all \\( v(i) \\).\n\nHence, the statement is proven in both directions.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.Uprod.rec",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "recursor",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+   "compilationAlias":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : SizeOf I\ninst✝ : (a : I) → SizeOf (A a)\nt : LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Nat",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "annotation":
+  "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "inductive",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"}]},
+ {"rag":
+  [{"name": "LO.FirstOrder.BinderNotation.unexpsnderAdd",
+    "module": "Foundation.FirstOrder.Basic.BinderNotation",
+    "content":
+    "@[app_unexpander Semiterm.Operator.Add.add]\ndef unexpsnderAdd : Unexpander\n  | `($_) => `(op(+))"},
+   {"name": "Multiset.countAddMonoidHom",
+    "module": "Mathlib.Algebra.Order.Group.Multiset",
+    "content":
+    "/-- `count a`, the multiplicity of `a` in a multiset, promoted to an `AddMonoidHom`. -/\ndef countAddMonoidHom (a : α) : Multiset α →+ ℕ :=\n  countPAddMonoidHom (a = ·)"},
+   {"name": "one_sub_natCast_zsmul",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "content": "to_additive one_sub_natCast_zsmul"},
+   {"name": "seqOfForallFinsetExistsAux",
+    "module": "Mathlib.Data.Fintype.Basic",
+    "content":
+    "/-- Auxiliary definition to show `exists_seq_of_forall_finset_exists`. -/\nnoncomputable def seqOfForallFinsetExistsAux {α : Type*} [DecidableEq α] (P : α → Prop)\n    (r : α → α → Prop) (h : ∀ s : Finset α, ∃ y, (∀ x ∈ s, P x) → P y ∧ ∀ x ∈ s, r x y) : ℕ → α\n  | n =>\n    Classical.choose\n      (h\n        (Finset.image (fun i : Fin n => seqOfForallFinsetExistsAux P r h i)\n          (Finset.univ : Finset (Fin n))))"},
+   {"name": "LO.FirstOrder.Semiformula.qr_all",
+    "module": "Foundation.FirstOrder.Basic.Syntax.Formula",
+    "content":
+    "@[simp] lemma qr_all (φ : Semiformula L ξ (n + 1)) : (∀' φ).qr = φ.qr + 1 := rfl"},
+   {"name": "Mathlib.Notation3.DelabKey.other",
+    "module": "Mathlib.Util.Notation3",
+    "content": "| other (key : Name)"},
+   {"name": "isWellOrder_lt",
+    "module": "Mathlib.Order.RelClasses",
+    "content":
+    "instance (priority := 100) isWellOrder_lt [LinearOrder α] [WellFoundedLT α] :\n    IsWellOrder α (· < ·) where"},
+   {"name": "Set.iInter_exists",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "@[simp]\ntheorem iInter_exists {p : ι → Prop} {f : Exists p → Set α} :\n    ⋂ x, f x = ⋂ (i) (h : p i), f ⟨i, h⟩ :=\n  iInf_exists"},
+   {"name": "Additive.canonicallyOrderedAdd",
+    "module": "Mathlib.Algebra.Order.Monoid.TypeTags",
+    "content":
+    "instance Additive.canonicallyOrderedAdd\n    [Monoid α] [PartialOrder α] [CanonicallyOrderedMul α] :\n    CanonicallyOrderedAdd (Additive α) where\n  le_self_add _ _ := le_self_mul (α := α)"},
+   {"name": "LO.FirstOrder.Language.Hom.add₂_star",
+    "module": "Foundation.Logic.Predicate.Language",
+    "content":
+    "@[simp] lemma add₂_star (L₁ : Language) (L₂ : Language) [Star L₂] :\n    (add₂ L₁ L₂).func Star.star = Star.star := rfl"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "For every natural number \\( n \\), there exists a prime number \\( p \\) such that \\( p \\) is greater than \\( n \\). Equivalently, there are infinitely many prime numbers.",
+  "informal_proof":
+  "Let \\( n \\) be an arbitrary natural number. We consider the number \\( (n + 1)! + 1 \\), where \\( (n + 1)! \\) denotes the factorial of \\( n + 1 \\). Since \\( (n + 1)! \\) is the product of all positive integers up to \\( n + 1 \\), \\( (n + 1)! + 1 \\) is at least 2, so it must have at least one prime factor, say \\( p \\).\n\nAssume, for contradiction, that \\( p \\) is not greater than \\( n \\). Then, \\( p \\) is less than or equal to \\( n \\), which implies that \\( p \\) divides \\( (n + 1)! \\). Since \\( p \\) also divides \\( (n + 1)! + 1 \\), it must divide their difference, which is 1. This implies that \\( p \\) divides 1, which is impossible because the only divisor of 1 is 1 itself, and all prime numbers are greater than 1. This contradiction shows that our initial assumption is false, hence \\( p \\) must be greater than \\( n \\).\n\nTherefore, for every natural number \\( n \\), there exists a prime number \\( p \\) such that \\( p > n \\), proving that there are infinitely many prime numbers.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.Uprod",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "inductive",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+   "compilationAlias":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : SizeOf I\ninst✝ : (a : I) → SizeOf (A a)\nt : LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Nat",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "annotation":
+  "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+   {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"}]},
+ {"rag":
+  [{"name": "div_div_cancel'",
+    "module": "Mathlib.Algebra.GroupWithZero.Units.Basic",
+    "content":
+    "@[deprecated (since := \"2024-11-25\")] alias div_div_cancel' := div_div_cancel₀"},
+   {"name": "CanonicallyLinearOrderedCommMonoid.rec",
+    "module": "Mathlib.Algebra.Order.Monoid.Canonical.Defs",
+    "content":
+    "/-- A canonically linear-ordered monoid is a canonically ordered monoid\n    whose ordering is a linear order. -/\n@[to_additive,\n  deprecated \"Use `[LinearOrderedCommMonoid α] [CanonicallyOrderedMul α]` instead.\"\n  (since := \"2025-01-13\")]\nstructure CanonicallyLinearOrderedCommMonoid (α : Type*)\n  extends CanonicallyOrderedCommMonoid α, LinearOrderedCommMonoid α"},
+   {"name": "Fin.pred_le_iff",
+    "module": "Mathlib.Data.Fin.Basic",
+    "content":
+    "theorem pred_le_iff {j : Fin n} {i : Fin (n + 1)} (hi : i ≠ 0) : pred i hi ≤ j ↔ i ≤ succ j := by\n  rw [← succ_le_succ_iff, succ_pred]"},
+   {"name": "hom_coe_pow",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "content":
+    "/-- An auxiliary lemma that can be used to prove `⇑(f ^ n) = ⇑f^[n]`. -/\n@[to_additive]\nlemma hom_coe_pow {F : Type*} [Monoid F] (c : F → M → M) (h1 : c 1 = id)\n    (hmul : ∀ f g, c (f * g) = c f ∘ c g) (f : F) : ∀ n, c (f ^ n) = (c f)^[n]\n  | 0 => by\n    rw [pow_zero, h1]\n    rfl\n  | n + 1 => by rw [pow_succ, iterate_succ, hmul, hom_coe_pow c h1 hmul f n]"},
+   {"name": "CommRing",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "content":
+    "/-- A commutative ring is a ring with commutative multiplication. -/\nclass CommRing (α : Type u) extends Ring α, CommMonoid α"},
+   {"name": "OrderDual.orderedCancelCommMonoid",
+    "module": "Mathlib.Algebra.Order.Monoid.OrderDual",
+    "content":
+    "@[to_additive]\ninstance orderedCancelCommMonoid [OrderedCancelCommMonoid α] : OrderedCancelCommMonoid αᵒᵈ :=\n  { le_of_mul_le_mul_left := fun _ _ _ : α => le_of_mul_le_mul_left' }"},
+   {"name": "CommMagma.to_isCommutative",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "content":
+    "@[to_additive]\ninstance CommMagma.to_isCommutative [CommMagma G] : Std.Commutative (α := G) (· * ·) := ⟨mul_comm⟩"},
+   {"name": "Set.injOn_pair",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "@[simp] lemma injOn_pair {b : α} : InjOn f {a, b} ↔ f a = f b → a = b := by unfold InjOn; aesop"},
+   {"name": "Lean.Elab.Tactic.liftMetaMAtMain",
+    "module": "Lean.Elab.Tactic.Basic",
+    "content":
+    "@[inline] def liftMetaMAtMain (x : MVarId → MetaM α) : TacticM α := do\n  withMainContext do x (← getMainGoal)"},
+   {"name": "Fin.castAdd_inj",
+    "module": "Mathlib.Data.Fin.Basic",
+    "content":
+    "@[simp] lemma castAdd_inj {a b : Fin m} : castAdd n a = castAdd n b ↔ a = b := by simp [Fin.ext_iff]"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "For any two propositions \\( a \\) and \\( b \\), the conjunction \\( a \\land b \\) is equivalent to \\( b \\land a \\).",
+  "informal_proof":
+  "We aim to show that for any two propositions \\( a \\) and \\( b \\), the conjunction \\( a \\land b \\) is equivalent to \\( b \\land a \\). To do this, we need to demonstrate both directions of the equivalence: that \\( a \\land b \\) implies \\( b \\land a \\) and that \\( b \\land a \\) implies \\( a \\land b \\).\n\nFirst, assume that \\( a \\land b \\) is true. By the definition of conjunction, this means that both \\( a \\) and \\( b \\) are true. Therefore, swapping their order, \\( b \\land a \\) is also true because both \\( b \\) and \\( a \\) hold.\n\nConversely, assume that \\( b \\land a \\) is true. Using the same reasoning, since both \\( b \\) and \\( a \\) are true, \\( a \\land b \\) must also be true.\n\nSince both directions hold for any propositions \\( a \\) and \\( b \\), we conclude that \\( a \\land b \\) is equivalent to \\( b \\land a \\).",
+  "id":
+  {"name": "LO.FirstOrder.Structure.Uprod.casesOn",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+   "compilationAlias":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : SizeOf I\ninst✝ : (a : I) → SizeOf (A a)\nt : LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Nat",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "annotation":
+  "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "LO.FirstOrder.Structure.Uprod.mk",
+    "module": "Foundation.FirstOrder.Ultraproduct",
+    "kind": "constructor",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+    "compilationAlias":
+    "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"}]},
+ {"rag":
+  [{"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "Set.univ_pi_piecewise_univ",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem univ_pi_piecewise_univ {ι : Type*} {α : ι → Type*} (s : Set ι) (t : ∀ i, Set (α i))\n    [∀ x, Decidable (x ∈ s)] : pi univ (s.piecewise t fun _ => univ) = pi s t := by simp"},
+   {"name": "Equiv.piUnique",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "content":
+    "/-- The equivalence `(∀ i, β i) ≃ β ⋆` when the domain of `β` only contains `⋆` -/\n@[simps (config := .asFn)]\ndef piUnique [Unique α] (β : α → Sort*) : (∀ i, β i) ≃ β default where\n  toFun f := f default\n  invFun := uniqueElim\n  left_inv f := by ext i; cases Unique.eq_default i; rfl\n  right_inv _ := rfl"},
+   {"name": "Filter.hyperfilter",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "/-- The ultrafilter extending the cofinite filter. -/\nnoncomputable def hyperfilter : Ultrafilter α :=\n  Ultrafilter.of cofinite"},
+   {"name": "Set.sigmaToiUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "/-- If `t` is an indexed family of sets, then there is a natural map from `Σ i, t i` to `⋃ i, t i`\nsending `⟨i, x⟩` to `x`. -/\ndef sigmaToiUnion (x : Σi, t i) : ⋃ i, t i :=\n  ⟨x.2, mem_iUnion.2 ⟨x.1, x.2.2⟩⟩"},
+   {"name": "Set.prod_iUnion",
+    "module": "Mathlib.Data.Set.Lattice",
+    "content":
+    "theorem prod_iUnion {s : Set α} {t : ι → Set β} : (s ×ˢ ⋃ i, t i) = ⋃ i, s ×ˢ t i := by\n  ext\n  simp"},
+   {"name": "Filter.hyperfilter",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "/-- The ultrafilter extending the cofinite filter. -/\nnoncomputable def hyperfilter : Ultrafilter α :=\n  Ultrafilter.of cofinite"},
+   {"name": "Filter.tendsto_iff_ultrafilter",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "/-- The `tendsto` relation can be checked on ultrafilters. -/\ntheorem tendsto_iff_ultrafilter (f : α → β) (l₁ : Filter α) (l₂ : Filter β) :\n    Tendsto f l₁ l₂ ↔ ∀ g : Ultrafilter α, ↑g ≤ l₁ → Tendsto f g l₂ := by\n  simpa only [tendsto_iff_comap] using le_iff_ultrafilter"},
+   {"name": "Filter.hyperfilter",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "/-- The ultrafilter extending the cofinite filter. -/\nnoncomputable def hyperfilter : Ultrafilter α :=\n  Ultrafilter.of cofinite"},
+   {"name": "Ultrafilter.le_cofinite_or_eq_pure",
+    "module": "Mathlib.Order.Filter.Ultrafilter.Basic",
+    "content":
+    "theorem le_cofinite_or_eq_pure (f : Ultrafilter α) : (f : Filter α) ≤ cofinite ∨ ∃ a, f = pure a :=\n  or_iff_not_imp_left.2 fun h =>\n    let ⟨_, hs, hfin⟩ := Filter.disjoint_cofinite_right.1 (disjoint_iff_not_le.2 h)\n    let ⟨a, _, hf⟩ := eq_pure_of_finite_mem hfin hs\n    ⟨a, hf⟩"}],
+  "prescopes":
+  "namespace LO.FirstOrder.Structure\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v} {I : Type u} (A : I → Type u) [s : (i : I) → FirstOrder.Structure L (A i)]\n  (𝓤 : Ultrafilter I)",
+  "postscopes": "end LO.FirstOrder.Structure",
+  "informal_statement":
+  "Given an ultrafilter $\\mathcal{U}$ on the index type $I$, the structure $\\mathbf{Uprod}(\\mathcal{U})$ is defined as the type of pairs $(i, a)$ where $i : I$ and $a : A(i)$. This construction ensures that each element of $\\mathbf{Uprod}(\\mathcal{U})$ is associated with an index $i$ and a corresponding element $a$ of type $A(i)$.",
+  "informal_proof":
+  "The proof would involve verifying that the definition of $\\mathbf{Uprod}(\\mathcal{U})$ indeed forms a type equipped with the necessary structure to associate each element with an index $i$ and a corresponding $a : A(i)$. Since $\\mathcal{U}$ is an ultrafilter, it ensures a consistent way of selecting elements $a$ for each index $i$ such that the pairing respects the filter properties. This construction is straightforward given the axioms of type theory and the definition of ultrafilters, ensuring the coherence and correctness of the resulting type $\\mathbf{Uprod}(\\mathcal{U})$.",
+  "id":
+  {"name": "LO.FirstOrder.Structure.Uprod.mk",
+   "module": "Foundation.FirstOrder.Ultraproduct",
+   "kind": "constructor",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+   "compilationAlias":
+   "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n"},
+  "goal":
+  "I : Type u\nA : I → Type u\n𝓤 : Ultrafilter I\ninst✝¹ : SizeOf I\ninst✝ : (a : I) → SizeOf (A a)\nt : LO.FirstOrder.Structure.Uprod A 𝓤\n⊢ Nat",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "import Foundation.FirstOrder.Basic\nimport Mathlib.Order.Filter.Ultrafilter.Basic\n\nnamespace LO\n\nnamespace FirstOrder\n\nsection\n\nuniverse u v\n\nvariable {L : Language.{u}} {μ : Type v}\n {I : Type u} (A : I → Type u)\n [s : (i : I) → FirstOrder.Structure L (A i)]\n (𝓤 : Ultrafilter I)\n\nnamespace Structure\n\nstructure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "annotation":
+  "structure Uprod (𝓤 : Ultrafilter I) where\n  val : (i : I) → A i\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies": []}]

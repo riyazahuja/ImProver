@@ -14,36 +14,70 @@ import asyncio
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="ImProver: Inference, Evaluation, and Analysis Tool")
-    
+    parser = argparse.ArgumentParser(
+        description="ImProver: Inference, Evaluation, and Analysis Tool"
+    )
+
     # Required arguments
     parser.add_argument("metric", type=str, help="Metric to use for evaluation")
     parser.add_argument("dataset_path", type=str, help="Path to dataset JSON file")
     parser.add_argument("prompt_id", type=str, help="Prompt ID to use")
-    
+
     # Optional arguments
-    parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-Prover-V2-7B", help="Model to use")
-    parser.add_argument("--split", type=str, default="train", help="Dataset split to use")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="deepseek-ai/DeepSeek-Prover-V2-7B",
+        help="Model to use",
+    )
+    parser.add_argument(
+        "--split", type=str, default="train", help="Dataset split to use"
+    )
     # parser.add_argument("--prompts_dir", type=str, default=".prompts/", help="Directory of prompt data")
     # parser.add_argument("--output_dir", type=str, default=".evals/", help="Directory to output runs")
-    
+
     # System resource arguments
     try:
         available_gpus = torch.cuda.device_count()
     except (ImportError, AttributeError):
         available_gpus = 0
-        
-    parser.add_argument("--cpus", type=int, default=multiprocessing.cpu_count(), help="Number of CPUs to use")
-    parser.add_argument("--gpus", type=int, default=available_gpus, help="Number of GPUs to use")
-    
+
+    parser.add_argument(
+        "--cpus",
+        type=int,
+        default=multiprocessing.cpu_count(),
+        help="Number of CPUs to use",
+    )
+    parser.add_argument(
+        "--gpus", type=int, default=available_gpus, help="Number of GPUs to use"
+    )
+
     # Generation settings
     parser.add_argument("--n", type=int, default=1, help="Best-of-n value")
-    parser.add_argument("--annotation", action=argparse.BooleanOptionalAction, default=False, help="Enable annotation")
-    parser.add_argument("--context", type=int, default=0, help="Number of context retrievals")
-    parser.add_argument("--rag", type=int, default=0, help="Number of RAG retrievals")
-    parser.add_argument("--examples", type=int, default=0, help="Number of few-shot example retrievals")
     parser.add_argument(
-        "--goal_state", action=argparse.BooleanOptionalAction, default=False, help="Enable goal state"
+        "--annotation",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable annotation",
+    )
+    parser.add_argument(
+        "--informal",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable informal",
+    )
+    parser.add_argument(
+        "--context", type=int, default=0, help="Number of context retrievals"
+    )
+    parser.add_argument("--rag", type=int, default=0, help="Number of RAG retrievals")
+    parser.add_argument(
+        "--examples", type=int, default=0, help="Number of few-shot example retrievals"
+    )
+    parser.add_argument(
+        "--goal_state",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable goal state",
     )
     parser.add_argument(
         "--file_context",
@@ -51,8 +85,8 @@ def get_parser():
         default=0,
         help="Number of file context items (default: 0, -1 for all)",
     )
-    
-    #azure params
+
+    # azure params
     parser.add_argument(
         "--azure",
         default=False,
@@ -70,9 +104,8 @@ def get_parser():
         default=60,
         help="Maximum requests per minute for rate limiting (default: 60)",
     )
-    
-    
-    #inference hyperparams
+
+    # inference hyperparams
     parser.add_argument(
         "--nccl_p2p",
         type=bool,
@@ -157,25 +190,37 @@ def get_parser():
         default=2048,
         help="Maximum number of tokens to generate (default: 2048)",
     )
-    
-    
+
     # Run identifier
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    parser.add_argument("--run_id", type=str, default=f"RUN_{timestamp}", help="Run identifier")
-    
+    parser.add_argument(
+        "--run_id", type=str, default=f"RUN_{timestamp}", help="Run identifier"
+    )
+
     # Analysis settings
-    parser.add_argument("--training_data", action=argparse.BooleanOptionalAction, help="Whether to extract training data", default=True)
-    parser.add_argument("--thinking", default="none", help="Thinking mode for analysis (default: none). Options: 'none', 'raw', 'synthetic.")
+    parser.add_argument(
+        "--training_data",
+        action=argparse.BooleanOptionalAction,
+        help="Whether to extract training data",
+        default=True,
+    )
+    parser.add_argument(
+        "--thinking",
+        default="none",
+        help="Thinking mode for analysis (default: none). Options: 'none', 'raw', 'synthetic.",
+    )
     return parser
 
+
 def main(args):
-        
+
     # Create output directory if it doesn't exist
     os.makedirs("evals", exist_ok=True)
-    
 
     # 1. Run Inference
-    print(f"[IMPROVER: Running inference for {args.metric} with prompt {args.prompt_id}...]")
+    print(
+        f"[IMPROVER: Running inference for {args.metric} with prompt {args.prompt_id}...]"
+    )
     inference_args = argparse.Namespace(
         metric=args.metric,
         dataset_path=args.dataset_path,
@@ -188,15 +233,14 @@ def main(args):
         gpus=args.gpus,
         n=args.n,
         annotation=args.annotation,
+        informal=args.informal,
         context=args.context,
         rag=args.rag,
         examples=args.examples,
         goal_state=args.goal_state,
         file_context=args.file_context,
-        
         server_concurrency=args.server_concurrency,
         server_rate_limit=args.server_rate_limit,
-        
         nccl_p2p=args.nccl_p2p,
         ray_timeout=args.ray_timeout,
         num_blocks=args.num_blocks,
@@ -211,31 +255,28 @@ def main(args):
         batch_size=args.batch_size,
         truncate_prompt_tokens=args.truncate_prompt_tokens,
         max_tokens=args.max_tokens,
-        
-        run_id=args.run_id
+        run_id=args.run_id,
     )
     if args.azure:
         inference_server_main(inference_args)
     else:
         inference_main(inference_args)
-    
+
     # 2. Run Evaluation
     print(f"[IMPROVER: Evaluating run {args.run_id}...]")
     eval_args = argparse.Namespace(
         run_id=args.run_id,
         # inference_dir=args.output_dir,
-        cpus=args.cpus
+        cpus=args.cpus,
     )
     asyncio.run(eval_main(eval_args))
-    
+
     # 3. Run Analysis
-    
-    
-    
+
     # Load metric configuration
     config_path = f"metrics/{args.metric}/config.json"
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             metric_config = json.load(f)
     except FileNotFoundError:
         print(f"Warning: Config file not found at {config_path}")
@@ -243,9 +284,9 @@ def main(args):
     except json.JSONDecodeError:
         print(f"Warning: Invalid JSON in config file at {config_path}")
         metric_config = {}
-    
+
     # 4. If metric is llm, run llm metric
-    if metric_config.get("llm",{}).get("llm_metric",False):
+    if metric_config.get("llm", {}).get("llm_metric", False):
         print(f"[IMPROVER: Running llm metric analysis for run {args.run_id}...]")
         llm_args = argparse.Namespace(
             run_id=args.run_id,
@@ -257,21 +298,19 @@ def main(args):
             # prompts_dir=args.prompts_dir,
             cpus=args.cpus,
             gpus=args.gpus,
-            n=3  # Default for llm is 3
+            n=3,  # Default for llm is 3
         )
         llm_main(llm_args)
 
-    
     print(f"[IMPROVER: Analyzing run {args.run_id}...]")
     analysis_args = argparse.Namespace(
         run_id=args.run_id,
         # run_dir=args.output_dir,
         training_data=args.training_data,
-        thinking=args.thinking
+        thinking=args.thinking,
     )
     analysis_main(analysis_args)
-    
-    
+
     if args.thinking == "synthetic":
         print(f"[IMPROVER: Running synthetic thinking for run {args.run_id}...]")
         synthetic_args = argparse.Namespace(
@@ -292,18 +331,15 @@ def main(args):
             truncate_prompt_tokens=args.truncate_prompt_tokens,
             max_tokens=args.max_tokens,
             nccl_p2p=args.nccl_p2p,
-            ray_timeout=args.ray_timeout
+            ray_timeout=args.ray_timeout,
         )
         synthetic_main(synthetic_args)
-    
+
     print(f"[IMPROVER: ImProver pipeline completed for run {args.run_id}]")
 
-    
 
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
     main(args)
-
-

@@ -1,0 +1,1525 @@
+[{"rag":
+  [{"name": "ACCSystemGroupAction",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "/-- The type of a group action on a system of charges is defined as a representation on\nthe vector spaces of charges under which the anomaly equations are invariant.\n-/\nstructure ACCSystemGroupAction (χ : ACCSystem) where\n  /-- The underlying type of the group. -/\n  group : Type\n  /-- An instance given the `group` component the structure of a `Group`. -/\n  groupInst : Group group\n  /-- The representation of group acting on the vector space of charges. -/\n  rep : Representation ℚ group χ.Charges\n  /-- The invariance of the linear ACCs under the group action. -/\n  linearInvariant : ∀ i g S, χ.linearACCs i (rep g S) = χ.linearACCs i S\n  /-- The invariance of the quadratic ACCs under the group action. -/\n  quadInvariant : ∀ i g S, (χ.quadraticACCs i) (rep g S) = (χ.quadraticACCs i) S\n  /-- The invariance of the cubic ACC under the group action. -/\n  cubicInvariant : ∀ g S, χ.cubicACC (rep g S) = χ.cubicACC S"},
+   {"name": "SMRHN.accQuad_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)"},
+   {"name": "SMRHN.accSU2_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)"},
+   {"name": "SMRHN.accSU3_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)"},
+   {"name": "ACCSystemGroupAction.linSolRep_quadSolAction_commute",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "lemma linSolRep_quadSolAction_commute {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group)\n    (S : χ.QuadSols) : χ.quadSolsInclLinSols (G.quadSolAction.toFun _ _ S g) =\n    G.linSolRep g (χ.quadSolsInclLinSols S) := rfl"},
+   {"name": "SMRHN.repCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl"},
+   {"name": "Equiv.permCongr",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "content":
+    "/-- If `α` is equivalent to `β`, then `Perm α` is equivalent to `Perm β`. -/\ndef permCongr : Perm α' ≃ Perm β' := equivCongr e e"},
+   {"name": "SMRHN.accYY_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)"},
+   {"name": "SMRHN.accCube_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by simpa using toSpecies_sum_invariant 3 f S)"},
+   {"name": "Equiv.Perm",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "content":
+    "/-- `Perm α` is the type of bijections from `α` to itself. -/\nabbrev Equiv.Perm (α : Sort*) :=\n  Equiv α α"}],
+  "prescopes":
+  "namespace SMRHN.SM\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+  "postscopes": "end SMRHN.SM",
+  "informal_statement":
+  "The permutations acting on the ACC system corresponding to the Standard Model with Right-Handed Neutrinos form a group, specifically the permutation group, and the group action is defined by the linear, quadratic, and cubic invariants associated with different components of the SM.",
+  "informal_proof":
+  "First, we define the group action of permutations on the ACC system related to the Standard Model with Right-Handed Neutrinos, forming the permutation group. \n\nUnder this group action, we establish three types of invariants:\n1. **Linear Invariants**: The `accGrav_invariant` corresponds to gravitational interactions, ensuring gravitational invariance under the group action.\n2. **Quadratic Invariants**: The `accSU2_invariant` relates to the SU(2) symmetry of the Standard Model, providing invariance under SU(2) transformations.\n3. **Cubic Invariants**: The `accSU3_invariant` corresponds to SU(3) symmetry, maintaining invariance under SU(3) transformations.\n\nEach invariant is carefully constructed to respect the symmetries imposed by the respective gauge groups of the Standard Model, thereby establishing the foundational invariance properties of the system under the defined group action.",
+  "id":
+  {"name": "SMRHN.SM.chargeToLinear",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- An element of `charges` which satisfies the linear ACCs\n  gives us a element of `LinSols`. -/\ndef chargeToLinear (S : (SM n).Charges) (hGrav : accGrav S = 0)\n    (hSU2 : accSU2 S = 0) (hSU3 : accSU3 S = 0) : (SM n).LinSols :=\n  ⟨S, by\n    intro i\n    simp only [SM_numberLinear] at i\n    match i with\n    | 0 => exact hGrav\n    | 1 => exact hSU2\n    | 2 => exact hSU3⟩\n\n",
+   "compilationAlias":
+   "/-- An element of `charges` which satisfies the linear ACCs\n  gives us a element of `LinSols`. -/\ndef chargeToLinear (S : (SM n).Charges) (hGrav : accGrav S = 0)\n    (hSU2 : accSU2 S = 0) (hSU3 : accSU3 S = 0) : (SM n).LinSols :=\n  ⟨S, by\n    intro i\n    simp only [SM_numberLinear] at i\n    match i with\n    | 0 => exact hGrav\n    | 1 => exact hSU2\n    | 2 => exact hSU3⟩\n\n"},
+  "goal":
+  "n : Nat\nS : (SMRHN.SM n).Charges\nhGrav : Eq (SMνACCs.accGrav S) 0\nhSU2 : Eq (SMνACCs.accSU2 S) 0\nhSU3 : Eq (SMνACCs.accSU3 S) 0\ni : Fin (SMRHN.SM n).numberLinear\n⊢ Eq (((SMRHN.SM n).linearACCs i) S) 0",
+  "content_sorry":
+  "/-- An element of `charges` which satisfies the linear ACCs\n  gives us a element of `LinSols`. -/\ndef chargeToLinear (S : (SM n).Charges) (hGrav : accGrav S = 0)\n    (hSU2 : accSU2 S = 0) (hSU3 : accSU3 S = 0) : (SM n).LinSols :=\n  ⟨S, by\n    sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\nlemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\nlemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n/-- An element of `charges` which satisfies the linear ACCs\n  gives us a element of `LinSols`. -/\ndef chargeToLinear (S : (SM n).Charges) (hGrav : accGrav S = 0)\n    (hSU2 : accSU2 S = 0) (hSU3 : accSU3 S = 0) : (SM n).LinSols :=\n  ⟨S, by\n    exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\nlemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\nlemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n/-- An element of `charges` which satisfies the linear ACCs\n  gives us a element of `LinSols`. -/\ndef chargeToLinear (S : (SM n).Charges) (hGrav : accGrav S = 0)\n    (hSU2 : accSU2 S = 0) (hSU3 : accSU3 S = 0) : (SM n).LinSols :=\n  ⟨S, by\n    intro i\n    simp only [SM_numberLinear] at i\n    match i with\n    | 0 => exact hGrav\n    | 1 => exact hSU2\n    | 2 => exact hSU3⟩\n\n",
+  "annotation":
+  "/-- An element of `charges` which satisfies the linear ACCs\n  gives us a element of `LinSols`. -/\ndef chargeToLinear (S : (SM n).Charges) (hGrav : accGrav S = 0)\n    (hSU2 : accSU2 S = 0) (hSU3 : accSU3 S = 0) : (SM n).LinSols :=\n  ⟨S, by\n    /-\n      n : Nat\n      S : (SMRHN.SM n).Charges\n      hGrav : Eq (SMνACCs.accGrav S) 0\n      hSU2 : Eq (SMνACCs.accSU2 S) 0\n      hSU3 : Eq (SMνACCs.accSU3 S) 0\n      ⊢ ∀ (i : Fin (SMRHN.SM n).numberLinear), Eq (((SMRHN.SM n).linearACCs i) S) 0\n    -/\n    intro i\n    /-\n      n : Nat\n      S : (SMRHN.SM n).Charges\n      hGrav : Eq (SMνACCs.accGrav S) 0\n      hSU2 : Eq (SMνACCs.accSU2 S) 0\n      hSU3 : Eq (SMνACCs.accSU3 S) 0\n      i : Fin (SMRHN.SM n).numberLinear\n      ⊢ Eq (((SMRHN.SM n).linearACCs i) S) 0\n    -/\n    simp only [SM_numberLinear] at i\n    match i with\n    | 0 => exact hGrav\n    | 1 => exact hSU2\n    | 2 => exact hSU3⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberLinear",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM.gravSol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n",
+    "compilationAlias":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n"},
+   {"name": "SMRHN.SM.SU2Sol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n",
+    "compilationAlias":
+    "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n"},
+   {"name": "SMRHN.SM.SU3Sol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n",
+    "compilationAlias":
+    "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n"},
+   {"name": "SMRHN.SM.cubeSol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n",
+    "compilationAlias":
+    "lemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n"}]},
+ {"rag":
+  [{"name": "Ideal.Quotient.commSemiring",
+    "module": "Mathlib.RingTheory.Ideal.Quotient.Defs",
+    "content":
+    "instance commSemiring {R} [CommRing R] (I : Ideal R) : CommSemiring (R ⧸ I) := fast_instance%\n  inferInstance"},
+   {"name": "Algebra.TensorProduct.instNonUnitalRing",
+    "module": "Mathlib.RingTheory.TensorProduct.Basic",
+    "content":
+    "instance instNonUnitalRing : NonUnitalRing (A ⊗[R] B) where\n  toAddCommGroup := TensorProduct.addCommGroup\n  __ := instNonUnitalSemiring"},
+   {"name": "FreeAlgebra.quot_mk_eq_ι",
+    "module": "Mathlib.Algebra.FreeAlgebra",
+    "content":
+    "@[simp]\ntheorem quot_mk_eq_ι (m : X) : Quot.mk (FreeAlgebra.Rel R X) m = ι R m := by rw [ι_def]"},
+   {"name": "instLinearOrderedAddCommMonoidWithTopAdditiveOrderDual",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Canonical",
+    "content":
+    "instance instLinearOrderedAddCommMonoidWithTopAdditiveOrderDual :\n    LinearOrderedAddCommMonoidWithTop (Additive αᵒᵈ) where\n  top := .ofMul <| .toDual 0\n  top_add' a := zero_mul a.toMul.ofDual\n  le_top _ := zero_le'"},
+   {"name": "LinearOrderedCommGroupWithZero.toMulPosMono",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Canonical",
+    "content":
+    "instance (priority := 100) LinearOrderedCommGroupWithZero.toMulPosMono : MulPosMono α where\n  elim _a _b _c hbc := mul_le_mul_right' hbc _"},
+   {"name": "Fintype.prod_prod_type_right'",
+    "module": "Mathlib.Data.Fintype.BigOperators",
+    "content":
+    "/-- An uncurried version of `Finset.prod_prod_type_right`. -/\n@[to_additive Fintype.sum_prod_type_right' \"An uncurried version of `Finset.sum_prod_type_right`\"]\ntheorem Fintype.prod_prod_type_right' [CommMonoid γ] (f : α₁ → α₂ → γ) :\n    ∏ x : α₁ × α₂, f x.1 x.2 = ∏ y, ∏ x, f x y :=\n  Finset.prod_product_right' .."},
+   {"name": "Fintype.prod_congr",
+    "module": "Mathlib.Data.Fintype.BigOperators",
+    "content":
+    "@[to_additive]\ntheorem prod_congr (f g : α → M) (h : ∀ a, f a = g a) : ∏ a, f a = ∏ a, g a :=\n  Finset.prod_congr rfl fun a _ha => h a"},
+   {"name": "Function.Embedding.equivOfFintypeSelfEmbedding",
+    "module": "Mathlib.Data.Fintype.EquivFin",
+    "content":
+    "@[deprecated (since := \"2024-12-05\")]\nalias equivOfFintypeSelfEmbedding := equivOfFiniteSelfEmbedding"},
+   {"name": "Algebra.TensorProduct.lift",
+    "module": "Mathlib.RingTheory.TensorProduct.Basic",
+    "content":
+    "/-- The forward direction of the universal property of tensor products of algebras; any algebra\nmorphism from the tensor product can be factored as the product of two algebra morphisms that\ncommute.\n\nSee `Algebra.TensorProduct.liftEquiv` for the fact that every morphism factors this way. -/\ndef lift (f : A →ₐ[S] C) (g : B →ₐ[R] C) (hfg : ∀ x y, Commute (f x) (g y)) : (A ⊗[R] B) →ₐ[S] C :=\n  algHomOfLinearMapTensorProduct\n    (AlgebraTensorModule.lift <|\n      letI restr : (C →ₗ[S] C) →ₗ[S] _ :=\n        { toFun := (·.restrictScalars R)\n          map_add' := fun _ _ => LinearMap.ext fun _ => rfl\n          map_smul' := fun _ _ => LinearMap.ext fun _ => rfl }\n      LinearMap.flip <| (restr ∘ₗ LinearMap.mul S C ∘ₗ f.toLinearMap).flip ∘ₗ g)\n    (fun a₁ a₂ b₁ b₂ => show f (a₁ * a₂) * g (b₁ * b₂) = f a₁ * g b₁ * (f a₂ * g b₂) by\n      rw [map_mul, map_mul, (hfg a₂ b₁).mul_mul_mul_comm])\n    (show f 1 * g 1 = 1 by rw [map_one, map_one, one_mul])"},
+   {"name": "Algebra.TensorProduct.algEquivOfLinearEquivTensorProduct_apply",
+    "module": "Mathlib.RingTheory.TensorProduct.Basic",
+    "content":
+    "@[simp]\ntheorem algEquivOfLinearEquivTensorProduct_apply (f h_mul h_one x) :\n    (algEquivOfLinearEquivTensorProduct f h_mul h_one : A ⊗[R] B ≃ₐ[S] C) x = f x :=\n  rfl"}],
+  "prescopes":
+  "namespace SMRHN.SM\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+  "postscopes": "end SMRHN.SM",
+  "informal_statement": "...",
+  "informal_proof": "...",
+  "id":
+  {"name": "SMRHN.SM.cubeSol",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n",
+   "compilationAlias":
+   "lemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n"},
+  "goal": "n : Nat\nS : (SMRHN.SM n).Sols\n⊢ Eq (SMνACCs.accCube S.val) 0",
+  "content_sorry":
+  "lemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\nlemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\nlemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\nlemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\nlemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n",
+  "annotation":
+  "lemma cubeSol (S : (SM n).Sols) : accCube S.val = 0 := S.cubicSol\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberLinear",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM.gravSol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n",
+    "compilationAlias":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n"},
+   {"name": "SMRHN.SM.SU2Sol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n",
+    "compilationAlias":
+    "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n"},
+   {"name": "SMRHN.SM.SU3Sol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n",
+    "compilationAlias":
+    "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n"}]},
+ {"rag":
+  [{"name": "ACCSystem.solsIncl",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsIncl (χ : ACCSystem) : χ.Sols →[ℚ] χ.Charges :=\n  MulActionHom.comp χ.quadSolsIncl χ.solsInclQuadSols"},
+   {"name": "ACCSystem.solsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsInclLinSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.LinSols :=\n  MulActionHom.comp χ.quadSolsInclLinSols χ.solsInclQuadSols"},
+   {"name": "ACCSystemQuad.quadSolsIncl",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of quadratic solutions into all charges. -/\ndef quadSolsIncl (χ : ACCSystemQuad) : χ.QuadSols →[ℚ] χ.Charges :=\n  MulActionHom.comp χ.linSolsIncl.toMulActionHom χ.quadSolsInclLinSols"},
+   {"name": "ACCSystem.Sols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the anomaly cancellation conditions. -/\nstructure Sols (χ : ACCSystem) extends χ.QuadSols where\n  /-- The condition that the charge satisfies the cubic ACC. -/\n  cubicSol : χ.cubicACC val = 0"},
+   {"name": "ACCSystemLinear.LinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear ACCs. -/\nstructure LinSols (χ : ACCSystemLinear) where\n  /-- The underlying charge. -/\n  val : χ.1.Charges\n  /-- The condition that the charge satisfies the linear ACCs. -/\n  linearSol : ∀ i : Fin χ.numberLinear, χ.linearACCs i val = 0"},
+   {"name": "ACCSystem.IsSolution",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- A charge `S` is a solution if it extends to a solution. -/\ndef IsSolution (χ : ACCSystem) (S : χ.Charges) : Prop :=\n  ∃ (sol : χ.Sols), sol.val = S"},
+   {"name": "ACCSystem.solsInclQuadSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `QuadSols`. -/\ndef solsInclQuadSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.QuadSols where\n  toFun := Sols.toQuadSols\n  map_smul' _ _ := rfl"},
+   {"name": "ACCSystemGroupAction.linSolRep_quadSolAction_commute",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "lemma linSolRep_quadSolAction_commute {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group)\n    (S : χ.QuadSols) : χ.quadSolsInclLinSols (G.quadSolAction.toFun _ _ S g) =\n    G.linSolRep g (χ.quadSolsInclLinSols S) := rfl"},
+   {"name": "SMνACCs.accQuad_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accQuad_decomp (S : (SMνCharges n).Charges) :\n    accQuad S = ∑ i, (Q S i)^2 - 2 * ∑ i, (U S i)^2 + ∑ i, (D S i)^2 - ∑ i, (L S i)^2\n    + ∑ i, (E S i)^2 := by\n  erw [quadBiLin_decomp]\n  ring_nf"},
+   {"name": "ACCSystemGroupAction",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "/-- The type of a group action on a system of charges is defined as a representation on\nthe vector spaces of charges under which the anomaly equations are invariant.\n-/\nstructure ACCSystemGroupAction (χ : ACCSystem) where\n  /-- The underlying type of the group. -/\n  group : Type\n  /-- An instance given the `group` component the structure of a `Group`. -/\n  groupInst : Group group\n  /-- The representation of group acting on the vector space of charges. -/\n  rep : Representation ℚ group χ.Charges\n  /-- The invariance of the linear ACCs under the group action. -/\n  linearInvariant : ∀ i g S, χ.linearACCs i (rep g S) = χ.linearACCs i S\n  /-- The invariance of the quadratic ACCs under the group action. -/\n  quadInvariant : ∀ i g S, (χ.quadraticACCs i) (rep g S) = (χ.quadraticACCs i) S\n  /-- The invariance of the cubic ACC under the group action. -/\n  cubicInvariant : ∀ g S, χ.cubicACC (rep g S) = χ.cubicACC S"}],
+  "prescopes":
+  "namespace SMRHN.SM\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+  "postscopes": "end SMRHN.SM",
+  "informal_statement":
+  "An element in the `charges` structure satisfying the linear, quadratic, and cubic additional constraints can be transformed into an element of `Sols` using the `chargeToAF` method.",
+  "informal_proof":
+  "According to the Lean4 formal code, the `chargeToAF` method accepts an element `S` from the `charges` structure along with specific additional continuity conditions (`accGrav`, `accSU2`, `accSU3`, and `accCube`). The method first processes `S` along with these constraints using the `chargeToQuad` method. This initial step likely ensures that the charges satisfy the linear and quadratic requirements. Subsequently, the result is passed to the `quadToAF` method, which handles the cubic condition, thereby transforming the processed charges into an element of the `Sols` structure. This sequence of steps confirms that when an element meets all the required constraints, it can indeed be transformed into an element of `Sols`.",
+  "id":
+  {"name": "SMRHN.SM.SU3Sol",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n",
+   "compilationAlias":
+   "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n"},
+  "goal": "n : Nat\nS : (SMRHN.SM n).LinSols\n⊢ Eq (SMνACCs.accSU3 S.val) 0",
+  "content_sorry":
+  "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\nlemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\nlemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 2\n\n",
+  "annotation":
+  "lemma SU3Sol (S : (SM n).LinSols) : accSU3 S.val = 0 := by\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    ⊢ Eq (SMνACCs.accSU3 S.val) 0\n  -/\n  have hS := S.linearSol\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    hS : ∀ (i : Fin (SMRHN.SM n).numberLinear), Eq (((SMRHN.SM n).linearACCs i) S. …\n    ⊢ Eq (SMνACCs.accSU3 S.val) 0\n  -/\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    hS : ∀ (i : Fin 3), Eq ((SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) …\n    ⊢ Eq (SMνACCs.accSU3 S.val) 0\n  -/\n  exact hS 2\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberLinear",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM.gravSol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n",
+    "compilationAlias":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n"},
+   {"name": "SMRHN.SM.SU2Sol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n",
+    "compilationAlias":
+    "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n"}]},
+ {"rag":
+  [{"name": "SMRHN.chargeMap",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl"},
+   {"name": "ACCSystem.solsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsInclLinSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.LinSols :=\n  MulActionHom.comp χ.quadSolsInclLinSols χ.solsInclQuadSols"},
+   {"name": "ACCSystem.solsIncl",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsIncl (χ : ACCSystem) : χ.Sols →[ℚ] χ.Charges :=\n  MulActionHom.comp χ.quadSolsIncl χ.solsInclQuadSols"},
+   {"name": "ACCSystemQuad.quadSolsIncl",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of quadratic solutions into all charges. -/\ndef quadSolsIncl (χ : ACCSystemQuad) : χ.QuadSols →[ℚ] χ.Charges :=\n  MulActionHom.comp χ.linSolsIncl.toMulActionHom χ.quadSolsInclLinSols"},
+   {"name": "ACCSystemLinear.LinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear ACCs. -/\nstructure LinSols (χ : ACCSystemLinear) where\n  /-- The underlying charge. -/\n  val : χ.1.Charges\n  /-- The condition that the charge satisfies the linear ACCs. -/\n  linearSol : ∀ i : Fin χ.numberLinear, χ.linearACCs i val = 0"},
+   {"name": "SMνACCs.accQuad_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accQuad_decomp (S : (SMνCharges n).Charges) :\n    accQuad S = ∑ i, (Q S i)^2 - 2 * ∑ i, (U S i)^2 + ∑ i, (D S i)^2 - ∑ i, (L S i)^2\n    + ∑ i, (E S i)^2 := by\n  erw [quadBiLin_decomp]\n  ring_nf"},
+   {"name": "SMνACCs.accSU3_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accSU3_decomp (S : (SMνCharges n).Charges) :\n    accSU3 S = 2 * ∑ i, Q S i + ∑ i, U S i + ∑ i, D S i := by\n  simp only [accSU3, SMνSpecies_numberCharges, toSpecies_apply, Fin.isValue, LinearMap.coe_mk,\n    AddHom.coe_mk]\n  repeat rw [Finset.sum_add_distrib]\n  repeat rw [← Finset.mul_sum]"},
+   {"name": "SMνACCs.accQuad_ext",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- Extensionality lemma for `accQuad`. -/\nlemma accQuad_ext {S T : (SMνCharges n).Charges}\n    (h : ∀ j, ∑ i, ((fun a => a^2) ∘ toSpecies j S) i =\n    ∑ i, ((fun a => a^2) ∘ toSpecies j T) i) :\n    accQuad S = accQuad T := by\n  rw [accQuad_decomp, accQuad_decomp]\n  erw [h 0, h 1, h 2, h 3, h 4]\n  rfl"},
+   {"name": "SMRHN.accQuad_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)"},
+   {"name": "ACCSystemGroupAction.linSolRep_quadSolAction_commute",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "lemma linSolRep_quadSolAction_commute {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group)\n    (S : χ.QuadSols) : χ.quadSolsInclLinSols (G.quadSolAction.toFun _ _ S g) =\n    G.linSolRep g (χ.quadSolsInclLinSols S) := rfl"}],
+  "prescopes":
+  "namespace SMRHN.SM\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+  "postscopes": "end SMRHN.SM",
+  "informal_statement":
+  "This code defines a function `chargeToQuad` that converts an element from the space of `'ChargeS'` into the space of `'QuadSols'`, under specific conditions where certain attributes like `accGrav`, `accSU2`, and `accSU3` are set to zero. This transformation ensures a valid mapping between these structured spaces based on the given conditions.",
+  "informal_proof":
+  "To understand the purpose of the function `chargeToQuad`, we analyze its components and the role it plays within the defined structures.\n\n1. **Understanding the Types**:\n   - The function accepts an element `S` of type `(SM n).Charges`.\n   - It assumes several conditions where `accGrav`, `accSU2`, and `accSU3` are all set to zero.\n   - It returns an element of type `(SM n).QuadSols`.\n\n2. **Transformational Role**:\n   - The function utilizes `linearToQuad` as a helper to map elements from one space to another.\n   - By enforcing the conditions `accGrav = 0`, `accSU2 = 0`, and `accSU3 = 0`, it ensures that the transformation adheres to specific constraints relevant to the target structure `QuadSols`.\n\n3. **Implications of the Conditions**:\n   - Setting `accGrav`, `accSU2`, and `accSU3` to zero effectively zeroes out certain contributions to the charge structure.\n   - This ensures that the output in `QuadSols` aligns with required properties, facilitating a valid translation between the charge space and the quadratic solution space.\n\n4. **Functional Workflow**:\n   - The function begins by accessing the `SM n` structure subjected to the given conditions.\n   - It then applies the `linearToQuad` transformation, which is designed to convert linear structures into quadratic forms.\n   - Finally, it returns the transformed element within `QuadSols`, ensuring compatibility and meeting the imposed constraints.\n\nIn summary, `chargeToQuad` serves as a specialized transformer that meticulously maps elements from one structured space to another, ensuring the integrity and alignment necessary for the transformation to be valid and useful within the context defined by the conditions and target space.",
+  "id":
+  {"name": "SMRHN.SM.SU2Sol",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n",
+   "compilationAlias":
+   "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n"},
+  "goal": "n : Nat\nS : (SMRHN.SM n).LinSols\n⊢ Eq (SMνACCs.accSU2 S.val) 0",
+  "content_sorry":
+  "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\nlemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 1\n\n",
+  "annotation":
+  "lemma SU2Sol (S : (SM n).LinSols) : accSU2 S.val = 0 := by\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    ⊢ Eq (SMνACCs.accSU2 S.val) 0\n  -/\n  have hS := S.linearSol\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    hS : ∀ (i : Fin (SMRHN.SM n).numberLinear), Eq (((SMRHN.SM n).linearACCs i) S. …\n    ⊢ Eq (SMνACCs.accSU2 S.val) 0\n  -/\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    hS : ∀ (i : Fin 3), Eq ((SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) …\n    ⊢ Eq (SMνACCs.accSU2 S.val) 0\n  -/\n  exact hS 1\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberLinear",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM.gravSol",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n",
+    "compilationAlias":
+    "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n"}]},
+ {"rag":
+  [{"name": "ACCSystem.solsInclQuadSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `QuadSols`. -/\ndef solsInclQuadSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.QuadSols where\n  toFun := Sols.toQuadSols\n  map_smul' _ _ := rfl"},
+   {"name": "ACCSystemQuad.quadSolsIncl",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of quadratic solutions into all charges. -/\ndef quadSolsIncl (χ : ACCSystemQuad) : χ.QuadSols →[ℚ] χ.Charges :=\n  MulActionHom.comp χ.linSolsIncl.toMulActionHom χ.quadSolsInclLinSols"},
+   {"name": "ACCSystem.solsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsInclLinSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.LinSols :=\n  MulActionHom.comp χ.quadSolsInclLinSols χ.solsInclQuadSols"},
+   {"name": "ACCSystem.Sols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the anomaly cancellation conditions. -/\nstructure Sols (χ : ACCSystem) extends χ.QuadSols where\n  /-- The condition that the charge satisfies the cubic ACC. -/\n  cubicSol : χ.cubicACC val = 0"},
+   {"name": "ACCSystem.solsIncl",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsIncl (χ : ACCSystem) : χ.Sols →[ℚ] χ.Charges :=\n  MulActionHom.comp χ.quadSolsIncl χ.solsInclQuadSols"},
+   {"name": "ACCSystemGroupAction.rep_quadSolAction_commute",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "lemma rep_quadSolAction_commute {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group)\n    (S : χ.QuadSols) : χ.quadSolsIncl (G.quadSolAction.toFun _ _ S g) =\n    G.rep g (χ.quadSolsIncl S) := rfl"},
+   {"name": "ACCSystemGroupAction.quadInvariant",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content": "quadInvariant"},
+   {"name": "ACCSystemQuad.QuadSols.quadSol",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content": "quadSol"},
+   {"name": "ACCSystemQuad.quadSolsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of quadratic solutions into linear solutions. -/\ndef quadSolsInclLinSols (χ : ACCSystemQuad) : χ.QuadSols →[ℚ] χ.LinSols where\n  toFun := QuadSols.toLinSols\n  map_smul' _ _ := rfl"},
+   {"name": "SMνACCs.accQuad_ext",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- Extensionality lemma for `accQuad`. -/\nlemma accQuad_ext {S T : (SMνCharges n).Charges}\n    (h : ∀ j, ∑ i, ((fun a => a^2) ∘ toSpecies j S) i =\n    ∑ i, ((fun a => a^2) ∘ toSpecies j T) i) :\n    accQuad S = accQuad T := by\n  rw [accQuad_decomp, accQuad_decomp]\n  erw [h 0, h 1, h 2, h 3, h 4]\n  rfl"}],
+  "prescopes":
+  "namespace SMRHN.SM\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+  "postscopes": "end SMRHN.SM",
+  "informal_statement":
+  "An element of `QuadSols` which satisfies the quadratic ACCs provides us with a valid element of `Sols`.",
+  "informal_proof":
+  "Given an element `S` of type `(SM n).QuadSols`, which satisfies the quadratic ACCs, we can obtain a valid element of `(SM n).Sols` by using the function `quadToAF`. This function essentially transforms the specialized quadratic solution into a general solution that meets the required criteria, ensuring its validity within the context defined by the `Sols` type.",
+  "id":
+  {"name": "SMRHN.SM.gravSol",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n",
+   "compilationAlias":
+   "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n"},
+  "goal": "n : Nat\nS : (SMRHN.SM n).LinSols\n⊢ Eq (SMνACCs.accGrav S.val) 0",
+  "content_sorry":
+  "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\nnamespace SM\n\nvariable {n : ℕ}\n\nlemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  have hS := S.linearSol\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  exact hS 0\n\n",
+  "annotation":
+  "lemma gravSol (S : (SM n).LinSols) : accGrav S.val = 0 := by\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    ⊢ Eq (SMνACCs.accGrav S.val) 0\n  -/\n  have hS := S.linearSol\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    hS : ∀ (i : Fin (SMRHN.SM n).numberLinear), Eq (((SMRHN.SM n).linearACCs i) S. …\n    ⊢ Eq (SMνACCs.accGrav S.val) 0\n  -/\n  simp only [SM_numberLinear, SM_linearACCs, Fin.isValue] at hS\n  /-\n    n : Nat\n    S : (SMRHN.SM n).LinSols\n    hS : ∀ (i : Fin 3), Eq ((SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) …\n    ⊢ Eq (SMνACCs.accGrav S.val) 0\n  -/\n  exact hS 0\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberLinear",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "ACCSystemQuad.quadSolsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of quadratic solutions into linear solutions. -/\ndef quadSolsInclLinSols (χ : ACCSystemQuad) : χ.QuadSols →[ℚ] χ.LinSols where\n  toFun := QuadSols.toLinSols\n  map_smul' _ _ := rfl"},
+   {"name": "ACCSystem.solsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsInclLinSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.LinSols :=\n  MulActionHom.comp χ.quadSolsInclLinSols χ.solsInclQuadSols"},
+   {"name": "ACCSystemQuad.linSolsInclQuadSolsZero",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of the linear solutions into the quadratic solutions, where there is\n  no quadratic equations (i.e. no U(1)'s in the underlying gauge group). -/\ndef linSolsInclQuadSolsZero (χ : ACCSystemQuad) (h : χ.numberQuadratic = 0) :\n    χ.LinSols →[ℚ] χ.QuadSols where\n  toFun S := ⟨S, by intro i; rw [h] at i; exact Fin.elim0 i⟩\n  map_smul' _ _ := rfl"},
+   {"name": "ACCSystemQuad.QuadSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear and quadratic ACCs. -/\nstructure QuadSols (χ : ACCSystemQuad) extends χ.LinSols where\n  /-- The condition that the charge satisfies the quadratic ACCs. -/\n  quadSol : ∀ i : Fin χ.numberQuadratic, (χ.quadraticACCs i) val = 0"},
+   {"name": "ACCSystemGroupAction.linSolRep_quadSolAction_commute",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "lemma linSolRep_quadSolAction_commute {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group)\n    (S : χ.QuadSols) : χ.quadSolsInclLinSols (G.quadSolAction.toFun _ _ S g) =\n    G.linSolRep g (χ.quadSolsInclLinSols S) := rfl"},
+   {"name": "ACCSystemQuad",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of charges plus the linear ACCs plus the quadratic ACCs. -/\nstructure ACCSystemQuad extends ACCSystemLinear where\n  /-- The number of quadratic ACCs. -/\n  numberQuadratic : ℕ\n  /-- The quadratic ACCs. -/\n  quadraticACCs : Fin numberQuadratic → HomogeneousQuadratic toACCSystemCharges.Charges"},
+   {"name": "SMνACCs.quadBiLin",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The quadratic bilinear map. -/\n@[simps!]\ndef quadBiLin : BiLinearSymm (SMνCharges n).Charges := BiLinearSymm.mk₂\n  (fun S => ∑ i, (Q S.1 i * Q S.2 i +\n    - 2 * (U S.1 i * U S.2 i) +\n    D S.1 i * D S.2 i +\n    (- 1) * (L S.1 i * L S.2 i) +\n    E S.1 i * E S.2 i))\n  (by\n    intro a S T\n    simp only\n    rw [Finset.mul_sum]\n    refine Fintype.sum_congr _ _ fun i ↦ ?_\n    repeat erw [map_smul]\n    simp only [HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue, neg_mul, one_mul]\n    ring)\n  (by\n    intro S T R\n    simp only\n    rw [← Finset.sum_add_distrib]\n    refine Fintype.sum_congr _ _ fun i ↦ ?_\n    repeat erw [map_add]\n    simp only [ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply, Fin.isValue, neg_mul,\n      one_mul]\n    ring)\n  (by\n    intro S T\n    simp only [SMνSpecies_numberCharges, toSpecies_apply, Fin.isValue, neg_mul, one_mul]\n    refine Fintype.sum_congr _ _ fun i ↦ ?_\n    ring)"},
+   {"name":
+    "Module.exists_nontrivial_relation_sum_zero_of_finrank_succ_lt_card",
+    "module": "Mathlib.LinearAlgebra.Dimension.Finite",
+    "content":
+    "/-- If a finset has cardinality larger than `finrank + 1`,\nthen there is a nontrivial linear relation amongst its elements,\nsuch that the coefficients of the relation sum to zero. -/\ntheorem Module.exists_nontrivial_relation_sum_zero_of_finrank_succ_lt_card\n    {t : Finset M} (h : finrank R M + 1 < t.card) :\n    ∃ f : M → R, ∑ e ∈ t, f e • e = 0 ∧ ∑ e ∈ t, f e = 0 ∧ ∃ x ∈ t, f x ≠ 0 := by\n  -- Pick an element x₀ ∈ t,\n  obtain ⟨x₀, x₀_mem⟩ := card_pos.1 ((Nat.succ_pos _).trans h)\n  -- and apply the previous lemma to the {xᵢ - x₀}\n  let shift : M ↪ M := ⟨(· - x₀), sub_left_injective⟩\n  classical\n  let t' := (t.erase x₀).map shift\n  have h' : finrank R M < t'.card := by\n    rw [card_map, card_erase_of_mem x₀_mem]\n    exact Nat.lt_pred_iff.mpr h\n  -- to obtain a function `g`.\n  obtain ⟨g, gsum, x₁, x₁_mem, nz⟩ := exists_nontrivial_relation_of_finrank_lt_card h'\n  -- Then obtain `f` by translating back by `x₀`,\n  -- and setting the value of `f` at `x₀` to ensure `∑ e ∈ t, f e = 0`.\n  let f : M → R := fun z ↦ if z = x₀ then -∑ z ∈ t.erase x₀, g (z - x₀) else g (z - x₀)\n  refine ⟨f, ?_, ?_, ?_⟩\n  -- After this, it's a matter of verifying the properties,\n  -- based on the corresponding properties for `g`.\n  · rw [sum_map, Embedding.coeFn_mk] at gsum\n    simp_rw [f, ← t.sum_erase_add _ x₀_mem, if_pos, neg_smul, sum_smul,\n             ← sub_eq_add_neg, ← sum_sub_distrib, ← gsum, smul_sub]\n    refine sum_congr rfl fun x x_mem ↦ ?_\n    rw [if_neg (mem_erase.mp x_mem).1]\n  · simp_rw [f, ← t.sum_erase_add _ x₀_mem, if_pos, add_neg_eq_zero]\n    exact sum_congr rfl fun x x_mem ↦ if_neg (mem_erase.mp x_mem).1\n  · obtain ⟨x₁, x₁_mem', rfl⟩ := Finset.mem_map.mp x₁_mem\n    have := mem_erase.mp x₁_mem'\n    exact ⟨x₁, by\n      simpa only [f, Embedding.coeFn_mk, sub_add_cancel, this.2, true_and, if_neg this.1]⟩"},
+   {"name": "TriLinearSymm.map_sum₁",
+    "module": "HepLean.Mathematics.LinearMaps",
+    "content":
+    "lemma map_sum₁ {n : ℕ} (f : TriLinearSymm V) (S : Fin n → V) (T : V) (L : V) :\n    f (∑ i, S i) T L = ∑ i, f (S i) T L := by\n  rw [f.toLinear₁_apply]\n  rw [map_sum]\n  rfl"},
+   {"name": "Fin.succAbove_ne",
+    "module": "Mathlib.Data.Fin.Basic",
+    "content":
+    "/-- Embedding `i : Fin n` into `Fin (n + 1)` with a hole around `p : Fin (n + 1)`\nnever results in `p` itself -/\nlemma succAbove_ne (p : Fin (n + 1)) (i : Fin n) : p.succAbove i ≠ p := by\n  rcases p.castSucc_lt_or_lt_succ i with (h | h)\n  · rw [succAbove_of_castSucc_lt _ _ h]\n    exact Fin.ne_of_lt h\n  · rw [succAbove_of_lt_succ _ _ h]\n    exact Fin.ne_of_gt h"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "A solution to a linear problem $S$ can be adapted to serve as a solution to a related quadratic problem by applying the provided transformation.",
+  "informal_proof":
+  "Given a linear solution $S$ from the set of linear solutions, the quadratic solution is directly obtained by mapping each element $i$ of $S$ using the function $\\lambda i \\ldots . Fin.elim0 i$. This ensures that the resulting quadratic solution maintains consistency with the linear solution by handling the specific case at index $i$.",
+  "id":
+  {"name": "SMRHN.SM_numberLinear",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "ACCSystemLinear.LinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear ACCs. -/\nstructure LinSols (χ : ACCSystemLinear) where\n  /-- The underlying charge. -/\n  val : χ.1.Charges\n  /-- The condition that the charge satisfies the linear ACCs. -/\n  linearSol : ∀ i : Fin χ.numberLinear, χ.linearACCs i val = 0"},
+   {"name": "SMνACCs.accGrav",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The gravitational anomaly equation. -/\n@[simp]\ndef accGrav : (SMνCharges n).Charges →ₗ[ℚ] ℚ where\n  toFun S := ∑ i, (6 * Q S i + 3 * U S i + 3 * D S i + 2 * L S i + E S i + N S i)\n  map_add' S T := by\n    simp only\n    repeat rw [map_add]\n    simp only [SMνSpecies_numberCharges, ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply,\n      Fin.isValue, mul_add]\n    repeat erw [Finset.sum_add_distrib]\n    ring\n  map_smul' a S := by\n    simp only\n    repeat erw [map_smul]\n    simp only [SMνSpecies_numberCharges, HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue,\n      eq_ratCast, Rat.cast_eq_id, id_eq]\n    repeat erw [Finset.sum_add_distrib]\n    repeat erw [← Finset.mul_sum]\n    -- rw [show Rat.cast a = a from rfl]\n    ring"},
+   {"name": "SMνACCs.accSU2",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The `SU(2)` anomaly equation. -/\n@[simp]\ndef accSU2 : (SMνCharges n).Charges →ₗ[ℚ] ℚ where\n  toFun S := ∑ i, (3 * Q S i + L S i)\n  map_add' S T := by\n    simp only\n    repeat rw [map_add]\n    simp only [SMνSpecies_numberCharges, ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply,\n      Fin.isValue, mul_add]\n    repeat erw [Finset.sum_add_distrib]\n    ring\n  map_smul' a S := by\n    simp only\n    repeat erw [map_smul]\n    simp only [SMνSpecies_numberCharges, HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue,\n      eq_ratCast, Rat.cast_eq_id, id_eq]\n    repeat erw [Finset.sum_add_distrib]\n    repeat erw [← Finset.mul_sum]\n    -- rw [show Rat.cast a = a from rfl]\n    ring"},
+   {"name": "SMνACCs.accSU3_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accSU3_decomp (S : (SMνCharges n).Charges) :\n    accSU3 S = 2 * ∑ i, Q S i + ∑ i, U S i + ∑ i, D S i := by\n  simp only [accSU3, SMνSpecies_numberCharges, toSpecies_apply, Fin.isValue, LinearMap.coe_mk,\n    AddHom.coe_mk]\n  repeat rw [Finset.sum_add_distrib]\n  repeat rw [← Finset.mul_sum]"},
+   {"name": "ACCSystemLinear.toACCSystemCharges",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "structure ACCSystemLinear extends ACCSystemCharges where\n  /-- The number of linear ACCs. -/\n  numberLinear : ℕ\n  /-- The linear ACCs. -/\n  linearACCs : Fin numberLinear → (toACCSystemCharges.Charges →ₗ[ℚ] ℚ)"},
+   {"name": "SMRHN.chargeMap",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl"},
+   {"name": "ACCSystem.solsInclLinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The inclusion of `Sols` into `LinSols`. -/\ndef solsInclLinSols (χ : ACCSystem) : χ.Sols →[ℚ] χ.LinSols :=\n  MulActionHom.comp χ.quadSolsInclLinSols χ.solsInclQuadSols"},
+   {"name": "ACCSystemGroupAction.linSolMap",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "/-- The action of a group element on the vector space of linear solutions. -/\ndef linSolMap {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group) :\n    χ.LinSols →ₗ[ℚ] χ.LinSols where\n  toFun S := ⟨G.rep g S.val, by\n    intro i\n    rw [G.linearInvariant, S.linearSol]⟩\n  map_add' S T := ACCSystemLinear.LinSols.ext ((G.rep g).map_add' _ _)\n  map_smul' a S := ACCSystemLinear.LinSols.ext ((G.rep g).map_smul' _ _)"},
+   {"name": "ACCSystemGroupAction.rep_linSolRep_commute",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content":
+    "/-- The representation on the charges and anomaly free solutions\ncommutes with the inclusion. -/\nlemma rep_linSolRep_commute {χ : ACCSystem} (G : ACCSystemGroupAction χ) (g : G.group)\n    (S : χ.LinSols) : χ.linSolsIncl (G.linSolRep g S) =\n    G.rep g (χ.linSolsIncl S) := rfl"},
+   {"name": "DirectSum.coeLinearMap_eq_dfinsupp_sum",
+    "module": "Mathlib.Algebra.DirectSum.Module",
+    "content":
+    "theorem coeLinearMap_eq_dfinsupp_sum [DecidableEq M] (x : DirectSum ι fun i => A i) :\n    coeLinearMap A x = DFinsupp.sum x fun i => (fun x : A i => ↑x) := by\n  simp only [coeLinearMap, toModule, DFinsupp.lsum, LinearEquiv.coe_mk, LinearMap.coe_mk,\n    AddHom.coe_mk]\n  rw [DFinsupp.sumAddHom_apply]\n  simp only [LinearMap.toAddMonoidHom_coe, Submodule.coe_subtype]"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "For any element $s$ in $\\texttt{charges}$ that satisfies the linear Axiom Conditions (ACCs), there exists a corresponding element in $\\texttt{LinSols}$ obtained by checking the index $i$ and applying the specific hypothesis $hGrav$, $hSU2$, or $hSU3$ for $i = 0$, $1$, or $2$ respectively.",
+  "informal_proof":
+  "Given an element $s \\in \\texttt{charges}$ that satisfies the linear ACCs, which are represented by the hypotheses $hGrav = 0$, $hSU2 = 0$, and $hSU3 = 0$, we aim to construct an element of $\\texttt{LinSols}$. This construction is achieved by examining the index $i$ associated with $s$:\n\n1. If $i = 0$, we apply the hypothesis $hGrav = 0$ to obtain the required element.\n2. If $i = 1$, we apply the hypothesis $hSU2 = 0$ to obtain the required element.\n3. If $i = 2$, we apply the hypothesis $hSU3 = 0$ to obtain the required element.\n\nIn each case, the corresponding hypothesis ensures the existence of a suitable element in $\\texttt{LinSols}$, thereby demonstrating that such an element can always be constructed based on the index. This completes the proof.",
+  "id":
+  {"name": "SMRHN.SM",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_quadraticACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "SMνACCs.accCube_ext",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- Extensionality lemma for `accCube`. -/\nlemma accCube_ext {S T : (SMνCharges n).Charges}\n    (h : ∀ j, ∑ i, ((fun a => a^3) ∘ toSpecies j S) i =\n    ∑ i, ((fun a => a^3) ∘ toSpecies j T) i) :\n    accCube S = accCube T := by\n  rw [accCube_decomp]\n  have h1 : ∀ j, ∑ i, (toSpecies j S i) ^ 3 = ∑ i, (toSpecies j T i) ^ 3 := by\n    intro j\n    erw [h]\n    rfl\n  repeat rw [h1]\n  rw [accCube_decomp]"},
+   {"name": "ACCSystem.Sols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the anomaly cancellation conditions. -/\nstructure Sols (χ : ACCSystem) extends χ.QuadSols where\n  /-- The condition that the charge satisfies the cubic ACC. -/\n  cubicSol : χ.cubicACC val = 0"},
+   {"name": "ACCSystem.cubicACC",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content": "cubicACC"},
+   {"name": "SMνACCs.accCube_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accCube_decomp (S : (SMνCharges n).Charges) :\n    accCube S = 6 * ∑ i, (Q S i)^3 + 3 * ∑ i, (U S i)^3 + 3 * ∑ i, (D S i)^3 + 2 * ∑ i, (L S i)^3 +\n      ∑ i, (E S i)^3 + ∑ i, (N S i)^3 := by\n  erw [cubeTriLin_decomp]\n  ring_nf"},
+   {"name": "ACCSystemGroupAction.cubicInvariant",
+    "module": "HepLean.AnomalyCancellation.GroupActions",
+    "content": "cubicInvariant"},
+   {"name": "SMνACCs.accCube",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The cubic ACC. -/\n@[simp]\ndef accCube : HomogeneousCubic (SMνCharges n).Charges := cubeTriLin.toCubic"},
+   {"name": "ACCSystem",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of charges plus the anomaly cancellation conditions. -/\nstructure ACCSystem extends ACCSystemQuad where\n  /-- The cubic ACC. -/\n  cubicACC : HomogeneousCubic toACCSystemCharges.Charges"},
+   {"name": "SMRHN.accCube_invariant",
+    "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+    "content":
+    "lemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by simpa using toSpecies_sum_invariant 3 f S)"},
+   {"name": "ACCSystem.Sols.cubicSol",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content": "cubicSol"},
+   {"name": "Nat.cast_pos'",
+    "module": "Mathlib.Data.Nat.Cast.Order.Basic",
+    "content":
+    "/-- See also `Nat.cast_pos`, specialised for an `OrderedSemiring`. -/\n@[simp low]\ntheorem cast_pos' {n : ℕ} : (0 : α) < n ↔ 0 < n := by cases n <;> simp [cast_add_one_pos]"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "tags and the proof in <PROOF> tags.\n</think>\n\n<STATEMENT>\n\nIf \\( S \\) is a solution in the set of solutions for order \\( n \\), then the cube of \\( S \\) equals zero.",
+  "informal_proof":
+  "tags.\n</think>\n\n<STATEMENT>\n\nIf \\( S \\) is a solution in the set of solutions for order \\( n \\), then the cube of \\( S \\) equals zero.\n\n</STATEMENT>\n<PROOF>\n\nGiven that \\( S \\) is an element of the solution set for order \\( n \\), we rely on the assertion `cubicSol` which directly claims that `accCube S.val` equals zero. Therefore, by the definition of `cubicSol`, we conclude that \\( accCube S.val = 0 \\).",
+  "id":
+  {"name": "SMRHN.SM_quadraticACCs",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_cubicACC_apply",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "LinearMapClass.linearMap",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "/-- Reinterpret an element of a type of linear maps as a linear map. -/\nabbrev linearMap : M₁ →ₗ[R] M₂ := SemilinearMapClass.semilinearMap f"},
+   {"name": "ACCSystemLinear.LinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear ACCs. -/\nstructure LinSols (χ : ACCSystemLinear) where\n  /-- The underlying charge. -/\n  val : χ.1.Charges\n  /-- The condition that the charge satisfies the linear ACCs. -/\n  linearSol : ∀ i : Fin χ.numberLinear, χ.linearACCs i val = 0"},
+   {"name": "Algebra.coe_linearMap",
+    "module": "Mathlib.Algebra.Algebra.Defs",
+    "content":
+    "theorem coe_linearMap : ⇑(Algebra.linearMap R A) = algebraMap R A :=\n  rfl"},
+   {"name": "DirectSum.sigmaLuncurry",
+    "module": "Mathlib.Algebra.DirectSum.Module",
+    "content":
+    "/-- `uncurry` as a linear map. -/\ndef sigmaLuncurry : (⨁ (i) (j), δ i j) →ₗ[R] ⨁ i : Σ_, _, δ i.1 i.2 :=\n  { sigmaUncurry with map_smul' := DFinsupp.sigmaUncurry_smul }"},
+   {"name": "ACCSystemLinear.toACCSystemCharges",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "structure ACCSystemLinear extends ACCSystemCharges where\n  /-- The number of linear ACCs. -/\n  numberLinear : ℕ\n  /-- The linear ACCs. -/\n  linearACCs : Fin numberLinear → (toACCSystemCharges.Charges →ₗ[ℚ] ℚ)"},
+   {"name": "LinearMap.zero_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "@[simp]\ntheorem zero_comp (f : M →ₛₗ[σ₁₂] M₂) : ((0 : M₂ →ₛₗ[σ₂₃] M₃).comp f : M →ₛₗ[σ₁₃] M₃) = 0 :=\n  rfl"},
+   {"name": "DistribMulActionHom.coe_zero",
+    "module": "Mathlib.GroupTheory.GroupAction.Hom",
+    "content": "@[simp]\ntheorem coe_zero : ⇑(0 : A →ₑ+[φ] B) = 0 :=\n  rfl"},
+   {"name": "LinearMapClass.linearMap",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "/-- Reinterpret an element of a type of linear maps as a linear map. -/\nabbrev linearMap : M₁ →ₗ[R] M₂ := SemilinearMapClass.semilinearMap f"},
+   {"name": "ACCSystemQuad.QuadSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear and quadratic ACCs. -/\nstructure QuadSols (χ : ACCSystemQuad) extends χ.LinSols where\n  /-- The condition that the charge satisfies the quadratic ACCs. -/\n  quadSol : ∀ i : Fin χ.numberQuadratic, (χ.quadraticACCs i) val = 0"},
+   {"name": "LinearMapClass.instCoeToLinearMap",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "/-- Reinterpret an element of a type of linear maps as a linear map. -/\ninstance instCoeToLinearMap : CoeHead F (M₁ →ₗ[R] M₂) where\n  coe f := SemilinearMapClass.semilinearMap f"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "For any linear structure \\( S \\) of type \\( n \\), the AccS Uber function returns zero.",
+  "informal_proof":
+  "By the properties of the linear structure \\( S \\), specifically the hypothesis \\( S.linearSol \\), it is shown that evaluating \\( S.linearSol \\) at 2 yields zero. Since \\( S \\) is of type \\( n \\), this result holds universally for all such structures \\( S \\). Therefore, the AccS Uber function evaluates to zero for any linear structure \\( S \\) of type \\( n \\).",
+  "id":
+  {"name": "SMRHN.SM_cubicACC_apply",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberQuadratic",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "ACCSystemLinear.LinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear ACCs. -/\nstructure LinSols (χ : ACCSystemLinear) where\n  /-- The underlying charge. -/\n  val : χ.1.Charges\n  /-- The condition that the charge satisfies the linear ACCs. -/\n  linearSol : ∀ i : Fin χ.numberLinear, χ.linearACCs i val = 0"},
+   {"name": "SMνACCs.accSU2",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The `SU(2)` anomaly equation. -/\n@[simp]\ndef accSU2 : (SMνCharges n).Charges →ₗ[ℚ] ℚ where\n  toFun S := ∑ i, (3 * Q S i + L S i)\n  map_add' S T := by\n    simp only\n    repeat rw [map_add]\n    simp only [SMνSpecies_numberCharges, ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply,\n      Fin.isValue, mul_add]\n    repeat erw [Finset.sum_add_distrib]\n    ring\n  map_smul' a S := by\n    simp only\n    repeat erw [map_smul]\n    simp only [SMνSpecies_numberCharges, HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue,\n      eq_ratCast, Rat.cast_eq_id, id_eq]\n    repeat erw [Finset.sum_add_distrib]\n    repeat erw [← Finset.mul_sum]\n    -- rw [show Rat.cast a = a from rfl]\n    ring"},
+   {"name": "SMνACCs.accSU3_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accSU3_decomp (S : (SMνCharges n).Charges) :\n    accSU3 S = 2 * ∑ i, Q S i + ∑ i, U S i + ∑ i, D S i := by\n  simp only [accSU3, SMνSpecies_numberCharges, toSpecies_apply, Fin.isValue, LinearMap.coe_mk,\n    AddHom.coe_mk]\n  repeat rw [Finset.sum_add_distrib]\n  repeat rw [← Finset.mul_sum]"},
+   {"name": "LinearMapClass.linearMap",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "/-- Reinterpret an element of a type of linear maps as a linear map. -/\nabbrev linearMap : M₁ →ₗ[R] M₂ := SemilinearMapClass.semilinearMap f"},
+   {"name": "LinearMap.uniqueOfLeft",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "instance uniqueOfLeft [Subsingleton M] : Unique (M →ₛₗ[σ₁₂] M₂) :=\n  { inferInstanceAs (Inhabited (M →ₛₗ[σ₁₂] M₂)) with\n    uniq := fun f => ext fun x => by rw [Subsingleton.elim x 0, map_zero, map_zero] }"},
+   {"name": "LinearMap.zero_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "@[simp]\ntheorem zero_comp (f : M →ₛₗ[σ₁₂] M₂) : ((0 : M₂ →ₛₗ[σ₂₃] M₃).comp f : M →ₛₗ[σ₁₃] M₃) = 0 :=\n  rfl"},
+   {"name": "LinearMap.uniqueOfLeft",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "instance uniqueOfLeft [Subsingleton M] : Unique (M →ₛₗ[σ₁₂] M₂) :=\n  { inferInstanceAs (Inhabited (M →ₛₗ[σ₁₂] M₂)) with\n    uniq := fun f => ext fun x => by rw [Subsingleton.elim x 0, map_zero, map_zero] }"},
+   {"name": "SMνACCs.accSU2_ext",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- Extensionality lemma for `accSU2`. -/\nlemma accSU2_ext {S T : (SMνCharges n).Charges}\n    (hj : ∀ (j : Fin 6), ∑ i, (toSpecies j) S i = ∑ i, (toSpecies j) T i) :\n    accSU2 S = accSU2 T := by\n  rw [accSU2_decomp, accSU2_decomp]\n  repeat erw [hj]"},
+   {"name": "DistribMulActionHom.coe_zero",
+    "module": "Mathlib.GroupTheory.GroupAction.Hom",
+    "content": "@[simp]\ntheorem coe_zero : ⇑(0 : A →ₑ+[φ] B) = 0 :=\n  rfl"},
+   {"name": "LinearMapClass.instCoeToLinearMap",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "/-- Reinterpret an element of a type of linear maps as a linear map. -/\ninstance instCoeToLinearMap : CoeHead F (M₁ →ₗ[R] M₂) where\n  coe f := SemilinearMapClass.semilinearMap f"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "For any element $S$ in the set $SM$ indexed by $n$, if we consider the linear solutions associated with $S$, then the value of $accSU2$ at $S$ is zero.",
+  "informal_proof":
+  "Given any element $S$ in the set $SM$ indexed by $n$, we analyze the linear solutions associated with $S$. By examining the structure of these solutions, we derive that the `$accSU2$ value corresponding to $S$ is zero. This is achieved by directly evaluating the linear solution at a specific position, as detailed in the formal proof.",
+  "id":
+  {"name": "SMRHN.SM_numberQuadratic",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+   {"name": "SMRHN.SM_numberCharges",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "SMνACCs.accGrav",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The gravitational anomaly equation. -/\n@[simp]\ndef accGrav : (SMνCharges n).Charges →ₗ[ℚ] ℚ where\n  toFun S := ∑ i, (6 * Q S i + 3 * U S i + 3 * D S i + 2 * L S i + E S i + N S i)\n  map_add' S T := by\n    simp only\n    repeat rw [map_add]\n    simp only [SMνSpecies_numberCharges, ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply,\n      Fin.isValue, mul_add]\n    repeat erw [Finset.sum_add_distrib]\n    ring\n  map_smul' a S := by\n    simp only\n    repeat erw [map_smul]\n    simp only [SMνSpecies_numberCharges, HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue,\n      eq_ratCast, Rat.cast_eq_id, id_eq]\n    repeat erw [Finset.sum_add_distrib]\n    repeat erw [← Finset.mul_sum]\n    -- rw [show Rat.cast a = a from rfl]\n    ring"},
+   {"name": "ACCSystemLinear.LinSols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the linear ACCs. -/\nstructure LinSols (χ : ACCSystemLinear) where\n  /-- The underlying charge. -/\n  val : χ.1.Charges\n  /-- The condition that the charge satisfies the linear ACCs. -/\n  linearSol : ∀ i : Fin χ.numberLinear, χ.linearACCs i val = 0"},
+   {"name": "SMνACCs.accYY_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accYY_decomp (S : (SMνCharges n).Charges) :\n    accYY S = ∑ i, Q S i + 8 * ∑ i, U S i + 2 * ∑ i, D S i + 3 * ∑ i, L S i + 6 * ∑ i, E S i := by\n  simp only [accYY, SMνSpecies_numberCharges, toSpecies_apply, Fin.isValue, LinearMap.coe_mk,\n    AddHom.coe_mk]\n  repeat rw [Finset.sum_add_distrib]\n  repeat rw [← Finset.mul_sum]"},
+   {"name": "LinearMap.zero_comp",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "@[simp]\ntheorem zero_comp (f : M →ₛₗ[σ₁₂] M₂) : ((0 : M₂ →ₛₗ[σ₂₃] M₃).comp f : M →ₛₗ[σ₁₃] M₃) = 0 :=\n  rfl"},
+   {"name": "SMνACCs.accSU3_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accSU3_decomp (S : (SMνCharges n).Charges) :\n    accSU3 S = 2 * ∑ i, Q S i + ∑ i, U S i + ∑ i, D S i := by\n  simp only [accSU3, SMνSpecies_numberCharges, toSpecies_apply, Fin.isValue, LinearMap.coe_mk,\n    AddHom.coe_mk]\n  repeat rw [Finset.sum_add_distrib]\n  repeat rw [← Finset.mul_sum]"},
+   {"name": "WithZero.instLinearOrderedCommGroupWithZero",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Canonical",
+    "content":
+    "instance instLinearOrderedCommGroupWithZero [LinearOrderedCommGroup α] :\n    LinearOrderedCommGroupWithZero (WithZero α) where\n  __ := instLinearOrderedCommMonoidWithZero\n  __ := commGroupWithZero"},
+   {"name":
+    "Module.exists_nontrivial_relation_sum_zero_of_finrank_succ_lt_card",
+    "module": "Mathlib.LinearAlgebra.Dimension.Finite",
+    "content":
+    "/-- If a finset has cardinality larger than `finrank + 1`,\nthen there is a nontrivial linear relation amongst its elements,\nsuch that the coefficients of the relation sum to zero. -/\ntheorem Module.exists_nontrivial_relation_sum_zero_of_finrank_succ_lt_card\n    {t : Finset M} (h : finrank R M + 1 < t.card) :\n    ∃ f : M → R, ∑ e ∈ t, f e • e = 0 ∧ ∑ e ∈ t, f e = 0 ∧ ∃ x ∈ t, f x ≠ 0 := by\n  -- Pick an element x₀ ∈ t,\n  obtain ⟨x₀, x₀_mem⟩ := card_pos.1 ((Nat.succ_pos _).trans h)\n  -- and apply the previous lemma to the {xᵢ - x₀}\n  let shift : M ↪ M := ⟨(· - x₀), sub_left_injective⟩\n  classical\n  let t' := (t.erase x₀).map shift\n  have h' : finrank R M < t'.card := by\n    rw [card_map, card_erase_of_mem x₀_mem]\n    exact Nat.lt_pred_iff.mpr h\n  -- to obtain a function `g`.\n  obtain ⟨g, gsum, x₁, x₁_mem, nz⟩ := exists_nontrivial_relation_of_finrank_lt_card h'\n  -- Then obtain `f` by translating back by `x₀`,\n  -- and setting the value of `f` at `x₀` to ensure `∑ e ∈ t, f e = 0`.\n  let f : M → R := fun z ↦ if z = x₀ then -∑ z ∈ t.erase x₀, g (z - x₀) else g (z - x₀)\n  refine ⟨f, ?_, ?_, ?_⟩\n  -- After this, it's a matter of verifying the properties,\n  -- based on the corresponding properties for `g`.\n  · rw [sum_map, Embedding.coeFn_mk] at gsum\n    simp_rw [f, ← t.sum_erase_add _ x₀_mem, if_pos, neg_smul, sum_smul,\n             ← sub_eq_add_neg, ← sum_sub_distrib, ← gsum, smul_sub]\n    refine sum_congr rfl fun x x_mem ↦ ?_\n    rw [if_neg (mem_erase.mp x_mem).1]\n  · simp_rw [f, ← t.sum_erase_add _ x₀_mem, if_pos, add_neg_eq_zero]\n    exact sum_congr rfl fun x x_mem ↦ if_neg (mem_erase.mp x_mem).1\n  · obtain ⟨x₁, x₁_mem', rfl⟩ := Finset.mem_map.mp x₁_mem\n    have := mem_erase.mp x₁_mem'\n    exact ⟨x₁, by\n      simpa only [f, Embedding.coeFn_mk, sub_add_cancel, this.2, true_and, if_neg this.1]⟩"},
+   {"name": "ACCSystemLinear.linSolsAddCommMonoid",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- An instance providing the operations and properties for `LinSols` to form an\n  additive commutative monoid. -/\n@[simps!]\ninstance linSolsAddCommMonoid (χ : ACCSystemLinear) :\n    AddCommMonoid χ.LinSols where\n  add S T := ⟨S.val + T.val, fun _ ↦ by simp [(χ.linearACCs _).map_add, S.linearSol _,\n    T.linearSol _]⟩\n  add_comm S T := LinSols.ext (χ.chargesAddCommMonoid.add_comm _ _)\n  add_assoc S T L := LinSols.ext (χ.chargesAddCommMonoid.add_assoc _ _ _)\n  zero := ⟨χ.chargesAddCommMonoid.zero, fun _ ↦ (χ.linearACCs _).map_zero⟩\n  zero_add S := LinSols.ext (χ.chargesAddCommMonoid.zero_add _)\n  add_zero S := LinSols.ext (χ.chargesAddCommMonoid.add_zero _)\n  nsmul n S := ⟨n • S.val, fun _ ↦ by simp [Nat.cast_smul_eq_nsmul ℚ, (χ.linearACCs _).map_smul,\n    S.linearSol _]⟩\n  nsmul_zero n := rfl\n  nsmul_succ n S := LinSols.ext (χ.chargesAddCommMonoid.nsmul_succ _ _)"},
+   {"name": "TriLinearSymm.map_sum₁",
+    "module": "HepLean.Mathematics.LinearMaps",
+    "content":
+    "lemma map_sum₁ {n : ℕ} (f : TriLinearSymm V) (S : Fin n → V) (T : V) (L : V) :\n    f (∑ i, S i) T L = ∑ i, f (S i) T L := by\n  rw [f.toLinear₁_apply]\n  rw [map_sum]\n  rfl"},
+   {"name": "SMνACCs.accSU2_ext",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- Extensionality lemma for `accSU2`. -/\nlemma accSU2_ext {S T : (SMνCharges n).Charges}\n    (hj : ∀ (j : Fin 6), ∑ i, (toSpecies j) S i = ∑ i, (toSpecies j) T i) :\n    accSU2 S = accSU2 T := by\n  rw [accSU2_decomp, accSU2_decomp]\n  repeat erw [hj]"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "For any linear solution $S$ of a system of equations indexed by $n$, the value of the accumulated gravity $\\text{accGrav}(S.val)$ is zero.",
+  "informal_proof":
+  "To establish that $\\text{accGrav}(S.val) = 0$ for any linear solution $S$ of a system of equations indexed by $n$, we utilize the property of $S$ that it satisfies its own characteristic equation. Specifically, since $S$ is a solution, by definition it must satisfy the equation when evaluated at zero.\n\nBy applying the property of the solution $S$ at zero, we directly conclude the desired result that $\\text{accGrav}(S.val) = 0$.",
+  "id":
+  {"name": "SMRHN.SM_numberCharges",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies":
+  [{"name": "SMRHN.SM_linearACCs",
+    "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+    "compilationAlias":
+    "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"}]},
+ {"rag":
+  [{"name": "ACCSystemQuad",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of charges plus the linear ACCs plus the quadratic ACCs. -/\nstructure ACCSystemQuad extends ACCSystemLinear where\n  /-- The number of quadratic ACCs. -/\n  numberQuadratic : ℕ\n  /-- The quadratic ACCs. -/\n  quadraticACCs : Fin numberQuadratic → HomogeneousQuadratic toACCSystemCharges.Charges"},
+   {"name": "ACCSystem.Sols",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of solutions to the anomaly cancellation conditions. -/\nstructure Sols (χ : ACCSystem) extends χ.QuadSols where\n  /-- The condition that the charge satisfies the cubic ACC. -/\n  cubicSol : χ.cubicACC val = 0"},
+   {"name": "SMνACCs.accYY",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The `Y²` anomaly equation. -/\n@[simp]\ndef accYY : (SMνCharges n).Charges →ₗ[ℚ] ℚ where\n  toFun S := ∑ i, (Q S i + 8 * U S i + 2 * D S i + 3 * L S i\n    + 6 * E S i)\n  map_add' S T := by\n    simp only\n    repeat rw [map_add]\n    simp only [SMνSpecies_numberCharges, ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply,\n      Fin.isValue, mul_add]\n    repeat erw [Finset.sum_add_distrib]\n    ring\n  map_smul' a S := by\n    simp only\n    repeat erw [map_smul]\n    simp only [SMνSpecies_numberCharges, HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue,\n      eq_ratCast, Rat.cast_eq_id, id_eq]\n    repeat erw [Finset.sum_add_distrib]\n    repeat erw [← Finset.mul_sum]\n    -- rw [show Rat.cast a = a from rfl]\n    ring"},
+   {"name": "ACCSystem",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "/-- The type of charges plus the anomaly cancellation conditions. -/\nstructure ACCSystem extends ACCSystemQuad where\n  /-- The cubic ACC. -/\n  cubicACC : HomogeneousCubic toACCSystemCharges.Charges"},
+   {"name": "SMνACCs.accCube",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The cubic ACC. -/\n@[simp]\ndef accCube : HomogeneousCubic (SMνCharges n).Charges := cubeTriLin.toCubic"},
+   {"name": "SMνACCs.accCube_decomp",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "lemma accCube_decomp (S : (SMνCharges n).Charges) :\n    accCube S = 6 * ∑ i, (Q S i)^3 + 3 * ∑ i, (U S i)^3 + 3 * ∑ i, (D S i)^3 + 2 * ∑ i, (L S i)^3 +\n      ∑ i, (E S i)^3 + ∑ i, (N S i)^3 := by\n  erw [cubeTriLin_decomp]\n  ring_nf"},
+   {"name": "SMνACCs.accSU2",
+    "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+    "content":
+    "/-- The `SU(2)` anomaly equation. -/\n@[simp]\ndef accSU2 : (SMνCharges n).Charges →ₗ[ℚ] ℚ where\n  toFun S := ∑ i, (3 * Q S i + L S i)\n  map_add' S T := by\n    simp only\n    repeat rw [map_add]\n    simp only [SMνSpecies_numberCharges, ACCSystemCharges.chargesAddCommMonoid_add, toSpecies_apply,\n      Fin.isValue, mul_add]\n    repeat erw [Finset.sum_add_distrib]\n    ring\n  map_smul' a S := by\n    simp only\n    repeat erw [map_smul]\n    simp only [SMνSpecies_numberCharges, HSMul.hSMul, SMul.smul, toSpecies_apply, Fin.isValue,\n      eq_ratCast, Rat.cast_eq_id, id_eq]\n    repeat erw [Finset.sum_add_distrib]\n    repeat erw [← Finset.mul_sum]\n    -- rw [show Rat.cast a = a from rfl]\n    ring"},
+   {"name": "LinearMap.CompatibleSMul",
+    "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+    "content":
+    "/-- A typeclass for `SMul` structures which can be moved through a `LinearMap`.\nThis typeclass is generated automatically from an `IsScalarTower` instance, but exists so that\nwe can also add an instance for `AddCommGroup.toIntModule`, allowing `z •` to be moved even if\n`S` does not support negation.\n-/\nclass CompatibleSMul (R S : Type*) [Semiring S] [SMul R M] [Module S M] [SMul R M₂]\n  [Module S M₂] : Prop where\n  /-- Scalar multiplication by `R` of `M` can be moved through linear maps. -/\n  map_smul : ∀ (fₗ : M →ₗ[S] M₂) (c : R) (x : M), fₗ (c • x) = c • fₗ x"},
+   {"name": "Algebra.linearMap_apply",
+    "module": "Mathlib.Algebra.Algebra.Defs",
+    "content":
+    "@[simp]\ntheorem linearMap_apply (r : R) : Algebra.linearMap R A r = algebraMap R A r :=\n  rfl"},
+   {"name": "ACCSystemLinear.toACCSystemCharges",
+    "module": "HepLean.AnomalyCancellation.Basic",
+    "content":
+    "structure ACCSystemLinear extends ACCSystemCharges where\n  /-- The number of linear ACCs. -/\n  numberLinear : ℕ\n  /-- The linear ACCs. -/\n  linearACCs : Fin numberLinear → (toACCSystemCharges.Charges →ₗ[ℚ] ℚ)"}],
+  "prescopes":
+  "namespace SMRHN\n\nopen SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+  "postscopes": "end SMRHN",
+  "informal_statement":
+  "The Standard Model (SM) coupled with the RHN system satisfies an Algebraic Core and Conditions System (ACC) defined by three linear components: gravity (as per @accGrav n), SU2, and SU3 symmetries, with higher-order components being trivial up to cubic degree.",
+  "informal_proof":
+  "We demonstrate that the Standard Model (SM) combined with the RHN system adheres to the defined ACC system, which comprises linear, quadratic, and cubic ACCs. The ACC system for SM plus RHN is structured as follows:\n\n1. **LinearACCs**: \n   - At index 0, the linear ACC corresponds to gravity, represented by @accGrav n. This aligns with the gravitational aspects inherent in the SM, such as general relativity, which operates in a four-dimensional spacetime manifold.\n   - At index 1, the linear ACC corresponds to SU2 symmetry, which is a gauge symmetry fundamental to the weak interaction in the SM. This symmetry is crucial for modeling particle interactions involving the W and Z bosons.\n   - At index 2, the linear ACC corresponds to SU3 symmetry, representing the strong interaction in the SM. This symmetry governs the behavior of quarks and gluons within quantum chromodynamics (QCD).\n\n2. **QuadraticACCs**: \n   - For any index greater than 0, the quadratic ACC is defined as `Fin.elim0 i`, which returns 0. This indicates that beyond the linear components, there are no non-trivial quadratic contributions to the ACC system for SM plus RHN. This could imply that any non-linear effects are either absent or already accounted for in the linear components.\n\n3. **CubicACC**: \n   - The cubic ACC is defined as `accCube`. While the exact nature of `accCube` is not explicitly provided, given the context, it is reasonable to infer that it represents higher-order categorical or algebraic structures that align with the SM plus RHN framework.\n\nBy systematically verifying each component of the ACC system against the established properties of the SM plus RHN, we confirm that the system of linear, quadratic, and cubic ACCs accurately encapsulates the algebraic structures intrinsic to the SM plus RHN. Each ACC at different indices corresponds appropriately to the respective aspects of the SM plus RHN, thereby substantiating the claim that the SM plus RHN satisfies the defined ACC system.\n\nTherefore, the Standard Model coupled with the RHN system indeed satisfies the specified ACC system, which reflects the algebraic underpinnings of the SM plus RHN as a whole.",
+  "id":
+  {"name": "SMRHN.SM_linearACCs",
+   "module": "HepLean.AnomalyCancellation.SMNu.Ordinary.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+   "compilationAlias":
+   "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n"},
+  "goal":
+  "n : Nat\ni : Fin 3\n⊢ Eq ((SMRHN.SM n).linearACCs i) (SMRHN.SM.match_1 (fun i => LinearMap (RingHom.id Rat) { numberCharges := HMul.hMul 6 n }.Charges Rat) i (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HAdd.hAdd (HMul.hMul 6 (S (finProdFinEquiv { fst := 0, snd := i }))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 1, snd := i })))) (HMul.hMul 3 (S (finProdFinEquiv { fst := 2, snd := i })))) (HMul.hMul 2 (S (finProdFinEquiv { fst := 3, snd := i })))) (S (finProdFinEquiv { fst := 4, snd := i }))) (S (finProdFinEquiv { fst := 5, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) (fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HMul.hMul 3 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 3, snd := i })), map_add' := ⋯, map_smul' := ⋯ }) fun _ => { toFun := fun S => Finset.univ.sum fun i => HAdd.hAdd (HAdd.hAdd (HMul.hMul 2 (S (finProdFinEquiv { fst := 0, snd := i }))) (S (finProdFinEquiv { fst := 1, snd := i }))) (S (finProdFinEquiv { fst := 2, snd := i })), map_add' := ⋯, map_smul' := ⋯ })",
+  "content_sorry":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Permutations\nimport HepLean.AnomalyCancellation.GroupActions\n/-!\n# ACC system for SM with RHN (without hypercharge).\n\nWe define the ACC system for the Standard Model (without hypercharge) with right-handed neutrinos.\n-/\n\nuniverse v u\nnamespace SMRHN\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "annotation":
+  "/-- The ACC system for the SM plus RHN. -/\n@[simps!]\ndef SM (n : ℕ) : ACCSystem where\n  numberLinear := 3\n  linearACCs := fun i =>\n    match i with\n    | 0 => @accGrav n\n    | 1 => accSU2\n    | 2 => accSU3\n  numberQuadratic := 0\n  quadraticACCs := fun i ↦ Fin.elim0 i\n  cubicACC := accCube\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.elim0",
+    "module": "Init.Data.Fin.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+    "compilationAlias":
+    "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"}],
+  "C0_dependencies": []}]

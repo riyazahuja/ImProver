@@ -1,0 +1,205 @@
+[{"rag":
+  [{"name": "MeasureTheory.lintegral_add_mul_meas_add_le_le_lintegral",
+    "module": "Mathlib.MeasureTheory.Integral.Lebesgue",
+    "content":
+    "/-- A version of **Markov's inequality** for two functions. It doesn't follow from the standard\nMarkov's inequality because we only assume measurability of `g`, not `f`. -/\ntheorem lintegral_add_mul_meas_add_le_le_lintegral {f g : α → ℝ≥0∞} (hle : f ≤ᵐ[μ] g)\n    (hg : AEMeasurable g μ) (ε : ℝ≥0∞) :\n    ∫⁻ a, f a ∂μ + ε * μ { x | f x + ε ≤ g x } ≤ ∫⁻ a, g a ∂μ := by\n  rcases exists_measurable_le_lintegral_eq μ f with ⟨φ, hφm, hφ_le, hφ_eq⟩\n  calc\n    ∫⁻ x, f x ∂μ + ε * μ { x | f x + ε ≤ g x } = ∫⁻ x, φ x ∂μ + ε * μ { x | f x + ε ≤ g x } := by\n      rw [hφ_eq]\n    _ ≤ ∫⁻ x, φ x ∂μ + ε * μ { x | φ x + ε ≤ g x } := by\n      gcongr\n      exact fun x => (add_le_add_right (hφ_le _) _).trans\n    _ = ∫⁻ x, φ x + indicator { x | φ x + ε ≤ g x } (fun _ => ε) x ∂μ := by\n      rw [lintegral_add_left hφm, lintegral_indicator₀, setLIntegral_const]\n      exact measurableSet_le (hφm.nullMeasurable.measurable'.add_const _) hg.nullMeasurable\n    _ ≤ ∫⁻ x, g x ∂μ := lintegral_mono_ae (hle.mono fun x hx₁ => ?_)\n  simp only [indicator_apply]; split_ifs with hx₂\n  exacts [hx₂, (add_zero _).trans_le <| (hφ_le x).trans hx₁]"},
+   {"name": "MeasureTheory.Measure.liftLinear",
+    "module": "Mathlib.MeasureTheory.Measure.Map",
+    "content":
+    "/-- Lift a linear map between `OuterMeasure` spaces such that for each measure `μ` every measurable\nset is caratheodory-measurable w.r.t. `f μ` to a linear map between `Measure` spaces. -/\nnoncomputable\ndef liftLinear [MeasurableSpace β] (f : OuterMeasure α →ₗ[ℝ≥0∞] OuterMeasure β)\n    (hf : ∀ μ : Measure α, ‹_› ≤ (f μ.toOuterMeasure).caratheodory) :\n    Measure α →ₗ[ℝ≥0∞] Measure β where\n  toFun μ := (f μ.toOuterMeasure).toMeasure (hf μ)\n  map_add' μ₁ μ₂ := ext fun s hs => by\n    simp only [map_add, coe_add, Pi.add_apply, toMeasure_apply, add_toOuterMeasure,\n      OuterMeasure.coe_add, hs]\n  map_smul' c μ := ext fun s hs => by\n    simp only [LinearMap.map_smulₛₗ, coe_smul, Pi.smul_apply,\n      toMeasure_apply, smul_toOuterMeasure (R := ℝ≥0∞), OuterMeasure.coe_smul (R := ℝ≥0∞),\n      smul_apply, hs]"},
+   {"name": "MeasureTheory.lintegral_abs_det_fderiv_le_addHaar_image_aux1",
+    "module": "Mathlib.MeasureTheory.Function.Jacobian",
+    "content":
+    "theorem lintegral_abs_det_fderiv_le_addHaar_image_aux1 (hs : MeasurableSet s)\n    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x) (hf : InjOn f s) {ε : ℝ≥0} (εpos : 0 < ε) :\n    (∫⁻ x in s, ENNReal.ofReal |(f' x).det| ∂μ) ≤ μ (f '' s) + 2 * ε * μ s := by\n  /- To bound `∫⁻ x in s, ENNReal.ofReal |(f' x).det| ∂μ`, we cover `s` by sets where `f` is\n    well-approximated by linear maps `A n` (and where `f'` is almost everywhere close to `A n`),\n    and then use that `f` expands the measure of such a set by at least `(A n).det - ε`. -/\n  have :\n    ∀ A : E →L[ℝ] E,\n      ∃ δ : ℝ≥0,\n        0 < δ ∧\n          (∀ B : E →L[ℝ] E, ‖B - A‖ ≤ δ → |B.det - A.det| ≤ ε) ∧\n            ∀ (t : Set E) (g : E → E), ApproximatesLinearOn g A t δ →\n              ENNReal.ofReal |A.det| * μ t ≤ μ (g '' t) + ε * μ t := by\n    intro A\n    obtain ⟨δ', δ'pos, hδ'⟩ : ∃ (δ' : ℝ), 0 < δ' ∧ ∀ B, dist B A < δ' → dist B.det A.det < ↑ε := by\n      refine continuousAt_iff.1 ?_ ε εpos\n      exact ContinuousLinearMap.continuous_det.continuousAt\n    let δ'' : ℝ≥0 := ⟨δ' / 2, (half_pos δ'pos).le⟩\n    have I'' : ∀ B : E →L[ℝ] E, ‖B - A‖ ≤ ↑δ'' → |B.det - A.det| ≤ ↑ε := by\n      intro B hB\n      rw [← Real.dist_eq]\n      apply (hδ' B _).le\n      rw [dist_eq_norm]\n      exact hB.trans_lt (half_lt_self δ'pos)\n    rcases eq_or_ne A.det 0 with (hA | hA)\n    · refine ⟨δ'', half_pos δ'pos, I'', ?_⟩\n      simp only [hA, forall_const, zero_mul, ENNReal.ofReal_zero, imp_true_iff,\n        zero_le, abs_zero]\n    let m : ℝ≥0 := Real.toNNReal |A.det| - ε\n    have I : (m : ℝ≥0∞) < ENNReal.ofReal |A.det| := by\n      simp only [m, ENNReal.ofReal, ENNReal.coe_sub]\n      apply ENNReal.sub_lt_self ENNReal.coe_ne_top\n      · simpa only [abs_nonpos_iff, Real.toNNReal_eq_zero, ENNReal.coe_eq_zero, Ne] using hA\n      · simp only [εpos.ne', ENNReal.coe_eq_zero, Ne, not_false_iff]\n    rcases ((mul_le_addHaar_image_of_lt_det μ A I).and self_mem_nhdsWithin).exists with ⟨δ, h, δpos⟩\n    refine ⟨min δ δ'', lt_min δpos (half_pos δ'pos), ?_, ?_⟩\n    · intro B hB\n      apply I'' _ (hB.trans _)\n      simp only [le_refl, NNReal.coe_min, min_le_iff, or_true]\n    · intro t g htg\n      rcases eq_or_ne (μ t) ∞ with (ht | ht)\n      · simp only [ht, εpos.ne', ENNReal.mul_top, ENNReal.coe_eq_zero, le_top, Ne,\n          not_false_iff, _root_.add_top]\n      have := h t g (htg.mono_num (min_le_left _ _))\n      rwa [ENNReal.coe_sub, ENNReal.sub_mul, tsub_le_iff_right] at this\n      simp only [ht, imp_true_iff, Ne, not_false_iff]\n  choose δ hδ using this\n  obtain ⟨t, A, t_disj, t_meas, t_cover, ht, -⟩ :\n    ∃ (t : ℕ → Set E) (A : ℕ → E →L[ℝ] E),\n      Pairwise (Disjoint on t) ∧\n        (∀ n : ℕ, MeasurableSet (t n)) ∧\n          (s ⊆ ⋃ n : ℕ, t n) ∧\n            (∀ n : ℕ, ApproximatesLinearOn f (A n) (s ∩ t n) (δ (A n))) ∧\n              (s.Nonempty → ∀ n, ∃ y ∈ s, A n = f' y) :=\n    exists_partition_approximatesLinearOn_of_hasFDerivWithinAt f s f' hf' δ fun A => (hδ A).1.ne'\n  have s_eq : s = ⋃ n, s ∩ t n := by\n    rw [← inter_iUnion]\n    exact Subset.antisymm (subset_inter Subset.rfl t_cover) inter_subset_left\n  calc\n    (∫⁻ x in s, ENNReal.ofReal |(f' x).det| ∂μ) =\n        ∑' n, ∫⁻ x in s ∩ t n, ENNReal.ofReal |(f' x).det| ∂μ := by\n      conv_lhs => rw [s_eq]\n      rw [lintegral_iUnion]\n      · exact fun n => hs.inter (t_meas n)\n      · exact pairwise_disjoint_mono t_disj fun n => inter_subset_right\n    _ ≤ ∑' n, ∫⁻ _ in s ∩ t n, ENNReal.ofReal |(A n).det| + ε ∂μ := by\n      apply ENNReal.tsum_le_tsum fun n => ?_\n      apply lintegral_mono_ae\n      filter_upwards [(ht n).norm_fderiv_sub_le μ (hs.inter (t_meas n)) f' fun x hx =>\n          (hf' x hx.1).mono inter_subset_left]\n      intro x hx\n      have I : |(f' x).det| ≤ |(A n).det| + ε :=\n        calc\n          |(f' x).det| = |(A n).det + ((f' x).det - (A n).det)| := by congr 1; abel\n          _ ≤ |(A n).det| + |(f' x).det - (A n).det| := abs_add _ _\n          _ ≤ |(A n).det| + ε := add_le_add le_rfl ((hδ (A n)).2.1 _ hx)\n      calc\n        ENNReal.ofReal |(f' x).det| ≤ ENNReal.ofReal (|(A n).det| + ε) :=\n          ENNReal.ofReal_le_ofReal I\n        _ = ENNReal.ofReal |(A n).det| + ε := by\n          simp only [ENNReal.ofReal_add, abs_nonneg, NNReal.zero_le_coe, ENNReal.ofReal_coe_nnreal]\n    _ = ∑' n, (ENNReal.ofReal |(A n).det| * μ (s ∩ t n) + ε * μ (s ∩ t n)) := by\n      simp only [setLIntegral_const, lintegral_add_right _ measurable_const]\n    _ ≤ ∑' n, (μ (f '' (s ∩ t n)) + ε * μ (s ∩ t n) + ε * μ (s ∩ t n)) := by\n      gcongr\n      exact (hδ (A _)).2.2 _ _ (ht _)\n    _ = μ (f '' s) + 2 * ε * μ s := by\n      conv_rhs => rw [s_eq]\n      rw [image_iUnion, measure_iUnion]; rotate_left\n      · intro i j hij\n        apply Disjoint.image _ hf inter_subset_left inter_subset_left\n        exact Disjoint.mono inter_subset_right inter_subset_right (t_disj hij)\n      · intro i\n        exact\n          measurable_image_of_fderivWithin (hs.inter (t_meas i))\n            (fun x hx => (hf' x hx.1).mono inter_subset_left)\n            (hf.mono inter_subset_left)\n      rw [measure_iUnion]; rotate_left\n      · exact pairwise_disjoint_mono t_disj fun i => inter_subset_right\n      · exact fun i => hs.inter (t_meas i)\n      rw [← ENNReal.tsum_mul_left, ← ENNReal.tsum_add]\n      congr 1\n      ext1 i\n      rw [mul_assoc, two_mul, add_assoc]"},
+   {"name": "MeasureTheory.setIntegral_nonpos",
+    "module": "Mathlib.MeasureTheory.Integral.SetIntegral",
+    "content":
+    "theorem setIntegral_nonpos (hs : MeasurableSet s) (hf : ∀ x, x ∈ s → f x ≤ 0) :\n    ∫ x in s, f x ∂μ ≤ 0 :=\n  setIntegral_nonpos_ae hs <| ae_of_all μ hf"},
+   {"name": "MeasureTheory.lintegral_add_mul_meas_add_le_le_lintegral",
+    "module": "Mathlib.MeasureTheory.Integral.Lebesgue",
+    "content":
+    "/-- A version of **Markov's inequality** for two functions. It doesn't follow from the standard\nMarkov's inequality because we only assume measurability of `g`, not `f`. -/\ntheorem lintegral_add_mul_meas_add_le_le_lintegral {f g : α → ℝ≥0∞} (hle : f ≤ᵐ[μ] g)\n    (hg : AEMeasurable g μ) (ε : ℝ≥0∞) :\n    ∫⁻ a, f a ∂μ + ε * μ { x | f x + ε ≤ g x } ≤ ∫⁻ a, g a ∂μ := by\n  rcases exists_measurable_le_lintegral_eq μ f with ⟨φ, hφm, hφ_le, hφ_eq⟩\n  calc\n    ∫⁻ x, f x ∂μ + ε * μ { x | f x + ε ≤ g x } = ∫⁻ x, φ x ∂μ + ε * μ { x | f x + ε ≤ g x } := by\n      rw [hφ_eq]\n    _ ≤ ∫⁻ x, φ x ∂μ + ε * μ { x | φ x + ε ≤ g x } := by\n      gcongr\n      exact fun x => (add_le_add_right (hφ_le _) _).trans\n    _ = ∫⁻ x, φ x + indicator { x | φ x + ε ≤ g x } (fun _ => ε) x ∂μ := by\n      rw [lintegral_add_left hφm, lintegral_indicator₀, setLIntegral_const]\n      exact measurableSet_le (hφm.nullMeasurable.measurable'.add_const _) hg.nullMeasurable\n    _ ≤ ∫⁻ x, g x ∂μ := lintegral_mono_ae (hle.mono fun x hx₁ => ?_)\n  simp only [indicator_apply]; split_ifs with hx₂\n  exacts [hx₂, (add_zero _).trans_le <| (hφ_le x).trans hx₁]"},
+   {"name": "MeasureTheory.lintegral_le_of_forall_fin_meas_le_of_measurable",
+    "module": "Mathlib.MeasureTheory.Integral.Lebesgue",
+    "content":
+    "alias lintegral_le_of_forall_fin_meas_le_of_measurable := lintegral_le_of_forall_fin_meas_trim_le"},
+   {"name": "MeasureTheory.Measure.liftLinear",
+    "module": "Mathlib.MeasureTheory.Measure.Map",
+    "content":
+    "/-- Lift a linear map between `OuterMeasure` spaces such that for each measure `μ` every measurable\nset is caratheodory-measurable w.r.t. `f μ` to a linear map between `Measure` spaces. -/\nnoncomputable\ndef liftLinear [MeasurableSpace β] (f : OuterMeasure α →ₗ[ℝ≥0∞] OuterMeasure β)\n    (hf : ∀ μ : Measure α, ‹_› ≤ (f μ.toOuterMeasure).caratheodory) :\n    Measure α →ₗ[ℝ≥0∞] Measure β where\n  toFun μ := (f μ.toOuterMeasure).toMeasure (hf μ)\n  map_add' μ₁ μ₂ := ext fun s hs => by\n    simp only [map_add, coe_add, Pi.add_apply, toMeasure_apply, add_toOuterMeasure,\n      OuterMeasure.coe_add, hs]\n  map_smul' c μ := ext fun s hs => by\n    simp only [LinearMap.map_smulₛₗ, coe_smul, Pi.smul_apply,\n      toMeasure_apply, smul_toOuterMeasure (R := ℝ≥0∞), OuterMeasure.coe_smul (R := ℝ≥0∞),\n      smul_apply, hs]"},
+   {"name": "MeasureTheory.le_lintegral_add",
+    "module": "Mathlib.MeasureTheory.Integral.Lebesgue",
+    "content":
+    "/-- The sum of the lower Lebesgue integrals of two functions is less than or equal to the integral\nof their sum. The other inequality needs one of these functions to be (a.e.-)measurable. -/\ntheorem le_lintegral_add (f g : α → ℝ≥0∞) :\n    ∫⁻ a, f a ∂μ + ∫⁻ a, g a ∂μ ≤ ∫⁻ a, f a + g a ∂μ := by\n  simp only [lintegral]\n  refine ENNReal.biSup_add_biSup_le' (p := fun h : α →ₛ ℝ≥0∞ => h ≤ f)\n    (q := fun h : α →ₛ ℝ≥0∞ => h ≤ g) ⟨0, zero_le f⟩ ⟨0, zero_le g⟩ fun f' hf' g' hg' => ?_\n  exact le_iSup₂_of_le (f' + g') (add_le_add hf' hg') (add_lintegral _ _).ge"},
+   {"name": "ContinuousLinearMap.setIntegral_compLp",
+    "module": "Mathlib.MeasureTheory.Integral.SetIntegral",
+    "content":
+    "theorem setIntegral_compLp (L : E →L[\u0000\u0000] F) (φ : Lp E p μ) {s : Set X} (hs : MeasurableSet s) :\n    ∫ x in s, (L.compLp φ) x ∂μ = ∫ x in s, L (φ x) ∂μ :=\n  setIntegral_congr_ae hs ((L.coeFn_compLp φ).mono fun _x hx _ => hx)"},
+   {"name": "MeasureTheory.ae_le_const_iff_forall_gt_measure_zero",
+    "module": "Mathlib.MeasureTheory.Function.AEEqOfLIntegral",
+    "content":
+    "lemma ae_le_const_iff_forall_gt_measure_zero {β} [LinearOrder β] [TopologicalSpace β]\n    [OrderTopology β] [FirstCountableTopology β] {μ : Measure α} (f : α → β) (c : β) :\n    (∀ᵐ x ∂μ, f x ≤ c) ↔ ∀ b, c < b → μ {x | b ≤ f x} = 0 :=\n  ae_const_le_iff_forall_lt_measure_zero (β := βᵒᵈ) _ _"}],
+  "prescopes":
+  "noncomputable section\n\nopen MeasureTheory Set\n\nvariable {X : Type*} {a : ℕ} [MetricSpace X] [DoublingMeasure X (defaultA a : ℕ)] {τ C : ℝ} {q q' : ℝ≥0} {F G : Set X}\n  {K : X → X → ℂ}",
+  "postscopes": "end",
+  "informal_statement":
+  "A certain linearized operator related to the Carleson operator, when applied to a measurable function in a space of homogeneous type, satisfies an upper bound involving the volumes of measurable sets and specific constants raised to exponents.",
+  "informal_proof":
+  "To begin, we assume we have a space of homogeneous type equipped with a measure, and within this space, we consider a linearized version of the Carleson operator. Our goal is to establish an upper bound for the integral of this operator applied to a measurable function.\n\nFirst, we can decompose the operator into more manageable components, leveraging linearity to handle each part separately. Applying known inequalities or theorems specific to Carleson operators, we can control the growth of the operator's output.\n\nNext, we address the exponents and volumes involved, potentially by iterating the operator's application or recursively bounding the integrals. Each step aims to relate the operator's output to the volumes of measurable sets and constants appearing in the statement.\n\nFinally, combining these bounds through appropriate multipliers and constants, we arrive at the desired inequality, completing the proof.",
+  "id":
+  {"name": "linearized_metric_carleson",
+   "module": "Carleson.LinearizedMetricCarleson",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem linearized_metric_carleson [CompatibleFunctions ℝ X (defaultA a)]\n  [IsCancellative X (defaultτ a)] [IsOneSidedKernel a K]\n    (ha : 4 ≤ a) (hq : q ∈ Ioc 1 2) (hqq' : q.IsConjExponent q')\n    (Q : SimpleFunc X (Θ X)) {θ : Θ X}\n    (hF : MeasurableSet F) (hG : MeasurableSet G)\n    (hT : HasBoundedStrongType (linearizedNontangentialOperator Q θ K · · |>.toReal)\n      2 2 volume volume (C_Ts a))\n    (f : X → ℂ) (hmf : Measurable f) (hf : ∀ x, ‖f x‖ ≤ F.indicator 1 x) :\n    ∫⁻ x in G, linearizedCarlesonOperator Q K f x ≤\n    C1_0_3 a q * (volume G) ^ (q' : ℝ)⁻¹ * (volume F) ^ (q : ℝ)⁻¹ := by\n  sorry\n\n",
+   "compilationAlias":
+   "theorem linearized_metric_carleson [CompatibleFunctions ℝ X (defaultA a)]\n  [IsCancellative X (defaultτ a)] [IsOneSidedKernel a K]\n    (ha : 4 ≤ a) (hq : q ∈ Ioc 1 2) (hqq' : q.IsConjExponent q')\n    (Q : SimpleFunc X (Θ X)) {θ : Θ X}\n    (hF : MeasurableSet F) (hG : MeasurableSet G)\n    (hT : HasBoundedStrongType (linearizedNontangentialOperator Q θ K · · |>.toReal)\n      2 2 volume volume (C_Ts a))\n    (f : X → ℂ) (hmf : Measurable f) (hf : ∀ x, ‖f x‖ ≤ F.indicator 1 x) :\n    ∫⁻ x in G, linearizedCarlesonOperator Q K f x ≤\n    C1_0_3 a q * (volume G) ^ (q' : ℝ)⁻¹ * (volume F) ^ (q : ℝ)⁻¹ := by\n  sorry\n\n"},
+  "goal":
+  "X : Type u_1\na : Nat\ninst✝⁴ : MetricSpace X\ninst✝³ : MeasureTheory.DoublingMeasure X ↑(defaultA a)\nq q' : NNReal\nF G : Set X\nK : X → X → Complex\ninst✝² : CompatibleFunctions Real X (defaultA a)\ninst✝¹ : IsCancellative X (defaultτ a)\ninst✝ : IsOneSidedKernel a K\nha : LE.le 4 a\nhq : Membership.mem (Set.Ioc 1 2) q\nhqq' : q.IsConjExponent q'\nQ : MeasureTheory.SimpleFunc X (FunctionDistances.Θ X)\nθ : FunctionDistances.Θ X\nhF : MeasurableSet F\nhG : MeasurableSet G\nhT : MeasureTheory.HasBoundedStrongType (fun x1 x2 => (linearizedNontangentialOperator (⇑Q) θ K x1 x2).toReal) 2 2 MeasureTheory.MeasureSpace.volume MeasureTheory.MeasureSpace.volume (C_Ts ↑a)\nf : X → Complex\nhmf : Measurable f\nhf : ∀ (x : X), LE.le (Norm.norm (f x)) (F.indicator 1 x)\n⊢ LE.le (MeasureTheory.lintegral (MeasureTheory.MeasureSpace.volume.restrict G) fun x => linearizedCarlesonOperator (⇑Q) K f x) (HMul.hMul (HMul.hMul (↑(C1_0_3 a q)) (HPow.hPow (MeasureTheory.MeasureSpace.volume G) (Inv.inv ↑q'))) (HPow.hPow (MeasureTheory.MeasureSpace.volume F) (Inv.inv ↑q)))",
+  "content_sorry":
+  "theorem linearized_metric_carleson [CompatibleFunctions ℝ X (defaultA a)]\n  [IsCancellative X (defaultτ a)] [IsOneSidedKernel a K]\n    (ha : 4 ≤ a) (hq : q ∈ Ioc 1 2) (hqq' : q.IsConjExponent q')\n    (Q : SimpleFunc X (Θ X)) {θ : Θ X}\n    (hF : MeasurableSet F) (hG : MeasurableSet G)\n    (hT : HasBoundedStrongType (linearizedNontangentialOperator Q θ K · · |>.toReal)\n      2 2 volume volume (C_Ts a))\n    (f : X → ℂ) (hmf : Measurable f) (hf : ∀ x, ‖f x‖ ≤ F.indicator 1 x) :\n    ∫⁻ x in G, linearizedCarlesonOperator Q K f x ≤\n    C1_0_3 a q * (volume G) ^ (q' : ℝ)⁻¹ * (volume F) ^ (q : ℝ)⁻¹ := by\n  sorry",
+  "content_full_by_exact":
+  "import Carleson.Defs\n\nopen scoped NNReal\nopen MeasureTheory Set\n\nnoncomputable section\n\n/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\nvariable {X : Type*} {a : ℕ} [MetricSpace X] [DoublingMeasure X (defaultA a : ℕ)]\nvariable {τ C : ℝ} {q q' : ℝ≥0}\nvariable {F G : Set X}\nvariable {K : X → X → ℂ}\n\n\n/- Theorem 1.0.3 -/\ntheorem linearized_metric_carleson [CompatibleFunctions ℝ X (defaultA a)]\n  [IsCancellative X (defaultτ a)] [IsOneSidedKernel a K]\n    (ha : 4 ≤ a) (hq : q ∈ Ioc 1 2) (hqq' : q.IsConjExponent q')\n    (Q : SimpleFunc X (Θ X)) {θ : Θ X}\n    (hF : MeasurableSet F) (hG : MeasurableSet G)\n    (hT : HasBoundedStrongType (linearizedNontangentialOperator Q θ K · · |>.toReal)\n      2 2 volume volume (C_Ts a))\n    (f : X → ℂ) (hmf : Measurable f) (hf : ∀ x, ‖f x‖ ≤ F.indicator 1 x) :\n    ∫⁻ x in G, linearizedCarlesonOperator Q K f x ≤\n    C1_0_3 a q * (volume G) ^ (q' : ℝ)⁻¹ * (volume F) ^ (q : ℝ)⁻¹ := by\n  exact?",
+  "content_full":
+  "import Carleson.Defs\n\nopen scoped NNReal\nopen MeasureTheory Set\n\nnoncomputable section\n\n/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\nvariable {X : Type*} {a : ℕ} [MetricSpace X] [DoublingMeasure X (defaultA a : ℕ)]\nvariable {τ C : ℝ} {q q' : ℝ≥0}\nvariable {F G : Set X}\nvariable {K : X → X → ℂ}\n\n\n/- Theorem 1.0.3 -/\ntheorem linearized_metric_carleson [CompatibleFunctions ℝ X (defaultA a)]\n  [IsCancellative X (defaultτ a)] [IsOneSidedKernel a K]\n    (ha : 4 ≤ a) (hq : q ∈ Ioc 1 2) (hqq' : q.IsConjExponent q')\n    (Q : SimpleFunc X (Θ X)) {θ : Θ X}\n    (hF : MeasurableSet F) (hG : MeasurableSet G)\n    (hT : HasBoundedStrongType (linearizedNontangentialOperator Q θ K · · |>.toReal)\n      2 2 volume volume (C_Ts a))\n    (f : X → ℂ) (hmf : Measurable f) (hf : ∀ x, ‖f x‖ ≤ F.indicator 1 x) :\n    ∫⁻ x in G, linearizedCarlesonOperator Q K f x ≤\n    C1_0_3 a q * (volume G) ^ (q' : ℝ)⁻¹ * (volume F) ^ (q : ℝ)⁻¹ := by\n  sorry\n\n",
+  "annotation":
+  "theorem linearized_metric_carleson [CompatibleFunctions ℝ X (defaultA a)]\n  [IsCancellative X (defaultτ a)] [IsOneSidedKernel a K]\n    (ha : 4 ≤ a) (hq : q ∈ Ioc 1 2) (hqq' : q.IsConjExponent q')\n    (Q : SimpleFunc X (Θ X)) {θ : Θ X}\n    (hF : MeasurableSet F) (hG : MeasurableSet G)\n    (hT : HasBoundedStrongType (linearizedNontangentialOperator Q θ K · · |>.toReal)\n      2 2 volume volume (C_Ts a))\n    (f : X → ℂ) (hmf : Measurable f) (hf : ∀ x, ‖f x‖ ≤ F.indicator 1 x) :\n    ∫⁻ x in G, linearizedCarlesonOperator Q K f x ≤\n    C1_0_3 a q * (volume G) ^ (q' : ℝ)⁻¹ * (volume F) ^ (q : ℝ)⁻¹ := by\n  /-\n    X : Type u_1\n    a : Nat\n    inst✝⁴ : MetricSpace X\n    inst✝³ : MeasureTheory.DoublingMeasure X ↑(defaultA a)\n    q q' : NNReal\n    F G : Set X\n    K : X → X → Complex\n    inst✝² : CompatibleFunctions Real X (defaultA a)\n    inst✝¹ : IsCancellative X (defaultτ a)\n    inst✝ : IsOneSidedKernel a K\n    ha : LE.le 4 a\n    hq : Membership.mem (Set.Ioc 1 2) q\n    hqq' : q.IsConjExponent q'\n    Q : MeasureTheory.SimpleFunc X (FunctionDistances.Θ X)\n    θ : FunctionDistances.Θ X\n    hF : MeasurableSet F\n    hG : MeasurableSet G\n    hT : MeasureTheory.HasBoundedStrongType (fun x1 x2 => (linearizedNontangential …\n    f : X → Complex\n    hmf : Measurable f\n    hf : ∀ (x : X), LE.le (Norm.norm (f x)) (F.indicator 1 x)\n    ⊢ LE.le (MeasureTheory.lintegral (MeasureTheory.MeasureSpace.volume.restrict G …\n  -/\n  sorry\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "linearizedCarlesonOperator",
+    "module": "Carleson.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linearized generalized Carleson operator `T_Q`, taking values in `ℝ≥0∞`.\nUse `ENNReal.toReal` to get the corresponding real number. -/\ndef linearizedCarlesonOperator [FunctionDistances ℝ X] (Q : X → Θ X) (K : X → X → ℂ)\n    (f : X → ℂ) (x : X) : ℝ≥0∞ :=\n  ⨆ (R₁ : ℝ) (R₂ : ℝ) (_ : 0 < R₁) (_ : R₁ < R₂),\n  ‖∫ y in {y | dist x y ∈ Ioo R₁ R₂}, K x y * f y * exp (I * Q x y)‖₊",
+    "compilationAlias":
+    "/-- The linearized generalized Carleson operator `T_Q`, taking values in `ℝ≥0∞`.\nUse `ENNReal.toReal` to get the corresponding real number. -/\ndef linearizedCarlesonOperator [FunctionDistances ℝ X] (Q : X → Θ X) (K : X → X → ℂ)\n    (f : X → ℂ) (x : X) : ℝ≥0∞ :=\n  ⨆ (R₁ : ℝ) (R₂ : ℝ) (_ : 0 < R₁) (_ : R₁ < R₂),\n  ‖∫ y in {y | dist x y ∈ Ioo R₁ R₂}, K x y * f y * exp (I * Q x y)‖₊"},
+   {"name": "Measurable",
+    "module": "Mathlib.MeasureTheory.MeasurableSpace.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A function `f` between measurable spaces is measurable if the preimage of every\n  measurable set is measurable. -/\n@[fun_prop]\ndef Measurable [MeasurableSpace α] [MeasurableSpace β] (f : α → β) : Prop :=\n  ∀ ⦃t : Set β⦄, MeasurableSet t → MeasurableSet (f ⁻¹' t)",
+    "compilationAlias":
+    "/-- A function `f` between measurable spaces is measurable if the preimage of every\n  measurable set is measurable. -/\n@[fun_prop]\ndef Measurable [MeasurableSpace α] [MeasurableSpace β] (f : α → β) : Prop :=\n  ∀ ⦃t : Set β⦄, MeasurableSet t → MeasurableSet (f ⁻¹' t)"},
+   {"name": "C_Ts",
+    "module": "Carleson.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "def C_Ts (a : ℝ) : ℝ≥0 := 2 ^ a ^ 3",
+    "compilationAlias": "def C_Ts (a : ℝ) : ℝ≥0 := 2 ^ a ^ 3"},
+   {"name": "linearizedNontangentialOperator",
+    "module": "Carleson.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The linearized maximally truncated nontangential Calderon Zygmund operator `T_Q^θ` -/\ndef linearizedNontangentialOperator [FunctionDistances ℝ X] (Q : X → Θ X) (θ : Θ X)\n    (K : X → X → ℂ) (f : X → ℂ) (x : X) : ℝ≥0∞ :=\n  ⨆ (R₁ : ℝ) (x' : X) (_ : dist x x' ≤ R₁),\n  ‖∫ y in {y | ENNReal.ofReal (dist x' y) ∈ Ioo (ENNReal.ofReal R₁) (upperRadius Q θ x')},\n    K x' y * f y‖₊",
+    "compilationAlias":
+    "/-- The linearized maximally truncated nontangential Calderon Zygmund operator `T_Q^θ` -/\ndef linearizedNontangentialOperator [FunctionDistances ℝ X] (Q : X → Θ X) (θ : Θ X)\n    (K : X → X → ℂ) (f : X → ℂ) (x : X) : ℝ≥0∞ :=\n  ⨆ (R₁ : ℝ) (x' : X) (_ : dist x x' ≤ R₁),\n  ‖∫ y in {y | ENNReal.ofReal (dist x' y) ∈ Ioo (ENNReal.ofReal R₁) (upperRadius Q θ x')},\n    K x' y * f y‖₊"},
+   {"name": "MeasurableSet",
+    "module": "Mathlib.MeasureTheory.MeasurableSpace.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `MeasurableSet s` means that `s` is measurable (in the ambient measure space on `α`) -/\ndef MeasurableSet [MeasurableSpace α] (s : Set α) : Prop :=\n  ‹MeasurableSpace α›.MeasurableSet' s",
+    "compilationAlias":
+    "/-- `MeasurableSet s` means that `s` is measurable (in the ambient measure space on `α`) -/\ndef MeasurableSet [MeasurableSpace α] (s : Set α) : Prop :=\n  ‹MeasurableSpace α›.MeasurableSet' s"},
+   {"name": "defaultτ",
+    "module": "Carleson.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simp] def defaultτ (a : ℕ) : ℝ := a⁻¹",
+    "compilationAlias": "@[simp] def defaultτ (a : ℕ) : ℝ := a⁻¹"},
+   {"name": "defaultA",
+    "module": "Carleson.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- This is usually the value of the argument `A` in `DoublingMeasure`\nand `CompatibleFunctions` -/\n@[simp] abbrev defaultA (a : ℕ) : ℕ := 2 ^ a",
+    "compilationAlias":
+    "/-- This is usually the value of the argument `A` in `DoublingMeasure`\nand `CompatibleFunctions` -/\n@[simp] abbrev defaultA (a : ℕ) : ℕ := 2 ^ a"}],
+  "C0_dependencies":
+  [{"name": "C1_0_3",
+    "module": "Carleson.LinearizedMetricCarleson",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\n",
+    "compilationAlias":
+    "/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\n"}]},
+ {"rag":
+  [{"name": "C_K",
+    "module": "Carleson.Defs",
+    "content":
+    "/-- The constant used twice in the definition of the Calderon-Zygmund kernel. -/\n@[simp] def C_K (a : ℝ) : ℝ := 2 ^ a ^ 3"},
+   {"name": "Cardinal.IsStrongLimit.two_power_lt",
+    "module": "Mathlib.SetTheory.Cardinal.Cofinality",
+    "content": "two_power_lt"},
+   {"name": "C_Ts",
+    "module": "Carleson.Defs",
+    "content": "def C_Ts (a : ℝ) : ℝ≥0 := 2 ^ a ^ 3"},
+   {"name": "IsPowMul",
+    "module": "Mathlib.Data.Real.Basic",
+    "content":
+    "/-- A function `f : R → ℝ` is power-multiplicative if for all `r ∈ R` and all positive `n ∈ ℕ`,\n`f (r ^ n) = (f r) ^ n`. -/\ndef IsPowMul {R : Type*} [Pow R ℕ] (f : R → ℝ) :=\n  ∀ (a : R) {n : ℕ}, 1 ≤ n → f (a ^ n) = f a ^ n"},
+   {"name": "C2_1_1",
+    "module": "Carleson.Defs",
+    "content": "def C2_1_1 (k : ℕ) (a : ℕ) : ℕ := 2 ^ (k * a)"},
+   {"name": "pow_lt_pow_succ",
+    "module": "Mathlib.Algebra.Order.GroupWithZero.Canonical",
+    "content":
+    "@[deprecated pow_lt_pow_right₀ (since := \"2024-11-18\")]\nlemma pow_lt_pow_succ (ha : 1 < a) : a ^ n < a ^ n.succ := pow_lt_pow_right₀ ha n.lt_succ_self"},
+   {"name": "Real.tendsto_pow_log_div_mul_add_atTop",
+    "module": "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+    "content":
+    "theorem tendsto_pow_log_div_mul_add_atTop (a b : ℝ) (n : ℕ) (ha : a ≠ 0) :\n    Tendsto (fun x => log x ^ n / (a * x + b)) atTop (\u0000\u0000 0) :=\n  ((tendsto_div_pow_mul_exp_add_atTop a b n ha.symm).comp tendsto_log_atTop).congr' <| by\n    filter_upwards [eventually_gt_atTop (0 : ℝ)] with x hx using by simp [exp_log hx]"},
+   {"name": "Real.log_natCast_le_rpow_div",
+    "module": "Mathlib.Analysis.SpecialFunctions.Pow.Real",
+    "content":
+    "/-- The (real) logarithm of a natural number `n` is bounded by a multiple of every power of `n`\nwith positive exponent. -/\nlemma log_natCast_le_rpow_div (n : ℕ) {ε : ℝ} (hε : 0 < ε) : log n ≤ n ^ ε / ε :=\n  log_le_rpow_div n.cast_nonneg hε"},
+   {"name": "WithZero.pow",
+    "module": "Mathlib.Algebra.GroupWithZero.WithZero",
+    "content":
+    "instance pow : Pow (WithZero α) ℕ where\n  pow\n    | none, 0 => 1\n    | none, _ + 1 => 0\n    | some x, n => ↑(x ^ n)"},
+   {"name": "pow_dite",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "content":
+    "@[to_additive (attr := simp) dite_smul]\nlemma pow_dite (p : Prop) [Decidable p] (a : α) (b : p → β) (c : ¬ p → β) :\n    a ^ (if h : p then b h else c h) = if h : p then a ^ b h else a ^ c h := by split_ifs <;> rfl"}],
+  "prescopes": "noncomputable section\n\nopen MeasureTheory Set",
+  "postscopes": "end",
+  "informal_statement":
+  "In the blueprint of `linearized_metric_carleson`, a constant `C1_0_3` is defined, which is equal to 2 raised to the power of 450 times `a` cubed, divided by `(q - 1)` raised to the power of 6. This constant is defined recursively in terms of previous constants used in the framework.",
+  "informal_proof":
+  "To define the constant `C1_0_3` in the blueprint of `linearized_metric_carleson`, we start by specifying its value as a function of two parameters: a natural number `a` and a real number `q ≥ 0`. The constant is given by the expression `2^(450a^3) / (q - 1)^6`. This definition is constructed recursively, building upon previous constants defined within the same framework to establish the value of `C1_0_3`.\n\nThe denominator `(q - 1)` is raised to the 6th power, and for this expression to be mathematically valid, it must be ensured that `(q - 1)` is not zero or negative, as raising a non-positive number to a fractional or negative power would lead to undefined or complex results. Therefore, the condition `q > 1` is imposed to guarantee that `(q - 1)` is positive and that the expression remains well-defined.\n\nWith this foundation, the constant `C1_0_3` is utilized in subsequent proofs and constructions, providing a specific scaling factor that depends crucially on the values of `a` and `q`. The exponential growth of the numerator ensures that `C1_0_3` becomes exceedingly large as `a` increases, while the denominator grows polynomially with respect to `q`, creating a balance that facilitates the constant's role in establishing necessary bounds or relationships within the theorem's context.\n\nThus, the constant `C1_0_3` is rigorously defined and seamlessly integrated into the theoretical framework, ensuring that all subsequent applications are grounded in this foundational definition.",
+  "id":
+  {"name": "C1_0_3",
+   "module": "Carleson.LinearizedMetricCarleson",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\n",
+   "compilationAlias":
+   "/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\n"},
+  "goal": "⊢ (HAdd.hAdd 0 2).AtLeastTwo",
+  "content_sorry":
+  "/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := by sorry",
+  "content_full_by_exact":
+  "import Carleson.Defs\n\nopen scoped NNReal\nopen MeasureTheory Set\n\nnoncomputable section\n\n/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := by exact?",
+  "content_full":
+  "import Carleson.Defs\n\nopen scoped NNReal\nopen MeasureTheory Set\n\nnoncomputable section\n\n/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\n",
+  "annotation":
+  "/-- The constant used in `linearized_metric_carleson`.\nHas value `2 ^ (450 * a ^ 3) / (q - 1) ^ 6` in the blueprint. -/\n-- Todo: define this recursively in terms of previous constants\ndef C1_0_3 (a : ℕ) (q : ℝ≥0) : ℝ≥0 := 2 ^ (450 * a ^ 3) / (q - 1) ^ 6\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies": []}]

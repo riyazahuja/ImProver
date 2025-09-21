@@ -1,4 +1,6 @@
 import re
+from collections import defaultdict
+import numpy as np
 import argparse
 import duckdb
 import json
@@ -175,8 +177,6 @@ def calculate_nonzero_improvement(rows, metric_name, metric_spec_map):
 
 
 # --- Analysis Commands ---
-
-
 # make bon database, metric vs n graph, distribution shift graph, and pass/improvement rate graph.
 # mark bon database entries with an improvement rate
 def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
@@ -230,6 +230,20 @@ def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
     except Exception as e:
         print(f"Database error during BoN setup: {e}")
         return False
+
+    # Calculate full_accuracy and full_improvement across all rows
+    total_correct_count = sum(1 for row in all_data_rows if row.get("new_correct"))
+    full_accuracy = total_correct_count / len(all_data_rows) if all_data_rows else 0.0
+
+    total_delta_sum = 0.0
+    for row in all_data_rows:
+        delta = get_delta(row)
+        if metric_objective == "min" and delta is not None and delta < 0:
+            total_delta_sum += delta
+        elif metric_objective == "max" and delta is not None and delta > 0:
+            total_delta_sum += delta
+        # null values are counted as zero (no need to add 0)
+    full_improvement = total_delta_sum / len(all_data_rows) if all_data_rows else 0.0
 
     graph_data_points = []
     collected_rows_for_raw_db = []
@@ -352,6 +366,8 @@ def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
                     "nonzero_accuracy": non_zero_acc,
                     "improvement": impr,
                     "nonzero_improvement": non_zero_impr,
+                    "full_accuracy": full_accuracy,
+                    "full_improvement": full_improvement,
                 }
             )
             print(
@@ -366,6 +382,8 @@ def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
                     "nonzero_accuracy": 0,
                     "improvement": 0,
                     "nonzero_improvement": 0,
+                    "full_accuracy": full_accuracy,
+                    "full_improvement": full_improvement,
                 }
             )
 
@@ -687,6 +705,228 @@ def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
     else:
         print("Not enough data for improvement rate distribution plot.")
 
+    # 3. Average Score Distribution Relative to Best per Theorem
+    if all_data_rows:
+        try:
+
+            # Group all original rows by (module, decl) to analyze per theorem
+            theorem_groups = defaultdict(list)
+            for row in all_data_rows:
+                key = (row["module"], row["decl"])
+                # Only take first n_config_val samples for each theorem
+                if len(theorem_groups[key]) < n_config_val:
+                    theorem_groups[key].append(row)
+
+            # Calculate relative score distributions for each theorem
+            all_relative_distributions = []
+            null_counts = []
+
+            for theorem_key, theorem_rows in theorem_groups.items():
+                # Extract scores and find the best score for this theorem
+                scores = []
+                null_count = 0
+
+                for row in theorem_rows:
+                    score = parse_json_field_as_float(row.get("new_score"))
+                    if score is not None:
+                        scores.append(score)
+                    else:
+                        null_count += 1
+
+                if not scores:
+                    # If all scores are null for this theorem, skip
+                    continue
+
+                # Find best score based on metric objective
+                if metric_objective == "min":
+                    best_score = min(scores)
+                else:  # "max"
+                    best_score = max(scores)
+
+                # Calculate relative percentages for this theorem
+                relative_scores = []
+                # if best_score != 0:
+
+                for score in scores:
+
+                    relative_pct = multiplier * (score - best_score)
+
+                    relative_scores.append(relative_pct)
+                # else:
+                #     # Handle case where best_score is 0
+                #     relative_scores = [100.0] * len(scores)
+
+                all_relative_distributions.append(relative_scores)
+                null_counts.append(null_count)
+
+            if all_relative_distributions:
+                # Flatten all relative scores to determine overall distribution
+                all_relative_scores = []
+                for rel_scores in all_relative_distributions:
+                    all_relative_scores.extend(rel_scores)
+
+                if all_relative_scores:
+                    # Calculate dynamic bin edges based on the distribution
+                    min_score = min(all_relative_scores)
+                    max_score = max(all_relative_scores)
+
+                    # Create bins with the best score (0) always being one of the bin edges
+                    if min_score >= 0:
+                        # All scores are non-negative (better than or equal to best)
+                        bins = np.linspace(0, max_score * 1.1, 20)
+                    else:
+                        # Some scores are negative (worse than best)
+                        # Ensure 0 is a bin edge and create symmetric or asymmetric bins
+                        if max_score <= 0:
+                            # All scores are non-positive
+                            bins = np.linspace(min_score * 1.1, 0, 20)
+                        else:
+                            # Scores span both sides of 0
+                            # Create more bins on the side with larger range
+                            neg_range = abs(min_score)
+                            pos_range = max_score
+
+                            if neg_range > pos_range:
+                                neg_bins = np.linspace(min_score * 1.1, 0, 15)
+                                pos_bins = np.linspace(0, max_score * 1.1, 6)[
+                                    1:
+                                ]  # Exclude 0 to avoid duplication
+                            else:
+                                neg_bins = np.linspace(min_score * 1.1, 0, 6)
+                                pos_bins = np.linspace(0, max_score * 1.1, 15)[
+                                    1:
+                                ]  # Exclude 0 to avoid duplication
+
+                            bins = np.concatenate([neg_bins, pos_bins])
+
+                    # Calculate average distribution across all theorems
+                    theorem_histograms = []
+                    total_samples_per_theorem = []
+
+                    for i, rel_scores in enumerate(all_relative_distributions):
+                        hist, _ = np.histogram(rel_scores, bins=bins, density=False)
+                        total_samples = len(rel_scores) + null_counts[i]
+                        if total_samples > 0:
+                            # Normalize by total samples in this theorem (including nulls)
+                            hist_normalized = hist / total_samples
+                            theorem_histograms.append(hist_normalized)
+                            total_samples_per_theorem.append(total_samples)
+
+                    if theorem_histograms:
+                        # Calculate average across all theorems
+                        avg_hist = np.mean(theorem_histograms, axis=0)
+
+                        # Calculate average null percentage
+                        avg_null_pct = np.mean(
+                            [
+                                null_counts[i]
+                                / (len(all_relative_distributions[i]) + null_counts[i])
+                                for i in range(len(all_relative_distributions))
+                                if (len(all_relative_distributions[i]) + null_counts[i])
+                                > 0
+                            ]
+                        )
+
+                        # Create the plot
+                        plt.figure(figsize=(14, 8))
+
+                        # Plot histogram bars
+                        bin_centers = (bins[:-1] + bins[1:]) / 2
+                        widths = bins[1:] - bins[:-1]
+
+                        # Color bars based on whether they represent improvements (positive) or degradations (negative)
+                        colors = [
+                            (
+                                "lightcoral"
+                                if center < 0
+                                else "lightgreen" if center > 0 else "gold"
+                            )
+                            for center in bin_centers
+                        ]
+
+                        plt.bar(
+                            bin_centers,
+                            avg_hist,
+                            width=widths * 0.8,
+                            alpha=0.7,
+                            color=colors,
+                            edgecolor="black",
+                            label="Score Distribution",
+                        )
+
+                        # Add a vertical line at 0 (best score)
+                        plt.axvline(
+                            x=0,
+                            color="black",
+                            linestyle="--",
+                            linewidth=2,
+                            label="Best Score (0)",
+                        )
+
+                        # Add null bar separately on the right side
+                        null_x = max(bins) + (max(bins) - min(bins)) * 0.1
+                        null_width = (max(bins) - min(bins)) * 0.05
+                        plt.bar(
+                            null_x,
+                            avg_null_pct,
+                            width=null_width,
+                            alpha=0.7,
+                            color="gray",
+                            edgecolor="black",
+                            label="Null Scores",
+                        )
+
+                        # Add statistics text
+                        total_theorems = len(theorem_histograms)
+                        avg_samples_per_theorem = np.mean(total_samples_per_theorem)
+
+                        plt.text(
+                            0.02,
+                            0.98,
+                            f"Theorems analyzed: {total_theorems}\n"
+                            f"Avg samples per theorem: {avg_samples_per_theorem:.1f}\n"
+                            f"Avg null percentage: {avg_null_pct:.1%}\n"
+                            f"Score range: [{min_score:.3f}, {max_score:.3f}]",
+                            transform=plt.gca().transAxes,
+                            fontsize=10,
+                            verticalalignment="top",
+                            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+                        )
+
+                        plt.xlabel(
+                            "Score Difference from Best (0 = Best, Negative = Worse)"
+                        )
+                        plt.ylabel("Average Fraction of Samples")
+                        plt.title(
+                            f"Average Score Distribution Relative to Best per Theorem\n"
+                            f"(Metric: {metric_name}, Objective: {metric_objective}, N={n_config_val})"
+                        )
+
+                        plt.legend()
+                        plt.grid(True, alpha=0.3)
+                        plt.tight_layout()
+
+                        # Save plot
+                        relative_dist_path = os.path.join(
+                            analysis_base_path, "relative_score_distribution.png"
+                        )
+                        plt.savefig(relative_dist_path)
+                        print(
+                            f"Relative score distribution plot saved to {relative_dist_path}"
+                        )
+                        plt.close()
+                    else:
+                        print("No valid theorem histograms to average.")
+                else:
+                    print("No relative scores found to create distribution.")
+            else:
+                print("No relative score distributions calculated.")
+
+        except Exception as e:
+            print(f"Error generating relative score distribution plot: {e}")
+    else:
+        print("No data available for relative score distribution plot.")
+
     print("Best-of-N analysis finished.")
 
     return True
@@ -720,7 +960,6 @@ def make_training_data_json(run_id, db_path, n, metric_objective):
         return
 
     # Group rows by (decl, module)
-    from collections import defaultdict
 
     grouped = defaultdict(list)
     for row in df.to_dict("records"):
