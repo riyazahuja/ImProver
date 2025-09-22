@@ -40,10 +40,10 @@ def filter_by_improvement_rate(
 
 
 def mark_replay_items(
-    current_data: Dict[str, Any], prev_run_id: str, replay_mode: str
+    current_data: Dict[str, Any], prev_run_dataset, replay_mode: str
 ) -> Dict[str, Any]:
     """Mark items as replay or frontier based on previous run data."""
-    prev_data = load_training_data_json(prev_run_id)
+    prev_data = prev_run_dataset#load_training_data_json(prev_run_id)
 
     # Create a set of keys that had improvement_rate > 0 in previous run
     replay_keys = set()
