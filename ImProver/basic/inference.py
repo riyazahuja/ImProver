@@ -46,11 +46,12 @@ def run_inference(df, args, ray_init=True):
     #             num_gpus=args.gpus,
     #             _temp_dir="/data/user_data/riyaza/ray_tmp",
     #         )
-    tmp_dir = os.environ.get("RAY_TMPDIR", f"/data/user_data/{os.getenv('USER','user')}/ray_tmp")
+    tmp_dir = os.environ.get(
+        "RAY_TMPDIR", f"/data/user_data/{os.getenv('USER','user')}/ray_tmp"
+    )
     os.makedirs(tmp_dir, exist_ok=True)
 
     ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir=tmp_dir)
-        
 
     DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
     ctx = DataContext.get_current()
@@ -255,6 +256,9 @@ def construct_prompts(config_data, data, args):
         if item["id"]["isExtracted"] or len(item["id"]["errorMsgs"]) != 0:
             continue
 
+        if item["id"]["kind"] != "theorem":
+            continue
+
         name = item["id"]["name"]
 
         prompt = config_data["prompts"]["system_prompt"] + "\n"
@@ -350,7 +354,9 @@ def main(args):
 
     df = pd.DataFrame(columns=["module", "decl", "decl_idx", "raw_prompt"])
     print("=" * 20)
-    print(f"Processing {len(files_to_process)} files from {args.dataset_path} on {args.split} split.")
+    print(
+        f"Processing {len(files_to_process)} files from {args.dataset_path} on {args.split} split."
+    )
     print("-" * 20)
     for file in files_to_process:
         print(f"  - {file}")

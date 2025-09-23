@@ -32,7 +32,7 @@ sleep 5
 
 # eval prev iter model on train set
 
-./improver run pipeline --run_id IRPO_dependency_iter_2_train     --annotation --context 10  --informal --examples 4     --metric dependency --prompt_id /home/$USER/eval_improver/improver/prompts/final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_dependency_iter_2     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
+# ./improver run pipeline --run_id IRPO_dependency_iter_2_train     --annotation --context 10  --informal --examples 4     --metric dependency --prompt_id /home/$USER/eval_improver/improver/prompts/final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_dependency_iter_2     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
 
 # first get wSFT data
