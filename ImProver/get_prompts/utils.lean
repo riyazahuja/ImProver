@@ -66,7 +66,7 @@ def getScopes (cmd : CompilationStep) (fileName : String) : IO (String × String
 def getRagItems (targets_new : Array (CompilationStep × ConstantInfo))
     (mod : Name) (rag_id : String) (python_cmd : String) (k : Nat)
     : IO (Option (Array (String × String × (Array RagItem)))) := do
-
+    IO.println s!"Getting rag items for {targets_new.size} targets with rag_id {rag_id} and k {k}"
     let data : Json := Json.mkObj
         [("queries", Json.arr <| targets_new.map (fun (_, ci) =>
             Json.mkObj
@@ -85,7 +85,8 @@ def getRagItems (targets_new : Array (CompilationStep × ConstantInfo))
     }
 
     let stdout := out.stdout.trim
-
+    IO.println s!"STDOUT: {stdout}"
+    IO.println s!"STDERR: {out.stderr}"
     let after_output := stdout.splitAtString "<OUTPUT>" |>.getD ("","") |>.2
     let output_raw := after_output.splitAtString "</OUTPUT>" |>.getD ("","") |>.1
 
@@ -131,6 +132,33 @@ def proofAsSorry (cmd : CompilationStep) : Option String := do
       let new_thm := sstr.toString ++ "sorry"
       some new_thm
 
+def getProof (cmd: CompilationStep) (replace_proof : Option String := none) (full_contents := false) : Option String := do
+
+  if replace_proof.isNone then
+    if not full_contents then
+      cmd.src.toString
+    else
+      (⟨cmd.src.str, 0, cmd.src.stopPos⟩ : Substring).toString
+  else
+    let tactics := InfoTree.tactics_new cmd.trees |>.map (fun t => (t.pp, FileMap.ofPosition t.ctx.fileMap t.range.1))
+    let replaced := if tactics.isEmpty then
+        let splitAt? := cmd.src.toString.splitAtString ":="
+        match splitAt? with
+        | none => none
+        | some (before, _) =>
+          let new_thm := before ++ s!":= by {replace_proof.get!}"
+
+          some new_thm
+      else
+        let (_, range) := tactics[0]!
+
+        let cmd_rng := cmd.stx.getPos?
+
+        let sstr : Substring := ⟨cmd.src.str, cmd_rng.getD 0,  range⟩
+
+        let new_thm := sstr.toString ++ replace_proof.get!
+        some new_thm
+    replaced.map (fun s => if full_contents then (⟨cmd.src.str, 0, cmd.src.startPos⟩ : Substring).toString ++ s else s)
 
 def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
 (mod : Name) (python_cmd : String) (fileName: String) (rag_id : Option String) (k : Nat)
@@ -198,7 +226,9 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
     --       ]) |>.toArray
     let (prescopes, postscopes) ← getScopes cmd fileName
 
-    let pfAsSorry := proofAsSorry cmd |>.getD ""
+    let pfAsSorry := getProof cmd "sorry" false |>.getD ""--proofAsSorry cmd |>.getD ""
+    let pfFull := getProof cmd none true |>.getD ""
+    let pfFullExact := getProof cmd "exact?" true |>.getD ""
 
     let initialGoal ←  getInitialProofState2 cmd
 
@@ -245,6 +275,8 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
         C2_dependencies := C2_dependencies.toArray,
         annotation := annotation_string,
         content_sorry := pfAsSorry,
+        content_full := pfFull,
+        content_full_by_exact := pfFullExact,
         goal := initialGoal,
         rag := rag_items,
         prescopes := prescopes,

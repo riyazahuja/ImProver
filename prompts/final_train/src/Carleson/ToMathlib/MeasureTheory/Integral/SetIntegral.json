@@ -1,14 +1,50 @@
 [{"rag":
-  ["--src: Mathlib.Analysis.RCLike.Basic\n@[simp, rclike_simps] lemma nnnorm_conj (z : K) : ‖conj z‖₊ = ‖z‖₊ := by simp [nnnorm]",
-   "--src: Mathlib.MeasureTheory.Integral.Bochner\ntheorem ennnorm_integral_le_lintegral_ennnorm (f : α → G) :\n    (‖∫ a, f a ∂μ‖₊ : ℝ≥0∞) ≤ ∫⁻ a, ‖f a‖₊ ∂μ := by\n  simp_rw [← ofReal_norm_eq_coe_nnnorm]\n  apply ENNReal.ofReal_le_of_le_toReal\n  exact norm_integral_le_lintegral_norm f",
-   "--src: Mathlib.MeasureTheory.Integral.SetIntegral\ntheorem integral_conj {f : X → \u0000\u0000} : ∫ x, conj (f x) ∂μ = conj (∫ x, f x ∂μ) :=\n  (@RCLike.conjLIE \u0000\u0000 _).toLinearIsometry.integral_comp_comm f",
-   "--src: Mathlib.Analysis.InnerProductSpace.Basic\ntheorem nnnorm_inner_le_nnnorm (x y : E) : ‖⟪x, y⟫‖₊ ≤ ‖x‖₊ * ‖y‖₊ :=\n  norm_inner_le_norm x y",
-   "--src: Mathlib.MeasureTheory.Function.L1Space\ntheorem Integrable.ofReal {f : α → ℝ} (hf : Integrable f μ) :\n    Integrable (fun x => (f x : \u0000\u0000)) μ := by\n  rw [← memℒp_one_iff_integrable] at hf ⊢\n  exact hf.ofReal",
-   "--src: Mathlib.MeasureTheory.Function.LpSeminorm.Basic\n@[simp] lemma eLpNorm_conj (f : α → \u0000\u0000) (p : ℝ≥0∞) (μ : Measure α) :\n    eLpNorm (conj f) p μ = eLpNorm f p μ := by simp [← eLpNorm_norm]",
-   "--src: Mathlib.MeasureTheory.Function.L1Space\ntheorem norm_def (f : α →₁[μ] β) : ‖f‖ = (∫⁻ a, ‖f a‖₊ ∂μ).toReal := by\n  simp [Lp.norm_def, eLpNorm, eLpNorm'_eq_lintegral_nnnorm]",
-   "--src: Mathlib.MeasureTheory.Function.L1Space\ntheorem lintegral_nnnorm_zero : (∫⁻ _ : α, ‖(0 : β)‖₊ ∂μ) = 0 := by simp",
-   "--src: Mathlib.MeasureTheory.Integral.Bochner\ntheorem lintegral_coe_eq_integral (f : α → ℝ≥0) (hfi : Integrable (fun x => (f x : ℝ)) μ) :\n    ∫⁻ a, f a ∂μ = ENNReal.ofReal (∫ a, f a ∂μ) := by\n  simp_rw [integral_eq_lintegral_of_nonneg_ae (Eventually.of_forall fun x => (f x).coe_nonneg)\n      hfi.aestronglyMeasurable, ← ENNReal.coe_nnreal_eq]\n  rw [ENNReal.ofReal_toReal]\n  rw [← lt_top_iff_ne_top]\n  convert hfi.hasFiniteIntegral\n  -- Porting note: `convert` no longer unfolds `HasFiniteIntegral`\n  simp_rw [hasFiniteIntegral_iff_nnnorm, NNReal.nnnorm_eq]",
-   "--src: Mathlib.Analysis.InnerProductSpace.PiL2\ntheorem EuclideanSpace.nnnorm_eq {\u0000\u0000 : Type*} [RCLike \u0000\u0000] {n : Type*} [Fintype n]\n    (x : EuclideanSpace \u0000\u0000 n) : ‖x‖₊ = NNReal.sqrt (∑ i, ‖x i‖₊ ^ 2) :=\n  PiLp.nnnorm_eq_of_L2 x"],
+  [{"name": "MeasureTheory.IntegrableAtFilter.norm",
+    "module": "Mathlib.MeasureTheory.Integral.IntegrableOn",
+    "content":
+    "protected theorem IntegrableAtFilter.norm (hf : IntegrableAtFilter f l μ) :\n    IntegrableAtFilter (fun x => ‖f x‖) l μ :=\n  Exists.casesOn hf fun s hs ↦ ⟨s, hs.1, hs.2.norm⟩"},
+   {"name": "MeasureTheory.lintegral_enorm_of_nonneg",
+    "module": "Mathlib.MeasureTheory.Integral.Lebesgue",
+    "content":
+    "theorem lintegral_enorm_of_nonneg {f : α → ℝ} (h_nonneg : 0 ≤ f) :\n    ∫⁻ x, ‖f x‖ₑ ∂μ = ∫⁻ x, .ofReal (f x) ∂μ :=\n  lintegral_enorm_of_ae_nonneg <| .of_forall h_nonneg"},
+   {"name": "MeasureTheory.L1.norm_eq_integral_norm",
+    "module": "Mathlib.MeasureTheory.Integral.Bochner",
+    "content":
+    "theorem L1.norm_eq_integral_norm (f : α →₁[μ] H) : ‖f‖ = ∫ a, ‖f a‖ ∂μ := by\n  simp only [eLpNorm, eLpNorm'_eq_lintegral_enorm, ENNReal.one_toReal, ENNReal.rpow_one,\n    Lp.norm_def, if_false, ENNReal.one_ne_top, one_ne_zero, _root_.div_one]\n  rw [integral_eq_lintegral_of_nonneg_ae (Eventually.of_forall (by simp [norm_nonneg]))\n      (Lp.aestronglyMeasurable f).norm]\n  simp [ofReal_norm_eq_enorm]"},
+   {"name": "MeasureTheory.Integrable.norm",
+    "module": "Mathlib.MeasureTheory.Function.L1Space.Integrable",
+    "content":
+    "@[fun_prop]\ntheorem Integrable.norm {f : α → β} (hf : Integrable f μ) : Integrable (fun a => ‖f a‖) μ :=\n  ⟨hf.aestronglyMeasurable.norm, hf.hasFiniteIntegral.norm⟩"},
+   {"name": "MeasureTheory.Integrable.norm",
+    "module": "Mathlib.MeasureTheory.Function.L1Space.Integrable",
+    "content":
+    "@[fun_prop]\ntheorem Integrable.norm {f : α → β} (hf : Integrable f μ) : Integrable (fun a => ‖f a‖) μ :=\n  ⟨hf.aestronglyMeasurable.norm, hf.hasFiniteIntegral.norm⟩"},
+   {"name": "MeasureTheory.Integrable.smul_const",
+    "module": "Mathlib.MeasureTheory.Function.L1Space.Integrable",
+    "content":
+    "@[fun_prop]\ntheorem Integrable.smul_const {f : α → \u0000\u0000} (hf : Integrable f μ) (c : β) :\n    Integrable (fun x => f x • c) μ :=\n  hf.smul_of_top_left (memLp_top_const c)"},
+   {"name": "MeasureTheory.nndist_integral_add_measure_le_lintegral",
+    "module": "Mathlib.MeasureTheory.Integral.Bochner",
+    "content":
+    "theorem nndist_integral_add_measure_le_lintegral\n    {f : α → G} (h₁ : Integrable f μ) (h₂ : Integrable f ν) :\n    (nndist (∫ x, f x ∂μ) (∫ x, f x ∂(μ + ν)) : ℝ≥0∞) ≤ ∫⁻ x, ‖f x‖ₑ ∂ν := by\n  rw [integral_add_measure h₁ h₂, nndist_comm, nndist_eq_nnnorm, add_sub_cancel_left]\n  exact enorm_integral_le_lintegral_enorm _"},
+   {"name": "MeasureTheory.lintegral_enorm_of_nonneg",
+    "module": "Mathlib.MeasureTheory.Integral.Lebesgue",
+    "content":
+    "theorem lintegral_enorm_of_nonneg {f : α → ℝ} (h_nonneg : 0 ≤ f) :\n    ∫⁻ x, ‖f x‖ₑ ∂μ = ∫⁻ x, .ofReal (f x) ∂μ :=\n  lintegral_enorm_of_ae_nonneg <| .of_forall h_nonneg"},
+   {"name": "MeasureTheory.IntegrableAtFilter.norm",
+    "module": "Mathlib.MeasureTheory.Integral.IntegrableOn",
+    "content":
+    "protected theorem IntegrableAtFilter.norm (hf : IntegrableAtFilter f l μ) :\n    IntegrableAtFilter (fun x => ‖f x‖) l μ :=\n  Exists.casesOn hf fun s hs ↦ ⟨s, hs.1, hs.2.norm⟩"},
+   {"name": "MeasureTheory.ofReal_integral_eq_lintegral_ofReal",
+    "module": "Mathlib.MeasureTheory.Integral.Bochner",
+    "content":
+    "theorem ofReal_integral_eq_lintegral_ofReal {f : α → ℝ} (hfi : Integrable f μ) (f_nn : 0 ≤ᵐ[μ] f) :\n    ENNReal.ofReal (∫ x, f x ∂μ) = ∫⁻ x, ENNReal.ofReal (f x) ∂μ := by\n  have : f =ᵐ[μ] (‖f ·‖) := f_nn.mono fun _x hx ↦ (abs_of_nonneg hx).symm\n  simp_rw [integral_congr_ae this, ofReal_integral_norm_eq_lintegral_enorm hfi,\n    ← ofReal_norm_eq_enorm]\n  exact lintegral_congr_ae (this.symm.fun_comp ENNReal.ofReal)"}],
+  "prescopes": "open MeasureTheory",
+  "postscopes": "",
+  "informal_statement":
+  "For a given measurable function \\( f \\) defined on a measure space \\( (\\alpha, \\mu) \\) with values in a type \\( \\mathbb{K} \\), the integral of the norm of \\( f \\) with respect to \\( \\mu \\) is equal to the integral of the norm of the scaled version of \\( f \\) after applying the starRingEnd operation. Specifically, \\( \\left|\\int_{\\alpha} \\frac{\\text{starRingEnd}(\\mathbb{K})(f(x))}{\\|f(x)\\|} \\cdot f(x) \\, d\\mu(x)\\right| = \\int_{\\alpha} \\|f(x)\\| \\, d\\mu(x) \\).",
+  "informal_proof":
+  "First, we establish that for any point \\( x \\) in the measure space \\( \\alpha \\), the following equality holds:\n\\[\n\\text{starRingEnd}(\\mathbb{K})\\left(\\frac{f(x)}{\\|f(x)\\|}\\right) \\cdot f(x) = \\|f(x)\\|\n\\]\nThis equality is derived by applying the properties of the starRingEnd operation and simplifying the expression. \n\nNext, we substitute this equality into the integral:\n\\[\n\\left|\\int_{\\alpha} \\frac{\\text{starRingEnd}(\\mathbb{K})(f(x))}{\\|f(x)\\|} \\cdot f(x) \\, d\\mu(x)\\right| = \\left|\\int_{\\alpha} \\|f(x)\\| \\, d\\mu(x)\\right|\n\\]\nSince the norm function returns non-negative values, we can remove the absolute value:\n\\[\n\\left|\\int_{\\alpha} \\|f(x)\\| \\, d\\mu(x)\\right| = \\int_{\\alpha} \\|f(x)\\| \\, d\\mu(x)\n\\]\nThus, we have:\n\\[\n\\int_{\\alpha} \\frac{\\text{starRingEnd}(\\mathbb{K})(f(x))}{\\|f(x)\\|} \\cdot f(x) \\, d\\mu(x) = \\int_{\\alpha} \\|f(x)\\| \\, d\\mu(x)\n\\]\nThis completes the proof.",
   "id":
   {"name": "ennnorm_integral_starRingEnd_mul_eq_lintegral_ennnorm",
    "module": "Carleson.ToMathlib.MeasureTheory.Integral.SetIntegral",
@@ -22,6 +58,10 @@
   "goal": "p q : NNReal\n⊢ Eq (Eq ↑p ↑q) (Eq p q)",
   "content_sorry":
   "lemma ennnorm_integral_starRingEnd_mul_eq_lintegral_ennnorm\n    {𝕜 : Type*} [RCLike 𝕜] {α : Type*} [MeasurableSpace α] {μ : Measure α} {f : α → 𝕜}\n    (hf : Integrable f μ) :\n    ‖∫ x, starRingEnd 𝕜 (f x / ‖f x‖) * f x ∂μ‖₊ = ∫⁻ x, ‖f x‖₊ ∂μ := by\n  sorry",
+  "content_full_by_exact":
+  "import Mathlib.MeasureTheory.Integral.SetIntegral\n\nopen MeasureTheory\n\n/- Put after `setIntegral_re_add_im`, but probably refactor first to use `enorm` -/\n\nlemma ennnorm_integral_starRingEnd_mul_eq_lintegral_ennnorm\n    {𝕜 : Type*} [RCLike 𝕜] {α : Type*} [MeasurableSpace α] {μ : Measure α} {f : α → 𝕜}\n    (hf : Integrable f μ) :\n    ‖∫ x, starRingEnd 𝕜 (f x / ‖f x‖) * f x ∂μ‖₊ = ∫⁻ x, ‖f x‖₊ ∂μ := by\n  exact?",
+  "content_full":
+  "import Mathlib.MeasureTheory.Integral.SetIntegral\n\nopen MeasureTheory\n\n/- Put after `setIntegral_re_add_im`, but probably refactor first to use `enorm` -/\n\nlemma ennnorm_integral_starRingEnd_mul_eq_lintegral_ennnorm\n    {𝕜 : Type*} [RCLike 𝕜] {α : Type*} [MeasurableSpace α] {μ : Measure α} {f : α → 𝕜}\n    (hf : Integrable f μ) :\n    ‖∫ x, starRingEnd 𝕜 (f x / ‖f x‖) * f x ∂μ‖₊ = ∫⁻ x, ‖f x‖₊ ∂μ := by\n  have A x : starRingEnd 𝕜 (f x / ‖f x‖) * f x = ‖f x‖ := by\n    simp only [div_eq_inv_mul, map_mul, map_inv₀, RCLike.conj_ofReal, mul_assoc, RCLike.conj_mul]\n    norm_cast\n    rcases eq_or_ne (‖f x‖) 0 with hx | hx\n    · simp [hx]\n    · rw [pow_two, inv_mul_cancel_left₀ hx]\n  simp_rw [A, integral_ofReal, nnnorm_algebraMap']\n  rw [lintegral_coe_eq_integral]; swap\n  · simpa only [coe_nnnorm] using hf.norm\n  simp only [coe_nnnorm, ENNReal.ofReal, ENNReal.coe_inj]\n  have : |∫ (a : α), ‖f a‖ ∂μ| = ∫ (a : α), ‖f a‖ ∂μ := by\n    apply abs_eq_self.2\n    exact integral_nonneg (fun x ↦ by positivity)\n  conv_rhs => rw [← this]\n  simp only [Real.norm_eq_abs, Real.toNNReal_abs]\n  rfl\n",
   "annotation":
   "lemma ennnorm_integral_starRingEnd_mul_eq_lintegral_ennnorm\n    {𝕜 : Type*} [RCLike 𝕜] {α : Type*} [MeasurableSpace α] {μ : Measure α} {f : α → 𝕜}\n    (hf : Integrable f μ) :\n    ‖∫ x, starRingEnd 𝕜 (f x / ‖f x‖) * f x ∂μ‖₊ = ∫⁻ x, ‖f x‖₊ ∂μ := by\n  have A x : starRingEnd 𝕜 (f x / ‖f x‖) * f x = ‖f x‖ := by\n    simp only [div_eq_inv_mul, map_mul, map_inv₀, RCLike.conj_ofReal, mul_assoc, RCLike.conj_mul]\n    norm_cast\n    rcases eq_or_ne (‖f x‖) 0 with hx | hx\n    · simp [hx]\n    · rw [pow_two, inv_mul_cancel_left₀ hx]\n  /-\n    𝕜 : Type u_1\n    inst✝¹ : RCLike 𝕜\n    α : Type u_2\n    inst✝ : MeasurableSpace α\n    μ : MeasureTheory.Measure α\n    f : α → 𝕜\n    hf : MeasureTheory.Integrable f μ\n    A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n    ⊢ Eq (↑(NNNorm.nnnorm (MeasureTheory.integral μ fun x => HMul.hMul ((starRingE …\n  -/\n  simp_rw [A, integral_ofReal, nnnorm_algebraMap']\n  /-\n    𝕜 : Type u_1\n    inst✝¹ : RCLike 𝕜\n    α : Type u_2\n    inst✝ : MeasurableSpace α\n    μ : MeasureTheory.Measure α\n    f : α → 𝕜\n    hf : MeasureTheory.Integrable f μ\n    A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n    ⊢ Eq (↑(NNNorm.nnnorm (MeasureTheory.integral μ fun x => Norm.norm (f x)))) (M …\n  -/\n  rw [lintegral_coe_eq_integral]; swap\n    /-\n      case hfi\n      𝕜 : Type u_1\n      inst✝¹ : RCLike 𝕜\n      α : Type u_2\n      inst✝ : MeasurableSpace α\n      μ : MeasureTheory.Measure α\n      f : α → 𝕜\n      hf : MeasureTheory.Integrable f μ\n      A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n      ⊢ MeasureTheory.Integrable (fun x => ↑(NNNorm.nnnorm (f x))) μ\n    -/\n  · simpa only [coe_nnnorm] using hf.norm\n    /-\n      🎉 no goals\n    -/\n  /-\n    𝕜 : Type u_1\n    inst✝¹ : RCLike 𝕜\n    α : Type u_2\n    inst✝ : MeasurableSpace α\n    μ : MeasureTheory.Measure α\n    f : α → 𝕜\n    hf : MeasureTheory.Integrable f μ\n    A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n    ⊢ Eq (↑(NNNorm.nnnorm (MeasureTheory.integral μ fun x => Norm.norm (f x)))) (E …\n  -/\n  simp only [coe_nnnorm, ENNReal.ofReal, ENNReal.coe_inj]\n  have : |∫ (a : α), ‖f a‖ ∂μ| = ∫ (a : α), ‖f a‖ ∂μ := by\n    apply abs_eq_self.2\n    exact integral_nonneg (fun x ↦ by positivity)\n  /-\n    𝕜 : Type u_1\n    inst✝¹ : RCLike 𝕜\n    α : Type u_2\n    inst✝ : MeasurableSpace α\n    μ : MeasureTheory.Measure α\n    f : α → 𝕜\n    hf : MeasureTheory.Integrable f μ\n    A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n    this : Eq (abs (MeasureTheory.integral μ fun a => Norm.norm (f a))) (MeasureTh …\n    ⊢ Eq (NNNorm.nnnorm (MeasureTheory.integral μ fun x => Norm.norm (f x))) (Meas …\n  -/\n  conv_rhs => rw [← this]\n  /-\n    𝕜 : Type u_1\n    inst✝¹ : RCLike 𝕜\n    α : Type u_2\n    inst✝ : MeasurableSpace α\n    μ : MeasureTheory.Measure α\n    f : α → 𝕜\n    hf : MeasureTheory.Integrable f μ\n    A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n    this : Eq (abs (MeasureTheory.integral μ fun a => Norm.norm (f a))) (MeasureTh …\n    ⊢ Eq (NNNorm.nnnorm (MeasureTheory.integral μ fun x => Norm.norm (f x))) (abs  …\n  -/\n  simp only [Real.norm_eq_abs, Real.toNNReal_abs]\n  /-\n    𝕜 : Type u_1\n    inst✝¹ : RCLike 𝕜\n    α : Type u_2\n    inst✝ : MeasurableSpace α\n    μ : MeasureTheory.Measure α\n    f : α → 𝕜\n    hf : MeasureTheory.Integrable f μ\n    A : ∀ (x : α), Eq (HMul.hMul ((starRingEnd 𝕜) (HDiv.hDiv (f x) ↑(Norm.norm (f  …\n    this : Eq (abs (MeasureTheory.integral μ fun a => Norm.norm (f a))) (MeasureTh …\n    ⊢ Eq (NNNorm.nnnorm (MeasureTheory.integral μ fun x => Norm.norm (f x))) (Real …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n",
   "C2_dependencies": [],
@@ -70,13 +110,6 @@
     "/-- `ofReal x` returns `x` if it is nonnegative, `0` otherwise. -/\nprotected def ofReal (r : Real) : ℝ≥0∞ := r.toNNReal",
     "compilationAlias":
     "/-- `ofReal x` returns `x` if it is nonnegative, `0` otherwise. -/\nprotected def ofReal (r : Real) : ℝ≥0∞ := r.toNNReal"},
-   {"name": "coe_nnnorm",
-    "module": "Mathlib.Analysis.Normed.Group.Basic",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content": "@[to_additive (attr := simp, norm_cast) coe_nnnorm]",
-    "compilationAlias": "@[to_additive (attr := simp, norm_cast) coe_nnnorm]"},
    {"name": "coe_nnnorm",
     "module": "Mathlib.Analysis.Normed.Group.Basic",
     "kind": "theorem",
@@ -191,13 +224,5 @@
     "content":
     "/-- `star` as a ring endomorphism, for commutative `R`. This is used to denote complex\nconjugation, and is available under the notation `conj` in the locale `ComplexConjugate`.\n\nNote that this is the preferred form (over `starRingAut`, available under the same hypotheses)\nbecause the notation `E →ₗ⋆[R] F` for an `R`-conjugate-linear map (short for\n`E →ₛₗ[starRingEnd R] F`) does not pretty-print if there is a coercion involved, as would be the\ncase for `(↑starRingAut : R →* R)`. -/\ndef starRingEnd : R →+* R := @starRingAut R _ _",
     "compilationAlias":
-    "/-- `star` as a ring endomorphism, for commutative `R`. This is used to denote complex\nconjugation, and is available under the notation `conj` in the locale `ComplexConjugate`.\n\nNote that this is the preferred form (over `starRingAut`, available under the same hypotheses)\nbecause the notation `E →ₗ⋆[R] F` for an `R`-conjugate-linear map (short for\n`E →ₛₗ[starRingEnd R] F`) does not pretty-print if there is a coercion involved, as would be the\ncase for `(↑starRingAut : R →* R)`. -/\ndef starRingEnd : R →+* R := @starRingAut R _ _"},
-   {"name": "starRingEnd",
-    "module": "Mathlib.Algebra.Star.Basic",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- `star` as a ring endomorphism, for commutative `R`. This is used to denote complex\nconjugation, and is available under the notation `conj` in the locale `ComplexConjugate`.\n\nNote that this is the preferred form (over `starRingAut`, available under the same hypotheses)\nbecause the notation `E →ₗ⋆[R] F` for an `R`-conjugate-linear map (short for\n`E →ₛₗ[starRingEnd R] F`) does not pretty-print if there is a coercion involved, as would be the\ncase for `(↑starRingAut : R →* R)`. -/\ndef starRingEnd : R →+* R := @starRingAut R _ _",
-    "compilationAlias":
-    "/-- `star` as a ring endomorphism, for commutative `R`. This is used to denote complex\nconjugation, and is available under the notation `conj` in the locale `ComplexConjugate`.\n\nNote that this is the preferred form (over `starRingAut`, available under the same hypotheses)\nbecause the notation `E →ₗ⋆[R] F` for an `R`-conjugate-linear map (short for\n`E →ₛₗ[starRingEnd R] F`) does not pretty-print if there is a coercion involved, as would be the\ncase for `(↑starRingAut : R →* R)`. -/\ndef starRingEnd : R →+* R := @starRingAut R _ _"}]}]
+    "/-- `star` as a ring endomorphism, for commutative `R`. This is used to denote complex\nconjugation, and is available under the notation `conj` in the locale `ComplexConjugate`.\n\nNote that this is the preferred form (over `starRingAut`, available under the same hypotheses)\nbecause the notation `E →ₗ⋆[R] F` for an `R`-conjugate-linear map (short for\n`E →ₛₗ[starRingEnd R] F`) does not pretty-print if there is a coercion involved, as would be the\ncase for `(↑starRingAut : R →* R)`. -/\ndef starRingEnd : R →+* R := @starRingAut R _ _"}],
+  "C0_dependencies": []}]
