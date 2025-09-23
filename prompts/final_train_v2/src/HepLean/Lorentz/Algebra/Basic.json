@@ -1,0 +1,878 @@
+[{"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.space_comps",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma space_comps (Λ : lorentzAlgebra) (i j : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inr j) = - Λ.1 (Sum.inr j) (Sum.inr i) := by\n  simpa only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, diagonal_neg, diagonal_mul,\n    Sum.elim_inr, neg_neg, one_mul, mul_diagonal, transpose_apply, mul_neg, mul_one] using\n    (congrArg (fun M ↦ M (Sum.inr i) (Sum.inr j)) $ mem_iff.mp Λ.2).symm\n\n",
+   "compilationAlias":
+   "lemma space_comps (Λ : lorentzAlgebra) (i j : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inr j) = - Λ.1 (Sum.inr j) (Sum.inr i) := by\n  simpa only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, diagonal_neg, diagonal_mul,\n    Sum.elim_inr, neg_neg, one_mul, mul_diagonal, transpose_apply, mul_neg, mul_one] using\n    (congrArg (fun M ↦ M (Sum.inr i) (Sum.inr j)) $ mem_iff.mp Λ.2).symm\n\n"},
+  "goal":
+  "Λ : Subtype fun x => Membership.mem lorentzAlgebra x\ni j : Fin 3\n⊢ Eq (↑Λ (Sum.inr i) (Sum.inr j)) (Neg.neg (↑Λ (Sum.inr j) (Sum.inr i)))",
+  "content_sorry":
+  "lemma space_comps (Λ : lorentzAlgebra) (i j : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inr j) = - Λ.1 (Sum.inr j) (Sum.inr i) := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\nlemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\nlemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\nlemma space_comps (Λ : lorentzAlgebra) (i j : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inr j) = - Λ.1 (Sum.inr j) (Sum.inr i) := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\nlemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\nlemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\nlemma space_comps (Λ : lorentzAlgebra) (i j : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inr j) = - Λ.1 (Sum.inr j) (Sum.inr i) := by\n  simpa only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, diagonal_neg, diagonal_mul,\n    Sum.elim_inr, neg_neg, one_mul, mul_diagonal, transpose_apply, mul_neg, mul_one] using\n    (congrArg (fun M ↦ M (Sum.inr i) (Sum.inr j)) $ mem_iff.mp Λ.2).symm\n\n",
+  "annotation":
+  "lemma space_comps (Λ : lorentzAlgebra) (i j : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inr j) = - Λ.1 (Sum.inr j) (Sum.inr i) := by\n  simpa only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, diagonal_neg, diagonal_mul,\n    Sum.elim_inr, neg_neg, one_mul, mul_diagonal, transpose_apply, mul_neg, mul_one] using\n    (congrArg (fun M ↦ M (Sum.inr i) (Sum.inr j)) $ mem_iff.mp Λ.2).symm\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "mul_neg",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _"},
+   {"name": "one_mul",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul"},
+   {"name": "neg_neg",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Sum.elim_inr",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem elim_inr (f : α → γ) (g : β → γ) (x : β) :\n    Sum.elim f g (inr x) = g x := rfl",
+    "compilationAlias":
+    "@[simp] theorem elim_inr (f : α → γ) (g : β → γ) (x : β) :\n    Sum.elim f g (inr x) = g x := rfl"},
+   {"name": "LieAlgebra.Orthogonal.indefiniteDiagonal",
+    "module": "Mathlib.Algebra.Lie.Classical",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The indefinite diagonal matrix with `p` 1s and `q` -1s. -/\ndef indefiniteDiagonal : Matrix (p ⊕ q) (p ⊕ q) R :=\n  Matrix.diagonal <| Sum.elim (fun _ => 1) fun _ => -1",
+    "compilationAlias":
+    "/-- The indefinite diagonal matrix with `p` 1s and `q` -1s. -/\ndef indefiniteDiagonal : Matrix (p ⊕ q) (p ⊕ q) R :=\n  Matrix.diagonal <| Sum.elim (fun _ => 1) fun _ => -1"},
+   {"name": "minkowskiMatrix",
+    "module": "HepLean.Lorentz.MinkowskiMatrix",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The `d.succ`-dimensional real matrix of the form `diag(1, -1, -1, -1, ...)`. -/\ndef minkowskiMatrix {d : ℕ} : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ :=\n  LieAlgebra.Orthogonal.indefiniteDiagonal (Fin 1) (Fin d) ℝ",
+    "compilationAlias":
+    "/-- The `d.succ`-dimensional real matrix of the form `diag(1, -1, -1, -1, ...)`. -/\ndef minkowskiMatrix {d : ℕ} : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ :=\n  LieAlgebra.Orthogonal.indefiniteDiagonal (Fin 1) (Fin d) ℝ"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+   {"name": "lorentzAlgebra.transpose_eta",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+    "compilationAlias":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"},
+   {"name": "lorentzAlgebra.mem_of_transpose_eta_eq_eta_mul_self",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+    "compilationAlias":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n"},
+   {"name": "lorentzAlgebra.mem_iff",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+    "compilationAlias":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n"},
+   {"name": "lorentzAlgebra.mem_iff'",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n",
+    "compilationAlias":
+    "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n"},
+   {"name": "lorentzAlgebra.diag_comp",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n",
+    "compilationAlias":
+    "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n"},
+   {"name": "lorentzAlgebra.time_comps",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\n",
+    "compilationAlias":
+    "lemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.time_comps",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\n",
+   "compilationAlias":
+   "lemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\n"},
+  "goal":
+  "G : Type u_3\ninst✝ : InvolutiveNeg G\na b : G\n⊢ Eq (Eq (Neg.neg a) (Neg.neg b)) (Eq a b)",
+  "content_sorry":
+  "lemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\nlemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\nlemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\nlemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\nlemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\n",
+  "annotation":
+  "lemma time_comps (Λ : lorentzAlgebra) (i : Fin 3) :\n    Λ.1 (Sum.inr i) (Sum.inl 0) = Λ.1 (Sum.inl 0) (Sum.inr i) := by\n  simpa only [Fin.isValue, minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, Sum.elim_inr, mul_neg, mul_one, diagonal_neg, diagonal_mul, Sum.elim_inl,\n    neg_mul, one_mul, neg_inj] using congrArg (fun M ↦ M (Sum.inl 0) (Sum.inr i)) $ mem_iff.mp Λ.2\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"},
+   {"name": "neg_inj",
+    "module": "Mathlib.Algebra.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "one_mul",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "Sum.elim_inl",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem elim_inl (f : α → γ) (g : β → γ) (x : α) :\n    Sum.elim f g (inl x) = f x := rfl",
+    "compilationAlias":
+    "@[simp] theorem elim_inl (f : α → γ) (g : β → γ) (x : α) :\n    Sum.elim f g (inl x) = f x := rfl"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "mul_neg",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _"},
+   {"name": "Sum.elim_inr",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem elim_inr (f : α → γ) (g : β → γ) (x : β) :\n    Sum.elim f g (inr x) = g x := rfl",
+    "compilationAlias":
+    "@[simp] theorem elim_inr (f : α → γ) (g : β → γ) (x : β) :\n    Sum.elim f g (inr x) = g x := rfl"},
+   {"name": "LieAlgebra.Orthogonal.indefiniteDiagonal",
+    "module": "Mathlib.Algebra.Lie.Classical",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The indefinite diagonal matrix with `p` 1s and `q` -1s. -/\ndef indefiniteDiagonal : Matrix (p ⊕ q) (p ⊕ q) R :=\n  Matrix.diagonal <| Sum.elim (fun _ => 1) fun _ => -1",
+    "compilationAlias":
+    "/-- The indefinite diagonal matrix with `p` 1s and `q` -1s. -/\ndef indefiniteDiagonal : Matrix (p ⊕ q) (p ⊕ q) R :=\n  Matrix.diagonal <| Sum.elim (fun _ => 1) fun _ => -1"},
+   {"name": "minkowskiMatrix",
+    "module": "HepLean.Lorentz.MinkowskiMatrix",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The `d.succ`-dimensional real matrix of the form `diag(1, -1, -1, -1, ...)`. -/\ndef minkowskiMatrix {d : ℕ} : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ :=\n  LieAlgebra.Orthogonal.indefiniteDiagonal (Fin 1) (Fin d) ℝ",
+    "compilationAlias":
+    "/-- The `d.succ`-dimensional real matrix of the form `diag(1, -1, -1, -1, ...)`. -/\ndef minkowskiMatrix {d : ℕ} : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ :=\n  LieAlgebra.Orthogonal.indefiniteDiagonal (Fin 1) (Fin d) ℝ"},
+   {"name": "Fin.isValue",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+    "compilationAlias":
+    "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+   {"name": "lorentzAlgebra.transpose_eta",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+    "compilationAlias":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"},
+   {"name": "lorentzAlgebra.mem_of_transpose_eta_eq_eta_mul_self",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+    "compilationAlias":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n"},
+   {"name": "lorentzAlgebra.mem_iff",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+    "compilationAlias":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n"},
+   {"name": "lorentzAlgebra.mem_iff'",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n",
+    "compilationAlias":
+    "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n"},
+   {"name": "lorentzAlgebra.diag_comp",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n",
+    "compilationAlias":
+    "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.diag_comp",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n",
+   "compilationAlias":
+   "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n"},
+  "goal":
+  "Λ : Subtype fun x => Membership.mem lorentzAlgebra x\nμ : Sum (Fin 1) (Fin 3)\n⊢ Eq (↑Λ μ μ) 0",
+  "content_sorry":
+  "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\nlemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\nlemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  rcases μ with μ | μ\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    exact eq_zero_of_neg_eq h\n\n",
+  "annotation":
+  "lemma diag_comp (Λ : lorentzAlgebra) (μ : Fin 1 ⊕ Fin 3) : Λ.1 μ μ = 0 := by\n  /-\n    Λ : Subtype fun x => Membership.mem lorentzAlgebra x\n    μ : Sum (Fin 1) (Fin 3)\n    ⊢ Eq (↑Λ μ μ) 0\n  -/\n  have h := congrArg (fun M ↦ M μ μ) $ mem_iff.mp Λ.2\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, mul_diagonal,\n    transpose_apply, diagonal_neg, diagonal_mul, neg_mul] at h\n  /-\n    Λ : Subtype fun x => Membership.mem lorentzAlgebra x\n    μ : Sum (Fin 1) (Fin 3)\n    h : Eq (HMul.hMul (↑Λ μ μ) (Sum.elim (fun x => 1) (fun x => -1) μ)) (Neg.neg ( …\n    ⊢ Eq (↑Λ μ μ) 0\n  -/\n  rcases μ with μ | μ\n    /-\n      case inl\n      Λ : Subtype fun x => Membership.mem lorentzAlgebra x\n      μ : Fin 1\n      h : Eq (HMul.hMul (↑Λ (Sum.inl μ) (Sum.inl μ)) (Sum.elim (fun x => 1) (fun x = …\n      ⊢ Eq (↑Λ (Sum.inl μ) (Sum.inl μ)) 0\n    -/\n  · simp only [Sum.elim_inl, mul_one, one_mul] at h\n    /-\n      case inl\n      Λ : Subtype fun x => Membership.mem lorentzAlgebra x\n      μ : Fin 1\n      h : Eq (↑Λ (Sum.inl μ) (Sum.inl μ)) (Neg.neg (↑Λ (Sum.inl μ) (Sum.inl μ)))\n      ⊢ Eq (↑Λ (Sum.inl μ) (Sum.inl μ)) 0\n    -/\n    exact eq_zero_of_neg_eq (id (Eq.symm h))\n    /-\n      🎉 no goals\n    -/\n    /-\n      case inr\n      Λ : Subtype fun x => Membership.mem lorentzAlgebra x\n      μ : Fin 3\n      h : Eq (HMul.hMul (↑Λ (Sum.inr μ) (Sum.inr μ)) (Sum.elim (fun x => 1) (fun x = …\n      ⊢ Eq (↑Λ (Sum.inr μ) (Sum.inr μ)) 0\n    -/\n  · simp only [Sum.elim_inr, mul_neg, mul_one, neg_mul, one_mul, neg_neg] at h\n    /-\n      case inr\n      Λ : Subtype fun x => Membership.mem lorentzAlgebra x\n      μ : Fin 3\n      h : Eq (Neg.neg (↑Λ (Sum.inr μ) (Sum.inr μ))) (↑Λ (Sum.inr μ) (Sum.inr μ))\n      ⊢ Eq (↑Λ (Sum.inr μ) (Sum.inr μ)) 0\n    -/\n    exact eq_zero_of_neg_eq h\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "neg_neg",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "mul_neg",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _"},
+   {"name": "Sum.elim_inr",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem elim_inr (f : α → γ) (g : β → γ) (x : β) :\n    Sum.elim f g (inr x) = g x := rfl",
+    "compilationAlias":
+    "@[simp] theorem elim_inr (f : α → γ) (g : β → γ) (x : β) :\n    Sum.elim f g (inr x) = g x := rfl"},
+   {"name": "Eq.symm",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nEquality is symmetric: if `a = b` then `b = a`.\n\nBecause this is in the `Eq` namespace, if you have a variable `h : a = b`,\n`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nEquality is symmetric: if `a = b` then `b = a`.\n\nBecause this is in the `Eq` namespace, if you have a variable `h : a = b`,\n`h.symm` can be used as shorthand for `Eq.symm h` as a proof of `b = a`.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\n@[symm] theorem Eq.symm {α : Sort u} {a b : α} (h : Eq a b) : Eq b a :=\n  h ▸ rfl"},
+   {"name": "id",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a",
+    "compilationAlias":
+    "/--\nThe identity function. `id` takes an implicit argument `α : Sort u`\n(a type in any universe), and an argument `a : α`, and returns `a`.\n\nAlthough this may look like a useless function, one application of the identity\nfunction is to explicitly put a type on an expression. If `e` has type `T`,\nand `T'` is definitionally equal to `T`, then `@id T' e` typechecks, and Lean\nknows that this expression has type `T'` rather than `T`. This can make a\ndifference for typeclass inference, since `T` and `T'` may have different\ntypeclass instances on them. `show T' from e` is sugar for an `@id T' e`\nexpression.\n-/\n@[inline] def id {α : Sort u} (a : α) : α := a"},
+   {"name": "eq_zero_of_neg_eq",
+    "module": "Mathlib.Algebra.Order.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive eq_zero_of_neg_eq]",
+    "compilationAlias": "@[to_additive eq_zero_of_neg_eq]"},
+   {"name": "one_mul",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem one_mul : ∀ a : M, 1 * a = a :=\n  MulOneClass.one_mul"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "Sum.elim_inl",
+    "module": "Init.Data.Sum.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem elim_inl (f : α → γ) (g : β → γ) (x : α) :\n    Sum.elim f g (inl x) = f x := rfl",
+    "compilationAlias":
+    "@[simp] theorem elim_inl (f : α → γ) (g : β → γ) (x : α) :\n    Sum.elim f g (inl x) = f x := rfl"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "LieAlgebra.Orthogonal.indefiniteDiagonal",
+    "module": "Mathlib.Algebra.Lie.Classical",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The indefinite diagonal matrix with `p` 1s and `q` -1s. -/\ndef indefiniteDiagonal : Matrix (p ⊕ q) (p ⊕ q) R :=\n  Matrix.diagonal <| Sum.elim (fun _ => 1) fun _ => -1",
+    "compilationAlias":
+    "/-- The indefinite diagonal matrix with `p` 1s and `q` -1s. -/\ndef indefiniteDiagonal : Matrix (p ⊕ q) (p ⊕ q) R :=\n  Matrix.diagonal <| Sum.elim (fun _ => 1) fun _ => -1"},
+   {"name": "minkowskiMatrix",
+    "module": "HepLean.Lorentz.MinkowskiMatrix",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The `d.succ`-dimensional real matrix of the form `diag(1, -1, -1, -1, ...)`. -/\ndef minkowskiMatrix {d : ℕ} : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ :=\n  LieAlgebra.Orthogonal.indefiniteDiagonal (Fin 1) (Fin d) ℝ",
+    "compilationAlias":
+    "/-- The `d.succ`-dimensional real matrix of the form `diag(1, -1, -1, -1, ...)`. -/\ndef minkowskiMatrix {d : ℕ} : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ :=\n  LieAlgebra.Orthogonal.indefiniteDiagonal (Fin 1) (Fin d) ℝ"},
+   {"name": "congrArg",
+    "module": "Init.Prelude",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl",
+    "compilationAlias":
+    "/--\nCongruence in the function argument: if `a₁ = a₂` then `f a₁ = f a₂` for\nany (nondependent) function `f`. This is more powerful than it might look at first, because\nyou can also use a lambda expression for `f` to prove that\n`<something containing a₁> = <something containing a₂>`. This function is used\ninternally by tactics like `congr` and `simp` to apply equalities inside\nsubterms.\n\nFor more information: [Equality](https://lean-lang.org/theorem_proving_in_lean4/quantifiers_and_equality.html#equality)\n-/\ntheorem congrArg {α : Sort u} {β : Sort v} {a₁ a₂ : α} (f : α → β) (h : Eq a₁ a₂) : Eq (f a₁) (f a₂) :=\n  h ▸ rfl"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+   {"name": "lorentzAlgebra.transpose_eta",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+    "compilationAlias":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"},
+   {"name": "lorentzAlgebra.mem_of_transpose_eta_eq_eta_mul_self",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+    "compilationAlias":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n"},
+   {"name": "lorentzAlgebra.mem_iff",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+    "compilationAlias":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n"},
+   {"name": "lorentzAlgebra.mem_iff'",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n",
+    "compilationAlias":
+    "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.mem_iff'",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n",
+   "compilationAlias":
+   "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n"},
+  "goal":
+  "A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n⊢ Iff (Membership.mem lorentzAlgebra A) (Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowskiMatrix))",
+  "content_sorry":
+  "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\nlemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  rw [mem_iff]\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n  · trans -η * (Aᵀ * η)\n    · rw [h]\n      trans (η * η) * A\n      · rw [minkowskiMatrix.sq]\n        noncomm_ring\n      · noncomm_ring\n    · noncomm_ring\n  · nth_rewrite 2 [h]\n    trans (η * η) * Aᵀ * η\n    · rw [minkowskiMatrix.sq]\n      noncomm_ring\n    · noncomm_ring\n\n",
+  "annotation":
+  "lemma mem_iff' (A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :\n    A ∈ lorentzAlgebra ↔ A = - η * Aᵀ * η := by\n  /-\n    A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n    ⊢ Iff (Membership.mem lorentzAlgebra A) (Eq A (HMul.hMul (HMul.hMul (Neg.neg m …\n  -/\n  rw [mem_iff]\n  /-\n    A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n    ⊢ Iff (Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowsk …\n  -/\n  refine Iff.intro (fun h => ?_) (fun h => ?_)\n    /-\n      case refine_1\n      A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n      h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n      ⊢ Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowskiM …\n    -/\n  · trans -η * (Aᵀ * η)\n      /-\n        A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n        h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n        ⊢ Eq A (HMul.hMul (Neg.neg minkowskiMatrix) (HMul.hMul A.transpose minkowskiMa …\n      -/\n    · rw [h]\n      /-\n        A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n        h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n        ⊢ Eq A (HMul.hMul (Neg.neg minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMatri …\n      -/\n      trans (η * η) * A\n        /-\n          A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n          h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n          ⊢ Eq A (HMul.hMul (HMul.hMul minkowskiMatrix minkowskiMatrix) A)\n        -/\n      · rw [minkowskiMatrix.sq]\n        /-\n          A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n          h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n          ⊢ Eq A (HMul.hMul 1 A)\n        -/\n        noncomm_ring\n        /-\n          🎉 no goals\n        -/\n        /-\n          A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n          h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n          ⊢ Eq (HMul.hMul (HMul.hMul minkowskiMatrix minkowskiMatrix) A) (HMul.hMul (Neg …\n        -/\n      · noncomm_ring\n        /-\n          🎉 no goals\n        -/\n      /-\n        A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n        h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n        ⊢ Eq (HMul.hMul (Neg.neg minkowskiMatrix) (HMul.hMul A.transpose minkowskiMatr …\n      -/\n    · noncomm_ring\n      /-\n        🎉 no goals\n      -/\n    /-\n      case refine_2\n      A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n      h : Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowsk …\n      ⊢ Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMatr …\n    -/\n  · nth_rewrite 2 [h]\n    /-\n      case refine_2\n      A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n      h : Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowsk …\n      ⊢ Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMatr …\n    -/\n    trans (η * η) * Aᵀ * η\n      /-\n        A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n        h : Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowsk …\n        ⊢ Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (HMul.hMul (HMul.hMul  …\n      -/\n    · rw [minkowskiMatrix.sq]\n      /-\n        A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n        h : Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowsk …\n        ⊢ Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (HMul.hMul 1 A.transpo …\n      -/\n      noncomm_ring\n      /-\n        🎉 no goals\n      -/\n      /-\n        A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n        h : Eq A (HMul.hMul (HMul.hMul (Neg.neg minkowskiMatrix) A.transpose) minkowsk …\n        ⊢ Eq (HMul.hMul (HMul.hMul (HMul.hMul minkowskiMatrix minkowskiMatrix) A.trans …\n      -/\n    · noncomm_ring\n      /-\n        🎉 no goals\n      -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "minkowskiMatrix.sq",
+    "module": "HepLean.Lorentz.MinkowskiMatrix",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Minkowski matrix is self-inverting. -/\n@[simp]\nlemma sq : @minkowskiMatrix d * minkowskiMatrix = 1 := by\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, diagonal_mul_diagonal]\n  ext1 i j\n  rcases i with i | i <;> rcases j with j | j\n  · simp only [diagonal, of_apply, Sum.inl.injEq, Sum.elim_inl, mul_one]\n    split\n    · rename_i h\n      subst h\n      simp_all only [one_apply_eq]\n    · simp_all only [ne_eq, Sum.inl.injEq, not_false_eq_true, one_apply_ne]\n  · rfl\n  · rfl\n  · simp only [diagonal, of_apply, Sum.inr.injEq, Sum.elim_inr, mul_neg, mul_one, neg_neg]\n    split\n    · rename_i h\n      subst h\n      simp_all only [one_apply_eq]\n    · simp_all only [ne_eq, Sum.inr.injEq, not_false_eq_true, one_apply_ne]",
+    "compilationAlias":
+    "/-- The Minkowski matrix is self-inverting. -/\n@[simp]\nlemma sq : @minkowskiMatrix d * minkowskiMatrix = 1 := by\n  simp only [minkowskiMatrix, LieAlgebra.Orthogonal.indefiniteDiagonal, diagonal_mul_diagonal]\n  ext1 i j\n  rcases i with i | i <;> rcases j with j | j\n  · simp only [diagonal, of_apply, Sum.inl.injEq, Sum.elim_inl, mul_one]\n    split\n    · rename_i h\n      subst h\n      simp_all only [one_apply_eq]\n    · simp_all only [ne_eq, Sum.inl.injEq, not_false_eq_true, one_apply_ne]\n  · rfl\n  · rfl\n  · simp only [diagonal, of_apply, Sum.inr.injEq, Sum.elim_inr, mul_neg, mul_one, neg_neg]\n    split\n    · rename_i h\n      subst h\n      simp_all only [one_apply_eq]\n    · simp_all only [ne_eq, Sum.inr.injEq, not_false_eq_true, one_apply_ne]"},
+   {"name": "Matrix",
+    "module": "Mathlib.Data.Matrix.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+    "compilationAlias":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+   {"name": "lorentzAlgebra.transpose_eta",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+    "compilationAlias":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"},
+   {"name": "lorentzAlgebra.mem_of_transpose_eta_eq_eta_mul_self",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+    "compilationAlias":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n"},
+   {"name": "lorentzAlgebra.mem_iff",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+    "compilationAlias":
+    "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.mem_iff",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+   "compilationAlias":
+   "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n"},
+  "goal":
+  "A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n⊢ Iff (Membership.mem lorentzAlgebra A) (Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMatrix) A))",
+  "content_sorry":
+  "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\nlemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+  "annotation":
+  "lemma mem_iff {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ} :\n    A ∈ lorentzAlgebra ↔ Aᵀ * η = - η * A :=\n  Iff.intro (fun h => transpose_eta ⟨A, h⟩) (fun h => mem_of_transpose_eta_eq_eta_mul_self h)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Matrix",
+    "module": "Mathlib.Data.Matrix.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+    "compilationAlias":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+   {"name": "lorentzAlgebra.transpose_eta",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+    "compilationAlias":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"},
+   {"name": "lorentzAlgebra.mem_of_transpose_eta_eq_eta_mul_self",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+    "compilationAlias":
+    "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.mem_of_transpose_eta_eq_eta_mul_self",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+   "compilationAlias":
+   "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n"},
+  "goal":
+  "A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\nh : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMatrix) A)\n⊢ Membership.mem lorentzAlgebra A",
+  "content_sorry":
+  "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\nlemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n\n",
+  "annotation":
+  "lemma mem_of_transpose_eta_eq_eta_mul_self {A : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ}\n    (h : Aᵀ * η = - η * A) : A ∈ lorentzAlgebra := by\n  /-\n    A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n    h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n    ⊢ Membership.mem lorentzAlgebra A\n  -/\n  erw [mem_skewAdjointMatricesLieSubalgebra]\n  /-\n    A : Matrix (Sum (Fin 1) (Fin 3)) (Sum (Fin 1) (Fin 3)) Real\n    h : Eq (HMul.hMul A.transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiMa …\n    ⊢ Membership.mem (skewAdjointMatricesSubmodule (LieAlgebra.Orthogonal.indefini …\n  -/\n  simpa [LieAlgebra.Orthogonal.so', IsSkewAdjoint, IsAdjointPair] using h\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LieAlgebra.Orthogonal.so'",
+    "module": "Mathlib.Algebra.Lie.Classical",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The indefinite orthogonal Lie subalgebra: skew-adjoint matrices with respect to the symmetric\nbilinear form defined by the indefinite diagonal matrix. -/\ndef so' [Fintype p] [Fintype q] : LieSubalgebra R (Matrix (p ⊕ q) (p ⊕ q) R) :=\n  skewAdjointMatricesLieSubalgebra <| indefiniteDiagonal p q R",
+    "compilationAlias":
+    "/-- The indefinite orthogonal Lie subalgebra: skew-adjoint matrices with respect to the symmetric\nbilinear form defined by the indefinite diagonal matrix. -/\ndef so' [Fintype p] [Fintype q] : LieSubalgebra R (Matrix (p ⊕ q) (p ⊕ q) R) :=\n  skewAdjointMatricesLieSubalgebra <| indefiniteDiagonal p q R"},
+   {"name": "mem_skewAdjointMatricesLieSubalgebra",
+    "module": "Mathlib.Algebra.Lie.SkewAdjoint",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_skewAdjointMatricesLieSubalgebra (A : Matrix n n R) :\n    A ∈ skewAdjointMatricesLieSubalgebra J ↔ A ∈ skewAdjointMatricesSubmodule J :=\n  Iff.rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_skewAdjointMatricesLieSubalgebra (A : Matrix n n R) :\n    A ∈ skewAdjointMatricesLieSubalgebra J ↔ A ∈ skewAdjointMatricesSubmodule J :=\n  Iff.rfl"},
+   {"name": "Matrix",
+    "module": "Mathlib.Data.Matrix.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+    "compilationAlias":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+   {"name": "lorentzAlgebra.transpose_eta",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+    "compilationAlias":
+    "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace lorentzAlgebra\n\nopen Matrix TensorProduct minkowskiMatrix",
+  "postscopes": "end lorentzAlgebra",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra.transpose_eta",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+   "compilationAlias":
+   "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n"},
+  "goal":
+  "R : Type u_1\nn : Type u_11\ninst✝² : CommRing R\ninst✝¹ : Fintype n\nJ A₁ : Matrix n n R\ninst✝ : DecidableEq n\n⊢ Eq (Membership.mem (skewAdjointMatricesSubmodule J) A₁) (J.IsSkewAdjoint A₁)",
+  "content_sorry":
+  "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\nnamespace lorentzAlgebra\nopen minkowskiMatrix\n\nlemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  have h1 := A.2\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+  "annotation":
+  "lemma transpose_eta (A : lorentzAlgebra) : A.1ᵀ * η = - η * A.1 := by\n  /-\n    A : Subtype fun x => Membership.mem lorentzAlgebra x\n    ⊢ Eq (HMul.hMul (↑A).transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiM …\n  -/\n  have h1 := A.2\n  /-\n    A : Subtype fun x => Membership.mem lorentzAlgebra x\n    h1 : Membership.mem lorentzAlgebra ↑A\n    ⊢ Eq (HMul.hMul (↑A).transpose minkowskiMatrix) (HMul.hMul (Neg.neg minkowskiM …\n  -/\n  erw [mem_skewAdjointMatricesLieSubalgebra] at h1\n  simpa only [neg_mul, mem_skewAdjointMatricesSubmodule, IsSkewAdjoint, IsAdjointPair,\n    mul_neg] using h1\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "mul_neg",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem mul_neg (a b : α) : a * -b = -(a * b) :=\n  HasDistribNeg.mul_neg _ _"},
+   {"name": "mem_skewAdjointMatricesSubmodule",
+    "module": "Mathlib.LinearAlgebra.Matrix.SesquilinearForm",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_skewAdjointMatricesSubmodule :\n    A₁ ∈ skewAdjointMatricesSubmodule J ↔ J.IsSkewAdjoint A₁ := by\n  erw [mem_pairSelfAdjointMatricesSubmodule]\n  simp [Matrix.IsSkewAdjoint, Matrix.IsAdjointPair]",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_skewAdjointMatricesSubmodule :\n    A₁ ∈ skewAdjointMatricesSubmodule J ↔ J.IsSkewAdjoint A₁ := by\n  erw [mem_pairSelfAdjointMatricesSubmodule]\n  simp [Matrix.IsSkewAdjoint, Matrix.IsAdjointPair]"},
+   {"name": "neg_mul",
+    "module": "Mathlib.Algebra.Ring.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _",
+    "compilationAlias":
+    "@[simp]\ntheorem neg_mul (a b : α) : -a * b = -(a * b) :=\n  HasDistribNeg.neg_mul _ _"},
+   {"name": "mem_skewAdjointMatricesLieSubalgebra",
+    "module": "Mathlib.Algebra.Lie.SkewAdjoint",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_skewAdjointMatricesLieSubalgebra (A : Matrix n n R) :\n    A ∈ skewAdjointMatricesLieSubalgebra J ↔ A ∈ skewAdjointMatricesSubmodule J :=\n  Iff.rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_skewAdjointMatricesLieSubalgebra (A : Matrix n n R) :\n    A ∈ skewAdjointMatricesLieSubalgebra J ↔ A ∈ skewAdjointMatricesSubmodule J :=\n  Iff.rfl"}],
+  "C0_dependencies":
+  [{"name": "lorentzAlgebra",
+    "module": "HepLean.Lorentz.Algebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+    "compilationAlias":
+    "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"}]},
+ {"rag": [],
+  "prescopes": "open Matrix TensorProduct",
+  "postscopes": "",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "lorentzAlgebra",
+   "module": "HepLean.Lorentz.Algebra.Basic",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+   "compilationAlias":
+   "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry":
+  "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.RealVector.Basic\n/-!\n# The Lorentz Algebra\n\nWe define\n\n- Define `lorentzAlgebra` via `LieAlgebra.Orthogonal.so'` as a subalgebra of\n  `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`.\n- In `mem_iff` prove that a matrix is in the Lorentz algebra if and only if it satisfies the\n  condition `Aᵀ * η = - η * A`.\n\n-/\n\nopen Matrix\nopen TensorProduct\n\n/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+  "annotation":
+  "/-- The Lorentz algebra as a subalgebra of `Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ`. -/\ndef lorentzAlgebra : LieSubalgebra ℝ (Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ) :=\n  (LieAlgebra.Orthogonal.so' (Fin 1) (Fin 3) ℝ)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "LieAlgebra.Orthogonal.so'",
+    "module": "Mathlib.Algebra.Lie.Classical",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The indefinite orthogonal Lie subalgebra: skew-adjoint matrices with respect to the symmetric\nbilinear form defined by the indefinite diagonal matrix. -/\ndef so' [Fintype p] [Fintype q] : LieSubalgebra R (Matrix (p ⊕ q) (p ⊕ q) R) :=\n  skewAdjointMatricesLieSubalgebra <| indefiniteDiagonal p q R",
+    "compilationAlias":
+    "/-- The indefinite orthogonal Lie subalgebra: skew-adjoint matrices with respect to the symmetric\nbilinear form defined by the indefinite diagonal matrix. -/\ndef so' [Fintype p] [Fintype q] : LieSubalgebra R (Matrix (p ⊕ q) (p ⊕ q) R) :=\n  skewAdjointMatricesLieSubalgebra <| indefiniteDiagonal p q R"},
+   {"name": "Matrix",
+    "module": "Mathlib.Data.Matrix.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+    "compilationAlias":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"}],
+  "C0_dependencies": []}]

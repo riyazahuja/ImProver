@@ -162,6 +162,7 @@ def construct_prompts(
         name = item["id"]["name"]
 
         prompt = config_data["prompts"]["system_prompt"] + "\n"
+        # prompt = ""
 
         if args.examples != 0:
             prompt += config_data["prompts"]["example_prompt"] + "\n"
@@ -280,9 +281,18 @@ async def _chat_complete_async(
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
+    # data = {
+    #     "messages": [{"role": "user", "content": prompt}],
+    #     "max_completion_tokens": max_tokens,
+    #     # "temperature": 0.3,
+    #     # "top_p": 0.9,
+    #     # "repetition_penalty": 1.05,
+    #     # "stop": ["</IMPROVED>"]
+    # }
     data = {
-        "messages": [{"role": "user", "content": prompt}],
-        "max_completion_tokens": max_tokens,
+        "input": [{"role": "user", "content": prompt}],
+        "max_output_tokens": max_tokens,
+        "model": model,
         # "temperature": 0.3,
         # "top_p": 0.9,
         # "repetition_penalty": 1.05,
@@ -299,8 +309,13 @@ async def _chat_complete_async(
             url = base_url
         else:
             url = f"{base_url}/chat/completions"
+        # print(
+        #     f"Making request to \n{url}\n with headers \n{headers}\n and data \n{data}\n\n"
+        #     + "=" * 50
+        # )
 
         async with session.post(url, headers=headers, json=data) as response:
+
             if response.status == 429:  # Rate limit hit
                 retry_after = int(response.headers.get("Retry-After", 60))
                 await asyncio.sleep(retry_after)
@@ -323,6 +338,9 @@ async def _chat_complete_async(
 
             response.raise_for_status()
             result = await response.json()
+            print(f"Response status: {response.status}")
+            print(f"Response body:\n{result}")
+            print("=" * 50)
 
             # Handle both OpenAI and common OpenAI-compatible response shapes
             try:
@@ -332,7 +350,10 @@ async def _chat_complete_async(
                 try:
                     return result["choices"][0]["text"] or ""
                 except Exception:
-                    return ""
+                    try:
+                        return result["output"][-1]["content"][-1]["text"] or ""
+                    except Exception:
+                        return ""
 
     except Exception as e:
         # Retry once after a short backoff
@@ -354,9 +375,14 @@ async def _chat_complete_async(
                     try:
                         return result["choices"][0]["text"] or ""
                     except Exception:
-                        return f"[ERROR] {type(e).__name__}: {e}"
+                        try:
+                            return result["output"][-1]["content"][-1]["text"] or ""
+                        except Exception:
+                            return (
+                                f"[ERROR] {type(e).__name__}: {e}\n\n{result.__dict__}"
+                            )
         except Exception as e2:
-            return f"[ERROR] {type(e2).__name__}: {e2}"
+            return f"[ERROR] {type(e2).__name__}: {e2}\n\n{result.__dict__}"
 
 
 async def run_inference_async(df: pd.DataFrame, args) -> str:
@@ -428,6 +454,9 @@ async def run_inference_async(df: pd.DataFrame, args) -> str:
             rate_limiter,
             is_azure,
         )
+        print(f"Prompt {row_idx} completed.")
+        print(f"Answer:\n{answer_text}")
+        print("#" * 80)
 
         result = {
             "module": getattr(row, "module", None),
@@ -458,7 +487,9 @@ async def run_inference_async(df: pd.DataFrame, args) -> str:
             tasks.append(task)
 
         # Process in batches to avoid overwhelming the system
-        batch_size = 50
+        batch_size = (
+            args.server_concurrency if hasattr(args, "server_concurrency") else 50
+        )
         for i in range(0, len(tasks), batch_size):
             batch = tasks[i : i + batch_size]
             batch_results = await asyncio.gather(*batch, return_exceptions=True)
@@ -472,8 +503,8 @@ async def run_inference_async(df: pd.DataFrame, args) -> str:
                             "decl_idx": 0,
                             "prompt_idx": 0,
                             "raw_prompt": "",
-                            "generated_text": f"[ERROR] {type(result).__name__}: {result}",
-                            "answer": f"[ERROR] {type(result).__name__}: {result}",
+                            "generated_text": f"[ERROR] {type(result).__name__}: {result}\n\n{result.__dict__}",
+                            "answer": f"[ERROR] {type(result).__name__}: {result}\n\n{result.__dict__}",
                         }
                     )
                 else:
@@ -508,6 +539,11 @@ async def run_inference_async(df: pd.DataFrame, args) -> str:
 
     # Build DuckDB database aggregating the Parquet lake (same table name as original).
     con = duckdb.connect(os.path.join(run_output_dir, "data.duckdb"))
+    con.execute(
+        f"""
+        DROP TABLE IF EXISTS run_data;
+        """
+    )
     con.execute(
         f"""
         CREATE TABLE IF NOT EXISTS run_data AS

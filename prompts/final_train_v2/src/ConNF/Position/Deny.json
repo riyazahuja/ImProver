@@ -1,0 +1,1465 @@
+[{"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.funOfDeny_injective",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem funOfDeny_injective {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    Function.Injective (funOfDeny h₁ deny h₂) := by\n  letI := initialWellOrder X\n  intro x y h\n  wlog hxy : x ≤ y\n  · exact (this h₁ deny h₂ h.symm (le_of_not_ge hxy)).symm\n  have := funOfDeny_spec h₁ deny h₂ y\n  contrapose! this\n  left\n  exact ⟨x, lt_of_le_of_ne hxy this, h.symm⟩\n\n",
+   "compilationAlias":
+   "theorem funOfDeny_injective {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    Function.Injective (funOfDeny h₁ deny h₂) := by\n  letI := initialWellOrder X\n  intro x y h\n  wlog hxy : x ≤ y\n  · exact (this h₁ deny h₂ h.symm (le_of_not_ge hxy)).symm\n  have := funOfDeny_spec h₁ deny h₂ y\n  contrapose! this\n  left\n  exact ⟨x, lt_of_le_of_ne hxy this, h.symm⟩\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nX : Type u\nh₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\ndeny : X → Set ConNF.Params.μ\nh₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord.cof\n⊢ Function.Injective (ConNF.funOfDeny h₁ deny h₂)",
+  "content_sorry":
+  "theorem funOfDeny_injective {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    Function.Injective (funOfDeny h₁ deny h₂) := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\ntheorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\ntheorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\ntheorem funOfDeny_injective {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    Function.Injective (funOfDeny h₁ deny h₂) := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\ntheorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\ntheorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\ntheorem funOfDeny_injective {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    Function.Injective (funOfDeny h₁ deny h₂) := by\n  letI := initialWellOrder X\n  intro x y h\n  wlog hxy : x ≤ y\n  · exact (this h₁ deny h₂ h.symm (le_of_not_ge hxy)).symm\n  have := funOfDeny_spec h₁ deny h₂ y\n  contrapose! this\n  left\n  exact ⟨x, lt_of_le_of_ne hxy this, h.symm⟩\n\n",
+  "annotation":
+  "theorem funOfDeny_injective {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    Function.Injective (funOfDeny h₁ deny h₂) := by\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    ⊢ Function.Injective (ConNF.funOfDeny h₁ deny h₂)\n  -/\n  letI := initialWellOrder X\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    ⊢ Function.Injective (ConNF.funOfDeny h₁ deny h₂)\n  -/\n  intro x y h\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    x y : X\n    h : Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ y)\n    ⊢ Eq x y\n  -/\n  wlog hxy : x ≤ y\n    /-\n      case inr\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      this✝ : LtWellOrder X := ConNF.initialWellOrder X\n      x y : X\n      h : Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ y)\n      this :\n        ∀ [inst : ConNF.Params] {X : Type u} (h₁ : LE.le (Cardinal.mk X) (Cardinal.m …\n          let this := ConNF.initialWellOrder X;\n          ∀ ⦃x y : X⦄, Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ …\n      hxy : Not (LE.le x y)\n      ⊢ Eq x y\n    -/\n  · exact (this h₁ deny h₂ h.symm (le_of_not_ge hxy)).symm\n    /-\n      🎉 no goals\n    -/\n  /-\n    inst✝¹ inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    x y : X\n    h : Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ y)\n    hxy : LE.le x y\n    ⊢ Eq x y\n  -/\n  have := funOfDeny_spec h₁ deny h₂ y\n  /-\n    inst✝¹ inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    this✝ : LtWellOrder X := ConNF.initialWellOrder X\n    x y : X\n    h : Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ y)\n    hxy : LE.le x y\n    this : Not (Membership.mem (Union.union (setOf fun ν => Exists fun y_1 => Exis …\n    ⊢ Eq x y\n  -/\n  contrapose! this\n  /-\n    inst✝¹ inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    this✝ : LtWellOrder X := ConNF.initialWellOrder X\n    x y : X\n    h : Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ y)\n    hxy : LE.le x y\n    this : Ne x y\n    ⊢ Membership.mem (Union.union (setOf fun ν => Exists fun y_1 => Exists fun _h  …\n  -/\n  left\n  /-\n    case h\n    inst✝¹ inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    this✝ : LtWellOrder X := ConNF.initialWellOrder X\n    x y : X\n    h : Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.funOfDeny h₁ deny h₂ y)\n    hxy : LE.le x y\n    this : Ne x y\n    ⊢ Membership.mem (setOf fun ν => Exists fun y_1 => Exists fun _h => Eq ν (ConN …\n  -/\n  exact ⟨x, lt_of_le_of_ne hxy this, h.symm⟩\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "lt_of_le_of_ne",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma lt_of_le_of_ne : a ≤ b → a ≠ b → a < b := fun h₁ h₂ =>\n  lt_of_le_not_le h₁ <| mt (le_antisymm h₁) h₂",
+    "compilationAlias":
+    "lemma lt_of_le_of_ne : a ≤ b → a ≠ b → a < b := fun h₁ h₂ =>\n  lt_of_le_not_le h₁ <| mt (le_antisymm h₁) h₂"},
+   {"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "le_of_not_ge",
+    "module": "Mathlib.Order.Defs.LinearOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma le_of_not_ge : ¬a ≥ b → a ≤ b := (le_total b a).resolve_left",
+    "compilationAlias":
+    "lemma le_of_not_ge : ¬a ≥ b → a ≤ b := (le_total b a).resolve_left"},
+   {"name": "Function.Injective",
+    "module": "Mathlib.Logic.Function.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A function `f : α → β` is called injective if `f x = f y` implies `x = y`. -/\ndef Injective (f : α → β) : Prop :=\n  ∀ ⦃a₁ a₂⦄, f a₁ = f a₂ → a₁ = a₂",
+    "compilationAlias":
+    "/-- A function `f : α → β` is called injective if `f x = f y` implies `x = y`. -/\ndef Injective (f : α → β) : Prop :=\n  ∀ ⦃a₁ a₂⦄, f a₁ = f a₂ → a₁ = a₂"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+   {"name": "ConNF.gtOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.gtOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny_eq",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n",
+    "compilationAlias":
+    "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n"},
+   {"name": "ConNF.funOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n",
+    "compilationAlias":
+    "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n"},
+   {"name": "ConNF.funOfDeny_gt_deny",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\n",
+    "compilationAlias":
+    "theorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.funOfDeny_gt_deny",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\n",
+   "compilationAlias":
+   "theorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nX : Type u\nh₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\ndeny : X → Set ConNF.Params.μ\nh₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord.cof\nx : X\nν : ConNF.Params.μ\nhν : Membership.mem (deny x) ν\n⊢ LT.lt ν (ConNF.funOfDeny h₁ deny h₂ x)",
+  "content_sorry":
+  "theorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\ntheorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\ntheorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\ntheorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\ntheorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  have := funOfDeny_spec h₁ deny h₂ x\n  contrapose! this\n  right\n  exact ⟨ν, hν, this⟩\n\n",
+  "annotation":
+  "theorem funOfDeny_gt_deny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) (ν : μ) (hν : ν ∈ deny x) :\n    ν < funOfDeny h₁ deny h₂ x := by\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ν : ConNF.Params.μ\n    hν : Membership.mem (deny x) ν\n    ⊢ LT.lt ν (ConNF.funOfDeny h₁ deny h₂ x)\n  -/\n  have := funOfDeny_spec h₁ deny h₂ x\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ν : ConNF.Params.μ\n    hν : Membership.mem (deny x) ν\n    this : Not (Membership.mem (Union.union (setOf fun ν => Exists fun y => Exists …\n    ⊢ LT.lt ν (ConNF.funOfDeny h₁ deny h₂ x)\n  -/\n  contrapose! this\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ν : ConNF.Params.μ\n    hν : Membership.mem (deny x) ν\n    this : LE.le (ConNF.funOfDeny h₁ deny h₂ x) ν\n    ⊢ Membership.mem (Union.union (setOf fun ν => Exists fun y => Exists fun _h => …\n  -/\n  right\n  /-\n    case h\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ν : ConNF.Params.μ\n    hν : Membership.mem (deny x) ν\n    this : LE.le (ConNF.funOfDeny h₁ deny h₂ x) ν\n    ⊢ Membership.mem (setOf fun ν => Exists fun ξ => And (Membership.mem (deny x)  …\n  -/\n  exact ⟨ν, hν, this⟩\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+   {"name": "ConNF.gtOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.gtOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny_eq",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n",
+    "compilationAlias":
+    "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n"},
+   {"name": "ConNF.funOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n",
+    "compilationAlias":
+    "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.funOfDeny_spec",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n",
+   "compilationAlias":
+   "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nX : Type u\nh₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\ndeny : X → Set ConNF.Params.μ\nh₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord.cof\nx : X\n⊢ Not (Membership.mem (Union.union (setOf fun ν => Exists fun y => Exists fun _h => Eq ν (ConNF.funOfDeny h₁ deny h₂ y)) (setOf fun ν => Exists fun ξ => And (Membership.mem (deny x) ξ) (LE.le ν ξ))) (ConNF.funOfDeny h₁ deny h₂ x))",
+  "content_sorry":
+  "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\ntheorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\ntheorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  rw [funOfDeny_eq]\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n\n",
+  "annotation":
+  "theorem funOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    letI := initialWellOrder X\n    funOfDeny h₁ deny h₂ x ∉\n      ({ν | ∃ y, ∃ _h : y < x, ν = funOfDeny h₁ deny h₂ y}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} := by\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ⊢ Not (Membership.mem (Union.union (setOf fun ν => Exists fun y => Exists fun  …\n  -/\n  rw [funOfDeny_eq]\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ⊢ Not (Membership.mem (Union.union (setOf fun ν => Exists fun y => Exists fun  …\n  -/\n  exact gtOfDeny_spec h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y)\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+   {"name": "ConNF.gtOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.gtOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny_eq",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n",
+    "compilationAlias":
+    "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.funOfDeny_eq",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n",
+   "compilationAlias":
+   "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nX : Type u\nh₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\ndeny : X → Set ConNF.Params.μ\nh₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord.cof\nx : X\n⊢ Eq (ConNF.funOfDeny h₁ deny h₂ x) (ConNF.gtOfDeny h₁ deny h₂ x fun y x => ConNF.funOfDeny h₁ deny h₂ y)",
+  "content_sorry":
+  "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\ntheorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n",
+  "annotation":
+  "theorem funOfDeny_eq {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) (x : X) :\n    funOfDeny h₁ deny h₂ x = gtOfDeny h₁ deny h₂ x (λ y _ ↦ funOfDeny h₁ deny h₂ y) :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix_eq (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih) x\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "inferInstanceAs",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `inferInstanceAs α` synthesizes a value of any target type by typeclass\ninference. This is just like `inferInstance` except that `α` is given\nexplicitly instead of being inferred from the target type. It is especially\nuseful when the target type is some `α'` which is definitionally equal to `α`,\nbut the instance we are looking for is only registered for `α` (because\ntypeclass search does not unfold most definitions, but definitional equality\ndoes.) Example:\n```\n#check inferInstanceAs (Inhabited Nat) -- Inhabited Nat\n```\n-/\nabbrev inferInstanceAs (α : Sort u) [i : α] : α := i",
+    "compilationAlias":
+    "/-- `inferInstanceAs α` synthesizes a value of any target type by typeclass\ninference. This is just like `inferInstance` except that `α` is given\nexplicitly instead of being inferred from the target type. It is especially\nuseful when the target type is some `α'` which is definitionally equal to `α`,\nbut the instance we are looking for is only registered for `α` (because\ntypeclass search does not unfold most definitions, but definitional equality\ndoes.) Example:\n```\n#check inferInstanceAs (Inhabited Nat) -- Inhabited Nat\n```\n-/\nabbrev inferInstanceAs (α : Sort u) [i : α] : α := i"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+   {"name": "ConNF.gtOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.gtOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.funOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.funOfDeny",
+   "module": "ConNF.Position.Deny",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+   "compilationAlias":
+   "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n"},
+  "goal": "X : Type u_1\n⊢ WellFounded fun x1 x2 => LT.lt x1 x2",
+  "content_sorry":
+  "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\ndef funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+  "annotation":
+  "def funOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof) :\n    X → μ :=\n  letI := initialWellOrder X\n  (inferInstanceAs (IsWellFounded X (· < ·))).wf.fix (C := λ _ ↦ μ)\n    (λ x ih ↦ gtOfDeny h₁ deny h₂ x ih)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "inferInstanceAs",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `inferInstanceAs α` synthesizes a value of any target type by typeclass\ninference. This is just like `inferInstance` except that `α` is given\nexplicitly instead of being inferred from the target type. It is especially\nuseful when the target type is some `α'` which is definitionally equal to `α`,\nbut the instance we are looking for is only registered for `α` (because\ntypeclass search does not unfold most definitions, but definitional equality\ndoes.) Example:\n```\n#check inferInstanceAs (Inhabited Nat) -- Inhabited Nat\n```\n-/\nabbrev inferInstanceAs (α : Sort u) [i : α] : α := i",
+    "compilationAlias":
+    "/-- `inferInstanceAs α` synthesizes a value of any target type by typeclass\ninference. This is just like `inferInstance` except that `α` is given\nexplicitly instead of being inferred from the target type. It is especially\nuseful when the target type is some `α'` which is definitionally equal to `α`,\nbut the instance we are looking for is only registered for `α` (because\ntypeclass search does not unfold most definitions, but definitional equality\ndoes.) Example:\n```\n#check inferInstanceAs (Inhabited Nat) -- Inhabited Nat\n```\n-/\nabbrev inferInstanceAs (α : Sort u) [i : α] : α := i"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+   {"name": "ConNF.gtOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+   {"name": "ConNF.gtOfDeny_spec",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.gtOfDeny_spec",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+   "compilationAlias":
+   "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nX : Type u\nh₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\ndeny : X → Set ConNF.Params.μ\nh₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord.cof\nx : X\nih : (y : X) → LT.lt y x → ConNF.Params.μ\n⊢ Not (Membership.mem (Union.union (setOf fun ν => Exists fun y => Exists fun h => Eq ν (ih y h)) (setOf fun ν => Exists fun ξ => And (Membership.mem (deny x) ξ) (LE.le ν ξ))) (ConNF.gtOfDeny h₁ deny h₂ x ih))",
+  "content_sorry":
+  "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\ntheorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+  "annotation":
+  "theorem gtOfDeny_spec {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    gtOfDeny h₁ deny h₂ x ih ∉ ({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} :=\n  chooseOfCardLt_not_mem (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+   {"name": "ConNF.gtOfDeny",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+    "compilationAlias":
+    "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.gtOfDeny",
+   "module": "ConNF.Position.Deny",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+   "compilationAlias":
+   "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n"},
+  "goal":
+  "inst✝ : ConNF.Params\nX : Type u\nh₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\ndeny : X → Set ConNF.Params.μ\nh₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord.cof\nx : X\nih : (y : X) → LT.lt y x → ConNF.Params.μ\n⊢ ConNF.Params.μ",
+  "content_sorry":
+  "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\ndef gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+  "annotation":
+  "def gtOfDeny {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ) (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) : μ :=\n  chooseOfCardLt (gtOfDeny_aux h₁ deny h₂ x ih)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+   {"name": "ConNF.gtOfDeny_aux",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+    "compilationAlias":
+    "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u\n\nvariable [Params.{u}]",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.gtOfDeny_aux",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+   "compilationAlias":
+   "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n"},
+  "goal":
+  "α : Type u\nι : Sort v\nx : α\ns : ι → Set α\n⊢ Eq (Membership.mem (Set.iUnion fun i => s i) x) (Exists fun i => Membership.mem (s i) x)",
+  "content_sorry":
+  "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\nvariable [Params.{u}]\n\ntheorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  letI := initialWellOrder X\n  apply (mk_union_le _ _).trans_lt\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n    · rintro _ ⟨y, h, rfl⟩\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      exact ⟨y, h, rfl⟩\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    rw [mul_one]\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n  · apply card_lt_of_μ_bounded\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    use ν\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    exact hξ.trans_lt (hν ζ hζ)\n\n",
+  "annotation":
+  "theorem gtOfDeny_aux {X : Type _} (h₁ : #X ≤ #μ) (deny : X → Set μ)\n    (h₂ : ∀ x, #(deny x) < (#μ).ord.cof)\n    (x : X) (ih : letI := initialWellOrder X; (y : X) → y < x → μ) :\n    #(({ν | ∃ y h, ν = ih y h}) ∪ {ν | ∃ ξ ∈ deny x, ν ≤ ξ} : Set μ) < #μ := by\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ih : (y : X) → LT.lt y x → ConNF.Params.μ\n    ⊢ LT.lt (Cardinal.mk ↑(Union.union (setOf fun ν => Exists fun y => Exists fun  …\n  -/\n  letI := initialWellOrder X\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ih : (y : X) → LT.lt y x → ConNF.Params.μ\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    ⊢ LT.lt (Cardinal.mk ↑(Union.union (setOf fun ν => Exists fun y => Exists fun  …\n  -/\n  apply (mk_union_le _ _).trans_lt\n  /-\n    inst✝ : ConNF.Params\n    X : Type u\n    h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n    deny : X → Set ConNF.Params.μ\n    h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n    x : X\n    ih : (y : X) → LT.lt y x → ConNF.Params.μ\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    ⊢ LT.lt (HAdd.hAdd (Cardinal.mk ↑(setOf fun ν => Exists fun y => Exists fun h  …\n  -/\n  refine add_lt_of_lt aleph0_lt_μ.le ?_ ?_\n    /-\n      case refine_1\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ⊢ LT.lt (Cardinal.mk ↑(setOf fun ν => Exists fun y => Exists fun h => Eq ν (ih …\n    -/\n  · refine (mk_le_mk_of_subset (t := ⋃ (y : X) (h : y < x), {ih y h}) ?_).trans_lt ?_\n      /-\n        case refine_1.refine_1\n        inst✝ : ConNF.Params\n        X : Type u\n        h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n        deny : X → Set ConNF.Params.μ\n        h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n        x : X\n        ih : (y : X) → LT.lt y x → ConNF.Params.μ\n        this : LtWellOrder X := ConNF.initialWellOrder X\n        ⊢ HasSubset.Subset (setOf fun ν => Exists fun y => Exists fun h => Eq ν (ih y  …\n      -/\n    · rintro _ ⟨y, h, rfl⟩\n      /-\n        case refine_1.refine_1.intro.intro\n        inst✝ : ConNF.Params\n        X : Type u\n        h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n        deny : X → Set ConNF.Params.μ\n        h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n        x : X\n        ih : (y : X) → LT.lt y x → ConNF.Params.μ\n        this : LtWellOrder X := ConNF.initialWellOrder X\n        y : X\n        h : LT.lt y x\n        ⊢ Membership.mem (Set.iUnion fun y => Set.iUnion fun h => Singleton.singleton  …\n      -/\n      simp only [Set.mem_iUnion, Set.mem_singleton_iff]\n      /-\n        case refine_1.refine_1.intro.intro\n        inst✝ : ConNF.Params\n        X : Type u\n        h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n        deny : X → Set ConNF.Params.μ\n        h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n        x : X\n        ih : (y : X) → LT.lt y x → ConNF.Params.μ\n        this : LtWellOrder X := ConNF.initialWellOrder X\n        y : X\n        h : LT.lt y x\n        ⊢ Exists fun i => Exists fun h_1 => Eq (ih y h) (ih i ⋯)\n      -/\n      exact ⟨y, h, rfl⟩\n      /-\n        🎉 no goals\n      -/\n    /-\n      case refine_1.refine_2\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ⊢ LT.lt (Cardinal.mk ↑(Set.iUnion fun y => Set.iUnion fun h => Singleton.singl …\n    -/\n    apply (mk_biUnion_le_of_le 1 (λ _ _ ↦ (mk_singleton _).le)).trans_lt ?_\n    /-\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ⊢ LT.lt (HMul.hMul (Cardinal.mk ↑fun x_1 => LT.lt (ConNF.initialEquiv x_1) (Co …\n    -/\n    rw [mul_one]\n    /-\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ⊢ LT.lt (Cardinal.mk ↑fun x_1 => LT.lt (ConNF.initialEquiv x_1) (ConNF.initial …\n    -/\n    exact (initialWellOrder_card_Iio _).trans_le h₁\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_2\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ⊢ LT.lt (Cardinal.mk ↑(setOf fun ν => Exists fun ξ => And (Membership.mem (den …\n    -/\n  · apply card_lt_of_μ_bounded\n    /-\n      case refine_2.h\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ⊢ Set.Bounded (fun x1 x2 => LT.lt x1 x2) (setOf fun ν => Exists fun ξ => And ( …\n    -/\n    obtain ⟨ν, hν⟩ := μ_bounded_lt_of_lt_μ_ord_cof (deny x) (h₂ x)\n    /-\n      case refine_2.h.intro\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ν : ConNF.Params.μ\n      hν : ∀ (b : ConNF.Params.μ), Membership.mem (deny x) b → (fun x1 x2 => LT.lt x …\n      ⊢ Set.Bounded (fun x1 x2 => LT.lt x1 x2) (setOf fun ν => Exists fun ξ => And ( …\n    -/\n    use ν\n    /-\n      case h\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ν : ConNF.Params.μ\n      hν : ∀ (b : ConNF.Params.μ), Membership.mem (deny x) b → (fun x1 x2 => LT.lt x …\n      ⊢ ∀ (b : ConNF.Params.μ), Membership.mem (setOf fun ν => Exists fun ξ => And ( …\n    -/\n    rintro ξ ⟨ζ, hζ, hξ⟩\n    /-\n      case h.intro.intro\n      inst✝ : ConNF.Params\n      X : Type u\n      h₁ : LE.le (Cardinal.mk X) (Cardinal.mk ConNF.Params.μ)\n      deny : X → Set ConNF.Params.μ\n      h₂ : ∀ (x : X), LT.lt (Cardinal.mk ↑(deny x)) (Cardinal.mk ConNF.Params.μ).ord …\n      x : X\n      ih : (y : X) → LT.lt y x → ConNF.Params.μ\n      this : LtWellOrder X := ConNF.initialWellOrder X\n      ν : ConNF.Params.μ\n      hν : ∀ (b : ConNF.Params.μ), Membership.mem (deny x) b → (fun x1 x2 => LT.lt x …\n      ξ ζ : ConNF.Params.μ\n      hζ : Membership.mem (deny x) ζ\n      hξ : LE.le ξ ζ\n      ⊢ LT.lt ξ ν\n    -/\n    exact hξ.trans_lt (hν ζ hζ)\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ConNF.μ_bounded_lt_of_lt_μ_ord_cof",
+    "module": "ConNF.Base.Params",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set in `μ` that is smaller than the cofinality of `μ` is bounded. -/\ntheorem μ_bounded_lt_of_lt_μ_ord_cof (s : Set μ) (h : #s < (#μ).ord.cof) :\n    s.Bounded (· < ·) :=\n  Ordinal.lt_cof_type (μ_type ▸ h)",
+    "compilationAlias":
+    "/-- A set in `μ` that is smaller than the cofinality of `μ` is bounded. -/\ntheorem μ_bounded_lt_of_lt_μ_ord_cof (s : Set μ) (h : #s < (#μ).ord.cof) :\n    s.Bounded (· < ·) :=\n  Ordinal.lt_cof_type (μ_type ▸ h)"},
+   {"name": "ConNF.card_lt_of_μ_bounded",
+    "module": "ConNF.Base.Params",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A partial converse to the previous theorem: a bounded set in `μ` must have cardinality smaller\nthan `μ` itself. -/\ntheorem card_lt_of_μ_bounded (s : Set μ) (h : s.Bounded (· < ·)) :\n    #s < #μ := by\n  obtain ⟨ν, hν⟩ := h\n  exact (mk_le_mk_of_subset hν).trans_lt (μ_card_Iio_lt ν)",
+    "compilationAlias":
+    "/-- A partial converse to the previous theorem: a bounded set in `μ` must have cardinality smaller\nthan `μ` itself. -/\ntheorem card_lt_of_μ_bounded (s : Set μ) (h : s.Bounded (· < ·)) :\n    #s < #μ := by\n  obtain ⟨ν, hν⟩ := h\n  exact (mk_le_mk_of_subset hν).trans_lt (μ_card_Iio_lt ν)"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "Set.mem_singleton_iff",
+    "module": "Mathlib.Data.Set.Insert",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_singleton_iff {a b : α} : a ∈ ({b} : Set α) ↔ a = b :=\n  Iff.rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_singleton_iff {a b : α} : a ∈ ({b} : Set α) ↔ a = b :=\n  Iff.rfl"},
+   {"name": "Set.mem_iUnion",
+    "module": "Mathlib.Order.SetNotation",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_iUnion {x : α} {s : ι → Set α} : (x ∈ ⋃ i, s i) ↔ ∃ i, x ∈ s i :=\n  ⟨fun ⟨_, ⟨⟨a, (t_eq : s a = _)⟩, (h : x ∈ _)⟩⟩ => ⟨a, t_eq.symm ▸ h⟩, fun ⟨a, h⟩ =>\n    ⟨s a, ⟨⟨a, rfl⟩, h⟩⟩⟩",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_iUnion {x : α} {s : ι → Set α} : (x ∈ ⋃ i, s i) ↔ ∃ i, x ∈ s i :=\n  ⟨fun ⟨_, ⟨⟨a, (t_eq : s a = _)⟩, (h : x ∈ _)⟩⟩ => ⟨a, t_eq.symm ▸ h⟩, fun ⟨a, h⟩ =>\n    ⟨s a, ⟨⟨a, rfl⟩, h⟩⟩⟩"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+   {"name": "ConNF.chooseOfCardLt_not_mem",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+    "compilationAlias":
+    "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.chooseOfCardLt_not_mem",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+   "compilationAlias":
+   "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n"},
+  "goal":
+  "X : Type u_1\ns : Set X\nh : LT.lt (Cardinal.mk ↑s) (Cardinal.mk X)\n⊢ Not (Membership.mem s (ConNF.chooseOfCardLt h))",
+  "content_sorry":
+  "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\ntheorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+  "annotation":
+  "theorem chooseOfCardLt_not_mem {X : Type _} {s : Set X} (h : #s < #X) :\n    chooseOfCardLt h ∉ s :=\n  (compl_nonempty_of_mk_lt h).choose_spec\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+   {"name": "ConNF.chooseOfCardLt",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+    "compilationAlias":
+    "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.chooseOfCardLt",
+   "module": "ConNF.Position.Deny",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+   "compilationAlias":
+   "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n"},
+  "goal":
+  "X : Type u_1\ns : Set X\nh : LT.lt (Cardinal.mk ↑s) (Cardinal.mk X)\n⊢ X",
+  "content_sorry":
+  "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\ndef chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+  "annotation":
+  "def chooseOfCardLt {X : Type _} {s : Set X} (h : #s < #X) : X :=\n  (compl_nonempty_of_mk_lt h).choose\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+   {"name": "ConNF.initialWellOrder_card_Iio",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.initialWellOrder_card_Iio",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+   "compilationAlias":
+   "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n"},
+  "goal":
+  "X : Type u_1\nx : X\n⊢ LT.lt (Cardinal.mk ↑(setOf fun y => LT.lt y x)) (Cardinal.mk X)",
+  "content_sorry":
+  "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\ntheorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  letI := initialWellOrder X\n  intro x\n  have := type_Iio_lt x\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n\n",
+  "annotation":
+  "theorem initialWellOrder_card_Iio {X : Type _} :\n    letI := initialWellOrder X\n    ∀ x : X, #{y | y < x} < #X := by\n  /-\n    X : Type u_1\n    ⊢ ∀ (x : X), LT.lt (Cardinal.mk ↑(setOf fun y => LT.lt y x)) (Cardinal.mk X)\n  -/\n  letI := initialWellOrder X\n  /-\n    X : Type u_1\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    ⊢ ∀ (x : X), LT.lt (Cardinal.mk ↑(setOf fun y => LT.lt y x)) (Cardinal.mk X)\n  -/\n  intro x\n  /-\n    X : Type u_1\n    this : LtWellOrder X := ConNF.initialWellOrder X\n    x : X\n    ⊢ LT.lt (Cardinal.mk ↑(setOf fun y => LT.lt y x)) (Cardinal.mk X)\n  -/\n  have := type_Iio_lt x\n  /-\n    X : Type u_1\n    this✝ : LtWellOrder X := ConNF.initialWellOrder X\n    x : X\n    this : LT.lt (Ordinal.type (Subrel (fun x1 x2 => LT.lt x1 x2) (Set.Iio x))) (O …\n    ⊢ LT.lt (Cardinal.mk ↑(setOf fun y => LT.lt y x)) (Cardinal.mk X)\n  -/\n  rwa [initialWellOrder_type, lt_ord, card_type] at this\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+   {"name": "ConNF.initialWellOrder_type",
+    "module": "ConNF.Position.Deny",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+    "compilationAlias":
+    "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.initialWellOrder_type",
+   "module": "ConNF.Position.Deny",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+   "compilationAlias":
+   "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n"},
+  "goal":
+  "X : Type u_1\n⊢ Eq (Ordinal.type fun x1 x2 => LT.lt x1 x2) (Cardinal.mk X).ord",
+  "content_sorry":
+  "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\ntheorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n\n",
+  "annotation":
+  "theorem initialWellOrder_type {X : Type _} :\n    letI := initialWellOrder X\n    type ((· < ·) : X → X → Prop) = (#X).ord := by\n  /-\n    X : Type u_1\n    ⊢ Eq (Ordinal.type fun x1 x2 => LT.lt x1 x2) (Cardinal.mk X).ord\n  -/\n  have := Equiv.ltWellOrder_type (initialEquiv (X := X))\n  /-\n    X : Type u_1\n    this : Eq (Ordinal.lift.{u_1, u_1} (Ordinal.type fun x1 x2 => LT.lt x1 x2)) (O …\n    ⊢ Eq (Ordinal.type fun x1 x2 => LT.lt x1 x2) (Cardinal.mk X).ord\n  -/\n  rwa [Ordinal.lift_id, Ordinal.lift_id, type_toType] at this\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Ordinal.lift_id",
+    "module": "Mathlib.SetTheory.Ordinal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- An ordinal lifted to the same universe equals itself. -/\n@[simp]\ntheorem lift_id : ∀ a, lift.{u, u} a = a :=\n  lift_id'.{u, u}",
+    "compilationAlias":
+    "/-- An ordinal lifted to the same universe equals itself. -/\n@[simp]\ntheorem lift_id : ∀ a, lift.{u, u} a = a :=\n  lift_id'.{u, u}"},
+   {"name": "Equiv.ltWellOrder_type",
+    "module": "ConNF.Background.Transfer",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem ltWellOrder_type [LtWellOrder β] :\n    letI := e.ltWellOrder\n    Ordinal.lift.{max u v, u} (Ordinal.type ((· < ·) : α → α → Prop)) =\n    Ordinal.lift.{max u v, v} (Ordinal.type ((· < ·) : β → β → Prop)) := by\n  rw [Ordinal.lift_type_eq.{u, v, max u v}]\n  exact ⟨e.ltIso⟩",
+    "compilationAlias":
+    "theorem ltWellOrder_type [LtWellOrder β] :\n    letI := e.ltWellOrder\n    Ordinal.lift.{max u v, u} (Ordinal.type ((· < ·) : α → α → Prop)) =\n    Ordinal.lift.{max u v, v} (Ordinal.type ((· < ·) : β → β → Prop)) := by\n  rw [Ordinal.lift_type_eq.{u, v, max u v}]\n  exact ⟨e.ltIso⟩"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+   {"name": "ConNF.initialWellOrder",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+    "compilationAlias":
+    "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.initialWellOrder",
+   "module": "ConNF.Position.Deny",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+   "compilationAlias":
+   "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n"},
+  "goal":
+  "X : Type u_1\n⊢ IsWellOrder (Cardinal.mk X).ord.toType fun x1 x2 => LT.lt x1 x2",
+  "content_sorry":
+  "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X := by sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X := by exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+  "annotation":
+  "/-- Endow a type `X` with a well-order of smallest possible order type. -/\ndef initialWellOrder (X : Type _) : LtWellOrder X :=\n  Equiv.ltWellOrder initialEquiv\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Equiv.ltWellOrder",
+    "module": "ConNF.Background.Transfer",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected def ltWellOrder [LtWellOrder β] : LtWellOrder α where\n  wf := InvImage.wf e (inferInstanceAs <| IsWellFounded β (· < ·)).wf\n  __ := e.linearOrder",
+    "compilationAlias":
+    "protected def ltWellOrder [LtWellOrder β] : LtWellOrder α where\n  wf := InvImage.wf e (inferInstanceAs <| IsWellFounded β (· < ·)).wf\n  __ := e.linearOrder"}],
+  "C0_dependencies":
+  [{"name": "ConNF.initialEquiv",
+    "module": "ConNF.Position.Deny",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+    "compilationAlias":
+    "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "noncomputable section\n\nnamespace ConNF\n\nopen Cardinal Ordinal\n\nuniverse u",
+  "postscopes": "end\n\nend ConNF",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "ConNF.initialEquiv",
+   "module": "ConNF.Position.Deny",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+   "compilationAlias":
+   "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n"},
+  "goal": "X : Type u_1\n⊢ Nonempty (Equiv X (Cardinal.mk X).ord.toType)",
+  "content_sorry":
+  "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  sorry",
+  "content_full_by_exact":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  exact?",
+  "content_full":
+  "import ConNF.Position.Position\n\n/-!\n# Injective functions from denied sets\n\nIn this file, we construct a mechanism for creating injective functions satisfying particular\nconstraints.\n\n## Main declarations\n\n* `ConNF.funOfDeny`: An injective function satisfying particular requirements.\n-/\n\nnoncomputable section\nuniverse u\n\nopen Cardinal Ordinal\n\nnamespace ConNF\n\ndef initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  apply Nonempty.some\n  rw [← Cardinal.eq]\n  rw [mk_toType, card_ord]\n\n",
+  "annotation":
+  "def initialEquiv {X : Type _} : X ≃ (#X).ord.toType := by\n  /-\n    X : Type ?u.9\n    ⊢ Equiv X (Cardinal.mk X).ord.toType\n  -/\n  apply Nonempty.some\n  /-\n    case h\n    X : Type ?u.9\n    ⊢ Nonempty (Equiv X (Cardinal.mk X).ord.toType)\n  -/\n  rw [← Cardinal.eq]\n  /-\n    case h\n    X : Type ?u.9\n    ⊢ Eq (Cardinal.mk X) (Cardinal.mk (Cardinal.mk X).ord.toType)\n  -/\n  rw [mk_toType, card_ord]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Cardinal.eq",
+    "module": "Mathlib.SetTheory.Cardinal.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem eq : #α = #β ↔ Nonempty (α ≃ β) :=\n  Quotient.eq'",
+    "compilationAlias":
+    "protected theorem eq : #α = #β ↔ Nonempty (α ≃ β) :=\n  Quotient.eq'"},
+   {"name": "Nonempty.some",
+    "module": "Mathlib.Logic.Nonempty",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Using `Classical.choice`, extracts a term from a `Nonempty` type. -/\nprotected noncomputable abbrev Nonempty.some {α} (h : Nonempty α) : α :=\n  Classical.choice h",
+    "compilationAlias":
+    "/-- Using `Classical.choice`, extracts a term from a `Nonempty` type. -/\nprotected noncomputable abbrev Nonempty.some {α} (h : Nonempty α) : α :=\n  Classical.choice h"}],
+  "C0_dependencies": []}]

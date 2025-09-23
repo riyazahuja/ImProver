@@ -43,7 +43,7 @@ def mark_replay_items(
     current_data: Dict[str, Any], prev_run_dataset, replay_mode: str
 ) -> Dict[str, Any]:
     """Mark items as replay or frontier based on previous run data."""
-    prev_data = prev_run_dataset#load_training_data_json(prev_run_id)
+    prev_data = prev_run_dataset  # load_training_data_json(prev_run_id)
 
     # Create a set of keys that had improvement_rate > 0 in previous run
     replay_keys = set()
@@ -548,32 +548,7 @@ def generate_specified_dataset(run_id, args, prev_run_dataset=None):
         print(
             f"After replay adjustment - Replay: {replay_count}, Frontier: {frontier_count}"
         )
-
-    # Create dataset based on training type
-    if args.type == "sft":
-        dataset = create_sft_dataset(data, args.thinking)
-    elif args.type == "weighted_sft":
-        dataset = create_weighted_sft_dataset(
-            data,
-            args.thinking,
-            args.tau,
-            args.num_samples,
-            args.epsilon,
-            args.variance_threshold,
-        )
-    elif args.type == "dpo":
-        dataset = create_dpo_dataset(
-            data,
-            args.thinking,
-            args.num_samples,
-            args.num_invalid,
-            args.max_champions,
-            args.reject_valid,
-        )
-    else:
-        print(f"Unknown training type: {args.type}")
-        dataset = []
-    return dataset
+    return data
 
 
 def main(args):
@@ -615,12 +590,43 @@ def main(args):
             print(
                 f"Generating dataset for run {current_run_id} with replay from {prev_run_id}"
             )
+            print(type(prev_run_dataset))
             dataset = generate_specified_dataset(current_run_id, args, prev_run_dataset)
             prev_run_dataset = dataset
 
         final_dataset = prev_run_dataset
     else:
         final_dataset = generate_specified_dataset(args.run_id, args)
+
+    postprocessed_dataset = []
+
+    # Create dataset based on training type
+    if args.type == "sft":
+        postprocessed_dataset = create_sft_dataset(final_dataset, args.thinking)
+    elif args.type == "weighted_sft":
+        postprocessed_dataset = create_weighted_sft_dataset(
+            final_dataset,
+            args.thinking,
+            args.tau,
+            args.num_samples,
+            args.epsilon,
+            args.variance_threshold,
+        )
+    elif args.type == "dpo":
+        postprocessed_dataset = create_dpo_dataset(
+            final_dataset,
+            args.thinking,
+            args.num_samples,
+            args.num_invalid,
+            args.max_champions,
+            args.reject_valid,
+        )
+    else:
+        print(f"Unknown training type: {args.type}")
+        postprocessed_dataset = []
+
+    save_jsonl(postprocessed_dataset, args.output_path)
+    return postprocessed_dataset
 
     # proceed to build the dataset in pairs (prev_run_replay_dataset, current_run_id)
     # namely, we modify the current_run_raw_dataset to have the replay buffer
