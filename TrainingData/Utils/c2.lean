@@ -286,6 +286,8 @@ structure TheoremData where
   id : TheoremID
   annotation : String := ""
   content_sorry : String := ""
+  content_full : String := ""
+  content_full_by_exact : String := ""
   goal : String := ""
   prescopes: String := ""
   postscopes: String := ""

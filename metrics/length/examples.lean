@@ -6,6 +6,9 @@ import Mathlib.Data.Real.Basic
 
 namespace lengthExamples
 
+
+namespace unoptimized
+
 @[improver_example inlining, version unoptimized]
 theorem foo {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y := by
   constructor
@@ -22,15 +25,21 @@ theorem foo {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y := by
   apply h1
   apply le_antisymm h0 h2
 
+
+
+
+end unoptimized
+
+namespace optimized
 @[improver_example inlining, version optimized]
-theorem foo' {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y  := by
+theorem foo {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y  := by
   constructor
   · rintro ⟨h0, h1⟩
     exact ⟨h0, fun h2 => h1 (by rw [h2])⟩
   · rintro ⟨h0, h1⟩
     exact ⟨h0, fun h2 => h1 (by linarith)⟩
 
-
+end optimized
 
 
 
@@ -53,6 +62,8 @@ theorem inverse_spec {f : α → β} (y : β) (h : ∃ x, f x = y) : f (inverse 
   exact Classical.choose_spec h
 
 
+namespace unoptimized
+
 @[improver_example inlining2, version unoptimized]
 theorem bar : Injective f ↔ LeftInverse (inverse f) f := by
   constructor
@@ -63,14 +74,22 @@ theorem bar : Injective f ↔ LeftInverse (inverse f) f := by
   intro h x1 x2 e
   rw [← h x1, ← h x2, e]
 
+end unoptimized
+
+namespace optimized
 
 @[improver_example inlining2, version optimized]
-theorem bar' : Injective f ↔ LeftInverse (inverse f) f  := by
+theorem bar : Injective f ↔ LeftInverse (inverse f) f  := by
   constructor
   · exact fun h y ↦ h (inverse_spec _ ⟨y, rfl⟩)
   · exact fun h x1 x2 e ↦ by rw [←h x1, e, h x2]
 
+end optimized
+
 end
+
+
+namespace unoptimized
 
 @[improver_example have_reuse, version unoptimized]
 theorem baz {a b c d : ℝ} :
@@ -116,10 +135,11 @@ theorem baz {a b c d : ℝ} :
           _ = max (a+c) (a+d) := by rw [max_eq_left (add_le_add_left h_dc a)]
           _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ba, h_dc]
 
-
+end unoptimized
+namespace optimized
 
 @[improver_example have_reuse, version optimized]
-theorem baz' {a b c d : ℝ} :
+theorem baz {a b c d : ℝ} :
     max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
   have lemma_add_distrib : ∀ (x y z : ℝ), z + max x y = max (z + x) (z + y) := by
     intro x y z
@@ -133,17 +153,22 @@ theorem baz' {a b c d : ℝ} :
     _ = max (a + max c d) (b + max c d) := by rw [add_comm (max c d) a, add_comm (max c d) b]
     _ = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by rw [lemma_add_distrib, lemma_add_distrib]
 
+end optimized
 
-
+namespace unoptimized
 @[improver_example strong_tactics, version unoptimized]
 theorem qux {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
   apply Left.add_nonneg
   . exact ha
   . exact hb
 
+end unoptimized
+namespace optimized
+
 @[improver_example strong_tactics, version optimized]
-theorem qux' {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
+theorem qux {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
   linarith
 
+end optimized
 
 end lengthExamples

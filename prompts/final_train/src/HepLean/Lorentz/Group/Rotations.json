@@ -1,14 +1,248 @@
 [{"rag":
-  ["--src: Mathlib.Algebra.Group.Ext\n@[to_additive]\nlemma CommGroup.toGroup_injective {G : Type*} : Injective (@CommGroup.toGroup G) := by\n  rintro ⟨⟩ ⟨⟩ ⟨⟩; rfl",
-   "--src: Mathlib.Algebra.Group.Ext\n@[to_additive]\nlemma Group.toDivInvMonoid_injective {G : Type*} : Injective (@Group.toDivInvMonoid G) := by\n  rintro ⟨⟩ ⟨⟩ ⟨⟩; rfl",
-   "--src: Mathlib.Algebra.Group.Ext\n@[to_additive]\nlemma Group.toDivInvMonoid_injective {G : Type*} : Injective (@Group.toDivInvMonoid G) := by\n  rintro ⟨⟩ ⟨⟩ ⟨⟩; rfl",
-   "--src: Mathlib.Algebra.Algebra.Hom\nlemma toIntAlgHom_injective [Ring R] [Ring S] :\n    Function.Injective (RingHom.toIntAlgHom : (R →+* S) → _) :=\n  fun _ _ e ↦ DFunLike.ext _ _ (fun x ↦ DFunLike.congr_fun e x)",
-   "--src: Mathlib.NumberTheory.ModularForms.SlashInvariantForms\n@[simp]\ntheorem SlashInvariantForm.toFun_eq_coe {f : SlashInvariantForm Γ k} : f.toFun = (f : ℍ → ℂ) :=\n  rfl",
-   "--src: Mathlib.LinearAlgebra.Matrix.Symmetric\n/-- A version of `Matrix.ext_iff` that unfolds the `Matrix.transpose`. -/\ntheorem IsSymm.ext_iff {A : Matrix n n α} : A.IsSymm ↔ ∀ i j, A j i = A i j :=\n  Matrix.ext_iff.symm",
-   "--src: Mathlib.LinearAlgebra.Matrix.Circulant\ntheorem circulant_injective [AddGroup n] : Injective (circulant : (n → α) → Matrix n n α) := by\n  intro v w h\n  ext k\n  rw [← circulant_col_zero_eq v, ← circulant_col_zero_eq w, h]",
-   "--src: Mathlib.Algebra.Group.Subgroup.Defs\n/-- Two subgroups are equal if they have the same elements. -/\n@[to_additive (attr := ext) \"Two `AddSubgroup`s are equal if they have the same elements.\"]\ntheorem ext {H K : Subgroup G} (h : ∀ x, x ∈ H ↔ x ∈ K) : H = K :=\n  SetLike.ext h",
-   "--src: Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs\ntheorem ext_iff (A B : GL n R) : A = B ↔ ∀ i j, (A : Matrix n n R) i j = (B : Matrix n n R) i j :=\n  Units.ext_iff.trans Matrix.ext_iff.symm",
-   "--src: Mathlib.Data.FunLike.Basic\ntheorem ext'_iff {f g : F} : f = g ↔ (f : ∀ a : α, β a) = (g : ∀ a : α, β a) :=\n  coe_fn_eq.symm"],
+  [{"name": "GroupTheory.SO3",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The group of `3×3` real matrices with determinant 1 and `A * Aᵀ = 1`. -/\ndef SO3 : Type := {A : Matrix (Fin 3) (Fin 3) ℝ // A.det = 1 ∧ A * Aᵀ = 1}"},
+   {"name": "GroupTheory.SO3.toProd",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into the monoid of matrices times the opposite of\n  the monoid of matrices. -/\n@[simps!]\ndef toProd : SO(3) →* (Matrix (Fin 3) (Fin 3) ℝ) × (Matrix (Fin 3) (Fin 3) ℝ)ᵐᵒᵖ :=\n  MonoidHom.comp (Units.embedProduct _) toGL"},
+   {"name": "GroupTheory.SO3.toGL",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into `GL (Fin 3) ℝ`. -/\ndef toGL : SO(3) →* GL (Fin 3) ℝ where\n  toFun A := ⟨A.1, (A⁻¹).1, A.2.2, mul_eq_one_comm.mpr A.2.2⟩\n  map_one' := (GeneralLinearGroup.ext_iff _ 1).mpr fun _=> congrFun rfl\n  map_mul' _ _ := (GeneralLinearGroup.ext_iff _ _).mpr fun _ => congrFun rfl"},
+   {"name": "LorentzGroup.lorentzGroup_notation",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "/-- Notation for the Lorentz group. -/\nscoped[LorentzGroup] notation (name := lorentzGroup_notation) \"\u0000\u0000\" => LorentzGroup"},
+   {"name": "GroupTheory.SO3_notation",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- Notation for the group `SO3`. -/\nscoped[GroupTheory] notation (name := SO3_notation) \"SO(3)\" => SO3"},
+   {"name": "GroupTheory.SO3Group",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The instance of a group on `SO3`. -/\n@[simps! mul_coe one_coe inv div]\ninstance SO3Group : Group SO3 where\n  mul A B := ⟨A.1 * B.1,\n    by\n      simp only [det_mul, A.2.1, B.2.1, mul_one],\n    by\n      simp only [transpose_mul, ← Matrix.mul_assoc, Matrix.mul_assoc, B.2.2, mul_one, A.2.2]\n      trans A.1 * ((B.1 * (B.1)ᵀ) * (A.1)ᵀ)\n      · noncomm_ring\n      · simp [Matrix.mul_assoc, B.2.2, mul_one, A.2.2]⟩\n  mul_assoc A B C := Subtype.eq (Matrix.mul_assoc A.1 B.1 C.1)\n  one := ⟨1, det_one, by rw [transpose_one, mul_one]⟩\n  one_mul A := Subtype.eq (Matrix.one_mul A.1)\n  mul_one A := Subtype.eq (Matrix.mul_one A.1)\n  inv A := ⟨A.1ᵀ, by simp only [det_transpose, A.2],\n    by simp only [transpose_transpose, mul_eq_one_comm.mpr A.2.2]⟩\n  inv_mul_cancel A := Subtype.eq (mul_eq_one_comm.mpr A.2.2)"},
+   {"name": "GroupTheory.SO3.toGL_embedding",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The embedding of `SO(3)` into `GL (Fin 3) ℝ`. -/\nlemma toGL_embedding : IsEmbedding toGL.toFun where\n  injective := toGL_injective\n  eq_induced := by\n    refine ((fun {X} {t t'} => TopologicalSpace.ext_iff.mpr) ?_).symm\n    intro s\n    rw [TopologicalSpace.ext_iff.mp toProd_embedding.eq_induced s]\n    rw [isOpen_induced_iff, isOpen_induced_iff]\n    apply Iff.intro ?_ ?_\n    · intro h\n      obtain ⟨U, hU1, hU2⟩ := h\n      rw [isOpen_induced_iff] at hU1\n      obtain ⟨V, hV1, hV2⟩ := hU1\n      use V\n      simp only [hV1, true_and]\n      rw [← hU2, ← hV2]\n      rfl\n    · intro h\n      obtain ⟨U, hU1, hU2⟩ := h\n      let t := (Units.embedProduct _) ⁻¹' U\n      use t\n      apply And.intro (isOpen_induced hU1)\n      exact hU2"},
+   {"name": "LorentzGroup.toGL_embedding",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "/-- The embedding from the Lorentz Group into `GL (Fin 4) ℝ`. -/\nlemma toGL_embedding : IsEmbedding (@toGL d).toFun where\n  injective := toGL_injective\n  eq_induced := by\n    refine ((fun {X} {t t'} => TopologicalSpace.ext_iff.mpr) fun _ ↦ ?_).symm\n    rw [TopologicalSpace.ext_iff.mp toProd_embedding.eq_induced _, isOpen_induced_iff,\n      isOpen_induced_iff]\n    exact exists_exists_and_eq_and"},
+   {"name": "GroupTheory.SO3.toGL_injective",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into `GL(3,ℝ)` is an injection. -/\nlemma toGL_injective : Function.Injective toGL := by\n  refine fun A B h ↦ Subtype.eq ?_\n  rw [@Units.ext_iff] at h\n  simpa using h"},
+   {"name": "LorentzGroup.toProd",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "/-- The homomorphism from the Lorentz Group into the monoid of matrices times the opposite of\n  the monoid of matrices. -/\n@[simps!]\ndef toProd : LorentzGroup d →* (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) ×\n    (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ)ᵐᵒᵖ :=\n  MonoidHom.comp (Units.embedProduct _) toGL"}],
+  "prescopes":
+  "noncomputable section\n\nnamespace LorentzGroup\n\nopen GroupTheory",
+  "postscopes": "end\n\nend LorentzGroup",
+  "informal_statement":
+  "The elements of the special orthogonal group SO(3), which consist of all 3×3 rotation matrices with determinant 1, are mapped to the Lorentz group, which includes transformations that preserve spacetime intervals in special relativity. This mapping establishes a connection between spatial rotations and Lorentz transformations, effectively embedding SO(3) within the broader context of spacetime symmetries.",
+  "informal_proof":
+  "The mapping from SO(3) to the Lorentz group is defined by associating each rotation matrix \\( A \\) in SO(3) with a corresponding element in the Lorentz group through the matrix representation provided by `SO3ToMatrix`. This ensures that the structure and properties of SO(3) are preserved within the Lorentz group framework.\n\nThe mapping respects the group operations, meaning that the product of two elements in SO(3) corresponds to the product of their images in the Lorentz group. This closure under multiplication confirms that the image of SO(3) under this mapping is a subgroup of the Lorentz group, thereby establishing a well-defined association between rotations in three-dimensional space and spacetime transformations.\n\nUsing `Subtype.eq`, the mapping strictly identifies elements within their respective groups while maintaining the integrity of the group operations, ensuring the theoretical consistency of this embedding.",
+  "id":
+  {"name": "LorentzGroup.SO3ToLorentz",
+   "module": "HepLean.Lorentz.Group.Rotations",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Given a element of `SO(3)` the element of the Lorentz group corresponding to a\nspace-time rotation. -/\ndef SO3ToLorentz : SO(3) →* LorentzGroup 3 where\n  toFun A := ⟨SO3ToMatrix A, SO3ToMatrix_in_LorentzGroup A⟩\n  map_one' := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_one_coe, Matrix.fromBlocks_one, lorentzGroupIsGroup_one_coe]\n  map_mul' A B := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_mul_coe, lorentzGroupIsGroup_mul_coe,\n      Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul,\n      Matrix.mul_one, zero_add]\n\n",
+   "compilationAlias":
+   "/-- Given a element of `SO(3)` the element of the Lorentz group corresponding to a\nspace-time rotation. -/\ndef SO3ToLorentz : SO(3) →* LorentzGroup 3 where\n  toFun A := ⟨SO3ToMatrix A, SO3ToMatrix_in_LorentzGroup A⟩\n  map_one' := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_one_coe, Matrix.fromBlocks_one, lorentzGroupIsGroup_one_coe]\n  map_mul' A B := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_mul_coe, lorentzGroupIsGroup_mul_coe,\n      Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul,\n      Matrix.mul_one, zero_add]\n\n"},
+  "goal": "⊢ MonoidHom GroupTheory.SO3 ↑(LorentzGroup 3)",
+  "content_sorry":
+  "/-- Given a element of `SO(3)` the element of the Lorentz group corresponding to a\nspace-time rotation. -/\ndef SO3ToLorentz : SO(3) →* LorentzGroup 3 where\n  toFun A := ⟨SO3ToMatrix A, SO3ToMatrix_in_LorentzGroup A⟩\n  map_one' := Subtype.eq <| by\n    sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\nlemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\nlemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  intro A B h\n  erw [Equiv.apply_eq_iff_eq] at h\n  have h1 := congrArg Matrix.toBlocks₂₂ h\n  erw [Matrix.toBlocks_fromBlocks₂₂, Matrix.toBlocks_fromBlocks₂₂] at h1\n  apply Subtype.eq\n  exact h1\n\n/-- Given a element of `SO(3)` the element of the Lorentz group corresponding to a\nspace-time rotation. -/\ndef SO3ToLorentz : SO(3) →* LorentzGroup 3 where\n  toFun A := ⟨SO3ToMatrix A, SO3ToMatrix_in_LorentzGroup A⟩\n  map_one' := Subtype.eq <| by\n    exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\nlemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\nlemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  intro A B h\n  erw [Equiv.apply_eq_iff_eq] at h\n  have h1 := congrArg Matrix.toBlocks₂₂ h\n  erw [Matrix.toBlocks_fromBlocks₂₂, Matrix.toBlocks_fromBlocks₂₂] at h1\n  apply Subtype.eq\n  exact h1\n\n/-- Given a element of `SO(3)` the element of the Lorentz group corresponding to a\nspace-time rotation. -/\ndef SO3ToLorentz : SO(3) →* LorentzGroup 3 where\n  toFun A := ⟨SO3ToMatrix A, SO3ToMatrix_in_LorentzGroup A⟩\n  map_one' := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_one_coe, Matrix.fromBlocks_one, lorentzGroupIsGroup_one_coe]\n  map_mul' A B := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_mul_coe, lorentzGroupIsGroup_mul_coe,\n      Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul,\n      Matrix.mul_one, zero_add]\n\n",
+  "annotation":
+  "/-- Given a element of `SO(3)` the element of the Lorentz group corresponding to a\nspace-time rotation. -/\ndef SO3ToLorentz : SO(3) →* LorentzGroup 3 where\n  toFun A := ⟨SO3ToMatrix A, SO3ToMatrix_in_LorentzGroup A⟩\n  map_one' := Subtype.eq <| by\n    /-\n      ⊢ Eq ↑((fun A => ⟨LorentzGroup.SO3ToMatrix A, ⋯⟩) 1) ↑1\n    -/\n    simp only [SO3ToMatrix, SO3Group_one_coe, Matrix.fromBlocks_one, lorentzGroupIsGroup_one_coe]\n    /-\n      🎉 no goals\n    -/\n  map_mul' A B := Subtype.eq <| by\n    simp only [SO3ToMatrix, SO3Group_mul_coe, lorentzGroupIsGroup_mul_coe,\n      Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul,\n      Matrix.mul_one, zero_add]\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "zero_add",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Matrix.mul_one",
+    "module": "Mathlib.Data.Matrix.Mul",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nprotected theorem mul_one [Fintype n] [DecidableEq n] (M : Matrix m n α) :\n    M * (1 : Matrix n n α) = M := by\n  ext\n  rw [← diagonal_one, mul_diagonal, mul_one]",
+    "compilationAlias":
+    "@[simp]\nprotected theorem mul_one [Fintype n] [DecidableEq n] (M : Matrix m n α) :\n    M * (1 : Matrix n n α) = M := by\n  ext\n  rw [← diagonal_one, mul_diagonal, mul_one]"},
+   {"name": "Matrix.zero_mul",
+    "module": "Mathlib.Data.Matrix.Mul",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nprotected theorem zero_mul [Fintype m] (M : Matrix m n α) : (0 : Matrix l m α) * M = 0 := by\n  ext\n  apply zero_dotProduct",
+    "compilationAlias":
+    "@[simp]\nprotected theorem zero_mul [Fintype m] (M : Matrix m n α) : (0 : Matrix l m α) * M = 0 := by\n  ext\n  apply zero_dotProduct"},
+   {"name": "add_zero",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Matrix.mul_zero",
+    "module": "Mathlib.Data.Matrix.Mul",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nprotected theorem mul_zero [Fintype n] (M : Matrix m n α) : M * (0 : Matrix n o α) = 0 := by\n  ext\n  apply dotProduct_zero",
+    "compilationAlias":
+    "@[simp]\nprotected theorem mul_zero [Fintype n] (M : Matrix m n α) : M * (0 : Matrix n o α) = 0 := by\n  ext\n  apply dotProduct_zero"},
+   {"name": "mul_one",
+    "module": "Mathlib.Algebra.Group.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one",
+    "compilationAlias":
+    "@[to_additive (attr := simp)]\ntheorem mul_one : ∀ a : M, a * 1 = a :=\n  MulOneClass.mul_one"},
+   {"name": "Matrix.fromBlocks_multiply",
+    "module": "Mathlib.Data.Matrix.Block",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem fromBlocks_multiply [Fintype l] [Fintype m] [NonUnitalNonAssocSemiring α] (A : Matrix n l α)\n    (B : Matrix n m α) (C : Matrix o l α) (D : Matrix o m α) (A' : Matrix l p α) (B' : Matrix l q α)\n    (C' : Matrix m p α) (D' : Matrix m q α) :\n    fromBlocks A B C D * fromBlocks A' B' C' D' =\n      fromBlocks (A * A' + B * C') (A * B' + B * D') (C * A' + D * C') (C * B' + D * D') := by\n  ext i j\n  rcases i with ⟨⟩ <;> rcases j with ⟨⟩ <;> simp only [fromBlocks, mul_apply, of_apply,\n      Sum.elim_inr, Fintype.sum_sum_type, Sum.elim_inl, add_apply]",
+    "compilationAlias":
+    "theorem fromBlocks_multiply [Fintype l] [Fintype m] [NonUnitalNonAssocSemiring α] (A : Matrix n l α)\n    (B : Matrix n m α) (C : Matrix o l α) (D : Matrix o m α) (A' : Matrix l p α) (B' : Matrix l q α)\n    (C' : Matrix m p α) (D' : Matrix m q α) :\n    fromBlocks A B C D * fromBlocks A' B' C' D' =\n      fromBlocks (A * A' + B * C') (A * B' + B * D') (C * A' + D * C') (C * B' + D * D') := by\n  ext i j\n  rcases i with ⟨⟩ <;> rcases j with ⟨⟩ <;> simp only [fromBlocks, mul_apply, of_apply,\n      Sum.elim_inr, Fintype.sum_sum_type, Sum.elim_inl, add_apply]"},
+   {"name": "lorentzGroupIsGroup_mul_coe",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps! mul_coe one_coe inv div]",
+    "compilationAlias": "@[simps! mul_coe one_coe inv div]"},
+   {"name": "lorentzGroupIsGroup_one_coe",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps! mul_coe one_coe inv div]",
+    "compilationAlias": "@[simps! mul_coe one_coe inv div]"},
+   {"name": "Matrix.fromBlocks_one",
+    "module": "Mathlib.Data.Matrix.Block",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem fromBlocks_one : fromBlocks (1 : Matrix l l α) 0 0 (1 : Matrix m m α) = 1 := by\n  ext i j\n  rcases i with ⟨⟩ <;> rcases j with ⟨⟩ <;> simp [one_apply]",
+    "compilationAlias":
+    "@[simp]\ntheorem fromBlocks_one : fromBlocks (1 : Matrix l l α) 0 0 (1 : Matrix m m α) = 1 := by\n  ext i j\n  rcases i with ⟨⟩ <;> rcases j with ⟨⟩ <;> simp [one_apply]"},
+   {"name": "Subtype.eq",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem eq : ∀ {a1 a2 : {x // p x}}, val a1 = val a2 → a1 = a2\n  | ⟨_, _⟩, ⟨_, _⟩, rfl => rfl",
+    "compilationAlias":
+    "protected theorem eq : ∀ {a1 a2 : {x // p x}}, val a1 = val a2 → a1 = a2\n  | ⟨_, _⟩, ⟨_, _⟩, rfl => rfl"},
+   {"name": "LorentzGroup",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The Lorentz group is the subset of matrices for which\n  `Λ * dual Λ = 1`. -/\ndef LorentzGroup (d : ℕ) : Set (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) :=\n    {Λ : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ | Λ * dual Λ = 1}",
+    "compilationAlias":
+    "/-- The Lorentz group is the subset of matrices for which\n  `Λ * dual Λ = 1`. -/\ndef LorentzGroup (d : ℕ) : Set (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) :=\n    {Λ : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ | Λ * dual Λ = 1}"}],
+  "C0_dependencies":
+  [{"name": "LorentzGroup.SO3ToMatrix",
+    "module": "HepLean.Lorentz.Group.Rotations",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n",
+    "compilationAlias":
+    "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n"},
+   {"name": "LorentzGroup.SO3ToMatrix_in_LorentzGroup",
+    "module": "HepLean.Lorentz.Group.Rotations",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\n",
+    "compilationAlias":
+    "lemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\n"},
+   {"name": "LorentzGroup.SO3ToMatrix_injective",
+    "module": "HepLean.Lorentz.Group.Rotations",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  intro A B h\n  erw [Equiv.apply_eq_iff_eq] at h\n  have h1 := congrArg Matrix.toBlocks₂₂ h\n  erw [Matrix.toBlocks_fromBlocks₂₂, Matrix.toBlocks_fromBlocks₂₂] at h1\n  apply Subtype.eq\n  exact h1\n\n",
+    "compilationAlias":
+    "lemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  intro A B h\n  erw [Equiv.apply_eq_iff_eq] at h\n  have h1 := congrArg Matrix.toBlocks₂₂ h\n  erw [Matrix.toBlocks_fromBlocks₂₂, Matrix.toBlocks_fromBlocks₂₂] at h1\n  apply Subtype.eq\n  exact h1\n\n"}]},
+ {"rag":
+  [{"name": "Function.Semiconj.injOn_range",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem injOn_range (h : Semiconj f fa fb) (ha : Injective fa) (hf : InjOn f (range fa)) :\n    InjOn fb (range f) := by\n  rw [← image_univ] at *\n  exact h.injOn_image ha.injOn hf"},
+   {"name": "Function.Semiconj.injOn_image",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem injOn_image (h : Semiconj f fa fb) (ha : InjOn fa s) (hf : InjOn f (fa '' s)) :\n    InjOn fb (f '' s) := by\n  rintro _ ⟨x, hx, rfl⟩ _ ⟨y, hy, rfl⟩ H\n  simp only [← h.eq] at H\n  exact congr_arg f (ha hx hy <| hf (mem_image_of_mem fa hx) (mem_image_of_mem fa hy) H)"},
+   {"name": "StarSubalgebra.map_injective",
+    "module": "Mathlib.Algebra.Star.Subalgebra",
+    "content":
+    "theorem map_injective {f : A →⋆ₐ[R] B} (hf : Function.Injective f) : Function.Injective (map f) :=\n  fun _S₁ _S₂ ih =>\n  ext <| Set.ext_iff.1 <| Set.image_injective.2 hf <| Set.ext <| SetLike.ext_iff.mp ih"},
+   {"name": "Set.InjOn.image_eq_image_iff",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem InjOn.image_eq_image_iff (h : s.InjOn f) (h₁ : s₁ ⊆ s) (h₂ : s₂ ⊆ s) :\n    f '' s₁ = f '' s₂ ↔ s₁ = s₂ :=\n  h.image.eq_iff h₁ h₂"},
+   {"name": "Function.Semiconj.injOn_image",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "theorem injOn_image (h : Semiconj f fa fb) (ha : InjOn fa s) (hf : InjOn f (fa '' s)) :\n    InjOn fb (f '' s) := by\n  rintro _ ⟨x, hx, rfl⟩ _ ⟨y, hy, rfl⟩ H\n  simp only [← h.eq] at H\n  exact congr_arg f (ha hx hy <| hf (mem_image_of_mem fa hx) (mem_image_of_mem fa hy) H)"},
+   {"name": "Submonoid.mem_map_iff_mem",
+    "module": "Mathlib.Algebra.Group.Submonoid.Operations",
+    "content":
+    "@[to_additive (attr := simp 1100, nolint simpNF)]\ntheorem mem_map_iff_mem {f : F} (hf : Function.Injective f) {S : Submonoid M} {x : M} :\n    f x ∈ S.map f ↔ x ∈ S :=\n  hf.mem_set_image"},
+   {"name": "Set.injOn_pair",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "@[simp] lemma injOn_pair {b : α} : InjOn f {a, b} ↔ f a = f b → a = b := by unfold InjOn; aesop"},
+   {"name": "Set.imageFactorization_injective_iff",
+    "module": "Mathlib.Data.Set.Function",
+    "content":
+    "@[simp] theorem imageFactorization_injective_iff : Injective (s.imageFactorization f) ↔ InjOn f s :=\n  ⟨fun h x hx y hy _ ↦ by simpa using @h ⟨x, hx⟩ ⟨y, hy⟩ (by simpa [imageFactorization]),\n    InjOn.imageFactorization_injective⟩"},
+   {"name": "AffineIsometryEquiv.map_eq_iff",
+    "module": "Mathlib.Analysis.Normed.Affine.Isometry",
+    "content":
+    "theorem map_eq_iff {x y : P} : e x = e y ↔ x = y :=\n  e.injective.eq_iff"},
+   {"name": "Submonoid.mem_map_iff_mem",
+    "module": "Mathlib.Algebra.Group.Submonoid.Operations",
+    "content":
+    "@[to_additive (attr := simp 1100, nolint simpNF)]\ntheorem mem_map_iff_mem {f : F} (hf : Function.Injective f) {S : Submonoid M} {x : M} :\n    f x ∈ S.map f ↔ x ∈ S :=\n  hf.mem_set_image"}],
+  "prescopes":
+  "noncomputable section\n\nnamespace LorentzGroup\n\nopen GroupTheory",
+  "postscopes": "end\n\nend LorentzGroup",
+  "informal_statement":
+  "The function `SO3ToMatrix` is injective, meaning it never maps two distinct elements to the same value.",
+  "informal_proof":
+  "To establish that `SO3ToMatrix` is injective, we assume that for two elements `A` and `B`, the images under `SO3ToMatrix` are equal, i.e., `SO3ToMatrix A = SO3ToMatrix B`. By the properties of equivalence relations, this equality implies that the original elements `A` and `B` must themselves be equal. Through a series of logical steps and applications of congruence properties, as shown in the Lean4 proof, we conclude that `A` must equal `B` whenever `SO3ToMatrix A = SO3ToMatrix B`, thereby confirming the injectivity of the function.",
   "id":
   {"name": "LorentzGroup.SO3ToMatrix_injective",
    "module": "HepLean.Lorentz.Group.Rotations",
@@ -22,6 +256,10 @@
   "goal": "⊢ Function.Injective LorentzGroup.SO3ToMatrix",
   "content_sorry":
   "lemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\nlemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\nlemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\nlemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\nlemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  intro A B h\n  erw [Equiv.apply_eq_iff_eq] at h\n  have h1 := congrArg Matrix.toBlocks₂₂ h\n  erw [Matrix.toBlocks_fromBlocks₂₂, Matrix.toBlocks_fromBlocks₂₂] at h1\n  apply Subtype.eq\n  exact h1\n\n",
   "annotation":
   "lemma SO3ToMatrix_injective : Function.Injective SO3ToMatrix := by\n  /-\n    ⊢ Function.Injective LorentzGroup.SO3ToMatrix\n  -/\n  intro A B h\n  /-\n    A B : GroupTheory.SO3\n    h : Eq (LorentzGroup.SO3ToMatrix A) (LorentzGroup.SO3ToMatrix B)\n    ⊢ Eq A B\n  -/\n  erw [Equiv.apply_eq_iff_eq] at h\n  /-\n    A B : GroupTheory.SO3\n    h : Eq (Sum.elim (fun i => Sum.elim (1 i) (0 i)) fun j => Sum.elim (0 j) (↑A j …\n    ⊢ Eq A B\n  -/\n  have h1 := congrArg Matrix.toBlocks₂₂ h\n  /-\n    A B : GroupTheory.SO3\n    h : Eq (Sum.elim (fun i => Sum.elim (1 i) (0 i)) fun j => Sum.elim (0 j) (↑A j …\n    h1 : Eq (Matrix.toBlocks₂₂ (Sum.elim (fun i => Sum.elim (1 i) (0 i)) fun j =>  …\n    ⊢ Eq A B\n  -/\n  erw [Matrix.toBlocks_fromBlocks₂₂, Matrix.toBlocks_fromBlocks₂₂] at h1\n  /-\n    A B : GroupTheory.SO3\n    h : Eq (Sum.elim (fun i => Sum.elim (1 i) (0 i)) fun j => Sum.elim (0 j) (↑A j …\n    h1 : Eq ↑A ↑B\n    ⊢ Eq A B\n  -/\n  apply Subtype.eq\n  /-\n    case a\n    A B : GroupTheory.SO3\n    h : Eq (Sum.elim (fun i => Sum.elim (1 i) (0 i)) fun j => Sum.elim (0 j) (↑A j …\n    h1 : Eq ↑A ↑B\n    ⊢ Eq ↑A ↑B\n  -/\n  exact h1\n  /-\n    🎉 no goals\n  -/\n\n",
   "C2_dependencies": [],
@@ -35,15 +273,6 @@
     "protected theorem eq : ∀ {a1 a2 : {x // p x}}, val a1 = val a2 → a1 = a2\n  | ⟨_, _⟩, ⟨_, _⟩, rfl => rfl",
     "compilationAlias":
     "protected theorem eq : ∀ {a1 a2 : {x // p x}}, val a1 = val a2 → a1 = a2\n  | ⟨_, _⟩, ⟨_, _⟩, rfl => rfl"},
-   {"name": "Matrix.toBlocks_fromBlocks₂₂",
-    "module": "Mathlib.Data.Matrix.Block",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp]\ntheorem toBlocks_fromBlocks₂₂ (A : Matrix n l α) (B : Matrix n m α) (C : Matrix o l α)\n    (D : Matrix o m α) : (fromBlocks A B C D).toBlocks₂₂ = D :=\n  rfl",
-    "compilationAlias":
-    "@[simp]\ntheorem toBlocks_fromBlocks₂₂ (A : Matrix n l α) (B : Matrix n m α) (C : Matrix o l α)\n    (D : Matrix o m α) : (fromBlocks A B C D).toBlocks₂₂ = D :=\n  rfl"},
    {"name": "Matrix.toBlocks_fromBlocks₂₂",
     "module": "Mathlib.Data.Matrix.Block",
     "kind": "theorem",
@@ -88,18 +317,74 @@
     "content":
     "/-- A function `f : α → β` is called injective if `f x = f y` implies `x = y`. -/\ndef Injective (f : α → β) : Prop :=\n  ∀ ⦃a₁ a₂⦄, f a₁ = f a₂ → a₁ = a₂",
     "compilationAlias":
-    "/-- A function `f : α → β` is called injective if `f x = f y` implies `x = y`. -/\ndef Injective (f : α → β) : Prop :=\n  ∀ ⦃a₁ a₂⦄, f a₁ = f a₂ → a₁ = a₂"}]},
+    "/-- A function `f : α → β` is called injective if `f x = f y` implies `x = y`. -/\ndef Injective (f : α → β) : Prop :=\n  ∀ ⦃a₁ a₂⦄, f a₁ = f a₂ → a₁ = a₂"}],
+  "C0_dependencies":
+  [{"name": "LorentzGroup.SO3ToMatrix",
+    "module": "HepLean.Lorentz.Group.Rotations",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n",
+    "compilationAlias":
+    "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n"},
+   {"name": "LorentzGroup.SO3ToMatrix_in_LorentzGroup",
+    "module": "HepLean.Lorentz.Group.Rotations",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\n",
+    "compilationAlias":
+    "lemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\n"}]},
  {"rag":
-  ["--src: Mathlib.GroupTheory.SpecificGroups.Alternating\n@[simp]\ntheorem closure_three_cycles_eq_alternating :\n    closure { σ : Perm α | IsThreeCycle σ } = alternatingGroup α :=\n  closure_eq_of_le _ (fun _ hσ => mem_alternatingGroup.2 hσ.sign) fun σ hσ => by\n    suffices hind :\n      ∀ (n : ℕ) (l : List (Perm α)) (_ : ∀ g, g ∈ l → IsSwap g) (_ : l.length = 2 * n),\n        l.prod ∈ closure { σ : Perm α | IsThreeCycle σ } by\n      obtain ⟨l, rfl, hl⟩ := truncSwapFactors σ\n      obtain ⟨n, hn⟩ := (prod_list_swap_mem_alternatingGroup_iff_even_length hl).1 hσ\n      rw [← two_mul] at hn\n      exact hind n l hl hn\n    intro n\n    induction' n with n ih <;> intro l hl hn\n    · simp [List.length_eq_zero.1 hn, one_mem]\n    rw [Nat.mul_succ] at hn\n    obtain ⟨a, l, rfl⟩ := l.exists_of_length_succ hn\n    rw [List.length_cons, Nat.succ_inj'] at hn\n    obtain ⟨b, l, rfl⟩ := l.exists_of_length_succ hn\n    rw [List.prod_cons, List.prod_cons, ← mul_assoc]\n    rw [List.length_cons, Nat.succ_inj'] at hn\n    exact\n      mul_mem\n        (IsSwap.mul_mem_closure_three_cycles (hl a (List.mem_cons_self a _))\n          (hl b (List.mem_cons_of_mem a (l.mem_cons_self b))))\n        (ih _ (fun g hg => hl g (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ hg))) hn)",
-   "--src: Mathlib.LinearAlgebra.CliffordAlgebra.SpinGroup\n/-- An element is in `pinGroup Q` if and only if it is in `lipschitzGroup Q` and `unitary`. -/\ntheorem mem_iff {x : CliffordAlgebra Q} :\n    x ∈ pinGroup Q ↔\n      x ∈ (lipschitzGroup Q).toSubmonoid.map (Units.coeHom <| CliffordAlgebra Q) ∧\n        x ∈ unitary (CliffordAlgebra Q) :=\n  Iff.rfl",
-   "--src: Mathlib.GroupTheory.SpecificGroups.Alternating\n/-- The normal closure of the 5-cycle `finRotate 5` within $A_5$ is the whole group. This will be\n  used to show that the normal closure of any 5-cycle within $A_5$ is the whole group. -/\ntheorem normalClosure_finRotate_five : normalClosure ({⟨finRotate 5,\n    finRotate_bit1_mem_alternatingGroup (n := 2)⟩} : Set (alternatingGroup (Fin 5))) = ⊤ :=\n  eq_top_iff.2\n    (by\n      have h3 :\n        IsThreeCycle (Fin.cycleRange 2 * finRotate 5 * (Fin.cycleRange 2)⁻¹ * (finRotate 5)⁻¹) :=\n        card_support_eq_three_iff.1 (by decide)\n      rw [← h3.alternating_normalClosure (by rw [card_fin])]\n      refine normalClosure_le_normal ?_\n      rw [Set.singleton_subset_iff, SetLike.mem_coe]\n      have h :\n        (⟨finRotate 5, finRotate_bit1_mem_alternatingGroup (n := 2)⟩ : alternatingGroup (Fin 5)) ∈\n          normalClosure _ :=\n        SetLike.mem_coe.1 (subset_normalClosure (Set.mem_singleton _))\n      exact (mul_mem (Subgroup.normalClosure_normal.conj_mem _ h\n        -- Porting note: added `: _`\n        ⟨Fin.cycleRange 2, Fin.isThreeCycle_cycleRange_two.mem_alternatingGroup⟩) (inv_mem h) : _))",
-   "--src: Mathlib.GroupTheory.SpecificGroups.KleinFour\ninstance : IsKleinFour (DihedralGroup 2) where\n  card_four := by simp only [Nat.card_eq_fintype_card]; rfl\n  exponent_two := by simp [DihedralGroup.exponent]",
-   "--src: Mathlib.LinearAlgebra.UnitaryGroup\ntheorem mem_specialUnitaryGroup_iff :\n    A ∈ specialUnitaryGroup n α ↔ A ∈ unitaryGroup n α ∧ A.det = 1 :=\n  Iff.rfl",
-   "--src: Mathlib.LinearAlgebra.CliffordAlgebra.SpinGroup\n/-- The conjugation action by elements of the Lipschitz group keeps vectors as vectors. -/\ntheorem conjAct_smul_ι_mem_range_ι {x : (CliffordAlgebra Q)ˣ} (hx : x ∈ lipschitzGroup Q)\n    [Invertible (2 : R)] (m : M) :\n    ConjAct.toConjAct x • ι Q m ∈ LinearMap.range (ι Q) := by\n  unfold lipschitzGroup at hx\n  rw [ConjAct.units_smul_def, ConjAct.ofConjAct_toConjAct]\n  induction hx using Subgroup.closure_induction'' generalizing m with\n  | mem x hx =>\n    obtain ⟨a, ha⟩ := hx\n    letI := x.invertible\n    letI : Invertible (ι Q a) := by rwa [ha]\n    letI : Invertible (Q a) := invertibleOfInvertibleι Q a\n    simp_rw [← invOf_units x, ← ha, ι_mul_ι_mul_invOf_ι, LinearMap.mem_range_self]\n  | inv_mem x hx =>\n    obtain ⟨a, ha⟩ := hx\n    letI := x.invertible\n    letI : Invertible (ι Q a) := by rwa [ha]\n    letI : Invertible (Q a) := invertibleOfInvertibleι Q a\n    letI := invertibleNeg (ι Q a)\n    letI := Invertible.map involute (ι Q a)\n    simp_rw [← invOf_units x, inv_inv, ← ha, invOf_ι_mul_ι_mul_ι, LinearMap.mem_range_self]\n  | one => simp_rw [inv_one, Units.val_one, one_mul, mul_one, LinearMap.mem_range_self]\n  | mul y z _ _ hy hz =>\n    simp_rw [mul_inv_rev, Units.val_mul]\n    suffices ↑y * (↑z * ι Q m * ↑z⁻¹) * ↑y⁻¹ ∈ _ by\n      simpa only [mul_assoc] using this\n    obtain ⟨z', hz'⟩ := hz m\n    obtain ⟨y', hy'⟩ := hy z'\n    simp_rw [← hz', ← hy', LinearMap.mem_range_self]",
-   "--src: Mathlib.LinearAlgebra.CliffordAlgebra.SpinGroup\n/-- An element is in `spinGroup Q` if and only if `star x` is in `spinGroup Q`.\nSee `star_mem` for only one direction.\n-/\n@[simp]\ntheorem star_mem_iff {x : CliffordAlgebra Q} : star x ∈ spinGroup Q ↔ x ∈ spinGroup Q := by\n  refine ⟨?_, star_mem⟩\n  intro hx\n  convert star_mem hx\n  exact (star_star x).symm",
-   "--src: Mathlib.NumberTheory.ModularForms.CongruenceSubgroups\ntheorem isCongruenceSubgroup_trans (H K : Subgroup SL(2, ℤ)) (h : H ≤ K)\n    (h2 : IsCongruenceSubgroup H) : IsCongruenceSubgroup K := by\n  obtain ⟨N, hN⟩ := h2\n  exact ⟨N, le_trans hN h⟩",
-   "--src: Mathlib.Algebra.Group.Submonoid.Units\n@[to_additive]\nlemma mem_ofUnits_iff_toUnits_mem (H : Subgroup Gˣ) (x : G) : x ∈ H.ofUnits ↔ (toUnits x) ∈ H := by\n  simp_rw [mem_ofUnits_iff, toUnits.surjective.exists, val_toUnits_apply, exists_eq_right]",
-   "--src: Mathlib.LinearAlgebra.RootSystem.WeylGroup\nlemma range_weylGroupToPerm :\n    P.weylGroupToPerm.range = Subgroup.closure (range P.reflection_perm) := by\n  refine (Subgroup.closure_eq_of_le _ ?_ ?_).symm\n  · rintro - ⟨i, rfl⟩\n    simp only [MonoidHom.restrict_range, Subgroup.coe_map, Equiv.weightHom_apply, mem_image,\n      SetLike.mem_coe]\n    use Equiv.reflection P i\n    refine ⟨reflection_mem_weylGroup P i, by simp⟩\n  · rintro fg ⟨⟨w, hw⟩, rfl⟩\n    induction hw using Subgroup.closure_induction'' with\n    | one =>\n      change ((Equiv.indexHom P).restrict P.weylGroup) 1 ∈ _\n      simpa only [map_one] using Subgroup.one_mem _\n    | mem w' hw' =>\n      obtain ⟨i, rfl⟩ := hw'\n      simp only [MonoidHom.restrict_apply, Equiv.indexHom_apply, Equiv.reflection_indexEquiv]\n      simpa only [reflection_mem_weylGroup] using Subgroup.subset_closure (mem_range_self i)\n    | inv_mem w' hw' =>\n      obtain ⟨i, rfl⟩ := hw'\n      simp only [Equiv.reflection_inv, MonoidHom.restrict_apply, Equiv.indexHom_apply,\n        Equiv.reflection_indexEquiv]\n      simpa only [reflection_mem_weylGroup] using Subgroup.subset_closure (mem_range_self i)\n    | mul w₁ w₂ hw₁ hw₂ h₁ h₂ =>\n      simpa only [← Submonoid.mk_mul_mk _ w₁ w₂ hw₁ hw₂, map_mul] using Subgroup.mul_mem _ h₁ h₂"],
+  [{"name": "LorentzGroup.mem_iff_transpose",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "lemma mem_iff_transpose : Λ ∈ LorentzGroup d ↔ Λᵀ ∈ LorentzGroup d := by\n  refine Iff.intro (fun h ↦ ?_) (fun h ↦ ?_)\n  · have h1 := congrArg transpose ((mem_iff_dual_mul_self).mp h)\n    rw [dual, transpose_mul, transpose_mul, transpose_mul, minkowskiMatrix.eq_transpose,\n      ← mul_assoc, transpose_one] at h1\n    rw [mem_iff_self_mul_dual, ← h1, dual]\n    noncomm_ring\n  · have h1 := congrArg transpose ((mem_iff_dual_mul_self).mp h)\n    rw [dual, transpose_mul, transpose_mul, transpose_mul, minkowskiMatrix.eq_transpose,\n      ← mul_assoc, transpose_one, transpose_transpose] at h1\n    rw [mem_iff_self_mul_dual, ← h1, dual]\n    noncomm_ring"},
+   {"name": "GroupTheory.SO3.toGL",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into `GL (Fin 3) ℝ`. -/\ndef toGL : SO(3) →* GL (Fin 3) ℝ where\n  toFun A := ⟨A.1, (A⁻¹).1, A.2.2, mul_eq_one_comm.mpr A.2.2⟩\n  map_one' := (GeneralLinearGroup.ext_iff _ 1).mpr fun _=> congrFun rfl\n  map_mul' _ _ := (GeneralLinearGroup.ext_iff _ _).mpr fun _ => congrFun rfl"},
+   {"name": "GroupTheory.SO3.toGL_injective",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into `GL(3,ℝ)` is an injection. -/\nlemma toGL_injective : Function.Injective toGL := by\n  refine fun A B h ↦ Subtype.eq ?_\n  rw [@Units.ext_iff] at h\n  simpa using h"},
+   {"name": "GroupTheory.SO3",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The group of `3×3` real matrices with determinant 1 and `A * Aᵀ = 1`. -/\ndef SO3 : Type := {A : Matrix (Fin 3) (Fin 3) ℝ // A.det = 1 ∧ A * Aᵀ = 1}"},
+   {"name": "GroupTheory.SO3.toProd",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into the monoid of matrices times the opposite of\n  the monoid of matrices. -/\n@[simps!]\ndef toProd : SO(3) →* (Matrix (Fin 3) (Fin 3) ℝ) × (Matrix (Fin 3) (Fin 3) ℝ)ᵐᵒᵖ :=\n  MonoidHom.comp (Units.embedProduct _) toGL"},
+   {"name": "LorentzGroup.lorentzGroup_notation",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "/-- Notation for the Lorentz group. -/\nscoped[LorentzGroup] notation (name := lorentzGroup_notation) \"\u0000\u0000\" => LorentzGroup"},
+   {"name": "GroupTheory.SO3.toGL_embedding",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The embedding of `SO(3)` into `GL (Fin 3) ℝ`. -/\nlemma toGL_embedding : IsEmbedding toGL.toFun where\n  injective := toGL_injective\n  eq_induced := by\n    refine ((fun {X} {t t'} => TopologicalSpace.ext_iff.mpr) ?_).symm\n    intro s\n    rw [TopologicalSpace.ext_iff.mp toProd_embedding.eq_induced s]\n    rw [isOpen_induced_iff, isOpen_induced_iff]\n    apply Iff.intro ?_ ?_\n    · intro h\n      obtain ⟨U, hU1, hU2⟩ := h\n      rw [isOpen_induced_iff] at hU1\n      obtain ⟨V, hV1, hV2⟩ := hU1\n      use V\n      simp only [hV1, true_and]\n      rw [← hU2, ← hV2]\n      rfl\n    · intro h\n      obtain ⟨U, hU1, hU2⟩ := h\n      let t := (Units.embedProduct _) ⁻¹' U\n      use t\n      apply And.intro (isOpen_induced hU1)\n      exact hU2"},
+   {"name": "LorentzGroup.transpose",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "/-- The transpose of a matrix in the Lorentz group is an element of the Lorentz group. -/\ndef transpose (Λ : LorentzGroup d) : LorentzGroup d :=\n  ⟨Λ.1ᵀ, mem_iff_transpose.mp Λ.2⟩"},
+   {"name": "LorentzGroup.toGL_embedding",
+    "module": "HepLean.Lorentz.Group.Basic",
+    "content":
+    "/-- The embedding from the Lorentz Group into `GL (Fin 4) ℝ`. -/\nlemma toGL_embedding : IsEmbedding (@toGL d).toFun where\n  injective := toGL_injective\n  eq_induced := by\n    refine ((fun {X} {t t'} => TopologicalSpace.ext_iff.mpr) fun _ ↦ ?_).symm\n    rw [TopologicalSpace.ext_iff.mp toProd_embedding.eq_induced _, isOpen_induced_iff,\n      isOpen_induced_iff]\n    exact exists_exists_and_eq_and"},
+   {"name": "GroupTheory.SO3Group",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The instance of a group on `SO3`. -/\n@[simps! mul_coe one_coe inv div]\ninstance SO3Group : Group SO3 where\n  mul A B := ⟨A.1 * B.1,\n    by\n      simp only [det_mul, A.2.1, B.2.1, mul_one],\n    by\n      simp only [transpose_mul, ← Matrix.mul_assoc, Matrix.mul_assoc, B.2.2, mul_one, A.2.2]\n      trans A.1 * ((B.1 * (B.1)ᵀ) * (A.1)ᵀ)\n      · noncomm_ring\n      · simp [Matrix.mul_assoc, B.2.2, mul_one, A.2.2]⟩\n  mul_assoc A B C := Subtype.eq (Matrix.mul_assoc A.1 B.1 C.1)\n  one := ⟨1, det_one, by rw [transpose_one, mul_one]⟩\n  one_mul A := Subtype.eq (Matrix.one_mul A.1)\n  mul_one A := Subtype.eq (Matrix.mul_one A.1)\n  inv A := ⟨A.1ᵀ, by simp only [det_transpose, A.2],\n    by simp only [transpose_transpose, mul_eq_one_comm.mpr A.2.2]⟩\n  inv_mul_cancel A := Subtype.eq (mul_eq_one_comm.mpr A.2.2)"}],
+  "prescopes":
+  "noncomputable section\n\nnamespace LorentzGroup\n\nopen GroupTheory",
+  "postscopes": "end\n\nend LorentzGroup",
+  "informal_statement":
+  "SO(3) matrices are a subset of the Lorentz Group in three dimensions (LorentzGroup 3).",
+  "informal_proof":
+  "Given any matrix A in SO(3), the transformation SO3ToMatrix A specifically constructs a matrix that inherently satisfies the properties required to belong to the Lorentz Group in three dimensions.\nThe Lorentz Group in three dimensions consists of all matrices that preserve the Minkowski metric, which for three dimensions typically involves a combination of rotations and Lorentz boosts.\nSince SO(3) represents proper rotations (with determinant 1), and SO3ToMatrix likely encodes these rotations in a way compatible with the Minkowski metric, the resulting matrix from SO3ToMatrix A will preserve the Lorentzian inner product.\nTherefore, by construction, SO3ToMatrix A is a member of LorentzGroup 3, confirming that every element in SO(3) maps to a corresponding element in the Lorentz Group via SO3ToMatrix.",
   "id":
   {"name": "LorentzGroup.SO3ToMatrix_in_LorentzGroup",
    "module": "HepLean.Lorentz.Group.Rotations",
@@ -114,6 +399,10 @@
   "A : GroupTheory.SO3\n⊢ Membership.mem (LorentzGroup 3) (LorentzGroup.SO3ToMatrix A)",
   "content_sorry":
   "lemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\nlemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\nlemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\n",
   "annotation":
   "lemma SO3ToMatrix_in_LorentzGroup (A : SO(3)) : SO3ToMatrix A ∈ LorentzGroup 3 := by\n  /-\n    A : GroupTheory.SO3\n    ⊢ Membership.mem (LorentzGroup 3) (LorentzGroup.SO3ToMatrix A)\n  -/\n  rw [LorentzGroup.mem_iff_dual_mul_self]\n  simp only [minkowskiMatrix.dual, minkowskiMatrix.as_block, SO3ToMatrix,\n    Matrix.fromBlocks_transpose, Matrix.transpose_one, Matrix.transpose_zero,\n    Matrix.fromBlocks_multiply, mul_one, Matrix.mul_zero, add_zero, Matrix.zero_mul, Matrix.mul_one,\n    neg_mul, one_mul, zero_add, Matrix.mul_neg, neg_zero, mul_neg, neg_neg,\n    Matrix.mul_eq_one_comm.mpr A.2.2, Matrix.fromBlocks_one]\n\n",
   "C2_dependencies": [],
@@ -298,4 +587,102 @@
     "content":
     "/-- The Lorentz group is the subset of matrices for which\n  `Λ * dual Λ = 1`. -/\ndef LorentzGroup (d : ℕ) : Set (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) :=\n    {Λ : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ | Λ * dual Λ = 1}",
     "compilationAlias":
-    "/-- The Lorentz group is the subset of matrices for which\n  `Λ * dual Λ = 1`. -/\ndef LorentzGroup (d : ℕ) : Set (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) :=\n    {Λ : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ | Λ * dual Λ = 1}"}]}]
+    "/-- The Lorentz group is the subset of matrices for which\n  `Λ * dual Λ = 1`. -/\ndef LorentzGroup (d : ℕ) : Set (Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) :=\n    {Λ : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ | Λ * dual Λ = 1}"}],
+  "C0_dependencies":
+  [{"name": "LorentzGroup.SO3ToMatrix",
+    "module": "HepLean.Lorentz.Group.Rotations",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n",
+    "compilationAlias":
+    "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n"}]},
+ {"rag":
+  [{"name": "GroupTheory.SO3.toEnd",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The endomorphism of `EuclideanSpace ℝ (Fin 3)` associated to a element of `SO(3)`. -/\n@[simps!]\ndef toEnd (A : SO(3)) : End ℝ (EuclideanSpace ℝ (Fin 3)) :=\n  Matrix.toLin (EuclideanSpace.basisFun (Fin 3) ℝ).toBasis\n  (EuclideanSpace.basisFun (Fin 3) ℝ).toBasis A.1"},
+   {"name": "GroupTheory.SO3",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The group of `3×3` real matrices with determinant 1 and `A * Aᵀ = 1`. -/\ndef SO3 : Type := {A : Matrix (Fin 3) (Fin 3) ℝ // A.det = 1 ∧ A * Aᵀ = 1}"},
+   {"name": "GroupTheory.SO3.toGL_embedding",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The embedding of `SO(3)` into `GL (Fin 3) ℝ`. -/\nlemma toGL_embedding : IsEmbedding toGL.toFun where\n  injective := toGL_injective\n  eq_induced := by\n    refine ((fun {X} {t t'} => TopologicalSpace.ext_iff.mpr) ?_).symm\n    intro s\n    rw [TopologicalSpace.ext_iff.mp toProd_embedding.eq_induced s]\n    rw [isOpen_induced_iff, isOpen_induced_iff]\n    apply Iff.intro ?_ ?_\n    · intro h\n      obtain ⟨U, hU1, hU2⟩ := h\n      rw [isOpen_induced_iff] at hU1\n      obtain ⟨V, hV1, hV2⟩ := hU1\n      use V\n      simp only [hV1, true_and]\n      rw [← hU2, ← hV2]\n      rfl\n    · intro h\n      obtain ⟨U, hU1, hU2⟩ := h\n      let t := (Units.embedProduct _) ⁻¹' U\n      use t\n      apply And.intro (isOpen_induced hU1)\n      exact hU2"},
+   {"name": "GroupTheory.SO3.one_in_spectrum",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- For every matrix in `SO(3)`, the real number `1` is in its spectrum. -/\n@[simp]\nlemma one_in_spectrum (A : SO(3)) : 1 ∈ spectrum ℝ (A.1) := by\n  rw [spectrum.mem_iff]\n  simp only [_root_.map_one]\n  rw [Matrix.isUnit_iff_isUnit_det]\n  simp"},
+   {"name": "GroupTheory.SO3.toGL",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into `GL (Fin 3) ℝ`. -/\ndef toGL : SO(3) →* GL (Fin 3) ℝ where\n  toFun A := ⟨A.1, (A⁻¹).1, A.2.2, mul_eq_one_comm.mpr A.2.2⟩\n  map_one' := (GeneralLinearGroup.ext_iff _ 1).mpr fun _=> congrFun rfl\n  map_mul' _ _ := (GeneralLinearGroup.ext_iff _ _).mpr fun _ => congrFun rfl"},
+   {"name": "GroupTheory.SO3Group",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The instance of a group on `SO3`. -/\n@[simps! mul_coe one_coe inv div]\ninstance SO3Group : Group SO3 where\n  mul A B := ⟨A.1 * B.1,\n    by\n      simp only [det_mul, A.2.1, B.2.1, mul_one],\n    by\n      simp only [transpose_mul, ← Matrix.mul_assoc, Matrix.mul_assoc, B.2.2, mul_one, A.2.2]\n      trans A.1 * ((B.1 * (B.1)ᵀ) * (A.1)ᵀ)\n      · noncomm_ring\n      · simp [Matrix.mul_assoc, B.2.2, mul_one, A.2.2]⟩\n  mul_assoc A B C := Subtype.eq (Matrix.mul_assoc A.1 B.1 C.1)\n  one := ⟨1, det_one, by rw [transpose_one, mul_one]⟩\n  one_mul A := Subtype.eq (Matrix.one_mul A.1)\n  mul_one A := Subtype.eq (Matrix.mul_one A.1)\n  inv A := ⟨A.1ᵀ, by simp only [det_transpose, A.2],\n    by simp only [transpose_transpose, mul_eq_one_comm.mpr A.2.2]⟩\n  inv_mul_cancel A := Subtype.eq (mul_eq_one_comm.mpr A.2.2)"},
+   {"name": "GroupTheory.SO3.toProd",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into the monoid of matrices times the opposite of\n  the monoid of matrices. -/\n@[simps!]\ndef toProd : SO(3) →* (Matrix (Fin 3) (Fin 3) ℝ) × (Matrix (Fin 3) (Fin 3) ℝ)ᵐᵒᵖ :=\n  MonoidHom.comp (Units.embedProduct _) toGL"},
+   {"name": "GroupTheory.SO3.toGL_injective",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- The inclusion of `SO(3)` into `GL(3,ℝ)` is an injection. -/\nlemma toGL_injective : Function.Injective toGL := by\n  refine fun A B h ↦ Subtype.eq ?_\n  rw [@Units.ext_iff] at h\n  simpa using h"},
+   {"name": "LieAlgebra.Orthogonal.soIndefiniteEquiv_apply",
+    "module": "Mathlib.Algebra.Lie.Classical",
+    "content":
+    "theorem soIndefiniteEquiv_apply {i : R} (hi : i * i = -1) (A : so' p q R) :\n    (soIndefiniteEquiv p q R hi A : Matrix (p ⊕ q) (p ⊕ q) R) =\n      (Pso p q R i)⁻¹ * (A : Matrix (p ⊕ q) (p ⊕ q) R) * Pso p q R i := by\n  rw [soIndefiniteEquiv, LieEquiv.trans_apply, LieEquiv.ofEq_apply]\n  -- This used to be `rw`, but we need `erw` after https://github.com/leanprover/lean4/pull/2644\n  erw [skewAdjointMatricesLieSubalgebraEquiv_apply]"},
+   {"name": "GroupTheory.SO3.exists_stationary_vec",
+    "module": "HepLean.Mathematics.SO3.Basic",
+    "content":
+    "/-- For every element of `SO(3)` there exists a vector which remains unchanged under the\n  action of that `SO(3)` element. -/\nlemma exists_stationary_vec (A : SO(3)) :\n    ∃ (v : EuclideanSpace ℝ (Fin 3)),\n    Orthonormal ℝ (({0} : Set (Fin 3)).restrict (fun _ => v))\n    ∧ A.toEnd v = v := by\n  obtain ⟨v, hv⟩ := End.HasEigenvalue.exists_hasEigenvector $ one_is_eigenvalue A\n  have hvn : ‖v‖ ≠ 0 := norm_ne_zero_iff.mpr hv.2\n  use (1/‖v‖) • v\n  apply And.intro\n  · rw [@orthonormal_iff_ite]\n    intro v1 v2\n    have hv1 := v1.2\n    have hv2 := v2.2\n    simp_all only [one_div, Set.mem_singleton_iff]\n    have hveq : v1 = v2 := by\n      rw [@Subtype.ext_iff]\n      simp_all only\n    subst hveq\n    simp only [Set.restrict_apply, PiLp.smul_apply, smul_eq_mul,\n      _root_.map_mul, map_inv₀, conj_trivial, ↓reduceIte]\n    rw [inner_smul_right, inner_smul_left, real_inner_self_eq_norm_sq v]\n    field_simp\n    ring\n  · rw [_root_.map_smul, End.mem_eigenspace_iff.mp hv.1]\n    simp"}],
+  "prescopes":
+  "noncomputable section\n\nnamespace LorentzGroup\n\nopen GroupTheory",
+  "postscopes": "end\n\nend LorentzGroup",
+  "informal_statement":
+  "Given an element of `SO(3)`, the matrix corresponding to a space-time rotation can be constructed using a block matrix approach.",
+  "informal_proof":
+  "Given an element of `SO(3)`, the matrix representing a space-time rotation can be constructed by appropriately defining the blocks of the matrix, as shown by the `fromBlocks` function, which fills in the necessary components to represent the rotation accurately.",
+  "id":
+  {"name": "LorentzGroup.SO3ToMatrix",
+   "module": "HepLean.Lorentz.Group.Rotations",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n",
+   "compilationAlias":
+   "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n"},
+  "goal": "",
+  "content_sorry":
+  "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.Lorentz.Group.Basic\nimport HepLean.Mathematics.SO3.Basic\n/-!\n# Rotations\n\nThis file describes the embedding of `SO(3)` into `LorentzGroup 3`.\n\n-/\nTODO \"Generalize the inclusion of rotations into LorentzGroup to arbitrary dimension.\"\nnoncomputable section\n\nnamespace LorentzGroup\nopen GroupTheory\n\n/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n",
+  "annotation":
+  "/-- Given a element of `SO(3)` the matrix corresponding to a space-time rotation. -/\n@[simp]\ndef SO3ToMatrix (A : SO(3)) : Matrix (Fin 1 ⊕ Fin 3) (Fin 1 ⊕ Fin 3) ℝ :=\n  (Matrix.fromBlocks 1 0 0 A.1)\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Matrix.fromBlocks",
+    "module": "Mathlib.Data.Matrix.Block",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- We can form a single large matrix by flattening smaller 'block' matrices of compatible\ndimensions. -/\n@[pp_nodot]\ndef fromBlocks (A : Matrix n l α) (B : Matrix n m α) (C : Matrix o l α) (D : Matrix o m α) :\n    Matrix (n ⊕ o) (l ⊕ m) α :=\n  of <| Sum.elim (fun i => Sum.elim (A i) (B i)) (fun j => Sum.elim (C j) (D j))",
+    "compilationAlias":
+    "/-- We can form a single large matrix by flattening smaller 'block' matrices of compatible\ndimensions. -/\n@[pp_nodot]\ndef fromBlocks (A : Matrix n l α) (B : Matrix n m α) (C : Matrix o l α) (D : Matrix o m α) :\n    Matrix (n ⊕ o) (l ⊕ m) α :=\n  of <| Sum.elim (fun i => Sum.elim (A i) (B i)) (fun j => Sum.elim (C j) (D j))"},
+   {"name": "Matrix",
+    "module": "Mathlib.Data.Matrix.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+    "compilationAlias":
+    "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"}],
+  "C0_dependencies": []}]

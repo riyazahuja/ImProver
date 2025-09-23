@@ -87,21 +87,30 @@ def main(args):
         postprocess=lambda row: dict(answer=row["generated_text"], **row),
     )
     ds = vllm_processor(ds).materialize()
+    
+    run_output_dir = os.path.join("evals", args.run_id)
+    os.makedirs(run_output_dir, exist_ok=True)
 
-    # Write output in the required format
-    output_path = f"evals/{args.run_id}/analysis/BoN/train_thinking.jsonl"
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        for row in ds.iter_rows():
-            cot = row["answer"]
-            rec = {
-                "instruction": row["instruction"],
-                # "original_output": row["original_output"],
-                # "cot": cot,
-                "augmented_output": f"<think>\n{cot.replace('<think>', '').replace('</think>', '')}\n</think>\n{row['original_output']}"
-            }
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"Wrote {ds.count()} records to {output_path}")
+    output_path = os.path.join(run_output_dir, "cot")
+
+    ds.repartition(16).write_parquet(f"local://{output_path}")
+
+    
+
+    # # Write output in the required format
+    # output_path = f"evals/{args.run_id}/analysis/BoN/train_thinking.jsonl"
+    # os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    # with open(output_path, "w", encoding="utf-8") as f:
+    #     for row in ds.iter_rows():
+    #         cot = row["answer"]
+    #         rec = {
+    #             "instruction": row["instruction"],
+    #             # "original_output": row["original_output"],
+    #             # "cot": cot,
+    #             "augmented_output": f"<think>\n{cot.replace('<think>', '').replace('</think>', '')}\n</think>\n{row['original_output']}"
+    #         }
+    #         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    # print(f"Wrote {ds.count()} records to {output_path}")
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Generate synthetic reasoning traces using vLLM")

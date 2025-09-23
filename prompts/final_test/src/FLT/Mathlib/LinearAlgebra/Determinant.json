@@ -1,14 +1,49 @@
 [{"rag":
-  ["--src: Mathlib.LinearAlgebra.Determinant\nlemma det_mulLeft (a : R) : (mulLeft R a).det = a := by simp",
-   "--src: Mathlib.LinearAlgebra.Determinant\n@[simp]\ntheorem det_comp (f g : M →ₗ[A] M) :\n    LinearMap.det (f.comp g) = LinearMap.det f * LinearMap.det g :=\n  LinearMap.det.map_mul f g",
-   "--src: Mathlib.RingTheory.Norm.Defs\ntheorem norm_apply (x : S) : norm R x = LinearMap.det (lmul R S x) := rfl",
-   "--src: Mathlib.LinearAlgebra.Determinant\n@[simp]\ntheorem det_toLin' (f : Matrix ι ι R) : LinearMap.det (Matrix.toLin' f) = Matrix.det f := by\n  simp only [← toLin_eq_toLin', det_toLin]",
-   "--src: Mathlib.LinearAlgebra.Determinant\ntheorem det_eq_one_of_not_module_finite (h : ¬Module.Finite R M) (f : M →ₗ[R] M) : f.det = 1 := by\n  rw [LinearMap.det, dif_neg, MonoidHom.one_apply]\n  exact fun ⟨_, ⟨b⟩⟩ ↦ h (Module.Finite.of_basis b)",
-   "--src: Mathlib.LinearAlgebra.Determinant\n@[simp]\ntheorem Basis.det_comp (e : Basis ι A M) (f : M →ₗ[A] M) (v : ι → M) :\n    e.det (f ∘ v) = (LinearMap.det f) * e.det v := by\n  rw [Basis.det_apply, Basis.det_apply, ← f.det_toMatrix e, ← Matrix.det_mul,\n    e.toMatrix_eq_toMatrix_constr (f ∘ v), e.toMatrix_eq_toMatrix_constr v, ← toMatrix_comp,\n    e.constr_comp]",
-   "--src: Mathlib.LinearAlgebra.Determinant\n/-- Multiplying a map by a scalar `c` multiplies its determinant by `c ^ dim M`. -/\n@[simp]\ntheorem det_smul [Module.Free A M] (c : A) (f : M →ₗ[A] M) :\n    LinearMap.det (c • f) = c ^ Module.finrank A M * LinearMap.det f := by\n  nontriviality A\n  by_cases H : ∃ s : Finset M, Nonempty (Basis s A M)\n  · have : Module.Finite A M := by\n      rcases H with ⟨s, ⟨hs⟩⟩\n      exact Module.Finite.of_basis hs\n    simp only [← det_toMatrix (Module.finBasis A M), LinearEquiv.map_smul,\n      Fintype.card_fin, Matrix.det_smul]\n  · classical\n      have : Module.finrank A M = 0 := finrank_eq_zero_of_not_exists_basis H\n      simp [coe_det, H, this]",
-   "--src: Mathlib.LinearAlgebra.Matrix.ToLin\ntheorem LinearMap.toMatrix'_mul [Fintype m] [DecidableEq m] (f g : (m → R) →ₗ[R] m → R) :\n    LinearMap.toMatrix' (f * g) = LinearMap.toMatrix' f * LinearMap.toMatrix' g :=\n  LinearMap.toMatrix'_comp f g",
-   "--src: Mathlib.Algebra.Algebra.Bilinear\n@[simp]\ntheorem _root_.Algebra.coe_lmul_eq_mul : ⇑(Algebra.lmul R A) = mul R A :=\n  rfl",
-   "--src: Mathlib.LinearAlgebra.Determinant\n/-- If a linear map is invertible, so is its determinant. -/\ntheorem isUnit_det {A : Type*} [CommRing A] [Module A M] (f : M →ₗ[A] M) (hf : IsUnit f) :\n    IsUnit (LinearMap.det f) := by\n  obtain ⟨g, hg⟩ : ∃ g, f.comp g = 1 := hf.exists_right_inv\n  have : LinearMap.det f * LinearMap.det g = 1 := by\n    simp only [← LinearMap.det_comp, hg, MonoidHom.map_one]\n  exact isUnit_of_mul_eq_one _ _ this"],
+  [{"name": "Matrix.det_mul",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "@[simp]\ntheorem det_mul (M N : Matrix n n R) : det (M * N) = det M * det N :=\n  calc\n    det (M * N) = ∑ p : n → n, ∑ σ : Perm n, ε σ * ∏ i, M (σ i) (p i) * N (p i) i := by\n      simp only [det_apply', mul_apply, prod_univ_sum, mul_sum, Fintype.piFinset_univ]\n      rw [Finset.sum_comm]\n    _ = ∑ p : n → n with Bijective p, ∑ σ : Perm n, ε σ * ∏ i, M (σ i) (p i) * N (p i) i := by\n      refine (sum_subset (filter_subset _ _) fun f _ hbij ↦ det_mul_aux ?_).symm\n      simpa only [true_and, mem_filter, mem_univ] using hbij\n    _ = ∑ τ : Perm n, ∑ σ : Perm n, ε σ * ∏ i, M (σ i) (τ i) * N (τ i) i :=\n      sum_bij (fun p h ↦ Equiv.ofBijective p (mem_filter.1 h).2) (fun _ _ ↦ mem_univ _)\n        (fun _ _ _ _ h ↦ by injection h)\n        (fun b _ ↦ ⟨b, mem_filter.2 ⟨mem_univ _, b.bijective⟩, coe_fn_injective rfl⟩) fun _ _ ↦ rfl\n    _ = ∑ σ : Perm n, ∑ τ : Perm n, (∏ i, N (σ i) i) * ε τ * ∏ j, M (τ j) (σ j) := by\n      simp only [mul_comm, mul_left_comm, prod_mul_distrib, mul_assoc]\n    _ = ∑ σ : Perm n, ∑ τ : Perm n, (∏ i, N (σ i) i) * (ε σ * ε τ) * ∏ i, M (τ i) i :=\n      (sum_congr rfl fun σ _ =>\n        Fintype.sum_equiv (Equiv.mulRight σ⁻¹) _ _ fun τ => by\n          have : (∏ j, M (τ j) (σ j)) = ∏ j, M ((τ * σ⁻¹) j) j := by\n            rw [← (σ⁻¹ : _ ≃ _).prod_comp]\n            simp only [Equiv.Perm.coe_mul, apply_inv_self, Function.comp_apply]\n          have h : ε σ * ε (τ * σ⁻¹) = ε τ :=\n            calc\n              ε σ * ε (τ * σ⁻¹) = ε (τ * σ⁻¹ * σ) := by\n                rw [mul_comm, sign_mul (τ * σ⁻¹)]\n                simp only [Int.cast_mul, Units.val_mul]\n              _ = ε τ := by simp only [inv_mul_cancel_right]\n\n          simp_rw [Equiv.coe_mulRight, h]\n          simp only [this])\n    _ = det M * det N := by\n      simp only [det_apply', Finset.mul_sum, mul_comm, mul_left_comm, mul_assoc]"},
+   {"name": "Matrix.det_smul",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "theorem det_smul (A : Matrix n n R) (c : R) : det (c • A) = c ^ Fintype.card n * det A :=\n  calc\n    det (c • A) = det ((diagonal fun _ => c) * A) := by rw [smul_eq_diagonal_mul]\n    _ = det (diagonal fun _ => c) * det A := det_mul _ _\n    _ = c ^ Fintype.card n * det A := by simp"},
+   {"name": "Matrix.det_smul_of_tower",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "@[simp]\ntheorem det_smul_of_tower {α} [Monoid α] [DistribMulAction α R] [IsScalarTower α R R]\n    [SMulCommClass α R R] (c : α) (A : Matrix n n R) :\n    det (c • A) = c ^ Fintype.card n • det A := by\n  rw [← smul_one_smul R c A, det_smul, smul_pow, one_pow, smul_mul_assoc, one_mul]"},
+   {"name": "Matrix.det_smul_of_tower",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "@[simp]\ntheorem det_smul_of_tower {α} [Monoid α] [DistribMulAction α R] [IsScalarTower α R R]\n    [SMulCommClass α R R] (c : α) (A : Matrix n n R) :\n    det (c • A) = c ^ Fintype.card n • det A := by\n  rw [← smul_one_smul R c A, det_smul, smul_pow, one_pow, smul_mul_assoc, one_mul]"},
+   {"name": "Matrix.det_smul",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "theorem det_smul (A : Matrix n n R) (c : R) : det (c • A) = c ^ Fintype.card n * det A :=\n  calc\n    det (c • A) = det ((diagonal fun _ => c) * A) := by rw [smul_eq_diagonal_mul]\n    _ = det (diagonal fun _ => c) * det A := det_mul _ _\n    _ = c ^ Fintype.card n * det A := by simp"},
+   {"name": "Matrix.det_mul",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "@[simp]\ntheorem det_mul (M N : Matrix n n R) : det (M * N) = det M * det N :=\n  calc\n    det (M * N) = ∑ p : n → n, ∑ σ : Perm n, ε σ * ∏ i, M (σ i) (p i) * N (p i) i := by\n      simp only [det_apply', mul_apply, prod_univ_sum, mul_sum, Fintype.piFinset_univ]\n      rw [Finset.sum_comm]\n    _ = ∑ p : n → n with Bijective p, ∑ σ : Perm n, ε σ * ∏ i, M (σ i) (p i) * N (p i) i := by\n      refine (sum_subset (filter_subset _ _) fun f _ hbij ↦ det_mul_aux ?_).symm\n      simpa only [true_and, mem_filter, mem_univ] using hbij\n    _ = ∑ τ : Perm n, ∑ σ : Perm n, ε σ * ∏ i, M (σ i) (τ i) * N (τ i) i :=\n      sum_bij (fun p h ↦ Equiv.ofBijective p (mem_filter.1 h).2) (fun _ _ ↦ mem_univ _)\n        (fun _ _ _ _ h ↦ by injection h)\n        (fun b _ ↦ ⟨b, mem_filter.2 ⟨mem_univ _, b.bijective⟩, coe_fn_injective rfl⟩) fun _ _ ↦ rfl\n    _ = ∑ σ : Perm n, ∑ τ : Perm n, (∏ i, N (σ i) i) * ε τ * ∏ j, M (τ j) (σ j) := by\n      simp only [mul_comm, mul_left_comm, prod_mul_distrib, mul_assoc]\n    _ = ∑ σ : Perm n, ∑ τ : Perm n, (∏ i, N (σ i) i) * (ε σ * ε τ) * ∏ i, M (τ i) i :=\n      (sum_congr rfl fun σ _ =>\n        Fintype.sum_equiv (Equiv.mulRight σ⁻¹) _ _ fun τ => by\n          have : (∏ j, M (τ j) (σ j)) = ∏ j, M ((τ * σ⁻¹) j) j := by\n            rw [← (σ⁻¹ : _ ≃ _).prod_comp]\n            simp only [Equiv.Perm.coe_mul, apply_inv_self, Function.comp_apply]\n          have h : ε σ * ε (τ * σ⁻¹) = ε τ :=\n            calc\n              ε σ * ε (τ * σ⁻¹) = ε (τ * σ⁻¹ * σ) := by\n                rw [mul_comm, sign_mul (τ * σ⁻¹)]\n                simp only [Int.cast_mul, Units.val_mul]\n              _ = ε τ := by simp only [inv_mul_cancel_right]\n\n          simp_rw [Equiv.coe_mulRight, h]\n          simp only [this])\n    _ = det M * det N := by\n      simp only [det_apply', Finset.mul_sum, mul_comm, mul_left_comm, mul_assoc]"},
+   {"name": "Matrix.det_smul_of_tower",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "@[simp]\ntheorem det_smul_of_tower {α} [Monoid α] [DistribMulAction α R] [IsScalarTower α R R]\n    [SMulCommClass α R R] (c : α) (A : Matrix n n R) :\n    det (c • A) = c ^ Fintype.card n • det A := by\n  rw [← smul_one_smul R c A, det_smul, smul_pow, one_pow, smul_mul_assoc, one_mul]"},
+   {"name": "Matrix.coe_detMonoidHom",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "@[simp]\ntheorem coe_detMonoidHom : (detMonoidHom : Matrix n n R → R) = det :=\n  rfl"},
+   {"name": "Matrix.det_eq_of_eq_det_one_mul",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "theorem det_eq_of_eq_det_one_mul {A B : Matrix n n R} (C : Matrix n n R) (hC : det C = 1)\n    (hA : A = C * B) : det A = det B :=\n  calc\n    det A = det (C * B) := congr_arg _ hA\n    _ = det C * det B := det_mul _ _\n    _ = det B := by rw [hC, one_mul]"},
+   {"name": "Matrix.det_neg",
+    "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic",
+    "content":
+    "theorem det_neg (A : Matrix n n R) : det (-A) = (-1) ^ Fintype.card n * det A := by\n  rw [← det_smul, neg_one_smul]"}],
+  "prescopes": "namespace LinearMap\n\nvariable {R : Type*} [CommRing R]",
+  "postscopes": "end LinearMap",
+  "informal_statement":
+  "For any element \\( a \\) in a ring \\( R \\), the determinant of the \\( n \\times n \\) identity matrix multiplied by \\( a \\) is equal to \\( a \\). In other words, \\( \\det(a \\cdot I_n) = a \\).",
+  "informal_proof": "",
   "id":
   {"name": "LinearMap.det_mul",
    "module": "FLT.Mathlib.LinearAlgebra.Determinant",
@@ -23,6 +58,10 @@
   "R : Type u_1\ninst✝ : CommRing R\na : R\n⊢ Eq (LinearMap.det ((LinearMap.mul R R) a)) a",
   "content_sorry":
   "@[simp] lemma det_mul (a : R) : (mul R R a).det = a := by\n  sorry",
+  "content_full_by_exact":
+  "import Mathlib.LinearAlgebra.Determinant\n\nnamespace LinearMap\nvariable {R : Type*} [CommRing R]\n\n@[simp] lemma det_mul (a : R) : (mul R R a).det = a := by\n  exact?",
+  "content_full":
+  "import Mathlib.LinearAlgebra.Determinant\n\nnamespace LinearMap\nvariable {R : Type*} [CommRing R]\n\n@[simp] lemma det_mul (a : R) : (mul R R a).det = a := by\n  classical\n  rw [det_eq_det_toMatrix_of_finset (s := {1}) ⟨(Finsupp.LinearEquiv.finsuppUnique R R _).symm⟩,\n    Matrix.det_unique]\n  change a * _ = a\n  simp\n",
   "annotation":
   "@[simp] lemma det_mul (a : R) : (mul R R a).det = a := by\n  classical\n  rw [det_eq_det_toMatrix_of_finset (s := {1}) ⟨(Finsupp.LinearEquiv.finsuppUnique R R _).symm⟩,\n    Matrix.det_unique]\n  change a * _ = a\n  simp\n",
   "C2_dependencies": [],
@@ -52,4 +91,32 @@
     "content":
     "/-- If `α` has a unique term, then the type of finitely supported functions `α →₀ M` is\n`R`-linearly equivalent to `M`. -/\nnoncomputable def LinearEquiv.finsuppUnique : (α →₀ M) ≃ₗ[R] M :=\n  { Finsupp.equivFunOnFinite.trans (Equiv.funUnique α M) with\n    map_add' := fun _ _ => rfl\n    map_smul' := fun _ _ => rfl }",
     "compilationAlias":
-    "/-- If `α` has a unique term, then the type of finitely supported functions `α →₀ M` is\n`R`-linearly equivalent to `M`. -/\nnoncomputable def LinearEquiv.finsuppUnique : (α →₀ M) ≃ₗ[R] M :=\n  { Finsupp.equivFunOnFinite.trans (Equiv.funUnique α M) with\n    map_add' := fun _ _ => rfl\n    map_smul' := fun _ _ => rfl }"}]}]
+    "/-- If `α` has a unique term, then the type of finitely supported functions `α →₀ M` is\n`R`-linearly equivalent to `M`. -/\nnoncomputable def LinearEquiv.finsuppUnique : (α →₀ M) ≃ₗ[R] M :=\n  { Finsupp.equivFunOnFinite.trans (Equiv.funUnique α M) with\n    map_add' := fun _ _ => rfl\n    map_smul' := fun _ _ => rfl }"},
+   {"name": "LinearMap.det_eq_det_toMatrix_of_finset",
+    "module": "Mathlib.LinearAlgebra.Determinant",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem det_eq_det_toMatrix_of_finset [DecidableEq M] {s : Finset M} (b : Basis s A M)\n    (f : M →ₗ[A] M) : LinearMap.det f = Matrix.det (LinearMap.toMatrix b b f) := by\n  have : ∃ s : Finset M, Nonempty (Basis s A M) := ⟨s, ⟨b⟩⟩\n  rw [LinearMap.coe_det, dif_pos, detAux_def'' _ b] <;> assumption",
+    "compilationAlias":
+    "theorem det_eq_det_toMatrix_of_finset [DecidableEq M] {s : Finset M} (b : Basis s A M)\n    (f : M →ₗ[A] M) : LinearMap.det f = Matrix.det (LinearMap.toMatrix b b f) := by\n  have : ∃ s : Finset M, Nonempty (Basis s A M) := ⟨s, ⟨b⟩⟩\n  rw [LinearMap.coe_det, dif_pos, detAux_def'' _ b] <;> assumption"},
+   {"name": "LinearMap.det",
+    "module": "Mathlib.LinearAlgebra.Determinant",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The determinant of an endomorphism independent of basis.\n\nIf there is no finite basis on `M`, the result is `1` instead.\n-/\nprotected irreducible_def det : (M →ₗ[A] M) →* A :=\n  if H : ∃ s : Finset M, Nonempty (Basis s A M) then LinearMap.detAux (Trunc.mk H.choose_spec.some)\n  else 1",
+    "compilationAlias":
+    "/-- The determinant of an endomorphism independent of basis.\n\nIf there is no finite basis on `M`, the result is `1` instead.\n-/\nprotected irreducible_def det : (M →ₗ[A] M) →* A :=\n  if H : ∃ s : Finset M, Nonempty (Basis s A M) then LinearMap.detAux (Trunc.mk H.choose_spec.some)\n  else 1"},
+   {"name": "LinearMap.mul",
+    "module": "Mathlib.Algebra.Algebra.Bilinear",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The multiplication in a non-unital non-associative algebra is a bilinear map.\n\nA weaker version of this for semirings exists as `AddMonoidHom.mul`. -/\n@[simps!]\ndef mul : A →ₗ[R] A →ₗ[R] A :=\n  LinearMap.mk₂ R (· * ·) add_mul smul_mul_assoc mul_add mul_smul_comm",
+    "compilationAlias":
+    "/-- The multiplication in a non-unital non-associative algebra is a bilinear map.\n\nA weaker version of this for semirings exists as `AddMonoidHom.mul`. -/\n@[simps!]\ndef mul : A →ₗ[R] A →ₗ[R] A :=\n  LinearMap.mk₂ R (· * ·) add_mul smul_mul_assoc mul_add mul_smul_comm"}],
+  "C0_dependencies": []}]
