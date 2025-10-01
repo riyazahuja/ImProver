@@ -1,0 +1,365 @@
+[
+  {
+    "rag": [],
+    "prescopes": "namespace PureU1.Three\n\nopen Nat Finset\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end PureU1.Three",
+    "informal_statement": "For any solution \\( S \\) in the PureU1 3 sols, there exists a linear solution \\( T \\) that satisfies the conditions \\( T bookmark{0} = 0 \\), \\( T bookmark{1} = 0 \\), or \\( T bookmark{2} = 0 \\), such that applying the solOfLinear function to \\( T \\) with these conditions yields the original solution \\( S \\).",
+    "informal_proof": "First, we fix an arbitrary solution \\( S \\) in the PureU1 3 sols.\n\nNext, we observe that the first component \\( S bookmark{1} \\) of S is itself a linear solution. This linear solution is designed to already satisfy the conditions \\( bookmark{0} = 0 \\), \\( bookmark{1} = 0 \\), or \\( bookmark{2} = 0 \\).\n\nBy applying the solOfLinear function to this linear solution and checking the conditions, we directly obtain the original solution \\( S \\). Therefore, for any solution \\( S \\), there exists a corresponding linear solution \\( T \\) that meets the necessary conditions, and this \\( T \\) can be used to reconstruct \\( S \\).\n\nThis confirms that the set of linear solutions is surjective onto all solutions in the PureU1 3 realm.",
+    "id": {
+      "name": "PureU1.Three.solOfLinear_surjects",
+      "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem solOfLinear_surjects (S : (PureU1 3).Sols) :\n    ∃ (T : (PureU1 3).LinSols) (hT : T.val (0 : Fin 3) = 0 ∨ T.val (1 : Fin 3) = 0\n    ∨ T.val (2 : Fin 3) = 0), solOfLinear T hT = S := by\n  use S.1.1\n  use (three_sol_zero S)\n  rfl\n\n",
+      "compilationAlias": "theorem solOfLinear_surjects (S : (PureU1 3).Sols) :\n    ∃ (T : (PureU1 3).LinSols) (hT : T.val (0 : Fin 3) = 0 ∨ T.val (1 : Fin 3) = 0\n    ∨ T.val (2 : Fin 3) = 0), solOfLinear T hT = S := by\n  use S.1.1\n  use (three_sol_zero S)\n  rfl\n\n"
+    },
+    "goal": "S : (PureU1 3).Sols\n⊢ Exists fun T => Exists fun hT => Eq (PureU1.Three.solOfLinear T hT) S",
+    "content_sorry": "theorem solOfLinear_surjects (S : (PureU1 3).Sols) :\n    ∃ (T : (PureU1 3).LinSols) (hT : T.val (0 : Fin 3) = 0 ∨ T.val (1 : Fin 3) = 0\n    ∨ T.val (2 : Fin 3) = 0), solOfLinear T hT = S := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\nlemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\ntheorem solOfLinear_surjects (S : (PureU1 3).Sols) :\n    ∃ (T : (PureU1 3).LinSols) (hT : T.val (0 : Fin 3) = 0 ∨ T.val (1 : Fin 3) = 0\n    ∨ T.val (2 : Fin 3) = 0), solOfLinear T hT = S := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\nlemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\ntheorem solOfLinear_surjects (S : (PureU1 3).Sols) :\n    ∃ (T : (PureU1 3).LinSols) (hT : T.val (0 : Fin 3) = 0 ∨ T.val (1 : Fin 3) = 0\n    ∨ T.val (2 : Fin 3) = 0), solOfLinear T hT = S := by\n  use S.1.1\n  use (three_sol_zero S)\n  rfl\n\n",
+    "annotation": "theorem solOfLinear_surjects (S : (PureU1 3).Sols) :\n    ∃ (T : (PureU1 3).LinSols) (hT : T.val (0 : Fin 3) = 0 ∨ T.val (1 : Fin 3) = 0\n    ∨ T.val (2 : Fin 3) = 0), solOfLinear T hT = S := by\n  /-\n    S : (PureU1 3).Sols\n    ⊢ Exists fun T => Exists fun hT => Eq (PureU1.Three.solOfLinear T hT) S\n  -/\n  use S.1.1\n  /-\n    case h\n    S : (PureU1 3).Sols\n    ⊢ Exists fun hT => Eq (PureU1.Three.solOfLinear S.toLinSols hT) S\n  -/\n  use (three_sol_zero S)\n  /-\n    case h\n    S : (PureU1 3).Sols\n    ⊢ Eq (PureU1.Three.solOfLinear S.toLinSols ⋯) S\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "PureU1",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n",
+        "compilationAlias": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "PureU1.Three.cube_for_linSol'",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n",
+        "compilationAlias": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n"
+      },
+      {
+        "name": "PureU1.Three.cube_for_linSol",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n",
+        "compilationAlias": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n"
+      },
+      {
+        "name": "PureU1.Three.three_sol_zero",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n",
+        "compilationAlias": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n"
+      },
+      {
+        "name": "PureU1.Three.solOfLinear",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\n",
+        "compilationAlias": "/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace PureU1.Three\n\nopen Nat Finset\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end PureU1.Three",
+    "informal_statement": "If a `LinSol` from `PureU1 3` has a zero value at one of its indices (0, 1, or 2), then this corresponds to a solution in `(PureU1 3).Sols`.",
+    "informal_proof": "We are given a `LinSol` `S` from `PureU1 3` such that either `S.val 0 = 0`, `S.val 1 = 0`, or `S.val 2 = 0`. The function `solOfLinear` constructs a solution in `(PureU1 3).Sols` by ensuring that both the original linear solution `S` and the zero condition at one of the indices are satisfied. Therefore, the constructed pair indeed belongs to `(PureU1 3).Sols`.",
+    "id": {
+      "name": "PureU1.Three.solOfLinear",
+      "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\n",
+      "compilationAlias": "/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\n"
+    },
+    "goal": "S : (PureU1 3).LinSols\nhS : Or (Eq (S.val 0) 0) (Or (Eq (S.val 1) 0) (Eq (S.val 2) 0))\n⊢ (PureU1 3).Sols",
+    "content_sorry": "/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\nlemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\nlemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\n",
+    "annotation": "/-- Given a `LinSol` with a charge equal to zero a `Sol`. -/\ndef solOfLinear (S : (PureU1 3).LinSols)\n    (hS : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) :\n    (PureU1 3).Sols :=\n  ⟨⟨S, fun i => Fin.elim0 i⟩,\n    (cube_for_linSol S).mp hS⟩\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Fin.elim0",
+        "module": "Init.Data.Fin.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)",
+        "compilationAlias": "/--\nFrom the empty type `Fin 0`, any desired result `α` can be derived. This is similar to `Empty.elim`.\n-/\ndef elim0.{u} {α : Sort u} : Fin 0 → α\n  | ⟨_, h⟩ => absurd h (not_lt_zero _)"
+      },
+      {
+        "name": "PureU1",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n",
+        "compilationAlias": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "PureU1.Three.cube_for_linSol'",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n",
+        "compilationAlias": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n"
+      },
+      {
+        "name": "PureU1.Three.cube_for_linSol",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n",
+        "compilationAlias": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n"
+      },
+      {
+        "name": "PureU1.Three.three_sol_zero",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n",
+        "compilationAlias": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace PureU1.Three\n\nopen Nat Finset\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end PureU1.Three",
+    "informal_statement": "For some algebraic structure $S$ of type $PureU1$ with elements indexed by the fin type $Fin 3$, at least one of the elements at indices 0, 1, or 2 must be zero.",
+    "informal_proof": "We consider an algebraic structure \\( S \\) of type \\( PureU1 \\) with elements indexed by the finite type \\( Fin 3 \\). The structure \\( S \\) satisfies the property that \\( S.val(0 : \\Fin 3) = 0 \\), or \\( S.val(1 : \\Fin 3) = 0 \\), or \\( S.val(2 : \\Fin 3) = 0 \\). This follows from the fact that \\( S \\) is a solution to a cubic equation, specifically \\( S.cubicSol \\), and that the cubic equation \\( cube_for_linSol \\) must vanish at one of these indices. Since a cubic equation over a field must have at least one root, it follows that one of the values \\( S.val(0 : \\Fin 3) \\), \\( S.val(1 : \\Fin 3) \\), or \\( S.val(2 : \\Fin 3) \\) must be zero.",
+    "id": {
+      "name": "PureU1.Three.three_sol_zero",
+      "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n",
+      "compilationAlias": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n"
+    },
+    "goal": "S : (PureU1 3).Sols\n⊢ Or (Eq (S.val 0) 0) (Or (Eq (S.val 1) 0) (Eq (S.val 2) 0))",
+    "content_sorry": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\nlemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\nlemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n",
+    "annotation": "lemma three_sol_zero (S : (PureU1 3).Sols) : S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0\n    ∨ S.val (2 : Fin 3) = 0 := (cube_for_linSol S.1.1).mpr S.cubicSol\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "PureU1",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n",
+        "compilationAlias": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "PureU1.Three.cube_for_linSol'",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n",
+        "compilationAlias": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n"
+      },
+      {
+        "name": "PureU1.Three.cube_for_linSol",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n",
+        "compilationAlias": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace PureU1.Three\n\nopen Nat Finset\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end PureU1.Three",
+    "informal_statement": "The cubic accuracy of the `PureU1 3` structure with respect to a function `S.val` defined on the first three natural numbers (0, 1, 2) is zero if and only if at least one of the values of `S.val` at these points is zero.",
+    "informal_proof": "To establish the equivalence, we consider two directions. \n\nFirst, assume that at least one of the values `S.val (0 : Fin 3)`, `S.val (1 : Fin 3)`, or `S.val (2 : Fin 3)` is zero. Without loss of generality, suppose `S.val (0 : Fin 3) = 0`. In this case, it directly follows that the cubic accuracy `PureU1 3`.cubicACC `S.val` evaluates to zero.\n\nConversely, if `PureU1 3`.cubicACC `S.val` equals zero, then by the properties of cubic accuracy, this implies that at least one of the values `S.val (0 : Fin 3)`, `S.val (1 : Fin 3)`, or `S.val (2 : Fin 3)` must also be zero.\n\nTherefore, the equivalence holds: `S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0` if and only if `PureU1 3`.cubicACC `S.val = 0`.",
+    "id": {
+      "name": "PureU1.Three.cube_for_linSol",
+      "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n",
+      "compilationAlias": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n"
+    },
+    "goal": "M₀ : Type u_1\ninst✝¹ : MulZeroClass M₀\ninst✝ : NoZeroDivisors M₀\na b : M₀\n⊢ Eq (Eq (HMul.hMul a b) 0) (Or (Eq a 0) (Eq b 0))",
+    "content_sorry": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\nlemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  rw [← cube_for_linSol']\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  exact Iff.symm or_assoc\n\n",
+    "annotation": "lemma cube_for_linSol (S : (PureU1 3).LinSols) :\n    (S.val (0 : Fin 3) = 0 ∨ S.val (1 : Fin 3) = 0 ∨ S.val (2 : Fin 3) = 0) ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  /-\n    S : (PureU1 3).LinSols\n    ⊢ Iff (Or (Eq (S.val 0) 0) (Or (Eq (S.val 1) 0) (Eq (S.val 2) 0))) (Eq ((PureU …\n  -/\n  rw [← cube_for_linSol']\n  /-\n    S : (PureU1 3).LinSols\n    ⊢ Iff (Or (Eq (S.val 0) 0) (Or (Eq (S.val 1) 0) (Eq (S.val 2) 0))) (Eq (HMul.h …\n  -/\n  simp only [Fin.isValue, _root_.mul_eq_zero, OfNat.ofNat_ne_zero, false_or]\n  /-\n    S : (PureU1 3).LinSols\n    ⊢ Iff (Or (Eq (S.val 0) 0) (Or (Eq (S.val 1) 0) (Eq (S.val 2) 0))) (Or (Or (Eq …\n  -/\n  exact Iff.symm or_assoc\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "or_assoc",
+        "module": "Init.SimpLemmas",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem or_assoc : (a ∨ b) ∨ c ↔ a ∨ (b ∨ c) :=\n  Iff.intro (.rec (.imp_right .inl) (.inr ∘ .inr))\n            (.rec (.inl ∘ .inl) (.imp_left .inr))",
+        "compilationAlias": "theorem or_assoc : (a ∨ b) ∨ c ↔ a ∨ (b ∨ c) :=\n  Iff.intro (.rec (.imp_right .inl) (.inr ∘ .inr))\n            (.rec (.inl ∘ .inl) (.imp_left .inr))"
+      },
+      {
+        "name": "Iff.symm",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[symm] theorem Iff.symm (h : a ↔ b) : b ↔ a := Iff.intro h.mpr h.mp",
+        "compilationAlias": "@[symm] theorem Iff.symm (h : a ↔ b) : b ↔ a := Iff.intro h.mpr h.mp"
+      },
+      {
+        "name": "false_or",
+        "module": "Init.SimpLemmas",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] theorem false_or (p : Prop) : (False ∨ p) = p := propext ⟨fun (.inr h) => h, .inr⟩",
+        "compilationAlias": "@[simp] theorem false_or (p : Prop) : (False ∨ p) = p := propext ⟨fun (.inr h) => h, .inr⟩"
+      },
+      {
+        "name": "OfNat.ofNat_ne_zero",
+        "module": "Mathlib.Algebra.CharZero.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma ofNat_ne_zero (n : ℕ) [n.AtLeastTwo] : (ofNat(n) : R) ≠ 0 :=\n  Nat.cast_ne_zero.2 (NeZero.ne n)",
+        "compilationAlias": "@[simp] lemma ofNat_ne_zero (n : ℕ) [n.AtLeastTwo] : (ofNat(n) : R) ≠ 0 :=\n  Nat.cast_ne_zero.2 (NeZero.ne n)"
+      },
+      {
+        "name": "Fin.isValue",
+        "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+        "compilationAlias": "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"
+      },
+      {
+        "name": "PureU1",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n",
+        "compilationAlias": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "PureU1.Three.cube_for_linSol'",
+        "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n",
+        "compilationAlias": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace PureU1.Three\n\nopen Nat Finset\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end PureU1.Three",
+    "informal_statement": "For a linear system \\( S \\) of type \\( (\\text{PureU1}\\ 3). \\text{LinSols} \\), the product of the values of \\( S \\) at positions 0, 1, and 2 multiplied together equals zero if and only if the cubic coefficient of \\( S \\) is zero.",
+    "informal_proof": "First, we consider a linear system \\( S \\) of type \\( (\\text{PureU1}\\ 3). \\text{LinSols} \\), and we analyze the relationship between the product of certain values associated with \\( S \\) and its cubic coefficient.\n\nWe start by applying the property or lemma `pureU1_linear`, which likely provides a foundational property for such linear systems. Next, we use the definitions of `succ_eq_add_one`, `reduceAdd`, and `PureU1_numberCharges` to simplify the expressions involved.\n\nBy rewriting the sum over the `Fin 3` type, we essentially break down the sum into three manageable parts. This step helps in dissecting the cubic coefficient and understanding its relationship with the other terms.\n\nConverting the equivalence to involve `accCube` allows us to express the condition in a form that can be more easily manipulated algebraically. Expanding `accCube_explicit` provides a clear formula to work with.\n\nWe then substitute one of the values in terms of the others using a linear combination, simplifying the expression further. Finally, by performing a ring normalization, we achieve a simplified form that clearly demonstrates the equivalence stated in the theorem.\n\nThus, we have established that the product of the specified values equals zero if and only if the cubic coefficient is zero, completing the proof.",
+    "id": {
+      "name": "PureU1.Three.cube_for_linSol'",
+      "module": "HepLean.AnomalyCancellation.PureU1.LowDim.Three",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n",
+      "compilationAlias": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n"
+    },
+    "goal": "S : (PureU1 3).LinSols\n⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (S.val 0)) (S.val 1)) (S.val 2)) 0) (Eq ((PureU1 3).cubicACC S.val) 0)",
+    "content_sorry": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.PureU1.Basic\n/-!\n# The Pure U(1) case with 3 fermion\n\nWe show that S is a solution only if one of its charges is zero.\nWe define a surjective map from `LinSols` with a charge equal to zero to `Sols`.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace PureU1\n\nvariable {n : ℕ}\nnamespace Three\n\nlemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  have hL := pureU1_linear S\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  rw [Fin.sum_univ_three] at hL\n  change _ ↔ accCube _ _ = _\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  ring_nf\n\n",
+    "annotation": "lemma cube_for_linSol' (S : (PureU1 3).LinSols) :\n    3 * S.val (0 : Fin 3) * S.val (1 : Fin 3) * S.val (2 : Fin 3) = 0 ↔\n    (PureU1 3).cubicACC S.val = 0 := by\n  /-\n    S : (PureU1 3).LinSols\n    ⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (S.val 0)) (S.val 1)) (S.val 2))  …\n  -/\n  have hL := pureU1_linear S\n  /-\n    S : (PureU1 3).LinSols\n    hL : Eq (Finset.univ.sum fun i => S.val i) 0\n    ⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (S.val 0)) (S.val 1)) (S.val 2))  …\n  -/\n  simp only [succ_eq_add_one, reduceAdd, PureU1_numberCharges] at hL\n  /-\n    S : (PureU1 3).LinSols\n    hL : Eq (Finset.univ.sum fun i => S.val i) 0\n    ⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (S.val 0)) (S.val 1)) (S.val 2))  …\n  -/\n  rw [Fin.sum_univ_three] at hL\n  /-\n    S : (PureU1 3).LinSols\n    hL : Eq (HAdd.hAdd (HAdd.hAdd (S.val 0) (S.val 1)) (S.val 2)) 0\n    ⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (S.val 0)) (S.val 1)) (S.val 2))  …\n  -/\n  change _ ↔ accCube _ _ = _\n  /-\n    S : (PureU1 3).LinSols\n    hL : Eq (HAdd.hAdd (HAdd.hAdd (S.val 0) (S.val 1)) (S.val 2)) 0\n    ⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (S.val 0)) (S.val 1)) (S.val 2))  …\n  -/\n  rw [accCube_explicit, Fin.sum_univ_three]\n  rw [show S.val (0 : Fin 3) = - (S.val (1 : Fin 3) + S.val (2 : Fin 3)) by\n      linear_combination hL]\n  /-\n    S : (PureU1 3).LinSols\n    hL : Eq (HAdd.hAdd (HAdd.hAdd (S.val 0) (S.val 1)) (S.val 2)) 0\n    ⊢ Iff (Eq (HMul.hMul (HMul.hMul (HMul.hMul 3 (Neg.neg (HAdd.hAdd (S.val 1) (S. …\n  -/\n  ring_nf\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "PureU1.accCube_explicit",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The cubic ACC for the pure-`U(1)` anomaly equations is equal to the sum of the cubed\n  charges. -/\nlemma accCube_explicit (n : ℕ) (S : (PureU1Charges n).Charges) :\n    accCube n S = ∑ i : Fin n, S i ^ 3:= by\n  rw [accCube, TriLinearSymm.toCubic]\n  change accCubeTriLinSymm S S S = _\n  rw [accCubeTriLinSymm]\n  simp only [PureU1Charges_numberCharges, TriLinearSymm.mk₃_toFun_apply_apply]\n  exact Finset.sum_congr rfl fun x _ => Eq.symm (pow_three' (S x))",
+        "compilationAlias": "/-- The cubic ACC for the pure-`U(1)` anomaly equations is equal to the sum of the cubed\n  charges. -/\nlemma accCube_explicit (n : ℕ) (S : (PureU1Charges n).Charges) :\n    accCube n S = ∑ i : Fin n, S i ^ 3:= by\n  rw [accCube, TriLinearSymm.toCubic]\n  change accCubeTriLinSymm S S S = _\n  rw [accCubeTriLinSymm]\n  simp only [PureU1Charges_numberCharges, TriLinearSymm.mk₃_toFun_apply_apply]\n  exact Finset.sum_congr rfl fun x _ => Eq.symm (pow_three' (S x))"
+      },
+      {
+        "name": "PureU1.accCube",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The cubic anomaly equation. -/\n@[simp]\ndef accCube (n : ℕ) : HomogeneousCubic ((PureU1Charges n).Charges) :=\n  (accCubeTriLinSymm).toCubic",
+        "compilationAlias": "/-- The cubic anomaly equation. -/\n@[simp]\ndef accCube (n : ℕ) : HomogeneousCubic ((PureU1Charges n).Charges) :=\n  (accCubeTriLinSymm).toCubic"
+      },
+      {
+        "name": "Fin.sum_univ_three",
+        "module": "Mathlib.Algebra.BigOperators.Fin",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive]",
+        "compilationAlias": "@[to_additive]"
+      },
+      {
+        "name": "PureU1_numberCharges",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simps!]",
+        "compilationAlias": "@[simps!]"
+      },
+      {
+        "name": "pureU1_linear",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A solution to the pure U(1) accs satisfies the linear ACCs. -/\nlemma pureU1_linear {n : ℕ} (S : (PureU1 n).LinSols) :\n    ∑ i, S.val i = 0 := by\n  have hS := S.linearSol\n  simp only [succ_eq_add_one, PureU1_numberLinear, PureU1_linearACCs] at hS\n  exact hS 0",
+        "compilationAlias": "/-- A solution to the pure U(1) accs satisfies the linear ACCs. -/\nlemma pureU1_linear {n : ℕ} (S : (PureU1 n).LinSols) :\n    ∑ i, S.val i = 0 := by\n  have hS := S.linearSol\n  simp only [succ_eq_add_one, PureU1_numberLinear, PureU1_linearACCs] at hS\n  exact hS 0"
+      },
+      {
+        "name": "PureU1",
+        "module": "HepLean.AnomalyCancellation.PureU1.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n",
+        "compilationAlias": "/-- The ACC system for a pure $U(1)$ gauge theory with $n$ fermions. -/\n@[simps!]\ndef PureU1 (n : ℕ) : ACCSystem where\n  numberLinear := 1\n  linearACCs := fun i =>\n    match i with\n    | 0 => PureU1.accGrav n\n  numberQuadratic := 0\n  quadraticACCs := Fin.elim0\n  cubicACC := PureU1.accCube n"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

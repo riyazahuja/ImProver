@@ -1,0 +1,1284 @@
+[
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "SMRHN.accCube_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by simpa using toSpecies_sum_invariant 3 f S)\n\n",
+      "compilationAlias": "lemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by simpa using toSpecies_sum_invariant 3 f S)\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\n⊢ Eq (SMνACCs.accCube ((SMRHN.repCharges f) S)) (SMνACCs.accCube S)",
+    "content_sorry": "lemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\nlemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\nlemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n  accCube_ext (by simpa using toSpecies_sum_invariant 3 f S)\n\n",
+    "annotation": "lemma accCube_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accCube (repCharges f S) = accCube S :=\n                  /-\n                    n : Nat\n                    f : SMRHN.PermGroup n\n                    S : (SMνCharges n).Charges\n                    ⊢ ∀ (j : Fin 6), Eq (Finset.univ.sum fun i => Function.comp (fun a => HPow.hPo …\n                  -/\n  accCube_ext (by simpa using toSpecies_sum_invariant 3 f S)\n                  /-\n                    🎉 no goals\n                  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      },
+      {
+        "name": "SMRHN.toSpecies_sum_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+        "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+      },
+      {
+        "name": "SMRHN.accGrav_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU2_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU3_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accYY_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accQuad_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\n",
+        "compilationAlias": "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "SMRHN.accQuad_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\n",
+      "compilationAlias": "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\n⊢ Eq (SMνACCs.accQuad ((SMRHN.repCharges f) S)) (SMνACCs.accQuad S)",
+    "content_sorry": "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\n",
+    "annotation": "lemma accQuad_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accQuad (repCharges f S) = accQuad S :=\n  accQuad_ext (toSpecies_sum_invariant 2 f S)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      },
+      {
+        "name": "SMRHN.toSpecies_sum_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+        "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+      },
+      {
+        "name": "SMRHN.accGrav_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU2_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU3_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accYY_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "",
+    "informal_proof": "First, we consider a permutation group \\( f: \\text{PermGroup}(n) \\) acting on a set of charges \\( S \\). The permutation group rearranges the elements of the set \\( S \\) in a symmetric manner.\n\nThe `accCube` is a function that associates a cube structure to the set of charges \\( S \\). This cube structure is invariant under the action of the permutation group because the group's action does not alter the fundamental symmetries inherent in the charges.\n\nWe use the fact that the permutation group preserves the structure of the charges, as formalized by the `toSpecies_sum_invariant` lemma, which ensures that the cube's properties remain unchanged. By applying `accCube_ext`, we leverage this invariance to conclude that the cube structure does not change despite the permutation group's action.\n\nTherefore, the associativity cube of the charges remains the same before and after applying the permutation group.",
+    "id": {
+      "name": "SMRHN.accYY_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+      "compilationAlias": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\n⊢ Eq (SMνACCs.accYY ((SMRHN.repCharges f) S)) (SMνACCs.accYY S)",
+    "content_sorry": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+    "annotation": "lemma accYY_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accYY (repCharges f S) = accYY S :=\n                /-\n                  n : Nat\n                  f : SMRHN.PermGroup n\n                  S : (SMνCharges n).Charges\n                  ⊢ ∀ (j : Fin 6), Eq (Finset.univ.sum fun i => (SMνCharges.toSpecies j) ((SMRHN …\n                -/\n  accYY_ext (by simpa using toSpecies_sum_invariant 1 f S)\n                /-\n                  🎉 no goals\n                -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      },
+      {
+        "name": "SMRHN.toSpecies_sum_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+        "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+      },
+      {
+        "name": "SMRHN.accGrav_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU2_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU3_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "The `accQuad` function is invariant under the action of any permutation in the permutation group `PermGroup n`. This means that applying a group element `f` to a set of charges `S` does not change the value of `accQuad`.",
+    "informal_proof": "Let $f$ be an arbitrary permutation in the permutation group $\\text{PermGroup}(n)$, and let $S$ be an arbitrary set of charges. We aim to show that the $accQuad$ of the charges after the permutation, denoted as $accQuad(\\text{repCharges}(f, S))$, is equal to the $accQuad$ of the original charges, $accQuad(S)$.\n\nBy invoking the `toSpecies_sum_invariant` function with parameters $2$, $f$, and $S$, we obtain an invariant sum that ensures $accQuad$ remains unchanged under the permutation $f$. This property stems from the invariance of the sum under group actions, where each element's contribution to the sum is preserved irrespective of the permutation.\n\nTherefore, since the choice of permutation $f$ and charge set $S$ were arbitrary, we conclude that $accQuad(\\text{repCharges}(f, S)) = accQuad(S)$ holds for all permutations $f \\in \\text{PermGroup}(n)$ and all charge sets $S$. This demonstrates that $accQuad$ is indeed invariant under the permutation group action.",
+    "id": {
+      "name": "SMRHN.accSU3_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+      "compilationAlias": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\n⊢ Eq (SMνACCs.accSU3 ((SMRHN.repCharges f) S)) (SMνACCs.accSU3 S)",
+    "content_sorry": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+    "annotation": "lemma accSU3_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU3 (repCharges f S) = accSU3 S :=\n                 /-\n                   n : Nat\n                   f : SMRHN.PermGroup n\n                   S : (SMνCharges n).Charges\n                   ⊢ ∀ (j : Fin 6), Eq (Finset.univ.sum fun i => (SMνCharges.toSpecies j) ((SMRHN …\n                 -/\n  accSU3_ext (by simpa using toSpecies_sum_invariant 1 f S)\n                 /-\n                   🎉 no goals\n                 -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      },
+      {
+        "name": "SMRHN.toSpecies_sum_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+        "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+      },
+      {
+        "name": "SMRHN.accGrav_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      },
+      {
+        "name": "SMRHN.accSU2_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "For any permutation \\( f \\) in the permutation group on \\( n \\) elements and any species of charged conjugacy classes \\( S \\), the function \\( \\text{accYY} \\) evaluated at the permutation of charges \\( \\text{repCharges} \\, f \\, S \\) is equal to \\( \\text{accYY} \\) evaluated at \\( S \\).",
+    "informal_proof": "Since \\( f \\) is an element of the permutation group on \\( n \\) elements, it induces a rearrangement of the charges in \\( S \\) through the action of \\( \\text{repCharges} \\, f \\). The property of \\( \\text{accYY} \\) being invariant under this permutation action ensures that \\( \\text{accYY} \\, (\\text{repCharges} \\, f \\, S) \\) does not change with the permutation \\( f \\). This invariance is formalized by the lemma \\( \\text{accYY\\_invairant} \\), which leverages the invariance established by \\( \\text{accYY\\_ext} \\) through the species sum invariance property \\( \\text{species\\_sum\\_invariant} \\). Therefore, we conclude that \\( \\text{accYY} \\, (\\text{repCharges} \\, f \\, S) = \\text{accYY} \\, S \\).",
+    "id": {
+      "name": "SMRHN.accSU2_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+      "compilationAlias": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\n⊢ Eq (SMνACCs.accSU2 ((SMRHN.repCharges f) S)) (SMνACCs.accSU2 S)",
+    "content_sorry": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\nlemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+    "annotation": "lemma accSU2_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accSU2 (repCharges f S) = accSU2 S :=\n                 /-\n                   n : Nat\n                   f : SMRHN.PermGroup n\n                   S : (SMνCharges n).Charges\n                   ⊢ ∀ (j : Fin 6), Eq (Finset.univ.sum fun i => (SMνCharges.toSpecies j) ((SMRHN …\n                 -/\n  accSU2_ext (by simpa using toSpecies_sum_invariant 1 f S)\n                 /-\n                   🎉 no goals\n                 -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      },
+      {
+        "name": "SMRHN.toSpecies_sum_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+        "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+      },
+      {
+        "name": "SMRHN.accGrav_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+        "compilationAlias": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "For any permutation \\( f \\) of the charges and any set \\( S \\) of charges, the \\( \\text{accSU3} \\) value remains unchanged.",
+    "informal_proof": "First, we state that \\( \\text{accSU3} \\) is a function that associates a value to a set of charges represented by `repCharges`. To prove that \\( \\text{accSU3}(\\text{repCharges } f S) \\) is equal to \\( \\text{accSU3}(S) \\) for any permutation \\( f \\) of \\( S \\), we utilize the property of permutation invariance.\n\nWe begin by applying the `accSU3_ext` lemma, which allows us to equate \\( \\text{accSU3} \\) values by examining their underlying structures. By employing `simpa`, we simplify the expression \\( \\text{toSpecies\\_sum\\_invariant}(1) f S \\), leveraging the permutation invariance property to show that the \\( \\text{accSU3} \\) value does not depend on the specific order of charges but only on their collective properties.\n\nUltimately, this demonstrates that \\( \\text{accSU3} \\) is invariant under any permutation of the charge set \\( S \\), confirming the original statement.",
+    "id": {
+      "name": "SMRHN.accGrav_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+      "compilationAlias": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\n⊢ Eq (SMνACCs.accGrav ((SMRHN.repCharges f) S)) (SMνACCs.accGrav S)",
+    "content_sorry": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\nlemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n\n",
+    "annotation": "lemma accGrav_invariant (f : PermGroup n) (S : (SMνCharges n).Charges) :\n    accGrav (repCharges f S) = accGrav S :=\n                  /-\n                    n : Nat\n                    f : SMRHN.PermGroup n\n                    S : (SMνCharges n).Charges\n                    ⊢ ∀ (j : Fin 6), Eq (Finset.univ.sum fun i => (SMνCharges.toSpecies j) ((SMRHN …\n                  -/\n  accGrav_ext (by simpa using toSpecies_sum_invariant 1 f S)\n                  /-\n                    🎉 no goals\n                  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      },
+      {
+        "name": "SMRHN.toSpecies_sum_invariant",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+        "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "tags regardless, perhaps I can just state what accSU2 is in the context of the problem.\n\nOverall, the key points to cover are:\n\n- Understanding the components: permutation group, charges, accSU2.\n- Explain the role of permutation in rearranging charges.\n- Show that the sum (accSU2) is invariant under such rearrangements because sum is commutative.\n- Connect this to the formal proof's logic.\n\nThat should give a good structure to the informalized statement and proof.\n</think>\n\n<STATEMENT>\n\nFor any natural number \\( n \\), and any permutation \\( f \\) in the permutation group on \\( n \\) elements, along with any charge configuration \\( S \\), the value of \\( \\text{accSU2} \\) remains unchanged when the charges in \\( S \\) are permuted by \\( f \\).",
+    "informal_proof": "and <STATEMENT> tags regardless, perhaps I can just state what accSU2 is in the context of the problem.\n\nOverall, the key points to cover are:\n\n- Understanding the components: permutation group, charges, accSU2.\n- Explain the role of permutation in rearranging charges.\n- Show that the sum (accSU2) is invariant under such rearrangements because sum is commutative.\n- Connect this to the formal proof's logic.\n\nThat should give a good structure to the informalized statement and proof.\n</think>\n\n<STATEMENT>\n\nFor any natural number \\( n \\), and any permutation \\( f \\) in the permutation group on \\( n \\) elements, along with any charge configuration \\( S \\), the value of \\( \\text{accSU2} \\) remains unchanged when the charges in \\( S \\) are permuted by \\( f \\).\n\n</STATEMENT>\n<PROOF>\n\nConsider a set of charges \\( S \\) indexed by a set of \\( n \\) elements. The permutation \\( f \\) rearranges these charges by mapping each element to another position within the set. The measure \\( \\text{accSU2} \\) is defined as a sum over certain interactions or relationships between these charges (perhaps involving all pairs or all elements and their images under \\( f \\)).\n\nSince \\( f \\) is a permutation, it simply reorders the charges without changing their individual values or their multiplicities. The sum defining \\( \\text{accSU2} \\) depends on the values of the charges and their specific pairings or relationships, but not on the order in which they are summed. Therefore, rearranging the charges according to \\( f \\) does not alter the total sum, because addition is commutative and the order of terms does not affect the sum's value.\n\nAs a result, \\( \\text{accSU2} \\) is invariant under the permutation \\( f \\) applied to the charge configuration \\( S \\).",
+    "id": {
+      "name": "SMRHN.toSpecies_sum_invariant",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+      "compilationAlias": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n"
+    },
+    "goal": "α : Type u\ns : Set α\n⊢ Eq (HasSubset.Subset s Set.univ) True",
+    "content_sorry": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\nlemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  erw [repCharges_toSpecies]\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n\n",
+    "annotation": "lemma toSpecies_sum_invariant (m : ℕ) (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j (repCharges f S)) i =\n    ∑ i, ((fun a => a ^ m) ∘ toSpecies j S) i := by\n  /-\n    n m : Nat\n    f : SMRHN.PermGroup n\n    S : (SMνCharges n).Charges\n    j : Fin 6\n    ⊢ Eq (Finset.univ.sum fun i => Function.comp (fun a => HPow.hPow a m) ((SMνCha …\n  -/\n  erw [repCharges_toSpecies]\n  /-\n    n m : Nat\n    f : SMRHN.PermGroup n\n    S : (SMνCharges n).Charges\n    j : Fin 6\n    ⊢ Eq (Finset.univ.sum fun i => Function.comp (fun a => HPow.hPow a m) (Functio …\n  -/\n  change ∑ i : Fin n, ((fun a => a ^ m) ∘ _) (⇑(f⁻¹ _) i) = ∑ i : Fin n, ((fun a => a ^ m) ∘ _) i\n  /-\n    n m : Nat\n    f : SMRHN.PermGroup n\n    S : (SMνCharges n).Charges\n    j : Fin 6\n    ⊢ Eq (Finset.univ.sum fun i => Function.comp (fun a => HPow.hPow a m) ((SMνCha …\n  -/\n  refine Equiv.Perm.sum_comp _ _ _ ?_\n  /-\n    n m : Nat\n    f : SMRHN.PermGroup n\n    S : (SMνCharges n).Charges\n    j : Fin 6\n    ⊢ HasSubset.Subset (setOf fun a => Ne ((Inv.inv f j) a) a) ↑Finset.univ\n  -/\n  simp only [PermGroup, Fin.isValue, Pi.inv_apply, ne_eq, coe_univ, Set.subset_univ]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Set.subset_univ",
+        "module": "Mathlib.Data.Set.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem subset_univ (s : Set α) : s ⊆ univ := fun _ _ => trivial",
+        "compilationAlias": "@[simp]\ntheorem subset_univ (s : Set α) : s ⊆ univ := fun _ _ => trivial"
+      },
+      {
+        "name": "ne_eq",
+        "module": "Init.SimpLemmas",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] theorem ne_eq (a b : α) : (a ≠ b) = ¬(a = b) := rfl",
+        "compilationAlias": "@[simp] theorem ne_eq (a b : α) : (a ≠ b) = ¬(a = b) := rfl"
+      },
+      {
+        "name": "Pi.inv_apply",
+        "module": "Mathlib.Algebra.Group.Pi.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp)]\ntheorem inv_apply [∀ i, Inv <| f i] : x⁻¹ i = (x i)⁻¹ :=\n  rfl",
+        "compilationAlias": "@[to_additive (attr := simp)]\ntheorem inv_apply [∀ i, Inv <| f i] : x⁻¹ i = (x i)⁻¹ :=\n  rfl"
+      },
+      {
+        "name": "Fin.isValue",
+        "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+        "compilationAlias": "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"
+      },
+      {
+        "name": "Equiv.Perm.sum_comp",
+        "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive]",
+        "compilationAlias": "@[to_additive]"
+      },
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges_toSpecies",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+        "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "The gravitational action remains unchanged even when the charges are permuted.",
+    "informal_proof": "The gravitational action is calculated based on the charges, and since permutations do not alter the overall structure or the sum of the charges, the gravitational action remains invariant. Essentially, rearranging the charges does not affect the total gravitational effect.",
+    "id": {
+      "name": "SMRHN.repCharges_toSpecies",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+      "compilationAlias": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n"
+    },
+    "goal": "n : Nat\nf : SMRHN.PermGroup n\nS : (SMνCharges n).Charges\nj : Fin 6\n⊢ Eq ((SMνCharges.toSpecies j) ((SMRHN.repCharges f) S)) (Function.comp ((SMνCharges.toSpecies j) S) ⇑(Inv.inv f j))",
+    "content_sorry": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\nlemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  erw [toSMSpecies_toSpecies_inv]\n\n",
+    "annotation": "lemma repCharges_toSpecies (f : PermGroup n) (S : (SMνCharges n).Charges) (j : Fin 6) :\n    toSpecies j (repCharges f S) = toSpecies j S ∘ f⁻¹ j := by\n  /-\n    n : Nat\n    f : SMRHN.PermGroup n\n    S : (SMνCharges n).Charges\n    j : Fin 6\n    ⊢ Eq ((SMνCharges.toSpecies j) ((SMRHN.repCharges f) S)) (Function.comp ((SMνC …\n  -/\n  erw [toSMSpecies_toSpecies_inv]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.repCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+        "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "For any natural number \\( m \\), permutation group \\( f \\) of \\( n \\), and \\( S \\) of type \\( SMνCharges n \\), the sum \\( \\sum_{i} \\ fun \\ a \\ => \\ a^m \\circ \\ toSpecies \\ j \\ (repCharges \\ f \\ S) \\ i \\) is invariant under the permutation \\( f \\). That is, it equals \\( \\sum_{i} \\ fun \\ a \\ => \\ a^m \\circ \\ toSpecies \\ j \\ S \\ i \\).",
+    "informal_proof": "First, we acknowledge that \\( f \\) is a permutation group, meaning it is bijective and thus invertible. The function `repCharges` involves applying `f⁻¹` to index the terms in the sum, which suggests a reordering of the indices.\n\nBy invoking `Equiv.Perm.sum_comp`, we recognize that applying `f⁻¹` to the indices facilitates the sum over all \\( i \\), maintaining the structure of the sum. Specifically, since \\( f \\) is a permutation, the sum remains unchanged because the terms are merely reordered without altering their values.\n\nTherefore, through the application of permutation properties and the invariance of sum under permutation, the equality of the sums is established.",
+    "id": {
+      "name": "SMRHN.repCharges",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+      "compilationAlias": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n"
+    },
+    "goal": "n✝ n : Nat\n⊢ Eq ((fun f => SMRHN.chargeMap (Inv.inv f)) 1) 1",
+    "content_sorry": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    simp only [PermGroup, mul_inv_rev]\n    apply LinearMap.ext\n    intro S\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    repeat erw [toSMSpecies_toSpecies_inv]\n    rfl\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+    "annotation": "/-- The representation of `(permGroup n)` acting on the vector space of charges. -/\n@[simp]\ndef repCharges {n : ℕ} : Representation ℚ (PermGroup n) (SMνCharges n).Charges where\n  toFun f := chargeMap f⁻¹\n  map_mul' f g := by\n    /-\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      ⊢ Eq ({ toFun := fun f => SMRHN.chargeMap (Inv.inv f), map_one' := ⋯ }.toFun ( …\n    -/\n    simp only [PermGroup, mul_inv_rev]\n    /-\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      ⊢ Eq (SMRHN.chargeMap (HMul.hMul (Inv.inv g) (Inv.inv f))) (HMul.hMul (SMRHN.c …\n    -/\n    apply LinearMap.ext\n    /-\n      case h\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      ⊢ ∀ (x : (SMνCharges n).Charges), Eq ((SMRHN.chargeMap (HMul.hMul (Inv.inv g)  …\n    -/\n    intro S\n    /-\n      case h\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      S : (SMνCharges n).Charges\n      ⊢ Eq ((SMRHN.chargeMap (HMul.hMul (Inv.inv g) (Inv.inv f))) S) ((HMul.hMul (SM …\n    -/\n    rw [charges_eq_toSpecies_eq]\n    /-\n      case h\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      S : (SMνCharges n).Charges\n      ⊢ ∀ (i : Fin 6), Eq ((SMνCharges.toSpecies i) ((SMRHN.chargeMap (HMul.hMul (In …\n    -/\n    /-\n      n✝ n : Nat\n      ⊢ Eq ((fun f => SMRHN.chargeMap (Inv.inv f)) 1) 1\n    -/\n    intro i\n    /-\n      n✝ n : Nat\n      S : (SMνCharges n).Charges\n      ⊢ Eq (((fun f => SMRHN.chargeMap (Inv.inv f)) 1) S) (1 S)\n    -/\n    /-\n      case h\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      S : (SMνCharges n).Charges\n      i : Fin 6\n      ⊢ Eq ((SMνCharges.toSpecies i) ((SMRHN.chargeMap (HMul.hMul (Inv.inv g) (Inv.i …\n    -/\n    /-\n      n✝ n : Nat\n      S : (SMνCharges n).Charges\n      ⊢ ∀ (i : Fin 6), Eq ((SMνCharges.toSpecies i) (((fun f => SMRHN.chargeMap (Inv …\n    -/\n    simp only [chargeMap_apply, Pi.mul_apply, Pi.inv_apply, Equiv.Perm.coe_mul, LinearMap.mul_apply]\n    /-\n      n✝ n : Nat\n      S : (SMνCharges n).Charges\n      i : Fin 6\n      ⊢ Eq ((SMνCharges.toSpecies i) (((fun f => SMRHN.chargeMap (Inv.inv f)) 1) S)) …\n    -/\n    /-\n      case h\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      S : (SMνCharges n).Charges\n      i : Fin 6\n      ⊢ Eq ((SMνCharges.toSpecies i) (SMνCharges.toSpeciesEquiv.symm fun i => Functi …\n    -/\n    /-\n      n✝ n : Nat\n      S : (SMνCharges n).Charges\n      i : Fin 6\n      ⊢ Eq (Function.comp ((SMνCharges.toSpecies i) S) ⇑(Inv.inv 1 i)) ((SMνCharges. …\n    -/\n    repeat erw [toSMSpecies_toSpecies_inv]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case h\n      n✝ n : Nat\n      f g : SMRHN.PermGroup n\n      S : (SMνCharges n).Charges\n      i : Fin 6\n      ⊢ Eq (Function.comp ((SMνCharges.toSpecies i) S) (Function.comp ⇑(Inv.inv (g i …\n    -/\n    rfl\n    /-\n      🎉 no goals\n    -/\n  map_one' := by\n    refine LinearMap.ext fun S => ?_\n    rw [charges_eq_toSpecies_eq]\n    intro i\n    erw [toSMSpecies_toSpecies_inv]\n    rfl\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "LinearMap.mul_apply",
+        "module": "Mathlib.Algebra.Module.LinearMap.End",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mul_apply (f g : Module.End R M) (x : M) : (f * g) x = f (g x) := rfl",
+        "compilationAlias": "@[simp]\ntheorem mul_apply (f g : Module.End R M) (x : M) : (f * g) x = f (g x) := rfl"
+      },
+      {
+        "name": "Equiv.Perm.coe_mul",
+        "module": "Mathlib.Algebra.Group.End",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp, norm_cast] lemma coe_mul (f g : Perm α) : ⇑(f * g) = f ∘ g := rfl",
+        "compilationAlias": "@[simp, norm_cast] lemma coe_mul (f g : Perm α) : ⇑(f * g) = f ∘ g := rfl"
+      },
+      {
+        "name": "Pi.inv_apply",
+        "module": "Mathlib.Algebra.Group.Pi.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp)]\ntheorem inv_apply [∀ i, Inv <| f i] : x⁻¹ i = (x i)⁻¹ :=\n  rfl",
+        "compilationAlias": "@[to_additive (attr := simp)]\ntheorem inv_apply [∀ i, Inv <| f i] : x⁻¹ i = (x i)⁻¹ :=\n  rfl"
+      },
+      {
+        "name": "Pi.mul_apply",
+        "module": "Mathlib.Algebra.Group.Pi.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp)]\ntheorem mul_apply [∀ i, Mul <| f i] : (x * y) i = x i * y i :=\n  rfl",
+        "compilationAlias": "@[to_additive (attr := simp)]\ntheorem mul_apply [∀ i, Mul <| f i] : (x * y) i = x i * y i :=\n  rfl"
+      },
+      {
+        "name": "LinearMap.ext",
+        "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[ext]",
+        "compilationAlias": "@[ext]"
+      },
+      {
+        "name": "mul_inv_rev",
+        "module": "Mathlib.Algebra.Group.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp) neg_add_rev]\ntheorem mul_inv_rev (a b : G) : (a * b)⁻¹ = b⁻¹ * a⁻¹ :=\n  DivisionMonoid.mul_inv_rev _ _",
+        "compilationAlias": "@[to_additive (attr := simp) neg_add_rev]\ntheorem mul_inv_rev (a b : G) : (a * b)⁻¹ = b⁻¹ * a⁻¹ :=\n  DivisionMonoid.mul_inv_rev _ _"
+      },
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      },
+      {
+        "name": "Representation",
+        "module": "Mathlib.RepresentationTheory.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V",
+        "compilationAlias": "/-- A representation of `G` on the `k`-module `V` is a homomorphism `G →* (V →ₗ[k] V)`.\n-/\nabbrev Representation :=\n  G →* V →ₗ[k] V"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap_apply",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "The application of a permutation to charges followed by the conversion into species is equivalent to converting the charges into species first and then applying the inverse permutation.",
+    "informal_proof": "The proof follows directly from the given equality:\n```\nerw [toSMSpecies_toSpecies_inv]\n```\nThis line asserts that the transformation respects the permutation's inverse, ensuring that the conversion into species commutes with the permutation action. Thus, the operation of applying a permutation and then converting into species is commutative with the inverse permutation applied after the conversion.",
+    "id": {
+      "name": "SMRHN.chargeMap_apply",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+      "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+    },
+    "goal": "",
+    "content_sorry": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+    "annotation": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "rfl",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+        "compilationAlias": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"
+      },
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      },
+      {
+        "name": "SMRHN.chargeMap",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+        "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "The permutation group `PermGroup n` acts on the vector space of charges through a representation that maps group elements to linear transformations preserving the structure of the vector space.",
+    "informal_proof": "This representation is defined by mapping each permutation to a corresponding linear transformation on the vector space of charges. The properties `map_mul'` and `map_one'` ensure that the group operation (multiplication) and the identity element are respected under this mapping, thereby preserving the group structure within the vector space. Each transformation corresponds to a permutation of charges, maintaining the essential properties of linearity and invertibility required for a valid representation.",
+    "id": {
+      "name": "SMRHN.chargeMap",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+      "compilationAlias": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n"
+    },
+    "goal": "",
+    "content_sorry": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+    "annotation": "/-- The image of an element of `permGroup n` under the representation on charges. -/\n@[simps!]\ndef chargeMap (f : PermGroup n) : (SMνCharges n).Charges →ₗ[ℚ] (SMνCharges n).Charges where\n  toFun S := toSpeciesEquiv.symm (fun i => toSpecies i S ∘ f i)\n  map_add' _ _ := rfl\n  map_smul' _ _ := rfl\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "rfl",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+        "compilationAlias": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"
+      },
+      {
+        "name": "SMνCharges",
+        "module": "HepLean.AnomalyCancellation.SMNu.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)",
+        "compilationAlias": "/-- The vector space of charges corresponding to the SM fermions with RHN. -/\n@[simps!]\ndef SMνCharges (n : ℕ) : ACCSystemCharges := ACCSystemChargesMk (6 * n)"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      },
+      {
+        "name": "SMRHN.instGroupPermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+        "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u\n\nvariable {n : ℕ}",
+    "postscopes": "end SMRHN",
+    "informal_statement": "The `chargeMap` function takes an element from the permutation group `PermGroup n` and maps it to a linear transformation on the space of charges, denoted `SMνCharges n`. This mapping respects the operations of addition and scalar multiplication, as defined by the Lean4 code.",
+    "informal_proof": "Given an element `f` in `PermGroup n`, the `chargeMap` function associates it with a linear transformation on `SMνCharges n`. Specifically, for each index `i`, the function applies `f i` after converting back from species using `toSpecies`. Since `f` is a permutation, it induces a linear transformation that preserves the structure of addition and scalar multiplication inherent in the charges. The properties of linearity—preservation of vector addition and scalar multiplication—are formally verified by the rfl tactic in Lean4, ensuring that `chargeMap` indeed represents a valid linear map.\n\nThus, we conclude that `chargeMap` is a well-defined linear transformation from `PermGroup n` to the space of linear maps on `SMνCharges n`.",
+    "id": {
+      "name": "SMRHN.instGroupPermGroup",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+      "compilationAlias": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n"
+    },
+    "goal": "⊢ _obj",
+    "content_sorry": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\nvariable {n : ℕ}\n\n/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+    "annotation": "/-- The instance of a group on `PermGroup n` through the target space `Equiv.Perm (Fin n)`. -/\n@[simp]\ninstance : Group (PermGroup n) := Pi.group\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Pi.group",
+        "module": "Mathlib.Algebra.Group.Pi.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive]\ninstance group [∀ i, Group (f i)] : Group (∀ i, f i) where\n  inv_mul_cancel := by intros; ext; exact inv_mul_cancel _",
+        "compilationAlias": "@[to_additive]\ninstance group [∀ i, Group (f i)] : Group (∀ i, f i) where\n  inv_mul_cancel := by intros; ext; exact inv_mul_cancel _"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "SMRHN.PermGroup",
+        "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+        "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace SMRHN\n\nopen Nat Finset SMνCharges SMνACCs BigOperators\n\nuniverse v u",
+    "postscopes": "end SMRHN",
+    "informal_statement": "For each natural number \\( n \\), there exists a group \\( S_n \\) consisting of permutations on a fixed 6-element set, known as the permutation group or symmetric group for that species.",
+    "informal_proof": "To establish the existence of the symmetric group \\( S_n \\) for each \\( n \\), we consider a fixed 6-element set. The set of all bijections (permutations) from this fixed set to itself forms a group under the operation of composition. Specifically:\n\n1. **Closure**: For any two permutations \\( \\sigma \\) and \\( \\tau \\) in \\( S_n \\), their composition \\( \\sigma \\circ \\tau \\) is also a permutation in \\( S_n \\).\n\n2. **Associativity**: The operation of composition is associative: for any permutations \\( \\sigma \\), \\( \\tau \\), and \\( \\rho \\) in \\( S_n \\), \\( (\\sigma \\circ \\tau) \\circ \\rho = \\sigma \\circ (\\tau \\circ \\rho) \\).\n\n3. **Identity Element**: The identity permutation, which maps every element to itself, serves as the identity element in \\( S_n \\).\n\n4. **Inverse Element**: For every permutation \\( \\sigma \\) in \\( S_n \\), there exists an inverse permutation \\( \\sigma^{-1} \\) such that \\( \\sigma \\circ \\sigma^{-1} \\) is the identity permutation.\n\nSince these axioms are satisfied, the set of all permutations on the fixed 6-element set indeed forms a group under composition, denoted as \\( S_n \\), the symmetric group for each species \\( n \\).",
+    "id": {
+      "name": "SMRHN.PermGroup",
+      "module": "HepLean.AnomalyCancellation.SMNu.Permutations",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+      "compilationAlias": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n"
+    },
+    "goal": "n : Nat\n⊢ Eq (SMRHN.PermGroup n) (Fin 6 → Equiv.Perm (Fin n))",
+    "content_sorry": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.AnomalyCancellation.SMNu.Basic\nimport Mathlib.RepresentationTheory.Basic\n/-!\n# Permutations of SM charges with RHN.\n\nWe define the group of permutations for the SM charges with RHN.\n-/\n\nuniverse v u\n\nopen Nat\nopen Finset\n\nnamespace SMRHN\n\nopen SMνCharges\nopen SMνACCs\nopen BigOperators\n\n/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+    "annotation": "/-- The group of `Sₙ` permutations for each species. -/\n@[simp]\ndef PermGroup (n : ℕ) := Fin 6 → Equiv.Perm (Fin n)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Equiv.Perm",
+        "module": "Mathlib.Logic.Equiv.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `Perm α` is the type of bijections from `α` to itself. -/\nabbrev Equiv.Perm (α : Sort*) :=\n  Equiv α α",
+        "compilationAlias": "/-- `Perm α` is the type of bijections from `α` to itself. -/\nabbrev Equiv.Perm (α : Sort*) :=\n  Equiv α α"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

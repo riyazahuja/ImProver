@@ -1,0 +1,651 @@
+[{"rag": [],
+  "prescopes":
+  "namespace WickContraction\n\nopen FieldSpecification HepLean.List FieldSpecification.FieldOpAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification} {n : ℕ} (c : WickContraction n)",
+  "postscopes": "end WickContraction",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "WickContraction.staticContract_of_not_gradingCompliant",
+   "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma staticContract_of_not_gradingCompliant (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (h : ¬ GradingCompliant φs φsΛ) :\n    φsΛ.staticContract = 0 := by\n  rw [staticContract]\n  simp only [GradingCompliant, Fin.getElem_fin, Subtype.forall, not_forall] at h\n  obtain ⟨a, ha⟩ := h\n  obtain ⟨ha, ha2⟩ := ha\n  apply Finset.prod_eq_zero (i := ⟨a, ha⟩)\n  simp only [Finset.univ_eq_attach, Finset.mem_attach]\n  apply Subtype.eq\n  simp only [List.get_eq_getElem, ZeroMemClass.coe_zero]\n  rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n  simp [ha2]\n\n",
+   "compilationAlias":
+   "lemma staticContract_of_not_gradingCompliant (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (h : ¬ GradingCompliant φs φsΛ) :\n    φsΛ.staticContract = 0 := by\n  rw [staticContract]\n  simp only [GradingCompliant, Fin.getElem_fin, Subtype.forall, not_forall] at h\n  obtain ⟨a, ha⟩ := h\n  obtain ⟨ha, ha2⟩ := ha\n  apply Finset.prod_eq_zero (i := ⟨a, ha⟩)\n  simp only [Finset.univ_eq_attach, Finset.mem_attach]\n  apply Subtype.eq\n  simp only [List.get_eq_getElem, ZeroMemClass.coe_zero]\n  rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n  simp [ha2]\n\n"},
+  "goal":
+  "α : Sort u\np : α → Prop\nq : (Subtype fun a => p a) → Prop\n⊢ Eq (∀ (x : Subtype fun a => p a), q x) (∀ (a : α) (b : p a), q ⟨a, b⟩)",
+  "content_sorry":
+  "lemma staticContract_of_not_gradingCompliant (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (h : ¬ GradingCompliant φs φsΛ) :\n    φsΛ.staticContract = 0 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\nopen FieldStatistic\n\nlemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\nlemma staticContract_of_not_gradingCompliant (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (h : ¬ GradingCompliant φs φsΛ) :\n    φsΛ.staticContract = 0 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\nopen FieldStatistic\n\nlemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\nlemma staticContract_of_not_gradingCompliant (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (h : ¬ GradingCompliant φs φsΛ) :\n    φsΛ.staticContract = 0 := by\n  rw [staticContract]\n  simp only [GradingCompliant, Fin.getElem_fin, Subtype.forall, not_forall] at h\n  obtain ⟨a, ha⟩ := h\n  obtain ⟨ha, ha2⟩ := ha\n  apply Finset.prod_eq_zero (i := ⟨a, ha⟩)\n  simp only [Finset.univ_eq_attach, Finset.mem_attach]\n  apply Subtype.eq\n  simp only [List.get_eq_getElem, ZeroMemClass.coe_zero]\n  rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n  simp [ha2]\n\n",
+  "annotation":
+  "lemma staticContract_of_not_gradingCompliant (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (h : ¬ GradingCompliant φs φsΛ) :\n    φsΛ.staticContract = 0 := by\n  /-\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    h : Not (WickContraction.GradingCompliant φs φsΛ)\n    ⊢ Eq φsΛ.staticContract 0\n  -/\n  rw [staticContract]\n  /-\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    h : Not (WickContraction.GradingCompliant φs φsΛ)\n    ⊢ Eq (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommu …\n  -/\n  simp only [GradingCompliant, Fin.getElem_fin, Subtype.forall, not_forall] at h\n  /-\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    h : Exists fun x => Exists fun x_1 => Not (Eq (𝓕.fieldOpStatistic (GetElem.get …\n    ⊢ Eq (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommu …\n  -/\n  obtain ⟨a, ha⟩ := h\n  /-\n    case intro\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Exists fun x => Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fst …\n    ⊢ Eq (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommu …\n  -/\n  obtain ⟨ha, ha2⟩ := ha\n  /-\n    case intro.intro\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Membership.mem (↑φsΛ) a\n    ha2 : Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract …\n    ⊢ Eq (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommu …\n  -/\n  apply Finset.prod_eq_zero (i := ⟨a, ha⟩)\n  /-\n    case intro.intro.hi\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Membership.mem (↑φsΛ) a\n    ha2 : Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract …\n    ⊢ Membership.mem Finset.univ ⟨a, ha⟩\n  -/\n  simp only [Finset.univ_eq_attach, Finset.mem_attach]\n  /-\n    case intro.intro.h\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Membership.mem (↑φsΛ) a\n    ha2 : Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract …\n    ⊢ Eq ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fiel …\n  -/\n  apply Subtype.eq\n  /-\n    case intro.intro.h.a\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Membership.mem (↑φsΛ) a\n    ha2 : Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract …\n    ⊢ Eq ↑⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fie …\n  -/\n  simp only [List.get_eq_getElem, ZeroMemClass.coe_zero]\n  /-\n    case intro.intro.h.a\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Membership.mem (↑φsΛ) a\n    ha2 : Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract …\n    ⊢ Eq ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fiel …\n  -/\n  rw [superCommute_anPart_ofFieldOpF_diff_grade_zero]\n  /-\n    case intro.intro.h.a.h\n    𝓕 : FieldSpecification\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    a : Finset (Fin φs.length)\n    ha : Membership.mem (↑φsΛ) a\n    ha2 : Not (Eq (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract …\n    ⊢ Ne (𝓕.fieldOpStatistic (GetElem.getElem φs ↑(φsΛ.fstFieldOfContract ⟨a, ha⟩) …\n  -/\n  simp [ha2]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "ZeroMemClass.coe_zero",
+    "module": "Mathlib.Algebra.Group.Submonoid.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp, norm_cast)]",
+    "compilationAlias": "@[to_additive (attr := simp, norm_cast)]"},
+   {"name": "List.get_eq_getElem",
+    "module": "Init.Data.List.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem get_eq_getElem (l : List α) (i : Fin l.length) : l.get i = l[i.1]'i.2 := rfl",
+    "compilationAlias":
+    "@[simp] theorem get_eq_getElem (l : List α) (i : Fin l.length) : l.get i = l[i.1]'i.2 := rfl"},
+   {"name": "Subtype.eq",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "protected theorem eq : ∀ {a1 a2 : {x // p x}}, val a1 = val a2 → a1 = a2\n  | ⟨_, _⟩, ⟨_, _⟩, rfl => rfl",
+    "compilationAlias":
+    "protected theorem eq : ∀ {a1 a2 : {x // p x}}, val a1 = val a2 → a1 = a2\n  | ⟨_, _⟩, ⟨_, _⟩, rfl => rfl"},
+   {"name": "Finset.mem_attach",
+    "module": "Mathlib.Data.Finset.Attach",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_attach (s : Finset α) : ∀ x, x ∈ s.attach :=\n  Multiset.mem_attach _",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_attach (s : Finset α) : ∀ x, x ∈ s.attach :=\n  Multiset.mem_attach _"},
+   {"name": "Finset.univ_eq_attach",
+    "module": "Mathlib.Data.Fintype.Sets",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem Finset.univ_eq_attach {α : Type u} (s : Finset α) : (univ : Finset s) = s.attach :=\n  rfl",
+    "compilationAlias":
+    "@[simp]\ntheorem Finset.univ_eq_attach {α : Type u} (s : Finset α) : (univ : Finset s) = s.attach :=\n  rfl"},
+   {"name": "Finset.prod_eq_zero",
+    "module": "Mathlib.Algebra.BigOperators.GroupWithZero.Finset",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma prod_eq_zero (hi : i ∈ s) (h : f i = 0) : ∏ j ∈ s, f j = 0 := by\n  classical rw [← prod_erase_mul _ _ hi, h, mul_zero]",
+    "compilationAlias":
+    "lemma prod_eq_zero (hi : i ∈ s) (h : f i = 0) : ∏ j ∈ s, f j = 0 := by\n  classical rw [← prod_erase_mul _ _ hi, h, mul_zero]"},
+   {"name": "Subtype.forall",
+    "module": "Init.Data.Subtype",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nprotected theorem «forall» {q : { a // p a } → Prop} : (∀ x, q x) ↔ ∀ a b, q ⟨a, b⟩ :=\n  ⟨fun h a b ↦ h ⟨a, b⟩, fun h ⟨a, b⟩ ↦ h a b⟩",
+    "compilationAlias":
+    "@[simp]\nprotected theorem «forall» {q : { a // p a } → Prop} : (∀ x, q x) ↔ ∀ a b, q ⟨a, b⟩ :=\n  ⟨fun h a b ↦ h ⟨a, b⟩, fun h ⟨a, b⟩ ↦ h a b⟩"},
+   {"name": "Fin.getElem_fin",
+    "module": "Init.GetElem",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem getElem_fin [GetElem? Cont Nat Elem Dom] (a : Cont) (i : Fin n) (h : Dom a i) :\n    a[i] = a[i.1] := rfl",
+    "compilationAlias":
+    "@[simp] theorem getElem_fin [GetElem? Cont Nat Elem Dom] (a : Cont) (i : Fin n) (h : Dom a i) :\n    a[i] = a[i.1] := rfl"},
+   {"name": "WickContraction.GradingCompliant",
+    "module": "HepLean.PerturbationTheory.WickContraction.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a field specification `𝓕`, `φs` a list of `𝓕.FieldOp` and a Wick contraction\n  `φsΛ` of `φs`, the Wick contraction `φsΛ` is said to be `GradingCompliant` if\n  for every pair in `φsΛ` the contracted fields are either both `fermionic` or both `bosonic`.\n  In other words, in a `GradingCompliant` Wick contraction no contractions occur between\n  `fermionic` and `bosonic` fields. -/\ndef GradingCompliant (φs : List 𝓕.FieldOp) (φsΛ : WickContraction φs.length) :=\n  ∀ (a : φsΛ.1), (𝓕 |>ₛ φs[φsΛ.fstFieldOfContract a]) = (𝓕 |>ₛ φs[φsΛ.sndFieldOfContract a])",
+    "compilationAlias":
+    "/-- For a field specification `𝓕`, `φs` a list of `𝓕.FieldOp` and a Wick contraction\n  `φsΛ` of `φs`, the Wick contraction `φsΛ` is said to be `GradingCompliant` if\n  for every pair in `φsΛ` the contracted fields are either both `fermionic` or both `bosonic`.\n  In other words, in a `GradingCompliant` Wick contraction no contractions occur between\n  `fermionic` and `bosonic` fields. -/\ndef GradingCompliant (φs : List 𝓕.FieldOp) (φsΛ : WickContraction φs.length) :=\n  ∀ (a : φsΛ.1), (𝓕 |>ₛ φs[φsΛ.fstFieldOfContract a]) = (𝓕 |>ₛ φs[φsΛ.sndFieldOfContract a])"},
+   {"name": "WickContraction",
+    "module": "HepLean.PerturbationTheory.WickContraction.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}",
+    "compilationAlias":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}"}],
+  "C0_dependencies":
+  [{"name": "WickContraction.staticContract",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+    "compilationAlias":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n"},
+   {"name": "WickContraction.staticContract_insert_none",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n",
+    "compilationAlias":
+    "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n"},
+   {"name": "WickContraction.staticContract_insert_some",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n",
+    "compilationAlias":
+    "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n"},
+   {"name": "WickContraction.staticContract_insert_some_of_lt",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\n",
+    "compilationAlias":
+    "lemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace WickContraction\n\nopen FieldSpecification HepLean.List FieldSpecification.FieldOpAlgebra FieldStatistic\n\nvariable {𝓕 : FieldSpecification} {n : ℕ} (c : WickContraction n)",
+  "postscopes": "end WickContraction",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "WickContraction.staticContract_insert_some_of_lt",
+   "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\n",
+   "compilationAlias":
+   "lemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ : 𝓕.FieldOp\nφs : List 𝓕.FieldOp\nφsΛ : WickContraction φs.length\ni : Fin φs.length.succ\nk : Subtype fun x => Membership.mem φsΛ.uncontracted x\nhik : LT.lt i (i.succAbove ↑k)\n⊢ Eq (↑(WickContraction.insertAndContract φ φsΛ i (Option.some k)).staticContract) (HSMul.hSMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (FieldStatistic.ofFinset 𝓕.fieldOpStatistic φs.get (Finset.filter (fun x => LT.lt x ↑k) φsΛ.uncontracted))) (HMul.hMul (FieldSpecification.FieldOpAlgebra.contractStateAtIndex φ φsΛ.uncontractedListGet ((WickContraction.uncontractedFieldOpEquiv φs φsΛ) (Option.some k))) ↑φsΛ.staticContract))",
+  "content_sorry":
+  "lemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\nopen FieldStatistic\n\nlemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\nopen FieldStatistic\n\nlemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n    · simp\n    simp only [smul_smul]\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    rw [h1]\n    simp only [exchangeSign_mul_self]\n\n",
+  "annotation":
+  "lemma staticContract_insert_some_of_lt\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (k : φsΛ.uncontracted)\n    (hik : i < i.succAbove k) :\n    (φsΛ ↩Λ φ i (some k)).staticContract =\n    𝓢(𝓕 |>ₛ φ, 𝓕 |>ₛ ⟨φs.get, (φsΛ.uncontracted.filter (fun x => x < k))⟩)\n    • (contractStateAtIndex φ [φsΛ]ᵘᶜ ((uncontractedFieldOpEquiv φs φsΛ) (some k)) *\n      φsΛ.staticContract) := by\n  /-\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n    hik : LT.lt i (i.succAbove ↑k)\n    ⊢ Eq (↑(WickContraction.insertAndContract φ φsΛ i (Option.some k)).staticContr …\n  -/\n  rw [staticContract_insert_some]\n  simp only [Nat.succ_eq_add_one, Fin.getElem_fin, ite_mul, instCommGroup.eq_1,\n    contractStateAtIndex, uncontractedFieldOpEquiv, Equiv.optionCongr_apply,\n    Equiv.coe_trans, Option.map_some', Function.comp_apply, finCongr_apply, Fin.coe_cast,\n    List.getElem_map, uncontractedList_getElem_uncontractedIndexEquiv_symm, List.get_eq_getElem,\n    Algebra.smul_mul_assoc, uncontractedListGet]\n    /-\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      hik : LT.lt i (i.succAbove ↑k)\n      ⊢ Eq (↑(ite (LT.lt i (i.succAbove ↑k)) (HMul.hMul ⟨(FieldSpecification.FieldOp …\n    -/\n  · simp only [hik, ↓reduceIte, MulMemClass.coe_mul]\n    /-\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      hik : LT.lt i (i.succAbove ↑k)\n      ⊢ Eq (HMul.hMul ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecifi …\n    -/\n    trans (1 : ℂ) • ((superCommute (anPart φ)) (ofFieldOp φs[k.1]) * ↑φsΛ.staticContract)\n      /-\n        𝓕 : FieldSpecification\n        φ : 𝓕.FieldOp\n        φs : List 𝓕.FieldOp\n        φsΛ : WickContraction φs.length\n        i : Fin φs.length.succ\n        k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n        hik : LT.lt i (i.succAbove ↑k)\n        ⊢ Eq (HMul.hMul ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecifi …\n      -/\n    · simp\n      /-\n        🎉 no goals\n      -/\n    /-\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      hik : LT.lt i (i.succAbove ↑k)\n      ⊢ Eq (HSMul.hSMul 1 (HMul.hMul ((FieldSpecification.FieldOpAlgebra.superCommut …\n    -/\n    simp only [smul_smul]\n    /-\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      hik : LT.lt i (i.succAbove ↑k)\n      ⊢ Eq (HSMul.hSMul 1 (HMul.hMul ((FieldSpecification.FieldOpAlgebra.superCommut …\n    -/\n    congr 1\n    have h1 : ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontractedIndexEquiv.symm k))\n        (List.map φs.get φsΛ.uncontractedList))\n        = (𝓕 |>ₛ ⟨φs.get, (Finset.filter (fun x => x < k) φsΛ.uncontracted)⟩) := by\n      simp only [ofFinset]\n      congr\n      rw [← List.map_take]\n      congr\n      rw [take_uncontractedIndexEquiv_symm]\n      rw [filter_uncontractedList]\n    /-\n      case e_a\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      hik : LT.lt i (i.succAbove ↑k)\n      h1 : Eq (FieldStatistic.ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontract …\n      ⊢ Eq 1 (HMul.hMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (Field …\n    -/\n    rw [h1]\n    /-\n      case e_a\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      k : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      hik : LT.lt i (i.succAbove ↑k)\n      h1 : Eq (FieldStatistic.ofList 𝓕.fieldOpStatistic (List.take (↑(φsΛ.uncontract …\n      ⊢ Eq 1 (HMul.hMul ((FieldStatistic.exchangeSign (𝓕.fieldOpStatistic φ)) (Field …\n    -/\n    simp only [exchangeSign_mul_self]\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "WickContraction.filter_uncontractedList",
+    "module": "HepLean.PerturbationTheory.WickContraction.UncontractedList",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma filter_uncontractedList (c : WickContraction n) (p : Fin n → Prop) [DecidablePred p] :\n    (c.uncontractedList.filter p) = (c.uncontracted.filter p).sort (· ≤ ·) := by\n  have h1 : (c.uncontractedList.filter p).Sorted (· ≤ ·) := by\n    apply List.Sorted.filter\n    exact uncontractedList_sorted c\n  have h2 : (c.uncontractedList.filter p).Nodup := by\n    refine List.Nodup.filter _ ?_\n    exact uncontractedList_nodup c\n  have h3 : (c.uncontractedList.filter p).toFinset = (c.uncontracted.filter p) := by\n    ext a\n    simp only [List.toFinset_filter, decide_eq_true_eq, Finset.mem_filter, List.mem_toFinset,\n      and_congr_left_iff]\n    rw [uncontractedList_mem_iff]\n    simp\n  have hx := (List.toFinset_sort (· ≤ ·) h2).mpr h1\n  rw [← hx, h3]",
+    "compilationAlias":
+    "lemma filter_uncontractedList (c : WickContraction n) (p : Fin n → Prop) [DecidablePred p] :\n    (c.uncontractedList.filter p) = (c.uncontracted.filter p).sort (· ≤ ·) := by\n  have h1 : (c.uncontractedList.filter p).Sorted (· ≤ ·) := by\n    apply List.Sorted.filter\n    exact uncontractedList_sorted c\n  have h2 : (c.uncontractedList.filter p).Nodup := by\n    refine List.Nodup.filter _ ?_\n    exact uncontractedList_nodup c\n  have h3 : (c.uncontractedList.filter p).toFinset = (c.uncontracted.filter p) := by\n    ext a\n    simp only [List.toFinset_filter, decide_eq_true_eq, Finset.mem_filter, List.mem_toFinset,\n      and_congr_left_iff]\n    rw [uncontractedList_mem_iff]\n    simp\n  have hx := (List.toFinset_sort (· ≤ ·) h2).mpr h1\n  rw [← hx, h3]"},
+   {"name": "WickContraction.take_uncontractedIndexEquiv_symm",
+    "module": "HepLean.PerturbationTheory.WickContraction.UncontractedList",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma take_uncontractedIndexEquiv_symm (k : c.uncontracted) :\n    c.uncontractedList.take (c.uncontractedIndexEquiv.symm k).val =\n    c.uncontractedList.filter (fun i => i < k.val) := by\n  have hl := fin_list_sorted_split c.uncontractedList (uncontractedList_sorted c) k.val\n  conv_lhs =>\n    rhs\n    rw [hl]\n  rw [uncontractedIndexEquiv_symm_eq_filter_length]\n  simp",
+    "compilationAlias":
+    "lemma take_uncontractedIndexEquiv_symm (k : c.uncontracted) :\n    c.uncontractedList.take (c.uncontractedIndexEquiv.symm k).val =\n    c.uncontractedList.filter (fun i => i < k.val) := by\n  have hl := fin_list_sorted_split c.uncontractedList (uncontractedList_sorted c) k.val\n  conv_lhs =>\n    rhs\n    rw [hl]\n  rw [uncontractedIndexEquiv_symm_eq_filter_length]\n  simp"},
+   {"name": "List.map_take",
+    "module": "Init.Data.List.TakeDrop",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem map_take (f : α → β) :\n    ∀ (L : List α) (i : Nat), (L.take i).map f = (L.map f).take i\n  | [], i => by simp\n  | _, 0 => by simp\n  | h :: t, n + 1 => by dsimp; rw [map_take f t n]",
+    "compilationAlias":
+    "@[simp] theorem map_take (f : α → β) :\n    ∀ (L : List α) (i : Nat), (L.take i).map f = (L.map f).take i\n  | [], i => by simp\n  | _, 0 => by simp\n  | h :: t, n + 1 => by dsimp; rw [map_take f t n]"},
+   {"name": "Finset.filter",
+    "module": "Mathlib.Data.Finset.Filter",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Finset.filter p s` is the set of elements of `s` that satisfy `p`.\n\nFor example, one can use `s.filter (· ∈ t)` to get the intersection of `s` with `t : Set α`\nas a `Finset α` (when a `DecidablePred (· ∈ t)` instance is available). -/\ndef filter (s : Finset α) : Finset α :=\n  ⟨_, s.2.filter p⟩",
+    "compilationAlias":
+    "/-- `Finset.filter p s` is the set of elements of `s` that satisfy `p`.\n\nFor example, one can use `s.filter (· ∈ t)` to get the intersection of `s` with `t : Set α`\nas a `Finset α` (when a `DecidablePred (· ∈ t)` instance is available). -/\ndef filter (s : Finset α) : Finset α :=\n  ⟨_, s.2.filter p⟩"},
+   {"name": "List.map",
+    "module": "Init.Data.List.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`O(|l|)`. `map f l` applies `f` to each element of the list.\n* `map f [a, b, c] = [f a, f b, f c]`\n-/\n@[specialize] def map (f : α → β) : List α → List β\n  | []    => []\n  | a::as => f a :: map f as",
+    "compilationAlias":
+    "/--\n`O(|l|)`. `map f l` applies `f` to each element of the list.\n* `map f [a, b, c] = [f a, f b, f c]`\n-/\n@[specialize] def map (f : α → β) : List α → List β\n  | []    => []\n  | a::as => f a :: map f as"},
+   {"name": "List.take",
+    "module": "Init.Data.List.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`O(min n |xs|)`. Returns the first `n` elements of `xs`, or the whole list if `n` is too large.\n* `take 0 [a, b, c, d, e] = []`\n* `take 3 [a, b, c, d, e] = [a, b, c]`\n* `take 6 [a, b, c, d, e] = [a, b, c, d, e]`\n-/\ndef take : Nat → List α → List α\n  | 0,   _     => []\n  | _+1, []    => []\n  | n+1, a::as => a :: take n as",
+    "compilationAlias":
+    "/--\n`O(min n |xs|)`. Returns the first `n` elements of `xs`, or the whole list if `n` is too large.\n* `take 0 [a, b, c, d, e] = []`\n* `take 3 [a, b, c, d, e] = [a, b, c]`\n* `take 6 [a, b, c, d, e] = [a, b, c, d, e]`\n-/\ndef take : Nat → List α → List α\n  | 0,   _     => []\n  | _+1, []    => []\n  | n+1, a::as => a :: take n as"},
+   {"name": "smul_smul",
+    "module": "Mathlib.Algebra.Group.Action.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\nlemma smul_smul (a₁ a₂ : M) (b : α) : a₁ • a₂ • b = (a₁ * a₂) • b := (mul_smul _ _ _).symm",
+    "compilationAlias":
+    "@[to_additive]\nlemma smul_smul (a₁ a₂ : M) (b : α) : a₁ • a₂ • b = (a₁ * a₂) • b := (mul_smul _ _ _).symm"},
+   {"name": "MulMemClass.coe_mul",
+    "module": "Mathlib.Algebra.Group.Subsemigroup.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive (attr := simp low, norm_cast)]\ntheorem coe_mul (x y : S') : (↑(x * y) : M) = ↑x * ↑y :=\n  rfl",
+    "compilationAlias":
+    "@[to_additive (attr := simp low, norm_cast)]\ntheorem coe_mul (x y : S') : (↑(x * y) : M) = ↑x * ↑y :=\n  rfl"},
+   {"name": "reduceIte",
+    "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Core",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "builtin_simproc ↓ [simp, seval] reduceIte (ite _ _ _) := fun e => do\n  let_expr f@ite α c i tb eb ← e | return .continue\n  let r ← simp c\n  if r.expr.isTrue then\n    let pr    := mkApp (mkApp5 (mkConst ``ite_cond_eq_true f.constLevels!) α c i tb eb) (← r.getProof)\n    return .visit { expr := tb, proof? := pr }\n  if r.expr.isFalse then\n    let pr    := mkApp (mkApp5 (mkConst ``ite_cond_eq_false f.constLevels!) α c i tb eb) (← r.getProof)\n    return .visit { expr := eb, proof? := pr }\n  return .continue",
+    "compilationAlias":
+    "builtin_simproc ↓ [simp, seval] reduceIte (ite _ _ _) := fun e => do\n  let_expr f@ite α c i tb eb ← e | return .continue\n  let r ← simp c\n  if r.expr.isTrue then\n    let pr    := mkApp (mkApp5 (mkConst ``ite_cond_eq_true f.constLevels!) α c i tb eb) (← r.getProof)\n    return .visit { expr := tb, proof? := pr }\n  if r.expr.isFalse then\n    let pr    := mkApp (mkApp5 (mkConst ``ite_cond_eq_false f.constLevels!) α c i tb eb) (← r.getProof)\n    return .visit { expr := eb, proof? := pr }\n  return .continue"},
+   {"name": "WickContraction.uncontractedListGet",
+    "module": "HepLean.PerturbationTheory.WickContraction.UncontractedList",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Given a Wick Contraction `φsΛ` of a list `φs` of `𝓕.FieldOp`. The list\n  `φsΛ.uncontractedListGet` of `𝓕.FieldOp` is defined as the list `φs` with\n  all contracted positions removed, leaving the uncontracted `𝓕.FieldOp`.\n\n  The notation `[φsΛ]ᵘᶜ` is used for `φsΛ.uncontractedListGet`. -/\ndef uncontractedListGet {φs : List 𝓕.FieldOp} (φsΛ : WickContraction φs.length) :\n    List 𝓕.FieldOp := φsΛ.uncontractedList.map φs.get",
+    "compilationAlias":
+    "/-- Given a Wick Contraction `φsΛ` of a list `φs` of `𝓕.FieldOp`. The list\n  `φsΛ.uncontractedListGet` of `𝓕.FieldOp` is defined as the list `φs` with\n  all contracted positions removed, leaving the uncontracted `𝓕.FieldOp`.\n\n  The notation `[φsΛ]ᵘᶜ` is used for `φsΛ.uncontractedListGet`. -/\ndef uncontractedListGet {φs : List 𝓕.FieldOp} (φsΛ : WickContraction φs.length) :\n    List 𝓕.FieldOp := φsΛ.uncontractedList.map φs.get"},
+   {"name": "Algebra.smul_mul_assoc",
+    "module": "Mathlib.Algebra.Algebra.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- This is just a special case of the global `smul_mul_assoc` lemma that requires less typeclass\nsearch (and was here first). -/\n@[simp]\nprotected theorem smul_mul_assoc (r : R) (x y : A) : r • x * y = r • (x * y) :=\n  smul_mul_assoc r x y",
+    "compilationAlias":
+    "/-- This is just a special case of the global `smul_mul_assoc` lemma that requires less typeclass\nsearch (and was here first). -/\n@[simp]\nprotected theorem smul_mul_assoc (r : R) (x y : A) : r • x * y = r • (x * y) :=\n  smul_mul_assoc r x y"},
+   {"name": "List.get_eq_getElem",
+    "module": "Init.Data.List.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem get_eq_getElem (l : List α) (i : Fin l.length) : l.get i = l[i.1]'i.2 := rfl",
+    "compilationAlias":
+    "@[simp] theorem get_eq_getElem (l : List α) (i : Fin l.length) : l.get i = l[i.1]'i.2 := rfl"},
+   {"name":
+    "WickContraction.uncontractedList_getElem_uncontractedIndexEquiv_symm",
+    "module": "HepLean.PerturbationTheory.WickContraction.UncontractedList",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma uncontractedList_getElem_uncontractedIndexEquiv_symm (k : c.uncontracted) :\n    c.uncontractedList[(c.uncontractedIndexEquiv.symm k).val] = k := by\n  simp [uncontractedIndexEquiv]",
+    "compilationAlias":
+    "@[simp]\nlemma uncontractedList_getElem_uncontractedIndexEquiv_symm (k : c.uncontracted) :\n    c.uncontractedList[(c.uncontractedIndexEquiv.symm k).val] = k := by\n  simp [uncontractedIndexEquiv]"},
+   {"name": "List.getElem_map",
+    "module": "Init.Data.List.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem getElem_map (f : α → β) {l} {i : Nat} {h : i < (map f l).length} :\n    (map f l)[i] = f (l[i]'(length_map l f ▸ h)) :=\n  Option.some.inj <| by rw [← getElem?_eq_getElem, getElem?_map, getElem?_eq_getElem]; rfl",
+    "compilationAlias":
+    "@[simp] theorem getElem_map (f : α → β) {l} {i : Nat} {h : i < (map f l).length} :\n    (map f l)[i] = f (l[i]'(length_map l f ▸ h)) :=\n  Option.some.inj <| by rw [← getElem?_eq_getElem, getElem?_map, getElem?_eq_getElem]; rfl"},
+   {"name": "Fin.coe_cast",
+    "module": "Init.Data.Fin.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem coe_cast (h : n = m) (i : Fin n) : (i.cast h : Nat) = i := rfl",
+    "compilationAlias":
+    "@[simp] theorem coe_cast (h : n = m) (i : Fin n) : (i.cast h : Nat) = i := rfl"},
+   {"name": "finCongr_apply",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "Function.comp_apply",
+    "module": "Init.Core",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+    "compilationAlias":
+    "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"},
+   {"name": "Option.map_some'",
+    "module": "Init.Data.Option.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem map_some' (a) (f : α → β) : (some a).map f = some (f a) := rfl",
+    "compilationAlias":
+    "@[simp] theorem map_some' (a) (f : α → β) : (some a).map f = some (f a) := rfl"},
+   {"name": "Equiv.coe_trans",
+    "module": "Mathlib.Logic.Equiv.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem coe_trans (f : α ≃ β) (g : β ≃ γ) : (f.trans g : α → γ) = g ∘ f := rfl",
+    "compilationAlias":
+    "@[simp] theorem coe_trans (f : α ≃ β) (g : β ≃ γ) : (f.trans g : α → γ) = g ∘ f := rfl"},
+   {"name": "Equiv.optionCongr_apply",
+    "module": "Mathlib.Logic.Equiv.Option",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps apply]",
+    "compilationAlias": "@[simps apply]"},
+   {"name": "ite_mul",
+    "module": "Mathlib.Algebra.Group.Operations",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive]\nlemma ite_mul (a b c : α) : (if P then a else b) * c = if P then a * c else b * c := dite_mul ..",
+    "compilationAlias":
+    "@[to_additive]\nlemma ite_mul (a b c : α) : (if P then a else b) * c = if P then a * c else b * c := dite_mul .."},
+   {"name": "Fin.getElem_fin",
+    "module": "Init.GetElem",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem getElem_fin [GetElem? Cont Nat Elem Dom] (a : Cont) (i : Fin n) (h : Dom a i) :\n    a[i] = a[i.1] := rfl",
+    "compilationAlias":
+    "@[simp] theorem getElem_fin [GetElem? Cont Nat Elem Dom] (a : Cont) (i : Fin n) (h : Dom a i) :\n    a[i] = a[i.1] := rfl"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "WickContraction.uncontractedFieldOpEquiv",
+    "module": "HepLean.PerturbationTheory.WickContraction.UncontractedList",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The equivalence between the type `Option c.uncontracted` for `WickContraction φs.length` and\n  `Option (Fin (c.uncontractedList.map φs.get).length)`, that is optional positions of\n  `c.uncontractedList.map φs.get` induced by `uncontractedIndexEquiv`. -/\ndef uncontractedFieldOpEquiv (φs : List 𝓕.FieldOp) (φsΛ : WickContraction φs.length) :\n    Option φsΛ.uncontracted ≃ Option (Fin [φsΛ]ᵘᶜ.length) :=\n  Equiv.optionCongr (φsΛ.uncontractedIndexEquiv.symm.trans\n    (finCongr (by simp [uncontractedListGet])))",
+    "compilationAlias":
+    "/-- The equivalence between the type `Option c.uncontracted` for `WickContraction φs.length` and\n  `Option (Fin (c.uncontractedList.map φs.get).length)`, that is optional positions of\n  `c.uncontractedList.map φs.get` induced by `uncontractedIndexEquiv`. -/\ndef uncontractedFieldOpEquiv (φs : List 𝓕.FieldOp) (φsΛ : WickContraction φs.length) :\n    Option φsΛ.uncontracted ≃ Option (Fin [φsΛ]ᵘᶜ.length) :=\n  Equiv.optionCongr (φsΛ.uncontractedIndexEquiv.symm.trans\n    (finCongr (by simp [uncontractedListGet])))"},
+   {"name": "WickContraction",
+    "module": "HepLean.PerturbationTheory.WickContraction.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}",
+    "compilationAlias":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}"}],
+  "C0_dependencies":
+  [{"name": "WickContraction.staticContract",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+    "compilationAlias":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n"},
+   {"name": "WickContraction.staticContract_insert_none",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n",
+    "compilationAlias":
+    "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n"},
+   {"name": "WickContraction.staticContract_insert_some",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n",
+    "compilationAlias":
+    "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace WickContraction\n\nopen FieldSpecification HepLean.List FieldSpecification.FieldOpAlgebra\n\nvariable {𝓕 : FieldSpecification} {n : ℕ} (c : WickContraction n)",
+  "postscopes": "end WickContraction",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "WickContraction.staticContract_insert_some",
+   "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n",
+   "compilationAlias":
+   "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφ : 𝓕.FieldOp\nφs : List 𝓕.FieldOp\nφsΛ : WickContraction φs.length\ni : Fin φs.length.succ\nj : Subtype fun x => Membership.mem φsΛ.uncontracted x\n⊢ Eq (WickContraction.insertAndContract φ φsΛ i (Option.some j)).staticContract (HMul.hMul (ite (LT.lt i (i.succAbove ↑j)) ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.FieldOpAlgebra.anPart φ)) (FieldSpecification.FieldOpAlgebra.ofFieldOp (GetElem.getElem φs ↑j ⋯)), ⋯⟩ ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.FieldOpAlgebra.anPart (GetElem.getElem φs ↑j ⋯))) (FieldSpecification.FieldOpAlgebra.ofFieldOp φ), ⋯⟩) φsΛ.staticContract)",
+  "content_sorry":
+  "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    split\n    · simp\n    · simp\n  · congr\n    ext a\n    simp\n\n",
+  "annotation":
+  "/--\n  For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, a `i ≤ φs.length` and a `k` in `φsΛ.uncontracted`, then\n  `(φsΛ ↩Λ φ i (some k)).staticContract` is equal to the product of\n  - `[anPart φ, φs[k]]ₛ` if `i ≤ k` or `[anPart φs[k], φ]ₛ` if `k < i`\n  - `φsΛ.staticContract`.\n\n  The proof of this result ultimately a consequence of definitions.\n-/\nlemma staticContract_insert_some\n    (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).staticContract =\n    (if i < i.succAbove j then\n      ⟨[anPart φ, ofFieldOp φs[j.1]]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩\n    else ⟨[anPart φs[j.1], ofFieldOp φ]ₛ, superCommute_anPart_ofFieldOp_mem_center _ _⟩) *\n    φsΛ.staticContract := by\n  /-\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n    ⊢ Eq (WickContraction.insertAndContract φ φsΛ i (Option.some j)).staticContrac …\n  -/\n  rw [staticContract, insertAndContract_some_prod_contractions]\n  /-\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n    ⊢ Eq (HMul.hMul ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecifi …\n  -/\n  congr 1\n  · simp only [Nat.succ_eq_add_one, insertAndContract_fstFieldOfContract_some_incl, finCongr_apply,\n    List.get_eq_getElem, insertAndContract_sndFieldOfContract_some_incl, Fin.getElem_fin]\n    /-\n      case e_a\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      ⊢ Eq ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fiel …\n    -/\n    split\n      /-\n        case e_a.isTrue\n        𝓕 : FieldSpecification\n        φ : 𝓕.FieldOp\n        φs : List 𝓕.FieldOp\n        φsΛ : WickContraction φs.length\n        i : Fin φs.length.succ\n        j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n        h✝ : LT.lt i (i.succAbove ↑j)\n        ⊢ Eq ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fiel …\n      -/\n    · simp\n      /-\n        🎉 no goals\n      -/\n      /-\n        case e_a.isFalse\n        𝓕 : FieldSpecification\n        φ : 𝓕.FieldOp\n        φs : List 𝓕.FieldOp\n        φsΛ : WickContraction φs.length\n        i : Fin φs.length.succ\n        j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n        h✝ : Not (LT.lt i (i.succAbove ↑j))\n        ⊢ Eq ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fiel …\n      -/\n    · simp\n      /-\n        🎉 no goals\n      -/\n    /-\n      case e_a\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      ⊢ Eq (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommu …\n    -/\n  · congr\n    /-\n      case e_a.e_f\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      ⊢ Eq (fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecific …\n    -/\n    ext a\n    /-\n      case e_a.e_f.h.a\n      𝓕 : FieldSpecification\n      φ : 𝓕.FieldOp\n      φs : List 𝓕.FieldOp\n      φsΛ : WickContraction φs.length\n      i : Fin φs.length.succ\n      j : Subtype fun x => Membership.mem φsΛ.uncontracted x\n      a : Subtype fun x => Membership.mem (↑φsΛ) x\n      ⊢ Eq ↑⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fie …\n    -/\n    simp\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Fin.getElem_fin",
+    "module": "Init.GetElem",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem getElem_fin [GetElem? Cont Nat Elem Dom] (a : Cont) (i : Fin n) (h : Dom a i) :\n    a[i] = a[i.1] := rfl",
+    "compilationAlias":
+    "@[simp] theorem getElem_fin [GetElem? Cont Nat Elem Dom] (a : Cont) (i : Fin n) (h : Dom a i) :\n    a[i] = a[i.1] := rfl"},
+   {"name": "WickContraction.insertAndContract_sndFieldOfContract_some_incl",
+    "module": "HepLean.PerturbationTheory.WickContraction.InsertAndContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma insertAndContract_sndFieldOfContract_some_incl (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).sndFieldOfContract\n    (congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n      simp [insertAndContractNat]⟩) =\n    if i < i.succAbove j.1 then\n    finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j.1) else\n    finCongr (insertIdx_length_fin φ φs i).symm i := by\n  split\n  · rename_i h\n    refine (φsΛ ↩Λ φ i (some j)).eq_sndFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm i) (j :=\n        finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j)) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all\n  · rename_i h\n    refine (φsΛ ↩Λ φ i (some j)).eq_sndFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j))\n      (j := finCongr (insertIdx_length_fin φ φs i).symm i) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all only [Nat.succ_eq_add_one, Fin.val_fin_lt, not_lt, finCongr_apply, Fin.coe_cast]\n      have hi : i.succAbove j ≠ i := Fin.succAbove_ne i j\n      omega",
+    "compilationAlias":
+    "@[simp]\nlemma insertAndContract_sndFieldOfContract_some_incl (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n    (φsΛ ↩Λ φ i (some j)).sndFieldOfContract\n    (congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n      simp [insertAndContractNat]⟩) =\n    if i < i.succAbove j.1 then\n    finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j.1) else\n    finCongr (insertIdx_length_fin φ φs i).symm i := by\n  split\n  · rename_i h\n    refine (φsΛ ↩Λ φ i (some j)).eq_sndFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm i) (j :=\n        finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j)) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all\n  · rename_i h\n    refine (φsΛ ↩Λ φ i (some j)).eq_sndFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j))\n      (j := finCongr (insertIdx_length_fin φ φs i).symm i) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all only [Nat.succ_eq_add_one, Fin.val_fin_lt, not_lt, finCongr_apply, Fin.coe_cast]\n      have hi : i.succAbove j ≠ i := Fin.succAbove_ne i j\n      omega"},
+   {"name": "List.get_eq_getElem",
+    "module": "Init.Data.List.Lemmas",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem get_eq_getElem (l : List α) (i : Fin l.length) : l.get i = l[i.1]'i.2 := rfl",
+    "compilationAlias":
+    "@[simp] theorem get_eq_getElem (l : List α) (i : Fin l.length) : l.get i = l[i.1]'i.2 := rfl"},
+   {"name": "finCongr_apply",
+    "module": "Mathlib.Data.Fin.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[simps]",
+    "compilationAlias": "@[simps]"},
+   {"name": "WickContraction.insertAndContract_fstFieldOfContract_some_incl",
+    "module": "HepLean.PerturbationTheory.WickContraction.InsertAndContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma insertAndContract_fstFieldOfContract_some_incl (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n      (insertAndContract φ φsΛ i (some j)).fstFieldOfContract\n      (congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩) =\n      if i < i.succAbove j.1 then\n      finCongr (insertIdx_length_fin φ φs i).symm i else\n      finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j.1) := by\n  split\n  · rename_i h\n    refine (insertAndContract φ φsΛ i (some j)).eq_fstFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm i) (j :=\n        finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j)) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all\n  · rename_i h\n    refine (insertAndContract φ φsΛ i (some j)).eq_fstFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j))\n      (j := finCongr (insertIdx_length_fin φ φs i).symm i) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all only [Nat.succ_eq_add_one, Fin.val_fin_lt, not_lt, finCongr_apply, Fin.coe_cast]\n      have hi : i.succAbove j ≠ i := Fin.succAbove_ne i j\n      omega",
+    "compilationAlias":
+    "@[simp]\nlemma insertAndContract_fstFieldOfContract_some_incl (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted) :\n      (insertAndContract φ φsΛ i (some j)).fstFieldOfContract\n      (congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩) =\n      if i < i.succAbove j.1 then\n      finCongr (insertIdx_length_fin φ φs i).symm i else\n      finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j.1) := by\n  split\n  · rename_i h\n    refine (insertAndContract φ φsΛ i (some j)).eq_fstFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm i) (j :=\n        finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j)) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all\n  · rename_i h\n    refine (insertAndContract φ φsΛ i (some j)).eq_fstFieldOfContract_of_mem\n      (a := congrLift (insertIdx_length_fin φ φs i).symm ⟨{i, i.succAbove j}, by\n        simp [insertAndContractNat]⟩)\n      (i := finCongr (insertIdx_length_fin φ φs i).symm (i.succAbove j))\n      (j := finCongr (insertIdx_length_fin φ φs i).symm i) ?_ ?_ ?_\n    · simp [congrLift]\n    · simp [congrLift]\n    · rw [Fin.lt_def] at h ⊢\n      simp_all only [Nat.succ_eq_add_one, Fin.val_fin_lt, not_lt, finCongr_apply, Fin.coe_cast]\n      have hi : i.succAbove j ≠ i := Fin.succAbove_ne i j\n      omega"},
+   {"name": "Nat.succ_eq_add_one",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl",
+    "compilationAlias":
+    "@[simp] theorem succ_eq_add_one (n : Nat) : succ n = n + 1 :=\n  rfl"},
+   {"name": "WickContraction.insertAndContract_some_prod_contractions",
+    "module": "HepLean.PerturbationTheory.WickContraction.InsertAndContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma insertAndContract_some_prod_contractions (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted)\n    (f : (φsΛ ↩Λ φ i (some j)).1 → M) [CommMonoid M] :\n    ∏ a, f a = f (congrLift (insertIdx_length_fin φ φs i).symm\n      ⟨{i, i.succAbove j}, by simp [insertAndContractNat]⟩) *\n    ∏ (a : φsΛ.1), f (congrLift (insertIdx_length_fin φ φs i).symm (insertLift i (some j) a)) := by\n  let e2 := Equiv.ofBijective (congrLift (insertIdx_length_fin φ φs i).symm)\n    ((φsΛ.insertAndContractNat i (some j)).congrLift_bijective ((insertIdx_length_fin φ φs i).symm))\n  erw [← e2.prod_comp]\n  let e1 := Equiv.ofBijective (φsΛ.insertLiftSome i j) (insertLiftSome_bijective i j)\n  erw [← e1.prod_comp]\n  rw [Fintype.prod_sum_type]\n  simp only [Finset.univ_unique, PUnit.default_eq_unit, Nat.succ_eq_add_one, Finset.prod_singleton,\n    Finset.univ_eq_attach]\n  rfl",
+    "compilationAlias":
+    "lemma insertAndContract_some_prod_contractions (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) (j : φsΛ.uncontracted)\n    (f : (φsΛ ↩Λ φ i (some j)).1 → M) [CommMonoid M] :\n    ∏ a, f a = f (congrLift (insertIdx_length_fin φ φs i).symm\n      ⟨{i, i.succAbove j}, by simp [insertAndContractNat]⟩) *\n    ∏ (a : φsΛ.1), f (congrLift (insertIdx_length_fin φ φs i).symm (insertLift i (some j) a)) := by\n  let e2 := Equiv.ofBijective (congrLift (insertIdx_length_fin φ φs i).symm)\n    ((φsΛ.insertAndContractNat i (some j)).congrLift_bijective ((insertIdx_length_fin φ φs i).symm))\n  erw [← e2.prod_comp]\n  let e1 := Equiv.ofBijective (φsΛ.insertLiftSome i j) (insertLiftSome_bijective i j)\n  erw [← e1.prod_comp]\n  rw [Fintype.prod_sum_type]\n  simp only [Finset.univ_unique, PUnit.default_eq_unit, Nat.succ_eq_add_one, Finset.prod_singleton,\n    Finset.univ_eq_attach]\n  rfl"},
+   {"name": "WickContraction",
+    "module": "HepLean.PerturbationTheory.WickContraction.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}",
+    "compilationAlias":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}"}],
+  "C0_dependencies":
+  [{"name": "WickContraction.staticContract",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+    "compilationAlias":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n"},
+   {"name": "WickContraction.staticContract_insert_none",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n",
+    "compilationAlias":
+    "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace WickContraction\n\nopen FieldSpecification HepLean.List FieldSpecification.FieldOpAlgebra\n\nvariable {𝓕 : FieldSpecification} {n : ℕ} (c : WickContraction n)",
+  "postscopes": "end WickContraction",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "WickContraction.staticContract_insert_none",
+   "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n",
+   "compilationAlias":
+   "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφs : List 𝓕.FieldOp\nφsΛ : WickContraction φs.length\n⊢ Eq φsΛ.staticContract (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.FieldOpAlgebra.anPart (φs.get (φsΛ.fstFieldOfContract a)))) (FieldSpecification.FieldOpAlgebra.ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))), ⋯⟩)",
+  "content_sorry":
+  "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  congr\n  ext a\n  simp\n\n",
+  "annotation":
+  "/-- For a list `φs = φ₀…φₙ` of `𝓕.FieldOp`, a Wick contraction `φsΛ` of `φs`, an element `φ` of\n  `𝓕.FieldOp`, and a `i ≤ φs.length`, then the following relation holds:\n\n  `(φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract`\n\n  The prove of this result ultimately a consequence of definitions.\n-/\n@[simp]\nlemma staticContract_insert_none (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ) :\n    (φsΛ ↩Λ φ i none).staticContract = φsΛ.staticContract := by\n  /-\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    ⊢ Eq (WickContraction.insertAndContract φ φsΛ i Option.none).staticContract φs …\n  -/\n  rw [staticContract, insertAndContract_none_prod_contractions]\n  /-\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    ⊢ Eq (Finset.univ.prod fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommu …\n  -/\n  congr\n  /-\n    case e_f\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    ⊢ Eq (fun a => ⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecific …\n  -/\n  ext a\n  /-\n    case e_f.h.a\n    𝓕 : FieldSpecification\n    φ : 𝓕.FieldOp\n    φs : List 𝓕.FieldOp\n    φsΛ : WickContraction φs.length\n    i : Fin φs.length.succ\n    a : Subtype fun x => Membership.mem (↑φsΛ) x\n    ⊢ Eq ↑⟨(FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.Fie …\n  -/\n  simp\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "WickContraction.insertAndContract_none_prod_contractions",
+    "module": "HepLean.PerturbationTheory.WickContraction.InsertAndContract",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma insertAndContract_none_prod_contractions (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ)\n    (f : (φsΛ ↩Λ φ i none).1 → M) [CommMonoid M] :\n    ∏ a, f a = ∏ (a : φsΛ.1), f (congrLift (insertIdx_length_fin φ φs i).symm\n      (insertLift i none a)) := by\n  let e1 := Equiv.ofBijective (φsΛ.insertLift i none) (insertLift_none_bijective i)\n  let e2 := Equiv.ofBijective (congrLift (insertIdx_length_fin φ φs i).symm)\n    ((φsΛ.insertAndContractNat i none).congrLift_bijective ((insertIdx_length_fin φ φs i).symm))\n  erw [← e2.prod_comp]\n  erw [← e1.prod_comp]\n  rfl",
+    "compilationAlias":
+    "lemma insertAndContract_none_prod_contractions (φ : 𝓕.FieldOp) (φs : List 𝓕.FieldOp)\n    (φsΛ : WickContraction φs.length) (i : Fin φs.length.succ)\n    (f : (φsΛ ↩Λ φ i none).1 → M) [CommMonoid M] :\n    ∏ a, f a = ∏ (a : φsΛ.1), f (congrLift (insertIdx_length_fin φ φs i).symm\n      (insertLift i none a)) := by\n  let e1 := Equiv.ofBijective (φsΛ.insertLift i none) (insertLift_none_bijective i)\n  let e2 := Equiv.ofBijective (congrLift (insertIdx_length_fin φ φs i).symm)\n    ((φsΛ.insertAndContractNat i none).congrLift_bijective ((insertIdx_length_fin φ φs i).symm))\n  erw [← e2.prod_comp]\n  erw [← e1.prod_comp]\n  rfl"},
+   {"name": "WickContraction",
+    "module": "HepLean.PerturbationTheory.WickContraction.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}",
+    "compilationAlias":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}"}],
+  "C0_dependencies":
+  [{"name": "WickContraction.staticContract",
+    "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+    "compilationAlias":
+    "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n"}]},
+ {"rag": [],
+  "prescopes":
+  "namespace WickContraction\n\nopen FieldSpecification HepLean.List FieldSpecification.FieldOpAlgebra\n\nvariable {𝓕 : FieldSpecification} {n : ℕ} (c : WickContraction n)",
+  "postscopes": "end WickContraction",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "WickContraction.staticContract",
+   "module": "HepLean.PerturbationTheory.WickContraction.StaticContract",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+   "compilationAlias":
+   "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n"},
+  "goal":
+  "𝓕 : FieldSpecification\nφs : List 𝓕.FieldOp\nφsΛ : WickContraction φs.length\na : Subtype fun x => Membership.mem (↑φsΛ) x\n⊢ Membership.mem (Subalgebra.center Complex 𝓕.FieldOpAlgebra) ((FieldSpecification.FieldOpAlgebra.superCommute (FieldSpecification.FieldOpAlgebra.anPart (φs.get (φsΛ.fstFieldOfContract a)))) (FieldSpecification.FieldOpAlgebra.ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))))",
+  "content_sorry":
+  "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra := by exact?",
+  "content_full":
+  "/-\nCopyright (c) 2025 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.WickContraction.Sign.Basic\nimport HepLean.PerturbationTheory.FieldOpAlgebra.TimeContraction\n/-!\n\n# Time contractions\n\n-/\n\nopen FieldSpecification\nvariable {𝓕 : FieldSpecification}\n\nnamespace WickContraction\nvariable {n : ℕ} (c : WickContraction n)\nopen HepLean.List\nopen FieldOpAlgebra\n\n/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+  "annotation":
+  "/-- For a list `φs` of `𝓕.FieldOp` and a Wick contraction `φsΛ`, the\n  element of the center of `𝓕.FieldOpAlgebra`, `φsΛ.staticContract` is defined as the product\n  of `[anPart φs[j], φs[k]]ₛ` over contracted pairs `{j, k}` in `φsΛ`\n  with `j < k`. -/\nnoncomputable def staticContract {φs : List 𝓕.FieldOp}\n    (φsΛ : WickContraction φs.length) :\n    Subalgebra.center ℂ 𝓕.FieldOpAlgebra :=\n  ∏ (a : φsΛ.1), ⟨[anPart (φs.get (φsΛ.fstFieldOfContract a)),\n    ofFieldOp (φs.get (φsΛ.sndFieldOfContract a))]ₛ,\n      superCommute_anPart_ofFieldOp_mem_center _ _⟩\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Subalgebra.center",
+    "module": "Mathlib.Algebra.Algebra.Subalgebra.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The center of an algebra is the set of elements which commute with every element. They form a\nsubalgebra. -/\n@[simps! coe toSubsemiring]\ndef center : Subalgebra R A :=\n  { Subsemiring.center A with algebraMap_mem' := Set.algebraMap_mem_center }",
+    "compilationAlias":
+    "/-- The center of an algebra is the set of elements which commute with every element. They form a\nsubalgebra. -/\n@[simps! coe toSubsemiring]\ndef center : Subalgebra R A :=\n  { Subsemiring.center A with algebraMap_mem' := Set.algebraMap_mem_center }"},
+   {"name": "WickContraction",
+    "module": "HepLean.PerturbationTheory.WickContraction.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}",
+    "compilationAlias":
+    "/--\nGiven a natural number `n`, which will correspond to the number of fields needing\ncontracting, a Wick contraction\nis a finite set of pairs of `Fin n` (numbers `0`, …, `n-1`), such that no\nelement of `Fin n` occurs in more then one pair. The pairs are the positions of fields we\n'contract' together.\n-/\ndef WickContraction (n : ℕ) : Type :=\n  {f : Finset ((Finset (Fin n))) // (∀ a ∈ f, a.card = 2) ∧\n    (∀ a ∈ f, ∀ b ∈ f, a = b ∨ Disjoint a b)}"}],
+  "C0_dependencies": []}]

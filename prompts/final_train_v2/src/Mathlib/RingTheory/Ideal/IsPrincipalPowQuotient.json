@@ -1,0 +1,377 @@
+[
+  {
+    "rag": [],
+    "prescopes": "namespace Ideal\n\nvariable {R : Type*} [CommRing R] [IsDomain R] {I : Ideal R}",
+    "postscopes": "end Ideal",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Ideal.quotEquivPowQuotPowSuccEquiv",
+      "module": "Mathlib.RingTheory.Ideal.IsPrincipalPowQuotient",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- For a principal ideal `I`, `R ⧸ I ≃ I ^ n ⧸ I ^ (n + 1)`. Supplied as a plain equiv to bypass\ntypeclass synthesis issues on complex `Module` goals.  To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSuccEquiv (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n  quotEquivPowQuotPowSucc h h' n\n\n",
+      "compilationAlias": "/-- For a principal ideal `I`, `R ⧸ I ≃ I ^ n ⧸ I ^ (n + 1)`. Supplied as a plain equiv to bypass\ntypeclass synthesis issues on complex `Module` goals.  To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSuccEquiv (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n  quotEquivPowQuotPowSucc h h' n\n\n"
+    },
+    "goal": "R : Type u_1\ninst✝ : CommRing R\n⊢ RingHomInvPair (RingHom.id R) (RingHom.id R)",
+    "content_sorry": "/-- For a principal ideal `I`, `R ⧸ I ≃ I ^ n ⧸ I ^ (n + 1)`. Supplied as a plain equiv to bypass\ntypeclass synthesis issues on complex `Module` goals.  To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSuccEquiv (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Yakov Pechersky. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yakov Pechersky\n-/\nimport Mathlib.LinearAlgebra.Isomorphisms\nimport Mathlib.RingTheory.Ideal.Operations\nimport Mathlib.RingTheory.Ideal.Quotient.Defs\n\n/-!\n# Quotients of powers of principal ideals\n\nThis file deals with taking quotients of powers of principal ideals.\n\n## Main definitions and results\n\n* `Ideal.quotEquivPowQuotPowSucc`: for a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`\n\n## Implementation details\n\nAt site of usage, calling `LinearEquiv.toEquiv` can cause timeouts in the search for a complex\nsynthesis like `Module 𝒪[K] 𝓀[k]`, so the plain equiv versions are provided.\n\nThese equivs are defined here as opposed to in the quotients file since they cannot be\nformed as ring equivs.\n\n-/\n\n\nnamespace Ideal\n\nsection IsPrincipal\n\nvariable {R : Type*} [CommRing R] [IsDomain R] {I : Ideal R}\n\n/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n/-- For a principal ideal `I`, `R ⧸ I ≃ I ^ n ⧸ I ^ (n + 1)`. Supplied as a plain equiv to bypass\ntypeclass synthesis issues on complex `Module` goals.  To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSuccEquiv (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Yakov Pechersky. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yakov Pechersky\n-/\nimport Mathlib.LinearAlgebra.Isomorphisms\nimport Mathlib.RingTheory.Ideal.Operations\nimport Mathlib.RingTheory.Ideal.Quotient.Defs\n\n/-!\n# Quotients of powers of principal ideals\n\nThis file deals with taking quotients of powers of principal ideals.\n\n## Main definitions and results\n\n* `Ideal.quotEquivPowQuotPowSucc`: for a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`\n\n## Implementation details\n\nAt site of usage, calling `LinearEquiv.toEquiv` can cause timeouts in the search for a complex\nsynthesis like `Module 𝒪[K] 𝓀[k]`, so the plain equiv versions are provided.\n\nThese equivs are defined here as opposed to in the quotients file since they cannot be\nformed as ring equivs.\n\n-/\n\n\nnamespace Ideal\n\nsection IsPrincipal\n\nvariable {R : Type*} [CommRing R] [IsDomain R] {I : Ideal R}\n\n/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n/-- For a principal ideal `I`, `R ⧸ I ≃ I ^ n ⧸ I ^ (n + 1)`. Supplied as a plain equiv to bypass\ntypeclass synthesis issues on complex `Module` goals.  To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSuccEquiv (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n  quotEquivPowQuotPowSucc h h' n\n\n",
+    "annotation": "/-- For a principal ideal `I`, `R ⧸ I ≃ I ^ n ⧸ I ^ (n + 1)`. Supplied as a plain equiv to bypass\ntypeclass synthesis issues on complex `Module` goals.  To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSuccEquiv (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n  quotEquivPowQuotPowSucc h h' n\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Ideal",
+        "module": "Mathlib.RingTheory.Ideal.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+        "compilationAlias": "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Ideal.quotEquivPowQuotPowSucc",
+        "module": "Mathlib.RingTheory.Ideal.IsPrincipalPowQuotient",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n",
+        "compilationAlias": "/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace Ideal\n\nvariable {R : Type*} [CommRing R] [IsDomain R] {I : Ideal R}",
+    "postscopes": "end Ideal",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Ideal.quotEquivPowQuotPowSucc",
+      "module": "Mathlib.RingTheory.Ideal.IsPrincipalPowQuotient",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n",
+      "compilationAlias": "/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n"
+    },
+    "goal": "R : Type u_1\nR₂ : Type u_2\nM : Type u_5\nM₂ : Type u_7\ninst✝⁷ : Semiring R\ninst✝⁶ : Semiring R₂\ninst✝⁵ : AddCommMonoid M\ninst✝⁴ : AddCommMonoid M₂\ninst✝³ : Module R M\ninst✝² : Module R₂ M₂\nτ₁₂ : RingHom R R₂\nF : Type u_11\ninst✝¹ : FunLike F M M₂\ninst✝ : SemilinearMapClass F τ₁₂ M M₂\nf : F\ny : M\n⊢ Eq (Membership.mem (LinearMap.ker f) y) (Eq (f y) 0)",
+    "content_sorry": "/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Yakov Pechersky. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yakov Pechersky\n-/\nimport Mathlib.LinearAlgebra.Isomorphisms\nimport Mathlib.RingTheory.Ideal.Operations\nimport Mathlib.RingTheory.Ideal.Quotient.Defs\n\n/-!\n# Quotients of powers of principal ideals\n\nThis file deals with taking quotients of powers of principal ideals.\n\n## Main definitions and results\n\n* `Ideal.quotEquivPowQuotPowSucc`: for a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`\n\n## Implementation details\n\nAt site of usage, calling `LinearEquiv.toEquiv` can cause timeouts in the search for a complex\nsynthesis like `Module 𝒪[K] 𝓀[k]`, so the plain equiv versions are provided.\n\nThese equivs are defined here as opposed to in the quotients file since they cannot be\nformed as ring equivs.\n\n-/\n\n\nnamespace Ideal\n\nsection IsPrincipal\n\nvariable {R : Type*} [CommRing R] [IsDomain R] {I : Ideal R}\n\n/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Yakov Pechersky. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yakov Pechersky\n-/\nimport Mathlib.LinearAlgebra.Isomorphisms\nimport Mathlib.RingTheory.Ideal.Operations\nimport Mathlib.RingTheory.Ideal.Quotient.Defs\n\n/-!\n# Quotients of powers of principal ideals\n\nThis file deals with taking quotients of powers of principal ideals.\n\n## Main definitions and results\n\n* `Ideal.quotEquivPowQuotPowSucc`: for a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`\n\n## Implementation details\n\nAt site of usage, calling `LinearEquiv.toEquiv` can cause timeouts in the search for a complex\nsynthesis like `Module 𝒪[K] 𝓀[k]`, so the plain equiv versions are provided.\n\nThese equivs are defined here as opposed to in the quotients file since they cannot be\nformed as ring equivs.\n\n-/\n\n\nnamespace Ideal\n\nsection IsPrincipal\n\nvariable {R : Type*} [CommRing R] [IsDomain R] {I : Ideal R}\n\n/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  let ϖ := h.principal'.choose\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  refine (Submodule.mkQ_surjective _).comp ?_\n  rintro ⟨x, hx⟩\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  refine hx.imp ?_\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n\n",
+    "annotation": "/-- For a principal ideal `I`, `R ⧸ I ≃ₗ[R] I ^ n ⧸ I ^ (n + 1)`. To convert into a form\nthat uses the ideal of `R ⧸ I ^ (n + 1)`, compose with\n`Ideal.powQuotPowSuccLinearEquivMapMkPowSuccPow`. -/\nnoncomputable\ndef quotEquivPowQuotPowSucc (h : I.IsPrincipal) (h': I ≠ ⊥) (n : ℕ) :\n    (R ⧸ I) ≃ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) := by\n  let f : (I ^ n : Ideal R) →ₗ[R] (I ^ n : Ideal R) ⧸ (I • ⊤ : Submodule R (I ^ n : Ideal R)) :=\n    Submodule.mkQ _\n  /-\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ⊢ LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotient  …\n  -/\n  let ϖ := h.principal'.choose\n  /-\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    ⊢ LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotient  …\n  -/\n  have hI : I = Ideal.span {ϖ} := h.principal'.choose_spec\n  /-\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    ⊢ LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotient  …\n  -/\n  have hϖ : ϖ ^ n ∈ I ^ n := hI ▸ (Ideal.pow_mem_pow (Ideal.mem_span_singleton_self _) n)\n  let g : R →ₗ[R] (I ^ n : Ideal R) := (LinearMap.mulRight R ϖ^n).codRestrict _ fun x ↦ by\n    simp only [LinearMap.pow_mulRight, LinearMap.mulRight_apply, Ideal.submodule_span_eq]\n    -- TODO: change argument of Ideal.pow_mem_of_mem\n    exact Ideal.mul_mem_left _ _ hϖ\n  have : I = LinearMap.ker (f.comp g) := by\n    ext x\n    simp only [LinearMap.codRestrict, LinearMap.pow_mulRight, LinearMap.mulRight_apply,\n      LinearMap.mem_ker, LinearMap.coe_comp, LinearMap.coe_mk, AddHom.coe_mk, Function.comp_apply,\n      Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, Submodule.mem_smul_top_iff, smul_eq_mul,\n      f, g]\n    constructor <;> intro hx\n    · exact Submodule.mul_mem_mul hx hϖ\n    · rw [← pow_succ', hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n      obtain ⟨y, hy⟩ := hx\n      rw [mul_comm, pow_succ, mul_assoc, mul_right_inj' (pow_ne_zero _ _)] at hy\n      · rw [hI, Ideal.mem_span_singleton]\n        exact ⟨y, hy⟩\n      · contrapose! h'\n        rw [hI, h', Ideal.span_singleton_eq_bot]\n  let e : (R ⧸ I) ≃ₗ[R] R ⧸ (LinearMap.ker (f.comp g)) :=\n    Submodule.quotEquivOfEq I (LinearMap.ker (f ∘ₗ g)) this\n  /-\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    hϖ : Membership.mem (HPow.hPow I n) (HPow.hPow ϖ n)\n    g : LinearMap (RingHom.id R) R (Subtype fun x => Membership.mem (HPow.hPow I n …\n    this : Eq I (LinearMap.ker (f.comp g))\n    e : LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotien …\n    ⊢ LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotient  …\n  -/\n  refine e.trans ((f.comp g).quotKerEquivOfSurjective ?_)\n  /-\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    hϖ : Membership.mem (HPow.hPow I n) (HPow.hPow ϖ n)\n    g : LinearMap (RingHom.id R) R (Subtype fun x => Membership.mem (HPow.hPow I n …\n    this : Eq I (LinearMap.ker (f.comp g))\n    e : LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotien …\n    ⊢ Function.Surjective ⇑(f.comp g)\n  -/\n  refine (Submodule.mkQ_surjective _).comp ?_\n  /-\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    hϖ : Membership.mem (HPow.hPow I n) (HPow.hPow ϖ n)\n    g : LinearMap (RingHom.id R) R (Subtype fun x => Membership.mem (HPow.hPow I n …\n    this : Eq I (LinearMap.ker (f.comp g))\n    e : LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotien …\n    ⊢ Function.Surjective ⇑g\n  -/\n  rintro ⟨x, hx⟩\n  /-\n    case mk\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    hϖ : Membership.mem (HPow.hPow I n) (HPow.hPow ϖ n)\n    g : LinearMap (RingHom.id R) R (Subtype fun x => Membership.mem (HPow.hPow I n …\n    this : Eq I (LinearMap.ker (f.comp g))\n    e : LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotien …\n    x : R\n    hx : Membership.mem (HPow.hPow I n) x\n    ⊢ Exists fun a => Eq (g a) ⟨x, hx⟩\n  -/\n  rw [hI, Ideal.span_singleton_pow, Ideal.mem_span_singleton] at hx\n  /-\n    case mk\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    hϖ : Membership.mem (HPow.hPow I n) (HPow.hPow ϖ n)\n    g : LinearMap (RingHom.id R) R (Subtype fun x => Membership.mem (HPow.hPow I n …\n    this : Eq I (LinearMap.ker (f.comp g))\n    e : LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotien …\n    x : R\n    hx✝ : Membership.mem (HPow.hPow I n) x\n    hx : Dvd.dvd (HPow.hPow ϖ n) x\n    ⊢ Exists fun a => Eq (g a) ⟨x, hx✝⟩\n  -/\n  refine hx.imp ?_\n  /-\n    case mk\n    R : Type u_1\n    inst✝¹ : CommRing R\n    inst✝ : IsDomain R\n    I : Ideal R\n    h : Submodule.IsPrincipal I\n    h' : Ne I Bot.bot\n    n : Nat\n    f : LinearMap (RingHom.id R) (Subtype fun x => Membership.mem (HPow.hPow I n)  …\n    ϖ : R := ⋯.choose\n    hI : Eq I (Ideal.span (Singleton.singleton ϖ))\n    hϖ : Membership.mem (HPow.hPow I n) (HPow.hPow ϖ n)\n    g : LinearMap (RingHom.id R) R (Subtype fun x => Membership.mem (HPow.hPow I n …\n    this : Eq I (LinearMap.ker (f.comp g))\n    e : LinearEquiv (RingHom.id R) (HasQuotient.Quotient R I) (HasQuotient.Quotien …\n    x : R\n    hx✝ : Membership.mem (HPow.hPow I n) x\n    hx : Dvd.dvd (HPow.hPow ϖ n) x\n    ⊢ ∀ (a : R), Eq x (HMul.hMul (HPow.hPow ϖ n) a) → Eq (g a) ⟨x, hx✝⟩\n  -/\n  simp [g, LinearMap.codRestrict, eq_comm, mul_comm]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "eq_comm",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem eq_comm {a b : α} : a = b ↔ b = a := Eq.comm",
+        "compilationAlias": "theorem eq_comm {a b : α} : a = b ↔ b = a := Eq.comm"
+      },
+      {
+        "name": "Submodule.mkQ_surjective",
+        "module": "Mathlib.LinearAlgebra.Quotient.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mkQ_surjective : Function.Surjective p.mkQ := by\n  rintro ⟨x⟩; exact ⟨x, rfl⟩",
+        "compilationAlias": "theorem mkQ_surjective : Function.Surjective p.mkQ := by\n  rintro ⟨x⟩; exact ⟨x, rfl⟩"
+      },
+      {
+        "name": "Submodule.quotEquivOfEq",
+        "module": "Mathlib.LinearAlgebra.Quotient.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Quotienting by equal submodules gives linearly equivalent quotients. -/\ndef quotEquivOfEq (h : p = p') : (M ⧸ p) ≃ₗ[R] M ⧸ p' :=\n  { @Quotient.congr _ _ (quotientRel p) (quotientRel p') (Equiv.refl _) fun a b => by\n      subst h\n      rfl with\n    map_add' := by\n      rintro ⟨x⟩ ⟨y⟩\n      rfl\n    map_smul' := by\n      rintro x ⟨y⟩\n      rfl }",
+        "compilationAlias": "/-- Quotienting by equal submodules gives linearly equivalent quotients. -/\ndef quotEquivOfEq (h : p = p') : (M ⧸ p) ≃ₗ[R] M ⧸ p' :=\n  { @Quotient.congr _ _ (quotientRel p) (quotientRel p') (Equiv.refl _) fun a b => by\n      subst h\n      rfl with\n    map_add' := by\n      rintro ⟨x⟩ ⟨y⟩\n      rfl\n    map_smul' := by\n      rintro x ⟨y⟩\n      rfl }"
+      },
+      {
+        "name": "Ideal.span_singleton_eq_bot",
+        "module": "Mathlib.RingTheory.Ideal.Span",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem span_singleton_eq_bot {x} : span ({x} : Set α) = ⊥ ↔ x = 0 :=\n  Submodule.span_singleton_eq_bot",
+        "compilationAlias": "@[simp]\ntheorem span_singleton_eq_bot {x} : span ({x} : Set α) = ⊥ ↔ x = 0 :=\n  Submodule.span_singleton_eq_bot"
+      },
+      {
+        "name": "pow_ne_zero",
+        "module": "Mathlib.Algebra.GroupWithZero.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[field_simps]\nlemma pow_ne_zero (n : ℕ) (h : a ≠ 0) : a ^ n ≠ 0 := mt pow_eq_zero h",
+        "compilationAlias": "@[field_simps]\nlemma pow_ne_zero (n : ℕ) (h : a ≠ 0) : a ^ n ≠ 0 := mt pow_eq_zero h"
+      },
+      {
+        "name": "mul_right_inj'",
+        "module": "Mathlib.Algebra.GroupWithZero.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mul_right_inj' (ha : a ≠ 0) : a * b = a * c ↔ b = c :=\n  (mul_right_injective₀ ha).eq_iff",
+        "compilationAlias": "theorem mul_right_inj' (ha : a ≠ 0) : a * b = a * c ↔ b = c :=\n  (mul_right_injective₀ ha).eq_iff"
+      },
+      {
+        "name": "mul_assoc",
+        "module": "Mathlib.Algebra.Group.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc",
+        "compilationAlias": "@[to_additive]\ntheorem mul_assoc : ∀ a b c : G, a * b * c = a * (b * c) :=\n  Semigroup.mul_assoc"
+      },
+      {
+        "name": "pow_succ",
+        "module": "Mathlib.Algebra.Group.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive succ_nsmul]\ntheorem pow_succ (a : M) (n : ℕ) : a ^ (n + 1) = a ^ n * a :=\n  Monoid.npow_succ n a",
+        "compilationAlias": "@[to_additive succ_nsmul]\ntheorem pow_succ (a : M) (n : ℕ) : a ^ (n + 1) = a ^ n * a :=\n  Monoid.npow_succ n a"
+      },
+      {
+        "name": "mul_comm",
+        "module": "Mathlib.Algebra.Group.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm",
+        "compilationAlias": "@[to_additive]\ntheorem mul_comm : ∀ a b : G, a * b = b * a := CommMagma.mul_comm"
+      },
+      {
+        "name": "Ideal.mem_span_singleton",
+        "module": "Mathlib.RingTheory.Ideal.Span",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mem_span_singleton {x y : α} : x ∈ span ({y} : Set α) ↔ y ∣ x :=\n  mem_span_singleton'.trans <| exists_congr fun _ => by rw [eq_comm, mul_comm]",
+        "compilationAlias": "theorem mem_span_singleton {x y : α} : x ∈ span ({y} : Set α) ↔ y ∣ x :=\n  mem_span_singleton'.trans <| exists_congr fun _ => by rw [eq_comm, mul_comm]"
+      },
+      {
+        "name": "Ideal.span_singleton_pow",
+        "module": "Mathlib.RingTheory.Ideal.Operations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem span_singleton_pow (s : R) (n : ℕ) : span {s} ^ n = (span {s ^ n} : Ideal R) := by\n  induction' n with n ih; · simp [Set.singleton_one]\n  simp only [pow_succ, ih, span_singleton_mul_span_singleton]",
+        "compilationAlias": "theorem span_singleton_pow (s : R) (n : ℕ) : span {s} ^ n = (span {s ^ n} : Ideal R) := by\n  induction' n with n ih; · simp [Set.singleton_one]\n  simp only [pow_succ, ih, span_singleton_mul_span_singleton]"
+      },
+      {
+        "name": "pow_succ'",
+        "module": "Mathlib.Algebra.Group.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive succ_nsmul'] lemma pow_succ' (a : M) : ∀ n, a ^ (n + 1) = a * a ^ n\n  | 0 => by simp\n  | n + 1 => by rw [pow_succ _ n, pow_succ, pow_succ', mul_assoc]",
+        "compilationAlias": "@[to_additive succ_nsmul'] lemma pow_succ' (a : M) : ∀ n, a ^ (n + 1) = a * a ^ n\n  | 0 => by simp\n  | n + 1 => by rw [pow_succ _ n, pow_succ, pow_succ', mul_assoc]"
+      },
+      {
+        "name": "Submodule.mul_mem_mul",
+        "module": "Mathlib.Algebra.Algebra.Operations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mul_mem_mul (hm : m ∈ M) (hn : n ∈ N) : m * n ∈ M * N :=\n  smul_mem_smul hm hn",
+        "compilationAlias": "theorem mul_mem_mul (hm : m ∈ M) (hn : n ∈ N) : m * n ∈ M * N :=\n  smul_mem_smul hm hn"
+      },
+      {
+        "name": "smul_eq_mul",
+        "module": "Mathlib.Algebra.Group.Action.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl",
+        "compilationAlias": "@[to_additive (attr := simp)]\nlemma smul_eq_mul {α : Type*} [Mul α] (a b : α) : a • b = a * b := rfl"
+      },
+      {
+        "name": "Submodule.mem_smul_top_iff",
+        "module": "Mathlib.RingTheory.Ideal.Operations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mem_smul_top_iff (N : Submodule R M) (x : N) :\n    x ∈ I • (⊤ : Submodule R N) ↔ (x : M) ∈ I • N := by\n  change _ ↔ N.subtype x ∈ I • N\n  have : Submodule.map N.subtype (I • ⊤) = I • N := by\n    rw [Submodule.map_smul'', Submodule.map_top, Submodule.range_subtype]\n  rw [← this]\n  exact (Function.Injective.mem_set_image N.injective_subtype).symm",
+        "compilationAlias": "theorem mem_smul_top_iff (N : Submodule R M) (x : N) :\n    x ∈ I • (⊤ : Submodule R N) ↔ (x : M) ∈ I • N := by\n  change _ ↔ N.subtype x ∈ I • N\n  have : Submodule.map N.subtype (I • ⊤) = I • N := by\n    rw [Submodule.map_smul'', Submodule.map_top, Submodule.range_subtype]\n  rw [← this]\n  exact (Function.Injective.mem_set_image N.injective_subtype).symm"
+      },
+      {
+        "name": "Submodule.Quotient.mk_eq_zero",
+        "module": "Mathlib.LinearAlgebra.Quotient.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mk_eq_zero : (mk x : M ⧸ p) = 0 ↔ x ∈ p := by simpa using (Quotient.eq' p : mk x = 0 ↔ _)",
+        "compilationAlias": "@[simp]\ntheorem mk_eq_zero : (mk x : M ⧸ p) = 0 ↔ x ∈ p := by simpa using (Quotient.eq' p : mk x = 0 ↔ _)"
+      },
+      {
+        "name": "Submodule.mkQ_apply",
+        "module": "Mathlib.LinearAlgebra.Quotient.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mkQ_apply (x : M) : p.mkQ x = Quotient.mk x :=\n  rfl",
+        "compilationAlias": "@[simp]\ntheorem mkQ_apply (x : M) : p.mkQ x = Quotient.mk x :=\n  rfl"
+      },
+      {
+        "name": "Function.comp_apply",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl",
+        "compilationAlias": "@[simp] theorem Function.comp_apply {f : β → δ} {g : α → β} {x : α} : comp f g x = f (g x) := rfl"
+      },
+      {
+        "name": "AddHom.coe_mk",
+        "module": "Mathlib.Algebra.Group.Hom.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp)]",
+        "compilationAlias": "@[to_additive (attr := simp)]"
+      },
+      {
+        "name": "LinearMap.coe_mk",
+        "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem coe_mk {σ : R →+* S} (f : AddHom M M₃) (h) :\n    ((LinearMap.mk f h : M →ₛₗ[σ] M₃) : M → M₃) = f :=\n  rfl",
+        "compilationAlias": "@[simp]\ntheorem coe_mk {σ : R →+* S} (f : AddHom M M₃) (h) :\n    ((LinearMap.mk f h : M →ₛₗ[σ] M₃) : M → M₃) = f :=\n  rfl"
+      },
+      {
+        "name": "LinearMap.coe_comp",
+        "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl",
+        "compilationAlias": "@[simp, norm_cast]\ntheorem coe_comp : (f.comp g : M₁ → M₃) = f ∘ g :=\n  rfl"
+      },
+      {
+        "name": "LinearMap.mem_ker",
+        "module": "Mathlib.Algebra.Module.Submodule.Ker",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mem_ker {f : F} {y} : y ∈ ker f ↔ f y = 0 :=\n  mem_bot R₂",
+        "compilationAlias": "@[simp]\ntheorem mem_ker {f : F} {y} : y ∈ ker f ↔ f y = 0 :=\n  mem_bot R₂"
+      },
+      {
+        "name": "LinearMap.codRestrict",
+        "module": "Mathlib.Algebra.Module.Submodule.LinearMap",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A linear map `f : M₂ → M` whose values lie in a submodule `p ⊆ M` can be restricted to a\nlinear map M₂ → p. -/\ndef codRestrict (p : Submodule R₂ M₂) (f : M →ₛₗ[σ₁₂] M₂) (h : ∀ c, f c ∈ p) : M →ₛₗ[σ₁₂] p where\n  toFun c := ⟨f c, h c⟩\n  map_add' _ _ := by simp\n  map_smul' _ _ := by simp",
+        "compilationAlias": "/-- A linear map `f : M₂ → M` whose values lie in a submodule `p ⊆ M` can be restricted to a\nlinear map M₂ → p. -/\ndef codRestrict (p : Submodule R₂ M₂) (f : M →ₛₗ[σ₁₂] M₂) (h : ∀ c, f c ∈ p) : M →ₛₗ[σ₁₂] p where\n  toFun c := ⟨f c, h c⟩\n  map_add' _ _ := by simp\n  map_smul' _ _ := by simp"
+      },
+      {
+        "name": "LinearMap.ker",
+        "module": "Mathlib.Algebra.Module.Submodule.Ker",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The kernel of a linear map `f : M → M₂` is defined to be `comap f ⊥`. This is equivalent to the\nset of `x : M` such that `f x = 0`. The kernel is a submodule of `M`. -/\ndef ker (f : F) : Submodule R M :=\n  comap f ⊥",
+        "compilationAlias": "/-- The kernel of a linear map `f : M → M₂` is defined to be `comap f ⊥`. This is equivalent to the\nset of `x : M` such that `f x = 0`. The kernel is a submodule of `M`. -/\ndef ker (f : F) : Submodule R M :=\n  comap f ⊥"
+      },
+      {
+        "name": "Ideal.mul_mem_left",
+        "module": "Mathlib.RingTheory.Ideal.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mul_mem_left : b ∈ I → a * b ∈ I :=\n  Submodule.smul_mem I a",
+        "compilationAlias": "theorem mul_mem_left : b ∈ I → a * b ∈ I :=\n  Submodule.smul_mem I a"
+      },
+      {
+        "name": "Ideal.submodule_span_eq",
+        "module": "Mathlib.RingTheory.Ideal.Span",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem submodule_span_eq {s : Set α} : Submodule.span α s = Ideal.span s :=\n  rfl",
+        "compilationAlias": "@[simp]\ntheorem submodule_span_eq {s : Set α} : Submodule.span α s = Ideal.span s :=\n  rfl"
+      },
+      {
+        "name": "LinearMap.mulRight_apply",
+        "module": "Mathlib.Algebra.Algebra.Bilinear",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mulRight_apply (a b : A) : mulRight R a b = b * a := rfl",
+        "compilationAlias": "@[simp]\ntheorem mulRight_apply (a b : A) : mulRight R a b = b * a := rfl"
+      },
+      {
+        "name": "LinearMap.pow_mulRight",
+        "module": "Mathlib.Algebra.Algebra.Bilinear",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem pow_mulRight (a : A) (n : ℕ) : mulRight R a ^ n = mulRight R (a ^ n) :=\n  match n with\n  | 0 => by rw [pow_zero, pow_zero, mulRight_one, LinearMap.one_eq_id]\n  | (n + 1) => by rw [pow_succ, pow_succ', mulRight_mul, LinearMap.mul_eq_comp, pow_mulRight]",
+        "compilationAlias": "@[simp]\ntheorem pow_mulRight (a : A) (n : ℕ) : mulRight R a ^ n = mulRight R (a ^ n) :=\n  match n with\n  | 0 => by rw [pow_zero, pow_zero, mulRight_one, LinearMap.one_eq_id]\n  | (n + 1) => by rw [pow_succ, pow_succ', mulRight_mul, LinearMap.mul_eq_comp, pow_mulRight]"
+      },
+      {
+        "name": "LinearMap.mulRight",
+        "module": "Mathlib.Algebra.Algebra.Bilinear",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The multiplication on the right in an algebra is a linear map.\n\nNote that this only assumes `IsScalarTower R A A`, so that it also works for `R := A`.\n\nWhen `A` is unital and associative, this is the same as\n`DistribMulAction.toLinearMap R A (MulOpposite.op b)`. -/\ndef mulRight (b : A) : A →ₗ[R] A where\n  toFun := (· * b)\n  map_add' _ _ := add_mul _ _ _\n  map_smul' _ _ := smul_mul_assoc _ _ _",
+        "compilationAlias": "/-- The multiplication on the right in an algebra is a linear map.\n\nNote that this only assumes `IsScalarTower R A A`, so that it also works for `R := A`.\n\nWhen `A` is unital and associative, this is the same as\n`DistribMulAction.toLinearMap R A (MulOpposite.op b)`. -/\ndef mulRight (b : A) : A →ₗ[R] A where\n  toFun := (· * b)\n  map_add' _ _ := add_mul _ _ _\n  map_smul' _ _ := smul_mul_assoc _ _ _"
+      },
+      {
+        "name": "Ideal.mem_span_singleton_self",
+        "module": "Mathlib.RingTheory.Ideal.Span",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mem_span_singleton_self (x : α) : x ∈ span ({x} : Set α) :=\n  Submodule.mem_span_singleton_self x",
+        "compilationAlias": "theorem mem_span_singleton_self (x : α) : x ∈ span ({x} : Set α) :=\n  Submodule.mem_span_singleton_self x"
+      },
+      {
+        "name": "Ideal.pow_mem_pow",
+        "module": "Mathlib.RingTheory.Ideal.Operations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem pow_mem_pow {x : R} (hx : x ∈ I) (n : ℕ) : x ^ n ∈ I ^ n :=\n  Submodule.pow_mem_pow _ hx _",
+        "compilationAlias": "theorem pow_mem_pow {x : R} (hx : x ∈ I) (n : ℕ) : x ^ n ∈ I ^ n :=\n  Submodule.pow_mem_pow _ hx _"
+      },
+      {
+        "name": "Ideal.span",
+        "module": "Mathlib.RingTheory.Ideal.Span",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The ideal generated by a subset of a ring -/\ndef span (s : Set α) : Ideal α :=\n  Submodule.span α s",
+        "compilationAlias": "/-- The ideal generated by a subset of a ring -/\ndef span (s : Set α) : Ideal α :=\n  Submodule.span α s"
+      },
+      {
+        "name": "Submodule.mkQ",
+        "module": "Mathlib.LinearAlgebra.Quotient.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The map from a module `M` to the quotient of `M` by a submodule `p` as a linear map. -/\ndef mkQ : M →ₗ[R] M ⧸ p where\n  toFun := Quotient.mk\n  map_add' := by simp\n  map_smul' := by simp",
+        "compilationAlias": "/-- The map from a module `M` to the quotient of `M` by a submodule `p` as a linear map. -/\ndef mkQ : M →ₗ[R] M ⧸ p where\n  toFun := Quotient.mk\n  map_add' := by simp\n  map_smul' := by simp"
+      },
+      {
+        "name": "Ideal",
+        "module": "Mathlib.RingTheory.Ideal.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R",
+        "compilationAlias": "/-- A (left) ideal in a semiring `R` is an additive submonoid `s` such that\n`a * b ∈ s` whenever `b ∈ s`. If `R` is a ring, then `s` is an additive subgroup. -/\nabbrev Ideal (R : Type u) [Semiring R] :=\n  Submodule R R"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

@@ -1,0 +1,334 @@
+[
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen Set Function Classical\n\nvariable {α β : Type*} [Nonempty β] (f : α → β) (g : β → α)",
+    "postscopes": "end",
+    "informal_statement": "Given functions `f` and `g`, the function `sbFun f g` is surjective.",
+    "informal_proof": "To prove that `sbFun f g` is surjective, we must show that for every element `y` in the codomain, there exists an element `x` in the domain such that `sbFun f g x = y`.\n\nWe begin by considering an arbitrary element `y` in the codomain. There are two cases to consider regarding the element `g y`:\n\n1. **Case 1**: `g y` is an element of the set `A`, where `A` is defined as `A ≡ sbSet f g`.\n2. **Case 2**: `g y` is not an element of `A`.\n\n**Case 1**: If `g y ∈ A`, by the definition of `A` and the properties of `f` and `g`, we can find an `x` such that `f x = g y` and `g y ∈ A`. Applying the definition of `sbFun`, we have `sbFun f g x = g (f x) = g (g y)`. Since `g y ∈ A`, there exists a corresponding `x` that satisfies `sbFun f g x = y`.\n\n**Case 2**: If `g y ∉ A`, then by the definition of `A` and through algebraic manipulation, we find that `g y` is not an element of `A`. Using the properties of `f` and `g` and the fact that `g y` is not in `A`, we can still find an `x` such that `sbFun f g x = y`. Specifically, we use the negation property `leftInverse_invFun hg`, which ensures that there exists an `x` that maps to `y` through `sbFun f g`.\n\nIn both cases, we have demonstrated the existence of an `x` such that `sbFun f g x = y`. Therefore, the function `sbFun f g` is surjective.",
+    "id": {
+      "name": "sb_surjective",
+      "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem sb_surjective (hg : Injective g) : Surjective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro y\n  by_cases gyA : g y ∈ A\n  · rw [A_def, sbSet, mem_iUnion] at gyA\n    rcases gyA with ⟨n, hn⟩\n    rcases n with _ | n\n    · simp [sbAux] at hn\n    simp [sbAux] at hn\n    rcases hn with ⟨x, xmem, hx⟩\n    use x\n    have : x ∈ A := by\n      rw [A_def, sbSet, mem_iUnion]\n      exact ⟨n, xmem⟩\n    rw [h_def, sbFun, if_pos this]\n    apply hg hx\n\n  use g y\n  rw [h_def, sbFun, if_neg gyA]\n  apply leftInverse_invFun hg\n\n",
+      "compilationAlias": "theorem sb_surjective (hg : Injective g) : Surjective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro y\n  by_cases gyA : g y ∈ A\n  · rw [A_def, sbSet, mem_iUnion] at gyA\n    rcases gyA with ⟨n, hn⟩\n    rcases n with _ | n\n    · simp [sbAux] at hn\n    simp [sbAux] at hn\n    rcases hn with ⟨x, xmem, hx⟩\n    use x\n    have : x ∈ A := by\n      rw [A_def, sbSet, mem_iUnion]\n      exact ⟨n, xmem⟩\n    rw [h_def, sbFun, if_pos this]\n    apply hg hx\n\n  use g y\n  rw [h_def, sbFun, if_neg gyA]\n  apply leftInverse_invFun hg\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝ : Nonempty β\nf : α → β\ng : β → α\nhg : Function.Injective g\n⊢ Function.Surjective (sbFun f g)",
+    "content_sorry": "theorem sb_surjective (hg : Injective g) : Surjective (sbFun f g) := by\n  sorry",
+    "content_full_by_exact": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\ntheorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\ntheorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\ntheorem sb_surjective (hg : Injective g) : Surjective (sbFun f g) := by\n  exact?",
+    "content_full": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\ntheorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\ntheorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\ntheorem sb_surjective (hg : Injective g) : Surjective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro y\n  by_cases gyA : g y ∈ A\n  · rw [A_def, sbSet, mem_iUnion] at gyA\n    rcases gyA with ⟨n, hn⟩\n    rcases n with _ | n\n    · simp [sbAux] at hn\n    simp [sbAux] at hn\n    rcases hn with ⟨x, xmem, hx⟩\n    use x\n    have : x ∈ A := by\n      rw [A_def, sbSet, mem_iUnion]\n      exact ⟨n, xmem⟩\n    rw [h_def, sbFun, if_pos this]\n    apply hg hx\n\n  use g y\n  rw [h_def, sbFun, if_neg gyA]\n  apply leftInverse_invFun hg\n\n",
+    "annotation": "theorem sb_surjective (hg : Injective g) : Surjective (sbFun f g) := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    ⊢ Function.Surjective (sbFun f g)\n  -/\n  set A := sbSet f g with A_def\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    ⊢ Function.Surjective (sbFun f g)\n  -/\n  set h := sbFun f g with h_def\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    ⊢ Function.Surjective h\n  -/\n  intro y\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    y : β\n    ⊢ Exists fun a => Eq (h a) y\n  -/\n  by_cases gyA : g y ∈ A\n    /-\n      case pos\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      gyA : Membership.mem A (g y)\n      ⊢ Exists fun a => Eq (h a) y\n    -/\n  · rw [A_def, sbSet, mem_iUnion] at gyA\n    /-\n      case pos\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      gyA : Exists fun i => Membership.mem (sbAux f g i) (g y)\n      ⊢ Exists fun a => Eq (h a) y\n    -/\n    rcases gyA with ⟨n, hn⟩\n    /-\n      case pos.intro\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      n : Nat\n      hn : Membership.mem (sbAux f g n) (g y)\n      ⊢ Exists fun a => Eq (h a) y\n    -/\n    rcases n with _ | n\n      /-\n        case pos.intro.zero\n        α : Type u_1\n        β : Type u_2\n        inst✝ : Nonempty β\n        f : α → β\n        g : β → α\n        hg : Function.Injective g\n        A : Set α := sbSet f g\n        A_def : Eq A (sbSet f g)\n        h : α → β := sbFun f g\n        h_def : Eq h (sbFun f g)\n        y : β\n        hn : Membership.mem (sbAux f g 0) (g y)\n        ⊢ Exists fun a => Eq (h a) y\n      -/\n    · simp [sbAux] at hn\n      /-\n        🎉 no goals\n      -/\n    /-\n      case pos.intro.succ\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      n : Nat\n      hn : Membership.mem (sbAux f g (HAdd.hAdd n 1)) (g y)\n      ⊢ Exists fun a => Eq (h a) y\n    -/\n    simp [sbAux] at hn\n    /-\n      case pos.intro.succ\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      n : Nat\n      hn : Exists fun a => And (Membership.mem (sbAux f g n) a) (Eq (g (f a)) (g y))\n      ⊢ Exists fun a => Eq (h a) y\n    -/\n    rcases hn with ⟨x, xmem, hx⟩\n    /-\n      case pos.intro.succ.intro.intro\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      n : Nat\n      x : α\n      xmem : Membership.mem (sbAux f g n) x\n      hx : Eq (g (f x)) (g y)\n      ⊢ Exists fun a => Eq (h a) y\n    -/\n    use x\n    have : x ∈ A := by\n      rw [A_def, sbSet, mem_iUnion]\n      exact ⟨n, xmem⟩\n    /-\n      case h\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      n : Nat\n      x : α\n      xmem : Membership.mem (sbAux f g n) x\n      hx : Eq (g (f x)) (g y)\n      this : Membership.mem A x\n      ⊢ Eq (h x) y\n    -/\n    rw [h_def, sbFun, if_pos this]\n    /-\n      case h\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hg : Function.Injective g\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      y : β\n      n : Nat\n      x : α\n      xmem : Membership.mem (sbAux f g n) x\n      hx : Eq (g (f x)) (g y)\n      this : Membership.mem A x\n      ⊢ Eq (f x) y\n    -/\n    apply hg hx\n    /-\n      🎉 no goals\n    -/\n\n  /-\n    case neg\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    y : β\n    gyA : Not (Membership.mem A (g y))\n    ⊢ Exists fun a => Eq (h a) y\n  -/\n  use g y\n  /-\n    case h\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    y : β\n    gyA : Not (Membership.mem A (g y))\n    ⊢ Eq (h (g y)) y\n  -/\n  rw [h_def, sbFun, if_neg gyA]\n  /-\n    case h\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hg : Function.Injective g\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    y : β\n    gyA : Not (Membership.mem A (g y))\n    ⊢ Eq (Function.invFun g (g y)) y\n  -/\n  apply leftInverse_invFun hg\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "if_neg",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem if_neg {c : Prop} {h : Decidable c} (hnc : ¬c) {α : Sort u} {t e : α} : (ite c t e) = e :=\n  match h with\n  | isTrue hc   => absurd hc hnc\n  | isFalse _   => rfl",
+        "compilationAlias": "theorem if_neg {c : Prop} {h : Decidable c} (hnc : ¬c) {α : Sort u} {t e : α} : (ite c t e) = e :=\n  match h with\n  | isTrue hc   => absurd hc hnc\n  | isFalse _   => rfl"
+      },
+      {
+        "name": "if_pos",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem if_pos {c : Prop} {h : Decidable c} (hc : c) {α : Sort u} {t e : α} : (ite c t e) = t :=\n  match h with\n  | isTrue  _   => rfl\n  | isFalse hnc => absurd hc hnc",
+        "compilationAlias": "theorem if_pos {c : Prop} {h : Decidable c} (hc : c) {α : Sort u} {t e : α} : (ite c t e) = t :=\n  match h with\n  | isTrue  _   => rfl\n  | isFalse hnc => absurd hc hnc"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "sbAux",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+        "compilationAlias": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n"
+      },
+      {
+        "name": "sbSet",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+        "compilationAlias": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n"
+      },
+      {
+        "name": "sbFun",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n",
+        "compilationAlias": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n"
+      },
+      {
+        "name": "sb_right_inv",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n",
+        "compilationAlias": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n"
+      },
+      {
+        "name": "sb_injective",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\n",
+        "compilationAlias": "theorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen Set Function Classical\n\nvariable {α β : Type*} [Nonempty β] (f : α → β) (g : β → α)",
+    "postscopes": "end",
+    "informal_statement": "The function `sbFun f g` is injective whenever `f` is injective.",
+    "informal_proof": "Let `f` be injective and consider the function `sbFun f g`. To prove that `sbFun f g` is injective, we can proceed step by step.\n\nAssume that `sbFun f g x₁ = sbFun f g x₂`. We need to show that `x₁ = x₂`.\n\nWe analyze the equality `sbFun f g x₁ = sbFun f g x₂` based on the membership of `x₁` and `x₂` in the set `A`, which is defined in the formal proof.\n\n1. **Case 1**: If both `x₁` and `x₂` are in `A`.\n   \n   By the definition of `sbFun`, if `x` is in `A`, then `sbFun f g x` is equal to `g(f(x))`. Therefore, `sbFun f g x₁ = g(f(x₁))` and `sbFun f g x₂ = g(f(x₂))`.\n\n   Given that `sbFun f g x₁ = sbFun f g x₂`, we have `g(f(x₁)) = g(f(x₂))`. Since `g` is the right inverse of `f` (as per the formal proof), applying `f` to both sides gives `f(g(f(x₁))) = f(g(f(x₂)))`, which simplifies to `x₁ = x₂`.\n\n2. **Case 2**: If only one of `x₁` or `x₂` is in `A`.\n\n   - **Subcase 2.1**: Suppose `x₁ ∈ A` and `x₂ ∉ A`.\n     \n     By the definition of `sbFun`, `sbFun f g x₁ = g(f(x₁))` and `sbFun f g x₂` is defined differently when `x ∉ A`. Given that `x₂ ∉ A`, we can show through contradiction that `x₂ = g(f(x₁))`. This would imply `x₁ = x₂` due to the injectivity of `f`.\n\n   - **Subcase 2.2**: Suppose `x₂ ∈ A` and `x₁ ∉ A`.\n     \n     This is symmetric to Subcase 2.1. Similarly, we can show that `x₁ = x₂`.\n\n3. **Case 3**: If neither `x₁` nor `x₂` is in `A`.\n\n   By the definition of `sbFun`, both `x₁` and `x₂` would map to the same value, `0`, if they are not in `A`. Thus, `sbFun f g x₁ = 0` and `sbFun f g x₂ = 0`. This would imply `x₁ = x₂` because injective function `f` ensures that different inputs map to different outputs, and in this case, the absence of `A` membership enforces uniqueness.\n\nIn all cases, we have shown that `x₁ = x₂`, thereby proving that `sbFun f g` is injective provided that `f` is injective.",
+    "id": {
+      "name": "sb_injective",
+      "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\n",
+      "compilationAlias": "theorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝ : Nonempty β\nf : α → β\ng : β → α\nx : α\n⊢ Eq (sbFun f g x) (ite (Membership.mem (sbSet f g) x) (f x) (Function.invFun g x))",
+    "content_sorry": "theorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  sorry",
+    "content_full_by_exact": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\ntheorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\ntheorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  exact?",
+    "content_full": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\ntheorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\ntheorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  set A := sbSet f g with A_def\n  set h := sbFun f g with h_def\n  intro x₁ x₂\n  intro (hxeq : h x₁ = h x₂)\n  show x₁ = x₂\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n    · symm\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    exact hf hxeq\n  push_neg at xA\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n\n",
+    "annotation": "theorem sb_injective (hf : Injective f) : Injective (sbFun f g) := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    ⊢ Function.Injective (sbFun f g)\n  -/\n  set A := sbSet f g with A_def\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    ⊢ Function.Injective (sbFun f g)\n  -/\n  set h := sbFun f g with h_def\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    ⊢ Function.Injective h\n  -/\n  intro x₁ x₂\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    ⊢ Eq (h x₁) (h x₂) → Eq x₁ x₂\n  -/\n  intro (hxeq : h x₁ = h x₂)\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    hxeq : Eq (h x₁) (h x₂)\n    ⊢ Eq x₁ x₂\n  -/\n  show x₁ = x₂\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    hxeq : Eq (h x₁) (h x₂)\n    ⊢ Eq x₁ x₂\n  -/\n  simp only [h_def, sbFun, ← A_def] at hxeq\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n    ⊢ Eq x₁ x₂\n  -/\n  by_cases xA : x₁ ∈ A ∨ x₂ ∈ A\n    /-\n      case pos\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hf : Function.Injective f\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      x₁ x₂ : α\n      hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n      xA : Or (Membership.mem A x₁) (Membership.mem A x₂)\n      ⊢ Eq x₁ x₂\n    -/\n  · wlog x₁A : x₁ ∈ A generalizing x₁ x₂ hxeq xA\n      /-\n        case pos.inr\n        α : Type u_1\n        β : Type u_2\n        inst✝ : Nonempty β\n        f : α → β\n        g : β → α\n        hf : Function.Injective f\n        A : Set α := sbSet f g\n        A_def : Eq A (sbSet f g)\n        h : α → β := sbFun f g\n        h_def : Eq h (sbFun f g)\n        x₁ x₂ : α\n        hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n        xA : Or (Membership.mem A x₁) (Membership.mem A x₂)\n        this : ∀ ⦃x₁ x₂ : α⦄, Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g  …\n        x₁A : Not (Membership.mem A x₁)\n        ⊢ Eq x₁ x₂\n      -/\n    · symm\n      /-\n        case pos.inr\n        α : Type u_1\n        β : Type u_2\n        inst✝ : Nonempty β\n        f : α → β\n        g : β → α\n        hf : Function.Injective f\n        A : Set α := sbSet f g\n        A_def : Eq A (sbSet f g)\n        h : α → β := sbFun f g\n        h_def : Eq h (sbFun f g)\n        x₁ x₂ : α\n        hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n        xA : Or (Membership.mem A x₁) (Membership.mem A x₂)\n        this : ∀ ⦃x₁ x₂ : α⦄, Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g  …\n        x₁A : Not (Membership.mem A x₁)\n        ⊢ Eq x₂ x₁\n      -/\n      apply this hxeq.symm xA.symm (xA.resolve_left x₁A)\n      /-\n        🎉 no goals\n      -/\n    have x₂A : x₂ ∈ A := by\n      apply _root_.not_imp_self.mp\n      intro (x₂nA : x₂ ∉ A)\n      rw [if_pos x₁A, if_neg x₂nA] at hxeq\n      rw [A_def, sbSet, mem_iUnion] at x₁A\n      have x₂eq : x₂ = g (f x₁) := by\n        rw [hxeq, sb_right_inv f g x₂nA]\n      rcases x₁A with ⟨n, hn⟩\n      rw [A_def, sbSet, mem_iUnion]\n      use n + 1\n      simp [sbAux]\n      exact ⟨x₁, hn, x₂eq.symm⟩\n    /-\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hf : Function.Injective f\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      x₁ x₂ : α\n      hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n      xA : Or (Membership.mem A x₁) (Membership.mem A x₂)\n      x₁A : Membership.mem A x₁\n      x₂A : Membership.mem A x₂\n      ⊢ Eq x₁ x₂\n    -/\n    rw [if_pos x₁A, if_pos x₂A] at hxeq\n    /-\n      α : Type u_1\n      β : Type u_2\n      inst✝ : Nonempty β\n      f : α → β\n      g : β → α\n      hf : Function.Injective f\n      A : Set α := sbSet f g\n      A_def : Eq A (sbSet f g)\n      h : α → β := sbFun f g\n      h_def : Eq h (sbFun f g)\n      x₁ x₂ : α\n      hxeq : Eq (f x₁) (f x₂)\n      xA : Or (Membership.mem A x₁) (Membership.mem A x₂)\n      x₁A : Membership.mem A x₁\n      x₂A : Membership.mem A x₂\n      ⊢ Eq x₁ x₂\n    -/\n    exact hf hxeq\n    /-\n      🎉 no goals\n    -/\n  /-\n    case neg\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n    xA : Not (Or (Membership.mem A x₁) (Membership.mem A x₂))\n    ⊢ Eq x₁ x₂\n  -/\n  push_neg at xA\n  /-\n    case neg\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    hxeq : Eq (ite (Membership.mem A x₁) (f x₁) (Function.invFun g x₁)) (ite (Memb …\n    xA : And (Not (Membership.mem A x₁)) (Not (Membership.mem A x₂))\n    ⊢ Eq x₁ x₂\n  -/\n  rw [if_neg xA.1, if_neg xA.2] at hxeq\n  /-\n    case neg\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    hf : Function.Injective f\n    A : Set α := sbSet f g\n    A_def : Eq A (sbSet f g)\n    h : α → β := sbFun f g\n    h_def : Eq h (sbFun f g)\n    x₁ x₂ : α\n    hxeq : Eq (Function.invFun g x₁) (Function.invFun g x₂)\n    xA : And (Not (Membership.mem A x₁)) (Not (Membership.mem A x₂))\n    ⊢ Eq x₁ x₂\n  -/\n  rw [← sb_right_inv f g xA.1, hxeq, sb_right_inv f g xA.2]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "if_neg",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem if_neg {c : Prop} {h : Decidable c} (hnc : ¬c) {α : Sort u} {t e : α} : (ite c t e) = e :=\n  match h with\n  | isTrue hc   => absurd hc hnc\n  | isFalse _   => rfl",
+        "compilationAlias": "theorem if_neg {c : Prop} {h : Decidable c} (hnc : ¬c) {α : Sort u} {t e : α} : (ite c t e) = e :=\n  match h with\n  | isTrue hc   => absurd hc hnc\n  | isFalse _   => rfl"
+      },
+      {
+        "name": "if_pos",
+        "module": "Init.Core",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem if_pos {c : Prop} {h : Decidable c} (hc : c) {α : Sort u} {t e : α} : (ite c t e) = t :=\n  match h with\n  | isTrue  _   => rfl\n  | isFalse hnc => absurd hc hnc",
+        "compilationAlias": "theorem if_pos {c : Prop} {h : Decidable c} (hc : c) {α : Sort u} {t e : α} : (ite c t e) = t :=\n  match h with\n  | isTrue  _   => rfl\n  | isFalse hnc => absurd hc hnc"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "sbAux",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+        "compilationAlias": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n"
+      },
+      {
+        "name": "sbSet",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+        "compilationAlias": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n"
+      },
+      {
+        "name": "sbFun",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n",
+        "compilationAlias": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n"
+      },
+      {
+        "name": "sb_right_inv",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n",
+        "compilationAlias": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen Set Function Classical\n\nvariable {α β : Type*} [Nonempty β] (f : α → β) (g : β → α)",
+    "postscopes": "end",
+    "informal_statement": "Given a function \\( g \\) and its inverse \\( inv\\ g \\), for any element \\( x \\) not belonging to the special subset \\( sbSet\\ f\\ g \\), applying \\( g \\) to the result of \\( inv\\ g\\ x \\) yields \\( x \\) itself. This ensures that the inverse function \\( inv\\ g \\) correctly recovers \\( x \\) when applied within the context outside the subset \\( sbSet\\ f\\ g \\).",
+    "informal_proof": "Suppose \\( x \\) is an element not contained within the special subset \\( sbSet\\ f\\ g \\). By definition of \\( sbSet\\ f\\ g \\), if \\( x \\) were in this set, it would imply certain properties about \\( g \\) that do not hold here. Since \\( x \\notin sbSet\\ f\\ g \\), there exists an element \\( y \\) such that \\( g\\ y = x \\). Applying the inverse function \\( inv\\ g \\) to both sides of this equation yields \\( inv\\ g\\ x = inv\\ g\\ (g\\ y) \\). By the properties of an inverse function, \\( inv\\ g\\ (g\\ y) \\) simplifies to \\( y \\). Therefore, \\( inv\\ g\\ x = y \\).\n\nNow, applying \\( g \\) to both sides of this equation, we get:\n\\[\ng\\ (inv\\ g\\ x) = g\\ y\n\\]\nSince \\( g\\ y = x \\), it follows that:\n\\[\ng\\ (inv\\ g\\ x) = x\n\\]\nThus, for any \\( x \\) not in \\( sbSet\\ f\\ g \\), \\( g\\ (inv\\ g\\ x) \\) indeed equals \\( x \\), confirming the theorem.",
+    "id": {
+      "name": "sb_right_inv",
+      "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n",
+      "compilationAlias": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\nf : α → β\ng : β → α\n⊢ Eq (sbSet f g) (Set.iUnion fun n => sbAux f g n)",
+    "content_sorry": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  sorry",
+    "content_full_by_exact": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\ntheorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  exact?",
+    "content_full": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\ntheorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  exact invFun_eq this\n\n",
+    "annotation": "theorem sb_right_inv {x : α} (hx : x ∉ sbSet f g) : g (invFun g x) = x := by\n  have : x ∈ g '' univ := by\n    contrapose! hx\n    rw [sbSet, mem_iUnion]\n    use 0\n    rw [sbAux, mem_diff]\n    exact ⟨mem_univ _, hx⟩\n  have : ∃ y, g y = x := by\n    simp at this\n    assumption\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝ : Nonempty β\n    f : α → β\n    g : β → α\n    x : α\n    hx : Not (Membership.mem (sbSet f g) x)\n    this✝ : Membership.mem (Set.image g Set.univ) x\n    this : Exists fun y => Eq (g y) x\n    ⊢ Eq (g (Function.invFun g x)) x\n  -/\n  exact invFun_eq this\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "sbAux",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+        "compilationAlias": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n"
+      },
+      {
+        "name": "sbSet",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+        "compilationAlias": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n"
+      },
+      {
+        "name": "sbFun",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n",
+        "compilationAlias": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen Set Function Classical\n\nvariable {α β : Type*} [Nonempty β] (f : α → β) (g : β → α)",
+    "postscopes": "end",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "sbFun",
+      "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n",
+      "compilationAlias": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝ : Nonempty β\nf : α → β\ng : β → α\nx : α\n⊢ β",
+    "content_sorry": "def sbFun (x : α) : β := by sorry",
+    "content_full_by_exact": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β := by exact?",
+    "content_full": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\ndef sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n",
+    "annotation": "def sbFun (x : α) : β :=\n  if x ∈ sbSet f g then f x else invFun g x\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "sbAux",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+        "compilationAlias": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n"
+      },
+      {
+        "name": "sbSet",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+        "compilationAlias": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen Set Function Classical\n\nvariable {α β : Type*} [Nonempty β] (f : α → β) (g : β → α)",
+    "postscopes": "end",
+    "informal_statement": "tag will contain the informalized definition, and the <PROOF> tag will include the lightweight statement affirming the correctness of the process.\n\nI should make sure that my statements are clear, concise, and match the examples provided for structure and style. Using natural language, I should avoid jargon and keep the statements straightforward for better understanding.\n\nSo, to summarize:\n\n- Understand the formal definition provided.\n- Rephrase it in natural language, ensuring clarity and accuracy.\n- Acknowledge the lack of proof and provide the standardized <PROOF></PROOF> placeholder.\n- Ensure that the formatting follows the example closely for consistency.\n\nI think I've got a good handle on this now. Time to draft the response accordingly.\n</think>\n\n<STATEMENT>\n\nThe set `sbSet` is defined as the union of `sbAux f g n` over all natural numbers `n`.",
+    "informal_proof": "",
+    "id": {
+      "name": "sbSet",
+      "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+      "compilationAlias": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\nf : α → β\ng : β → α\n⊢ Set α",
+    "content_sorry": "def sbSet := by sorry",
+    "content_full_by_exact": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet := by exact?",
+    "content_full": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\ndef sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+    "annotation": "def sbSet :=\n  ⋃ n, sbAux f g n\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "sbAux",
+        "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+        "compilationAlias": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen Set Function Classical\n\nvariable {α β : Type*} [Nonempty β] (f : α → β) (g : β → α)",
+    "postscopes": "end",
+    "informal_statement": "`sbAux` is a recursively defined function from the set of natural numbers to the power set of α. For each natural number `n`, `sbAux n` is defined as the image of `g` over `f` applied to `sbAux (n - 1)`. This function builds up a set incrementally by applying `f` and then `g` at each step.",
+    "informal_proof": "For any natural number `n`, `sbAux n` is the image of `g` over `f` applied recursively to the previous value `sbAux (n - 1)`. This means that at each step, we transform the set from the previous iteration by applying `f` first, which likely processes or modifies each element, and then `g`, which converts these processed elements into a new set. The construction ensures a progressive buildup of elements through iterative transformation, leading to the final set representation after `n` steps.",
+    "id": {
+      "name": "sbAux",
+      "module": "MIL.C04_Sets_and_Functions.solutions.Solutions_S03_The_Schroeder_Bernstein_Theorem",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+      "compilationAlias": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\nf : α → β\ng : β → α\na✝ : Nat\n⊢ Set α",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Data.Set.Lattice\nimport Mathlib.Data.Set.Function\nimport MIL.Common\n\nopen Set\nopen Function\n\nnoncomputable section\nopen Classical\nvariable {α β : Type*} [Nonempty β]\n\nsection\nvariable (f : α → β) (g : β → α)\n\ndef sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+    "annotation": "def sbAux : ℕ → Set α\n  | 0 => univ \\ g '' univ\n  | n + 1 => g '' (f '' sbAux n)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Set",
+        "module": "Mathlib.Data.Set.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+        "compilationAlias": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

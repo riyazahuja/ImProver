@@ -1,0 +1,1580 @@
+[
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d) {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.fix_eq",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem fix_eq (i : I) :\n    fix f hp i = f i (λ j _ ↦ fix f hp j) (λ j _ ↦ fix_prop f hp j) :=\n  fix'_eq _ _ i\n\n",
+      "compilationAlias": "theorem fix_eq (i : I) :\n    fix f hp i = f i (λ j _ ↦ fix f hp j) (λ j _ ↦ fix_prop f hp j) :=\n  fix'_eq _ _ i\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Sort w\nf : (i : I) → (d : (j : I) → r j i → α j) → ((j : I) → (h : r j i) → p j (d j h) fun k h' => d k ⋯) → α i\nhp : (i : I) → (d : (j : I) → r j i → α j) → (h : (j : I) → (h : r j i) → p j (d j h) fun k h' => d k ⋯) → p i (f i d h) d\ni : I\n⊢ Eq (ICT.fix f hp i) (f i (fun j x => ICT.fix f hp j) fun j x => ICT.fix_prop f hp j)",
+    "content_sorry": "theorem fix_eq (i : I) :\n    fix f hp i = f i (λ j _ ↦ fix f hp j) (λ j _ ↦ fix_prop f hp j) := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnoncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\nnoncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\ntheorem fix_eq (i : I) :\n    fix f hp i = f i (λ j _ ↦ fix f hp j) (λ j _ ↦ fix_prop f hp j) := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnoncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\nnoncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\ntheorem fix_eq (i : I) :\n    fix f hp i = f i (λ j _ ↦ fix f hp j) (λ j _ ↦ fix_prop f hp j) :=\n  fix'_eq _ _ i\n\n",
+    "annotation": "theorem fix_eq (i : I) :\n    fix f hp i = f i (λ j _ ↦ fix f hp j) (λ j _ ↦ fix_prop f hp j) :=\n  fix'_eq _ _ i\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      },
+      {
+        "name": "ICT.core_dom",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+        "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+      },
+      {
+        "name": "ICT.fix'",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+        "compilationAlias": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n"
+      },
+      {
+        "name": "ICT.fix'_prop",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n",
+        "compilationAlias": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n"
+      },
+      {
+        "name": "ICT.fix'_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n",
+        "compilationAlias": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n"
+      },
+      {
+        "name": "ICT.fix",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n",
+        "compilationAlias": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n"
+      },
+      {
+        "name": "ICT.fix_prop",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "noncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\n",
+        "compilationAlias": "noncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d) {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.fix_prop",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "noncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\n",
+      "compilationAlias": "noncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\n"
+    },
+    "goal": "I : Type u_1\nr : I → I → Prop\ninst✝ : IsTrans I r\ni j : I\nh : r j i\nk : I\nh' : r k j\n⊢ r k i",
+    "content_sorry": "noncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnoncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\nnoncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnoncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\nnoncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\n",
+    "annotation": "noncomputable def fix_prop (i : I) :\n    p i (fix f hp i) (λ j _ ↦ fix f hp j) :=\n  (fix'_prop (p := λ i h t ↦ Nonempty (p i h t)) _ _ i).some\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      },
+      {
+        "name": "ICT.core_dom",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+        "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+      },
+      {
+        "name": "ICT.fix'",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+        "compilationAlias": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n"
+      },
+      {
+        "name": "ICT.fix'_prop",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n",
+        "compilationAlias": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n"
+      },
+      {
+        "name": "ICT.fix'_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n",
+        "compilationAlias": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n"
+      },
+      {
+        "name": "ICT.fix",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n",
+        "compilationAlias": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d) {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.fix",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n",
+      "compilationAlias": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n"
+    },
+    "goal": "I : Type u_2\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type u_3\np : (i : I) → α i → ((j : I) → r j i → α j) → Sort u_1\nf : (i : I) → (d : (j : I) → r j i → α j) → ((j : I) → (h : r j i) → p j (d j h) fun k h' => d k ⋯) → α i\nhp : (i : I) → (d : (j : I) → r j i → α j) → (h : (j : I) → (h : r j i) → p j (d j h) fun k h' => d k ⋯) → p i (f i d h) d\ni : I\nd : (j : I) → r j i → α j\nh : ∀ (j : I) (h : r j i), (fun i h t => Nonempty (p i h t)) j (d j h) fun k h' => d k ⋯\n⊢ Nonempty (p i ((fun i d h => f i d fun j h' => Nonempty.some ⋯) i d h) d)",
+    "content_sorry": "noncomputable def fix : ∀ i, α i := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnoncomputable def fix : ∀ i, α i := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Sort w}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnoncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n",
+    "annotation": "noncomputable def fix : ∀ i, α i :=\n  fix' (r := r) (p := λ i h t ↦ Nonempty (p i h t))\n    (λ i d h ↦ f i d (λ j h' ↦ (h j h').some))\n    (λ i d h ↦ ⟨hp i d (λ j h' ↦ (h j h').some)⟩)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      },
+      {
+        "name": "ICT.core_dom",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+        "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+      },
+      {
+        "name": "ICT.fix'",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+        "compilationAlias": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n"
+      },
+      {
+        "name": "ICT.fix'_prop",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n",
+        "compilationAlias": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n"
+      },
+      {
+        "name": "ICT.fix'_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n",
+        "compilationAlias": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.fix'_eq",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n",
+      "compilationAlias": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\nhp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯), p i (f i d h) d\ni : I\n⊢ Eq (ICT.fix' f hp i) (f i (fun j x => ICT.fix' f hp j) ⋯)",
+    "content_sorry": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\ntheorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  rw [fix', core_get_eq]\n  rfl\n\n",
+    "annotation": "theorem fix'_eq (i : I) :\n    fix' f hp i = f i (λ j _ ↦ fix' f hp j) (λ j _ ↦ fix'_prop f hp j) := by\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ⊢ Eq (ICT.fix' f hp i) (f i (fun j x => ICT.fix' f hp j) ⋯)\n  -/\n  rw [fix', core_get_eq]\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ⊢ Eq (f i (fun j h' => (ICT.core f j).get ⋯) ⋯) (f i (fun j x => ICT.fix' f hp …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      },
+      {
+        "name": "ICT.core_dom",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+        "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+      },
+      {
+        "name": "ICT.fix'",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+        "compilationAlias": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n"
+      },
+      {
+        "name": "ICT.fix'_prop",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n",
+        "compilationAlias": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.fix'_prop",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n",
+      "compilationAlias": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\nhp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯), p i (f i d h) d\ni : I\n⊢ p i (ICT.fix' f hp i) fun j x => ICT.fix' f hp j",
+    "content_sorry": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\ntheorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  swap\n  · have := core_dom f hp i\n    rw [core_eq] at this\n    exact this.prop\n  · convert this using 1\n    rw [fix', core_get_eq]\n    rfl\n\n",
+    "annotation": "theorem fix'_prop (i : I) :\n    p i (fix' f hp i) (λ j _ ↦ fix' f hp j) := by\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ⊢ p i (ICT.fix' f hp i) fun j x => ICT.fix' f hp j\n  -/\n  have := hp i (λ j _ ↦ fix' f hp j) ?_\n  /-\n    case refine_2\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    this : p i (f i (fun j x => ICT.fix' f hp j) ?refine_1) fun j x => ICT.fix' f  …\n    ⊢ p i (ICT.fix' f hp i) fun j x => ICT.fix' f hp j\n  -/\n  swap\n    /-\n      case refine_1\n      I : Type u\n      r : I → I → Prop\n      inst✝ : IsTrans I r\n      inst : IsWellFounded I r\n      α : I → Type v\n      p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n      f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n      hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n      i : I\n      ⊢ ∀ (j : I) (h : r j i), p j ((fun j x => ICT.fix' f hp j) j h) fun k h' => (f …\n    -/\n  · have := core_dom f hp i\n    /-\n      case refine_1\n      I : Type u\n      r : I → I → Prop\n      inst✝ : IsTrans I r\n      inst : IsWellFounded I r\n      α : I → Type v\n      p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n      f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n      hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n      i : I\n      this : (ICT.core f i).Dom\n      ⊢ ∀ (j : I) (h : r j i), p j ((fun j x => ICT.fix' f hp j) j h) fun k h' => (f …\n    -/\n    rw [core_eq] at this\n    /-\n      case refine_1\n      I : Type u\n      r : I → I → Prop\n      inst✝ : IsTrans I r\n      inst : IsWellFounded I r\n      α : I → Type v\n      p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n      f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n      hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n      i : I\n      this : { Dom := ICT.IndHyp i fun j x => ICT.core f j, get := fun h => f i (fun …\n      ⊢ ∀ (j : I) (h : r j i), p j ((fun j x => ICT.fix' f hp j) j h) fun k h' => (f …\n    -/\n    exact this.prop\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_2\n      I : Type u\n      r : I → I → Prop\n      inst✝ : IsTrans I r\n      inst : IsWellFounded I r\n      α : I → Type v\n      p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n      f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n      hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n      i : I\n      this : p i (f i (fun j x => ICT.fix' f hp j) ⋯) fun j x => ICT.fix' f hp j\n      ⊢ p i (ICT.fix' f hp i) fun j x => ICT.fix' f hp j\n    -/\n  · convert this using 1\n    /-\n      case h.e'_2\n      I : Type u\n      r : I → I → Prop\n      inst✝ : IsTrans I r\n      inst : IsWellFounded I r\n      α : I → Type v\n      p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n      f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n      hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n      i : I\n      this : p i (f i (fun j x => ICT.fix' f hp j) ⋯) fun j x => ICT.fix' f hp j\n      ⊢ Eq (ICT.fix' f hp i) (f i (fun j x => ICT.fix' f hp j) ⋯)\n    -/\n    rw [fix', core_get_eq]\n    /-\n      case h.e'_2\n      I : Type u\n      r : I → I → Prop\n      inst✝ : IsTrans I r\n      inst : IsWellFounded I r\n      α : I → Type v\n      p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n      f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n      hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n      i : I\n      this : p i (f i (fun j x => ICT.fix' f hp j) ⋯) fun j x => ICT.fix' f hp j\n      ⊢ Eq (f i (fun j h' => (ICT.core f j).get ⋯) ⋯) (f i (fun j x => ICT.fix' f hp …\n    -/\n    rfl\n    /-\n      🎉 no goals\n    -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      },
+      {
+        "name": "ICT.core_dom",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+        "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+      },
+      {
+        "name": "ICT.fix'",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+        "compilationAlias": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.fix'",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+      "compilationAlias": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\nhp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯), p i (f i d h) d\ni : I\n⊢ α i",
+    "content_sorry": "def fix' (i : I) : α i := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\ndef fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+    "annotation": "def fix' (i : I) : α i :=\n  (core f i).get (core_dom f hp i)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      },
+      {
+        "name": "ICT.core_dom",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+        "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.core_dom",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+      "compilationAlias": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\nhp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯), p i (f i d h) d\ni : I\n⊢ (ICT.core f i).Dom",
+    "content_sorry": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\ntheorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  refine inst.fix _ ?_\n  intro i ih\n  rw [core_eq]\n  refine ⟨ih, ?_⟩\n  intro j h\n  rw [core_get_eq]\n  have := ih j h\n  rw [core_eq] at this\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n\n",
+    "annotation": "theorem core_dom (hp : ∀ i d h, p i (f i d h) d) : ∀ i, (core f i).Dom := by\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    ⊢ ∀ (i : I), (ICT.core f i).Dom\n  -/\n  refine inst.fix _ ?_\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    ⊢ ∀ (x : I), (∀ (y : I), r y x → (ICT.core f y).Dom) → (ICT.core f x).Dom\n  -/\n  intro i ih\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    ⊢ (ICT.core f i).Dom\n  -/\n  rw [core_eq]\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    ⊢ { Dom := ICT.IndHyp i fun j x => ICT.core f j, get := fun h => f i (fun j h' …\n  -/\n  refine ⟨ih, ?_⟩\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    ⊢ ∀ (j : I) (h : r j i), p j ((ICT.core f j).get ⋯) fun k h' => (ICT.core f k) …\n  -/\n  intro j h\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    j : I\n    h : r j i\n    ⊢ p j ((ICT.core f j).get ⋯) fun k h' => (ICT.core f k).get ⋯\n  -/\n  rw [core_get_eq]\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    j : I\n    h : r j i\n    ⊢ p j (f j (fun j_1 h' => (ICT.core f j_1).get ⋯) ⋯) fun k h' => (ICT.core f k …\n  -/\n  have := ih j h\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    j : I\n    h : r j i\n    this : (ICT.core f j).Dom\n    ⊢ p j (f j (fun j_1 h' => (ICT.core f j_1).get ⋯) ⋯) fun k h' => (ICT.core f k …\n  -/\n  rw [core_eq] at this\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n    i : I\n    ih : ∀ (y : I), r y i → (ICT.core f y).Dom\n    j : I\n    h : r j i\n    this : { Dom := ICT.IndHyp j fun j_1 x => ICT.core f j_1, get := fun h => f j  …\n    ⊢ p j (f j (fun j_1 h' => (ICT.core f j_1).get ⋯) ⋯) fun k h' => (ICT.core f k …\n  -/\n  exact hp j (λ k h' ↦ (core f k).get (ih k (Trans.trans h' h))) this.prop\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      },
+      {
+        "name": "ICT.core_get_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+        "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.core_get_eq",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+      "compilationAlias": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\ni : I\nh : (ICT.core f i).Dom\n⊢ Eq ((ICT.core f i).get h) (f i (fun j h' => (ICT.core f j).get ⋯) ⋯)",
+    "content_sorry": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\ntheorem core_get_eq (i : I) (h : (core f i).Dom) :\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  have := core_eq f i\n  rw [Part.ext_iff] at this\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  exact h.symm\n\n",
+    "annotation": "theorem core_get_eq (i : I) (h : (core f i).Dom) :\n                                                /-\n                                                  I : Type u\n                                                  r : I → I → Prop\n                                                  inst✝ : IsTrans I r\n                                                  inst : IsWellFounded I r\n                                                  α : I → Type v\n                                                  p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n                                                  f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n                                                  hp : ∀ (i : I) (d : (j : I) → r j i → α j) (h : ∀ (j : I) (h : r j i), p j (d  …\n                                                  i : I\n                                                  h : (ICT.core f i).Dom\n                                                  ⊢ ICT.IndHyp i fun j x => ICT.core f j\n                                                -/\n    letI hc : IndHyp i (λ j _ ↦ core f j) := by rwa [core_eq] at h\n                                                /-\n                                                  🎉 no goals\n                                                -/\n    (core f i).get h = f i (λ j h' ↦ (core f j).get (hc.dom j h')) hc.prop := by\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    i : I\n    h : (ICT.core f i).Dom\n    ⊢ Eq ((ICT.core f i).get h) (f i (fun j h' => (ICT.core f j).get ⋯) ⋯)\n  -/\n  have := core_eq f i\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    i : I\n    h : (ICT.core f i).Dom\n    this : Eq (ICT.core f i) { Dom := ICT.IndHyp i fun j x => ICT.core f j, get := …\n    ⊢ Eq ((ICT.core f i).get h) (f i (fun j h' => (ICT.core f j).get ⋯) ⋯)\n  -/\n  rw [Part.ext_iff] at this\n  /-\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    i : I\n    h : (ICT.core f i).Dom\n    this : ∀ (a : α i), Iff (Membership.mem (ICT.core f i) a) (Membership.mem { Do …\n    ⊢ Eq ((ICT.core f i).get h) (f i (fun j h' => (ICT.core f j).get ⋯) ⋯)\n  -/\n  obtain ⟨_, h⟩ := (this _).mp ⟨h, rfl⟩\n  /-\n    case intro\n    I : Type u\n    r : I → I → Prop\n    inst✝ : IsTrans I r\n    inst : IsWellFounded I r\n    α : I → Type v\n    p : (i : I) → α i → ((j : I) → r j i → α j) → Prop\n    f : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h …\n    i : I\n    h✝ : (ICT.core f i).Dom\n    this : ∀ (a : α i), Iff (Membership.mem (ICT.core f i) a) (Membership.mem { Do …\n    w✝ : { Dom := ICT.IndHyp i fun j x => ICT.core f j, get := fun h => f i (fun j …\n    h : Eq ({ Dom := ICT.IndHyp i fun j x => ICT.core f j, get := fun h => f i (fu …\n    ⊢ Eq ((ICT.core f i).get h✝) (f i (fun j h' => (ICT.core f j).get ⋯) ⋯)\n  -/\n  exact h.symm\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "rfl",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+        "compilationAlias": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"
+      },
+      {
+        "name": "Part.ext_iff",
+        "module": "Mathlib.Data.Part",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "",
+        "compilationAlias": ""
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      },
+      {
+        "name": "ICT.core_eq",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+        "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.core_eq",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+      "compilationAlias": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\ni : I\n⊢ Eq (ICT.core f i) { Dom := ICT.IndHyp i fun j x => ICT.core f j, get := fun h => f i (fun j h' => (ICT.core f j).get ⋯) ⋯ }",
+    "content_sorry": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\ntheorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+    "annotation": "theorem core_eq (i : I) :\n    core f i = ⟨IndHyp i (λ j _ ↦ core f j),\n      λ h ↦ f i (λ j h' ↦ (core f j).get (h.dom j h')) h.prop⟩ :=\n  IsWellFounded.fix_eq _ _ _\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "IsWellFounded.fix_eq",
+        "module": "Mathlib.Order.RelClasses",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The value from `IsWellFounded.fix` is built from the previous ones as specified. -/\ntheorem fix_eq {C : α → Sort*} (F : ∀ x : α, (∀ y : α, r y x → C y) → C x) :\n    ∀ x, fix r F x = F x fun y _ => fix r F y :=\n  wf.fix_eq F",
+        "compilationAlias": "/-- The value from `IsWellFounded.fix` is built from the previous ones as specified. -/\ntheorem fix_eq {C : α → Sort*} (F : ∀ x : α, (∀ y : α, r y x → C y) → C x) :\n    ∀ x, fix r F x = F x fun y _ => fix r F y :=\n  wf.fix_eq F"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.core",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+        "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.core",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+      "compilationAlias": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\ninst : IsWellFounded I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\nf : (i : I) → (d : (j : I) → r j i → α j) → (∀ (j : I) (h : r j i), p j (d j h) fun k h' => d k ⋯) → α i\ni : I\n⊢ Part (α i)",
+    "content_sorry": "def core : ∀ i, Part (α i) := by sorry",
+    "content_full_by_exact": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) := by exact?",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\ndef core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+    "annotation": "def core : ∀ i, Part (α i) :=\n  inst.fix _ λ i t ↦ {\n    Dom := IndHyp i t\n    get := λ h ↦ f i (λ j h' ↦ (t j h').get (h.dom j h')) h.prop\n  }\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.casesOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.IndHyp.casesOn",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+      "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\ni : I\nt : (j : I) → r j i → Part (α j)\nself : ICT.IndHyp i t\nj : I\nh : r j i\n⊢ (t j h).Dom",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "annotation": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "inductive",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.IndHyp",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "inductive",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+      "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\ni : I\nt : (j : I) → r j i → Part (α j)\nself : ICT.IndHyp i t\nj : I\nh : r j i\n⊢ (t j h).Dom",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "annotation": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.recOn",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.IndHyp.recOn",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+      "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\ni : I\nt : (j : I) → r j i → Part (α j)\nself : ICT.IndHyp i t\nj : I\nh : r j i\n⊢ (t j h).Dom",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "annotation": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.noConfusion",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.IndHyp.noConfusion",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+      "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\ni : I\nt : (j : I) → r j i → Part (α j)\nself : ICT.IndHyp i t\nj : I\nh : r j i\n⊢ (t j h).Dom",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "annotation": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      },
+      {
+        "name": "ICT.IndHyp.rec",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "recursor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.IndHyp.rec",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "recursor",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+      "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\ni : I\nt : (j : I) → r j i → Part (α j)\nself : ICT.IndHyp i t\nj : I\nh : r j i\n⊢ (t j h).Dom",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "annotation": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "ICT.IndHyp.mk",
+        "module": "ConNF.Background.InductiveConstruction",
+        "kind": "constructor",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+        "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "namespace ICT\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r] {α : I → Type v}\n  {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j), (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) → α i)\n  (hp : ∀ i d h, p i (f i d h) d)",
+    "postscopes": "end ICT",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "ICT.IndHyp.mk",
+      "module": "ConNF.Background.InductiveConstruction",
+      "kind": "constructor",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+      "compilationAlias": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n"
+    },
+    "goal": "I : Type u\nr : I → I → Prop\ninst✝ : IsTrans I r\nα : I → Type v\np : (i : I) → α i → ((j : I) → r j i → α j) → Prop\ni : I\nt : (j : I) → r j i → Part (α j)\nself : ICT.IndHyp i t\nj : I\nh : r j i\n⊢ (t j h).Dom",
+    "content_sorry": "",
+    "content_full_by_exact": "",
+    "content_full": "import Mathlib.Order.RelClasses\nimport Mathlib.Data.Part\n\n/-!\n# The inductive construction theorem\n-/\n\nuniverse u v w\n\nvariable {I : Type u} {r : I → I → Prop} [IsTrans I r] [inst : IsWellFounded I r]\n  {α : I → Type v} {p : ∀ i, α i → (∀ j, r j i → α j) → Prop}\n  (f : ∀ i, ∀ d : (∀ j, r j i → α j),\n    (∀ j, ∀ h : r j i, p j (d j h) (λ k h' ↦ d k (Trans.trans h' h))) →\n    α i)\n  (hp : ∀ i d h, p i (f i d h) d)\n\nnamespace ICT\n\nstructure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "annotation": "structure IndHyp (i : I) (t : ∀ j, r j i → Part (α j)) : Prop where\n  dom : ∀ j, ∀ h : r j i, (t j h).Dom\n  prop : ∀ j, ∀ h : r j i, p j ((t j h).get (dom j h))\n    (λ k h' ↦ (t k (Trans.trans h' h)).get (dom k _))\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Trans.trans",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "  trans : r a b → s b c → t a c",
+        "compilationAlias": "  trans : r a b → s b c → t a c"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

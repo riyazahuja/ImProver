@@ -1,0 +1,890 @@
+[
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.card_transGen_le",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem card_transGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | TransGen r x y} ≤ κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans (card_reflTransGen_le hr hκ y)\n\n",
+      "compilationAlias": "theorem card_transGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | TransGen r x y} ≤ κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans (card_reflTransGen_le hr hκ y)\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nκ : Cardinal.{u}\nhr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\nhκ : LE.le Cardinal.aleph0 κ\ny : α\n⊢ LE.le (Cardinal.mk ↑(setOf fun x => Relation.TransGen r x y)) κ",
+    "content_sorry": "theorem card_transGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | TransGen r x y} ≤ κ := by sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\ntheorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\ntheorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\ntheorem card_transGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | TransGen r x y} ≤ κ := by exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\ntheorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\ntheorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\ntheorem card_transGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | TransGen r x y} ≤ κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans (card_reflTransGen_le hr hκ y)\n\n",
+    "annotation": "theorem card_transGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | TransGen r x y} ≤ κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans (card_reflTransGen_le hr hκ y)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "trans",
+        "module": "Mathlib.Order.Defs.Unbundled",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _",
+        "compilationAlias": "lemma trans [IsTrans α r] : a ≺ b → b ≺ c → a ≺ c := IsTrans.trans _ _ _"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGenₙ_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+        "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+        "compilationAlias": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'_iff",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+        "compilationAlias": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n",
+        "compilationAlias": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n"
+      },
+      {
+        "name": "Rel.card_transGen_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n",
+        "compilationAlias": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen_le",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\n",
+        "compilationAlias": "theorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.card_reflTransGen_le",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\n",
+      "compilationAlias": "theorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nκ : Cardinal.{u}\nhr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\nhκ : LE.le Cardinal.aleph0 κ\ny : α\n⊢ LE.le (Cardinal.mk ↑(setOf fun x => Relation.ReflTransGen r x y)) κ",
+    "content_sorry": "theorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\ntheorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\ntheorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\ntheorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\ntheorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n  · rwa [Order.lt_succ_iff] at this\n  · intro x\n    rw [Order.lt_succ_iff]\n    exact hr x\n  · exact isRegular_succ hκ\n  · rwa [Order.lt_succ_iff]\n\n",
+    "annotation": "theorem card_reflTransGen_le (hr : ∀ y, #{x | r x y} ≤ κ) (hκ : ℵ₀ ≤ κ) (y : α) :\n    #{x | ReflTransGen r x y} ≤ κ := by\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ : LE.le Cardinal.aleph0 κ\n    y : α\n    ⊢ LE.le (Cardinal.mk ↑(setOf fun x => Relation.ReflTransGen r x y)) κ\n  -/\n  have := card_reflTransGen_lt (r := r) (κ := Order.succ κ) ?_ ?_ ?_ y\n    /-\n      case refine_4\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ : LE.le Cardinal.aleph0 κ\n      y : α\n      this : LT.lt (Cardinal.mk ↑(setOf fun x => Relation.ReflTransGen r x y)) (Orde …\n      ⊢ LE.le (Cardinal.mk ↑(setOf fun x => Relation.ReflTransGen r x y)) κ\n    -/\n  · rwa [Order.lt_succ_iff] at this\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_1\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ : LE.le Cardinal.aleph0 κ\n      y : α\n      ⊢ ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) (Order.succ κ)\n    -/\n  · intro x\n    /-\n      case refine_1\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ : LE.le Cardinal.aleph0 κ\n      y x : α\n      ⊢ LT.lt (Cardinal.mk ↑(setOf fun x_1 => r x_1 x)) (Order.succ κ)\n    -/\n    rw [Order.lt_succ_iff]\n    /-\n      case refine_1\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ : LE.le Cardinal.aleph0 κ\n      y x : α\n      ⊢ LE.le (Cardinal.mk ↑(setOf fun x_1 => r x_1 x)) κ\n    -/\n    exact hr x\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_2\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ : LE.le Cardinal.aleph0 κ\n      y : α\n      ⊢ (Order.succ κ).IsRegular\n    -/\n  · exact isRegular_succ hκ\n    /-\n      🎉 no goals\n    -/\n    /-\n      case refine_3\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LE.le (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ : LE.le Cardinal.aleph0 κ\n      y : α\n      ⊢ LT.lt Cardinal.aleph0 (Order.succ κ)\n    -/\n  · rwa [Order.lt_succ_iff]\n    /-\n      🎉 no goals\n    -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Order.lt_succ_iff",
+        "module": "Mathlib.Order.SuccPred.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem lt_succ_iff : a < succ b ↔ a ≤ b :=\n  lt_succ_iff_of_not_isMax <| not_isMax b",
+        "compilationAlias": "@[simp]\ntheorem lt_succ_iff : a < succ b ↔ a ≤ b :=\n  lt_succ_iff_of_not_isMax <| not_isMax b"
+      },
+      {
+        "name": "Order.succ",
+        "module": "Mathlib.Order.SuccPred.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The successor of an element. If `a` is not maximal, then `succ a` is the least element greater\nthan `a`. If `a` is maximal, then `succ a = a`. -/\ndef succ : α → α :=\n  SuccOrder.succ",
+        "compilationAlias": "/-- The successor of an element. If `a` is not maximal, then `succ a` is the least element greater\nthan `a`. If `a` is maximal, then `succ a = a`. -/\ndef succ : α → α :=\n  SuccOrder.succ"
+      },
+      {
+        "name": "Rel",
+        "module": "Mathlib.Data.Rel",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+        "compilationAlias": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGenₙ_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+        "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+        "compilationAlias": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'_iff",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+        "compilationAlias": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n",
+        "compilationAlias": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n"
+      },
+      {
+        "name": "Rel.card_transGen_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n",
+        "compilationAlias": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.card_transGen_lt",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n",
+      "compilationAlias": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nκ : Cardinal.{u}\nhr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\nhκ₁ : κ.IsRegular\nhκ₂ : LT.lt Cardinal.aleph0 κ\ny : α\n⊢ LT.lt (Cardinal.mk ↑(setOf fun x => Relation.TransGen r x y)) κ",
+    "content_sorry": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ := by sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\ntheorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ := by exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\ntheorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n",
+    "annotation": "theorem card_transGen_lt (hr : ∀ y, #{x | r x y} < κ) (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | TransGen r x y} < κ :=\n  (mk_le_mk_of_subset (λ _ ↦ TransGen.to_reflTransGen)).trans_lt (card_reflTransGen_lt hr hκ₁ hκ₂ y)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGenₙ_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+        "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+        "compilationAlias": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'_iff",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+        "compilationAlias": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n",
+        "compilationAlias": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.card_reflTransGen_lt",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n",
+      "compilationAlias": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nx y : α\n⊢ Eq (Relation.ReflTransGen r x y) (r.reflTransGen' x y)",
+    "content_sorry": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\ntheorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  simp only [← reflTransGen'_iff, reflTransGen']\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n  · simp only [ULift.forall]\n    apply card_reflTransGenₙ_lt hr hκ₁\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    exact one_lt_aleph0.trans hκ₂\n  · rw [mk_eq_aleph0]\n    exact hκ₂\n\n",
+    "annotation": "theorem card_reflTransGen_lt (hr : ∀ y, #{x | r x y} < κ)\n    (hκ₁ : κ.IsRegular) (hκ₂ : ℵ₀ < κ) (y : α) :\n    #{x | ReflTransGen r x y} < κ := by\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ₁ : κ.IsRegular\n    hκ₂ : LT.lt Cardinal.aleph0 κ\n    y : α\n    ⊢ LT.lt (Cardinal.mk ↑(setOf fun x => Relation.ReflTransGen r x y)) κ\n  -/\n  simp only [← reflTransGen'_iff, reflTransGen']\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ₁ : κ.IsRegular\n    hκ₂ : LT.lt Cardinal.aleph0 κ\n    y : α\n    ⊢ LT.lt (Cardinal.mk ↑(setOf fun x => Membership.mem (Set.iUnion fun n => setO …\n  -/\n  change #(⋃ n, {x | reflTransGenₙ r n {y} x}) < κ\n  suffices #(⋃ n : ULift.{u} ℕ, {x | reflTransGenₙ r n.down {y} x}) < κ by\n    convert this using 3\n    ext x\n    simp only [Set.mem_iUnion, Set.mem_setOf_eq, ULift.exists]\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ₁ : κ.IsRegular\n    hκ₂ : LT.lt Cardinal.aleph0 κ\n    y : α\n    ⊢ LT.lt (Cardinal.mk ↑(Set.iUnion fun n => setOf fun x => r.reflTransGenₙ n.do …\n  -/\n  rw [card_iUnion_lt_iff_forall_of_isRegular hκ₁]\n    /-\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ₁ : κ.IsRegular\n      hκ₂ : LT.lt Cardinal.aleph0 κ\n      y : α\n      ⊢ ∀ (i : ULift.{u, 0} Nat), LT.lt (Cardinal.mk ↑(setOf fun x => r.reflTransGen …\n    -/\n  · simp only [ULift.forall]\n    /-\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ₁ : κ.IsRegular\n      hκ₂ : LT.lt Cardinal.aleph0 κ\n      y : α\n      ⊢ ∀ (x : Nat), LT.lt (Cardinal.mk ↑(setOf fun x_1 => r.reflTransGenₙ x (Single …\n    -/\n    apply card_reflTransGenₙ_lt hr hκ₁\n    /-\n      case hs\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ₁ : κ.IsRegular\n      hκ₂ : LT.lt Cardinal.aleph0 κ\n      y : α\n      ⊢ LT.lt (Cardinal.mk ↑(Singleton.singleton y)) κ\n    -/\n    simp only [mk_fintype, Fintype.card_ofSubsingleton, Nat.cast_one]\n    /-\n      case hs\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ₁ : κ.IsRegular\n      hκ₂ : LT.lt Cardinal.aleph0 κ\n      y : α\n      ⊢ LT.lt 1 κ\n    -/\n    exact one_lt_aleph0.trans hκ₂\n    /-\n      🎉 no goals\n    -/\n    /-\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ₁ : κ.IsRegular\n      hκ₂ : LT.lt Cardinal.aleph0 κ\n      y : α\n      ⊢ LT.lt (Cardinal.mk (ULift.{u, 0} Nat)) κ\n    -/\n  · rw [mk_eq_aleph0]\n    /-\n      α : Type u\n      r : Rel α α\n      κ : Cardinal.{u}\n      hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n      hκ₁ : κ.IsRegular\n      hκ₂ : LT.lt Cardinal.aleph0 κ\n      y : α\n      ⊢ LT.lt Cardinal.aleph0 κ\n    -/\n    exact hκ₂\n    /-\n      🎉 no goals\n    -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Nat.cast_one",
+        "module": "Mathlib.Data.Nat.Cast.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp, norm_cast]\ntheorem cast_one [AddMonoidWithOne R] : ((1 : ℕ) : R) = 1 := by\n  rw [cast_succ, Nat.cast_zero, zero_add]",
+        "compilationAlias": "@[simp, norm_cast]\ntheorem cast_one [AddMonoidWithOne R] : ((1 : ℕ) : R) = 1 := by\n  rw [cast_succ, Nat.cast_zero, zero_add]"
+      },
+      {
+        "name": "Fintype.card_ofSubsingleton",
+        "module": "Mathlib.Data.Fintype.Card",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Note: this lemma is specifically about `Fintype.ofSubsingleton`. For a statement about\narbitrary `Fintype` instances, use either `Fintype.card_le_one_iff_subsingleton` or\n`Fintype.card_unique`. -/\ntheorem card_ofSubsingleton (a : α) [Subsingleton α] : @Fintype.card _ (ofSubsingleton a) = 1 :=\n  rfl",
+        "compilationAlias": "/-- Note: this lemma is specifically about `Fintype.ofSubsingleton`. For a statement about\narbitrary `Fintype` instances, use either `Fintype.card_le_one_iff_subsingleton` or\n`Fintype.card_unique`. -/\ntheorem card_ofSubsingleton (a : α) [Subsingleton α] : @Fintype.card _ (ofSubsingleton a) = 1 :=\n  rfl"
+      },
+      {
+        "name": "ULift.forall",
+        "module": "Mathlib.Data.ULift",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem «forall» {p : ULift α → Prop} : (∀ x, p x) ↔ ∀ x : α, p (ULift.up x) :=\n  up_surjective.forall",
+        "compilationAlias": "@[simp]\ntheorem «forall» {p : ULift α → Prop} : (∀ x, p x) ↔ ∀ x : α, p (ULift.up x) :=\n  up_surjective.forall"
+      },
+      {
+        "name": "ULift.exists",
+        "module": "Mathlib.Data.ULift",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem «exists» {p : ULift α → Prop} : (∃ x, p x) ↔ ∃ x : α, p (ULift.up x) :=\n  up_surjective.exists",
+        "compilationAlias": "@[simp]\ntheorem «exists» {p : ULift α → Prop} : (∃ x, p x) ↔ ∃ x : α, p (ULift.up x) :=\n  up_surjective.exists"
+      },
+      {
+        "name": "Set.mem_setOf_eq",
+        "module": "Mathlib.Data.Set.Operations",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp, mfld_simps] theorem mem_setOf_eq {x : α} {p : α → Prop} : (x ∈ {y | p y}) = p x := rfl",
+        "compilationAlias": "@[simp, mfld_simps] theorem mem_setOf_eq {x : α} {p : α → Prop} : (x ∈ {y | p y}) = p x := rfl"
+      },
+      {
+        "name": "Set.mem_iUnion",
+        "module": "Mathlib.Order.SetNotation",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mem_iUnion {x : α} {s : ι → Set α} : (x ∈ ⋃ i, s i) ↔ ∃ i, x ∈ s i :=\n  ⟨fun ⟨_, ⟨⟨a, (t_eq : s a = _)⟩, (h : x ∈ _)⟩⟩ => ⟨a, t_eq.symm ▸ h⟩, fun ⟨a, h⟩ =>\n    ⟨s a, ⟨⟨a, rfl⟩, h⟩⟩⟩",
+        "compilationAlias": "@[simp]\ntheorem mem_iUnion {x : α} {s : ι → Set α} : (x ∈ ⋃ i, s i) ↔ ∃ i, x ∈ s i :=\n  ⟨fun ⟨_, ⟨⟨a, (t_eq : s a = _)⟩, (h : x ∈ _)⟩⟩ => ⟨a, t_eq.symm ▸ h⟩, fun ⟨a, h⟩ =>\n    ⟨s a, ⟨⟨a, rfl⟩, h⟩⟩⟩"
+      },
+      {
+        "name": "Rel",
+        "module": "Mathlib.Data.Rel",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+        "compilationAlias": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGenₙ_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+        "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+        "compilationAlias": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'_iff",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+        "compilationAlias": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.reflTransGen'_iff",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+      "compilationAlias": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nx y : α\n⊢ Eq (r.reflTransGen' x y) (Membership.mem (Set.iUnion fun n => setOf fun x => r.reflTransGenₙ n (Singleton.singleton y) x) x)",
+    "content_sorry": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\ntheorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  unfold reflTransGen₁\n  constructor\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+    "annotation": "theorem reflTransGen'_iff (r : Rel α α) (x y : α) :\n    reflTransGen' r x y ↔ ReflTransGen r x y := by\n  /-\n    α : Type u\n    r : Rel α α\n    x y : α\n    ⊢ Iff (r.reflTransGen' x y) (Relation.ReflTransGen r x y)\n  -/\n  rw [reflTransGen', reflTransGenₙ, Set.mem_iUnion]\n  /-\n    α : Type u\n    r : Rel α α\n    x y : α\n    ⊢ Iff (Exists fun i => Membership.mem (setOf fun x => Nat.iterate r.reflTransG …\n  -/\n  unfold reflTransGen₁\n  /-\n    α : Type u\n    r : Rel α α\n    x y : α\n    ⊢ Iff (Exists fun i => Membership.mem (setOf fun x => Nat.iterate (fun s => Se …\n  -/\n  constructor\n    /-\n      case mp\n      α : Type u\n      r : Rel α α\n      x y : α\n      ⊢ (Exists fun i => Membership.mem (setOf fun x => Nat.iterate (fun s => Set.iU …\n    -/\n  · rintro ⟨n, hx⟩\n    induction n generalizing x with\n    | zero =>\n      cases hx\n      exact ReflTransGen.refl\n    | succ n ih =>\n      rw [Function.iterate_succ'] at hx\n      obtain ⟨s, ⟨z, _, rfl⟩, _, ⟨hz, rfl⟩, hx⟩ := hx\n      exact ReflTransGen.head hx (ih z hz)\n    /-\n      case mpr\n      α : Type u\n      r : Rel α α\n      x y : α\n      ⊢ Relation.ReflTransGen r x y → Exists fun i => Membership.mem (setOf fun x => …\n    -/\n  · intro h\n    induction h using ReflTransGen.head_induction_on with\n    | refl => exact ⟨0, rfl⟩\n    | head hx _ ih =>\n      obtain ⟨n, h⟩ := ih\n      use n + 1\n      rw [Function.iterate_succ']\n      refine ⟨_, ⟨_, rfl⟩, _, ⟨h, rfl⟩, hx⟩\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "refl",
+        "module": "Mathlib.Order.Defs.Unbundled",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma refl [IsRefl α r] (a : α) : a ≺ a := IsRefl.refl a",
+        "compilationAlias": "lemma refl [IsRefl α r] (a : α) : a ≺ a := IsRefl.refl a"
+      },
+      {
+        "name": "rfl",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+        "compilationAlias": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"
+      },
+      {
+        "name": "Function.iterate_succ'",
+        "module": "Mathlib.Logic.Function.Iterate",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem iterate_succ' (n : ℕ) : f^[n.succ] = f ∘ f^[n] := by\n  rw [iterate_succ, (Commute.self_iterate f n).comp_eq]",
+        "compilationAlias": "theorem iterate_succ' (n : ℕ) : f^[n.succ] = f ∘ f^[n] := by\n  rw [iterate_succ, (Commute.self_iterate f n).comp_eq]"
+      },
+      {
+        "name": "Set.mem_iUnion",
+        "module": "Mathlib.Order.SetNotation",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem mem_iUnion {x : α} {s : ι → Set α} : (x ∈ ⋃ i, s i) ↔ ∃ i, x ∈ s i :=\n  ⟨fun ⟨_, ⟨⟨a, (t_eq : s a = _)⟩, (h : x ∈ _)⟩⟩ => ⟨a, t_eq.symm ▸ h⟩, fun ⟨a, h⟩ =>\n    ⟨s a, ⟨⟨a, rfl⟩, h⟩⟩⟩",
+        "compilationAlias": "@[simp]\ntheorem mem_iUnion {x : α} {s : ι → Set α} : (x ∈ ⋃ i, s i) ↔ ∃ i, x ∈ s i :=\n  ⟨fun ⟨_, ⟨⟨a, (t_eq : s a = _)⟩, (h : x ∈ _)⟩⟩ => ⟨a, t_eq.symm ▸ h⟩, fun ⟨a, h⟩ =>\n    ⟨s a, ⟨⟨a, rfl⟩, h⟩⟩⟩"
+      },
+      {
+        "name": "Rel",
+        "module": "Mathlib.Data.Rel",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+        "compilationAlias": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGenₙ_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+        "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+      },
+      {
+        "name": "Rel.reflTransGen'",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+        "compilationAlias": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.reflTransGen'",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+      "compilationAlias": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\n⊢ Rel α α",
+    "content_sorry": "def reflTransGen' (r : Rel α α) : Rel α α := by sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α := by exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\ndef reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+    "annotation": "def reflTransGen' (r : Rel α α) : Rel α α :=\n  λ x y ↦ x ∈ ⋃ n, {x | reflTransGenₙ r n {y} x}\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Rel",
+        "module": "Mathlib.Data.Rel",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+        "compilationAlias": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGenₙ_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+        "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.card_reflTransGenₙ_lt",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+      "compilationAlias": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nκ : Cardinal.{u}\nhr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\nhκ : κ.IsRegular\ns : Set α\nhs : LT.lt (Cardinal.mk ↑s) κ\nn : Nat\n⊢ LT.lt (Cardinal.mk ↑(r.reflTransGenₙ n s)) κ",
+    "content_sorry": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\ntheorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+    "annotation": "theorem card_reflTransGenₙ_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) (n : ℕ) :\n    #(reflTransGenₙ r n s) < κ := by\n  induction n with\n  | zero => exact hs\n  | succ n ih =>\n    rw [reflTransGenₙ, Function.iterate_succ']\n    exact card_reflTransGen₁_lt hr hκ _ ih\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Function.iterate_succ'",
+        "module": "Mathlib.Logic.Function.Iterate",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem iterate_succ' (n : ℕ) : f^[n.succ] = f ∘ f^[n] := by\n  rw [iterate_succ, (Commute.self_iterate f n).comp_eq]",
+        "compilationAlias": "theorem iterate_succ' (n : ℕ) : f^[n.succ] = f ∘ f^[n] := by\n  rw [iterate_succ, (Commute.self_iterate f n).comp_eq]"
+      },
+      {
+        "name": "Set",
+        "module": "Mathlib.Data.Set.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+        "compilationAlias": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      },
+      {
+        "name": "Rel.reflTransGenₙ",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+        "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.reflTransGenₙ",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+      "compilationAlias": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\na✝¹ : Nat\na✝ : Set α\n⊢ Set α",
+    "content_sorry": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α := by sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α := by exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\ndef reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+    "annotation": "def reflTransGenₙ (r : Rel α α) : ℕ → Set α → Set α :=\n  Nat.iterate (reflTransGen₁ r)\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Nat.iterate",
+        "module": "Mathlib.Logic.Function.Iterate",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Iterate a function. -/\ndef Nat.iterate {α : Sort u} (op : α → α) : ℕ → α → α\n  | 0, a => a\n  | succ k, a => iterate op k (op a)",
+        "compilationAlias": "/-- Iterate a function. -/\ndef Nat.iterate {α : Sort u} (op : α → α) : ℕ → α → α\n  | 0, a => a\n  | succ k, a => iterate op k (op a)"
+      },
+      {
+        "name": "Set",
+        "module": "Mathlib.Data.Set.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+        "compilationAlias": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"
+      },
+      {
+        "name": "Rel",
+        "module": "Mathlib.Data.Rel",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+        "compilationAlias": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      },
+      {
+        "name": "Rel.card_reflTransGen₁_lt",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+        "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.card_reflTransGen₁_lt",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+      "compilationAlias": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\nκ : Cardinal.{u}\nhr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\nhκ : κ.IsRegular\ns : Set α\nhs : LT.lt (Cardinal.mk ↑s) κ\n⊢ LT.lt (Cardinal.mk ↑(r.reflTransGen₁ s)) κ",
+    "content_sorry": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\ntheorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  intro x _\n  exact hr x\n\n",
+    "annotation": "theorem card_reflTransGen₁_lt (hr : ∀ y, #{x | r x y} < κ) (hκ : κ.IsRegular)\n    (s : Set α) (hs : #s < κ) :\n    #(reflTransGen₁ r s) < κ := by\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ : κ.IsRegular\n    s : Set α\n    hs : LT.lt (Cardinal.mk ↑s) κ\n    ⊢ LT.lt (Cardinal.mk ↑(r.reflTransGen₁ s)) κ\n  -/\n  rw [reflTransGen₁, card_biUnion_lt_iff_forall_of_isRegular hκ hs]\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ : κ.IsRegular\n    s : Set α\n    hs : LT.lt (Cardinal.mk ↑s) κ\n    ⊢ ∀ (a : α), Membership.mem s a → LT.lt (Cardinal.mk ↑(setOf fun y => r y a)) κ\n  -/\n  intro x _\n  /-\n    α : Type u\n    r : Rel α α\n    κ : Cardinal.{u}\n    hr : ∀ (y : α), LT.lt (Cardinal.mk ↑(setOf fun x => r x y)) κ\n    hκ : κ.IsRegular\n    s : Set α\n    hs : LT.lt (Cardinal.mk ↑s) κ\n    x : α\n    ha✝ : Membership.mem s x\n    ⊢ LT.lt (Cardinal.mk ↑(setOf fun y => r y x)) κ\n  -/\n  exact hr x\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Set",
+        "module": "Mathlib.Data.Set.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+        "compilationAlias": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "Rel.reflTransGen₁",
+        "module": "ConNF.Background.ReflTransGen",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+        "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace Rel\n\nopen Cardinal Relation\n\nuniverse u\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}",
+    "postscopes": "end\n\nend Rel",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Rel.reflTransGen₁",
+      "module": "ConNF.Background.ReflTransGen",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+      "compilationAlias": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n"
+    },
+    "goal": "α : Type u\nr : Rel α α\ns : Set α\n⊢ Set α",
+    "content_sorry": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α := by sorry",
+    "content_full_by_exact": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α := by exact?",
+    "content_full": "import ConNF.Background.Cardinal\nimport ConNF.Background.Rel\n\nuniverse u\n\nnoncomputable section\nopen Cardinal Relation\n\nnamespace Rel\n\nvariable {α : Type u} {r : Rel α α} {κ : Cardinal}\n\ndef reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+    "annotation": "def reflTransGen₁ (r : Rel α α) (s : Set α) : Set α :=\n  ⋃ x ∈ s, {y | r y x}\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Set",
+        "module": "Mathlib.Data.Set.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+        "compilationAlias": "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"
+      },
+      {
+        "name": "Rel",
+        "module": "Mathlib.Data.Rel",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited",
+        "compilationAlias": "/-- A relation on `α` and `β`, aka a set-valued function, aka a partial multifunction -/\ndef Rel (α β : Type*) :=\n  α → β → Prop -- deriving CompleteLattice, Inhabited"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

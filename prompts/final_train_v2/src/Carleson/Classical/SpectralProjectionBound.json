@@ -1,0 +1,632 @@
+[
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen MeasureTheory AddCircle",
+    "postscopes": "end",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "spectral_projection_bound_lp",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma spectral_projection_bound_lp {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ≤ ‖f‖ := by\n  rw [← abs_norm, ← abs_norm f, ← sq_le_sq]\n  exact spectral_projection_bound_sq _ _\n",
+      "compilationAlias": "lemma spectral_projection_bound_lp {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ≤ ‖f‖ := by\n  rw [← abs_norm, ← abs_norm f, ← sq_le_sq]\n  exact spectral_projection_bound_sq _ _\n"
+    },
+    "goal": "N : Nat\nT : Real\nhT : Fact (LT.lt 0 T)\nf : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haarAddCircle) x\n⊢ LE.le (Norm.norm (partialFourierSumLp 2 N f)) (Norm.norm f)",
+    "content_sorry": "lemma spectral_projection_bound_lp {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ≤ ‖f‖ := by\n  sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\nlemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\nlemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\nlemma spectral_projection_bound_lp {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ≤ ‖f‖ := by\n  exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\nlemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\nlemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\nlemma spectral_projection_bound_lp {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ≤ ‖f‖ := by\n  rw [← abs_norm, ← abs_norm f, ← sq_le_sq]\n  exact spectral_projection_bound_sq _ _\n",
+    "annotation": "lemma spectral_projection_bound_lp {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ≤ ‖f‖ := by\n  /-\n    N : Nat\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le (Norm.norm (partialFourierSumLp 2 N f)) (Norm.norm f)\n  -/\n  rw [← abs_norm, ← abs_norm f, ← sq_le_sq]\n  /-\n    N : Nat\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le (HPow.hPow (Norm.norm (partialFourierSumLp 2 N f)) 2) (HPow.hPow (Norm …\n  -/\n  exact spectral_projection_bound_sq _ _\n  /-\n    🎉 no goals\n  -/\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "sq_le_sq",
+        "module": "Mathlib.Algebra.Order.Ring.Abs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma sq_le_sq : a ^ 2 ≤ b ^ 2 ↔ |a| ≤ |b| := by\n  simpa only [sq_abs] using sq_le_sq₀ (abs_nonneg a) (abs_nonneg b)",
+        "compilationAlias": "lemma sq_le_sq : a ^ 2 ≤ b ^ 2 ↔ |a| ≤ |b| := by\n  simpa only [sq_abs] using sq_le_sq₀ (abs_nonneg a) (abs_nonneg b)"
+      },
+      {
+        "name": "abs_norm",
+        "module": "Mathlib.Analysis.Normed.Group.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp) abs_norm]",
+        "compilationAlias": "@[to_additive (attr := simp) abs_norm]"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "L2norm_sq_eq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+        "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+      },
+      {
+        "name": "fourierCoeff_eq_innerProduct",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+        "compilationAlias": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n"
+      },
+      {
+        "name": "partialFourierSumLp",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+        "compilationAlias": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n"
+      },
+      {
+        "name": "partialFourierSumL2_norm",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n",
+        "compilationAlias": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n"
+      },
+      {
+        "name": "spectral_projection_bound_sq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n",
+        "compilationAlias": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n"
+      },
+      {
+        "name": "spectral_projection_bound_sq_integral",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\n",
+        "compilationAlias": "lemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen MeasureTheory AddCircle",
+    "postscopes": "end",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "spectral_projection_bound_sq_integral",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\n",
+      "compilationAlias": "lemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\n"
+    },
+    "goal": "N : Nat\nT : Real\nhT : Fact (LT.lt 0 T)\nf : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haarAddCircle) x\n⊢ LE.le (MeasureTheory.integral AddCircle.haarAddCircle fun t => HPow.hPow (Norm.norm (↑↑(partialFourierSumLp 2 N f) t)) 2) (MeasureTheory.integral AddCircle.haarAddCircle fun t => HPow.hPow (Norm.norm (↑↑f t)) 2)",
+    "content_sorry": "lemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\nlemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\nlemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\nlemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\nlemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  exact spectral_projection_bound_sq _ _\n\n",
+    "annotation": "lemma spectral_projection_bound_sq_integral {N : ℕ} {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ∫ t : AddCircle T, ‖partialFourierSumLp 2 N f t‖ ^ 2 ∂haarAddCircle ≤ ∫ t : AddCircle T, ‖f t‖ ^ 2 ∂haarAddCircle := by\n  /-\n    N : Nat\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le (MeasureTheory.integral AddCircle.haarAddCircle fun t => HPow.hPow (No …\n  -/\n  rw [← L2norm_sq_eq, ← L2norm_sq_eq]\n  /-\n    N : Nat\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le (HPow.hPow (Norm.norm (partialFourierSumLp 2 N f)) 2) (HPow.hPow (Norm …\n  -/\n  exact spectral_projection_bound_sq _ _\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "AddCircle",
+        "module": "Mathlib.Topology.Instances.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The \"additive circle\": `𝕜 ⧸ (ℤ ∙ p)`. See also `Circle` and `Real.angle`. -/\nabbrev AddCircle [LinearOrderedAddCommGroup 𝕜] (p : 𝕜) :=\n  𝕜 ⧸ zmultiples p",
+        "compilationAlias": "/-- The \"additive circle\": `𝕜 ⧸ (ℤ ∙ p)`. See also `Circle` and `Real.angle`. -/\nabbrev AddCircle [LinearOrderedAddCommGroup 𝕜] (p : 𝕜) :=\n  𝕜 ⧸ zmultiples p"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "L2norm_sq_eq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+        "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+      },
+      {
+        "name": "fourierCoeff_eq_innerProduct",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+        "compilationAlias": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n"
+      },
+      {
+        "name": "partialFourierSumLp",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+        "compilationAlias": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n"
+      },
+      {
+        "name": "partialFourierSumL2_norm",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n",
+        "compilationAlias": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n"
+      },
+      {
+        "name": "spectral_projection_bound_sq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n",
+        "compilationAlias": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen MeasureTheory AddCircle",
+    "postscopes": "end",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "spectral_projection_bound_sq",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n",
+      "compilationAlias": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n"
+    },
+    "goal": "T : Real\nhT : Fact (LT.lt 0 T)\nN : Nat\nf : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haarAddCircle) x\n⊢ LE.le (HPow.hPow (Norm.norm (partialFourierSumLp 2 N f)) 2) (HPow.hPow (Norm.norm f) 2)",
+    "content_sorry": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\nlemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\nlemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  rw [partialFourierSumL2_norm]\n  simp_rw [fourierCoeff_eq_innerProduct]\n  exact orthonormal_fourier.sum_inner_products_le _\n\n",
+    "annotation": "lemma spectral_projection_bound_sq {T : ℝ} [hT : Fact (0 < T)] (N : ℕ) (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 ≤ ‖f‖ ^ 2 := by\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    N : Nat\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le (HPow.hPow (Norm.norm (partialFourierSumLp 2 N f)) 2) (HPow.hPow (Norm …\n  -/\n  rw [partialFourierSumL2_norm]\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    N : Nat\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le ((Finset.Icc (Neg.neg (Int.ofNat N)) ↑N).sum fun n => HPow.hPow (Norm. …\n  -/\n  simp_rw [fourierCoeff_eq_innerProduct]\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    N : Nat\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ LE.le ((Finset.Icc (Neg.neg (Int.ofNat N)) ↑N).sum fun x => HPow.hPow (Norm. …\n  -/\n  exact orthonormal_fourier.sum_inner_products_le _\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "L2norm_sq_eq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+        "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+      },
+      {
+        "name": "fourierCoeff_eq_innerProduct",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+        "compilationAlias": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n"
+      },
+      {
+        "name": "partialFourierSumLp",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+        "compilationAlias": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n"
+      },
+      {
+        "name": "partialFourierSumL2_norm",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n",
+        "compilationAlias": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen MeasureTheory AddCircle",
+    "postscopes": "end",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "partialFourierSumL2_norm",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n",
+      "compilationAlias": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n"
+    },
+    "goal": "T : Real\nhT : Fact (LT.lt 0 T)\nh2 : Fact (LE.le 1 2)\nf : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haarAddCircle) x\nN : Nat\n⊢ Eq (HPow.hPow (Norm.norm (partialFourierSumLp 2 N f)) 2) ((Finset.Icc (Neg.neg (Int.ofNat N)) ↑N).sum fun n => HPow.hPow (Norm.norm (fourierCoeff (↑↑f) n)) 2)",
+    "content_sorry": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\nlemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n",
+    "annotation": "lemma partialFourierSumL2_norm {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ (2 : ENNReal))] {f : ↥(Lp ℂ 2 haarAddCircle)} {N : ℕ} :\n    ‖partialFourierSumLp 2 N f‖ ^ 2 = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖@fourierCoeff T hT _ _ _ f n‖ ^ 2 := by\n  calc ‖partialFourierSumLp 2 N f‖ ^ 2\n    _ = ‖partialFourierSumLp 2 N f‖ ^ (2 : ℝ) := by\n      rw [← Real.rpow_natCast]; rfl\n    _ = ‖fourierBasis.repr (partialFourierSumLp 2 N f)‖ ^ (2 : ℝ) := by\n      rw [fourierBasis.repr.norm_map (partialFourierSumLp 2 N f)]\n    _ = ‖∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • (fourierBasis.repr (@fourierLp T hT 2 h2 n))‖ ^ (2 : ℝ) := by\n      rw [partialFourierSumLp, map_sum]\n      simp_rw [LinearMapClass.map_smul]\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ (2 : ℝ) := by\n      rw [← coe_fourierBasis]\n      simp only [LinearIsometryEquiv.apply_symm_apply, lp.coeFn_smul, Pi.smul_apply, ← lp.single_smul, Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- simp only [Int.ofNat_eq_coe, coe_fourierBasis, Real.rpow_two]\n      -- have : 2 = (2 : ENNReal).toReal := by simp\n      -- rw [this, ← lp.norm_sum_single (by simp), ← this]\n      -- congr 2\n      -- refine Finset.sum_congr (by simp) fun n ↦ ?_\n      -- simp only [smul_eq_mul, mul_one]\n      -- congr!\n      sorry\n    _ = ∑ n ∈ Finset.Icc (-Int.ofNat N) N, ‖fourierCoeff f n‖ ^ 2 := by\n      simp_rw [← Real.rpow_natCast]; rfl\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Real.rpow_two",
+        "module": "Mathlib.Analysis.SpecialFunctions.Pow.Real",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem rpow_two (x : ℝ) : x ^ (2 : ℝ) = x ^ 2 := by\n  rw [← rpow_natCast]\n  simp only [Nat.cast_ofNat]",
+        "compilationAlias": "@[simp]\ntheorem rpow_two (x : ℝ) : x ^ (2 : ℝ) = x ^ 2 := by\n  rw [← rpow_natCast]\n  simp only [Nat.cast_ofNat]"
+      },
+      {
+        "name": "Int.ofNat_eq_coe",
+        "module": "Init.Data.Int.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] theorem ofNat_eq_coe : Int.ofNat n = Nat.cast n := rfl",
+        "compilationAlias": "@[simp] theorem ofNat_eq_coe : Int.ofNat n = Nat.cast n := rfl"
+      },
+      {
+        "name": "lp.single_smul",
+        "module": "Mathlib.Analysis.Normed.Lp.lpSpace",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\nprotected theorem single_smul (p) (i : α) (c : 𝕜) (a : E i) :\n    lp.single p i (c • a) = c • lp.single p i a :=\n  ext <| Pi.single_smul _ _ _",
+        "compilationAlias": "@[simp]\nprotected theorem single_smul (p) (i : α) (c : 𝕜) (a : E i) :\n    lp.single p i (c • a) = c • lp.single p i a :=\n  ext <| Pi.single_smul _ _ _"
+      },
+      {
+        "name": "Pi.smul_apply",
+        "module": "Mathlib.Algebra.Group.Pi.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp, to_additive) (reorder := 5 6) smul_apply]",
+        "compilationAlias": "@[to_additive (attr := simp, to_additive) (reorder := 5 6) smul_apply]"
+      },
+      {
+        "name": "lp.coeFn_smul",
+        "module": "Mathlib.Analysis.Normed.Lp.lpSpace",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem coeFn_smul (c : 𝕜) (f : lp E p) : ⇑(c • f) = c • ⇑f :=\n  rfl",
+        "compilationAlias": "@[simp]\ntheorem coeFn_smul (c : 𝕜) (f : lp E p) : ⇑(c • f) = c • ⇑f :=\n  rfl"
+      },
+      {
+        "name": "LinearIsometryEquiv.apply_symm_apply",
+        "module": "Mathlib.Analysis.Normed.Operator.LinearIsometry",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp]\ntheorem apply_symm_apply (x : E₂) : e (e.symm x) = x :=\n  e.toLinearEquiv.apply_symm_apply x",
+        "compilationAlias": "@[simp]\ntheorem apply_symm_apply (x : E₂) : e (e.symm x) = x :=\n  e.toLinearEquiv.apply_symm_apply x"
+      },
+      {
+        "name": "coe_fourierBasis",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The elements of the Hilbert basis `fourierBasis` are the functions `fourierLp 2`, i.e. the\nmonomials `fourier n` on the circle considered as elements of `L²`. -/\n@[simp]\ntheorem coe_fourierBasis : ⇑(@fourierBasis T hT) = @fourierLp T hT 2 _ :=\n  HilbertBasis.coe_mk _ _",
+        "compilationAlias": "/-- The elements of the Hilbert basis `fourierBasis` are the functions `fourierLp 2`, i.e. the\nmonomials `fourier n` on the circle considered as elements of `L²`. -/\n@[simp]\ntheorem coe_fourierBasis : ⇑(@fourierBasis T hT) = @fourierLp T hT 2 _ :=\n  HilbertBasis.coe_mk _ _"
+      },
+      {
+        "name": "LinearMapClass.map_smul",
+        "module": "Mathlib.Algebra.Module.LinearMap.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "protected lemma LinearMapClass.map_smul {R M M₂ : outParam Type*} [Semiring R] [AddCommMonoid M]\n    [AddCommMonoid M₂] [Module R M] [Module R M₂]\n    {F : Type*} [FunLike F M M₂] [LinearMapClass F R M M₂] (f : F) (r : R) (x : M) :\n    f (r • x) = r • f x := by rw [_root_.map_smul]",
+        "compilationAlias": "protected lemma LinearMapClass.map_smul {R M M₂ : outParam Type*} [Semiring R] [AddCommMonoid M]\n    [AddCommMonoid M₂] [Module R M] [Module R M₂]\n    {F : Type*} [FunLike F M M₂] [LinearMapClass F R M M₂] (f : F) (r : R) (x : M) :\n    f (r • x) = r • f x := by rw [_root_.map_smul]"
+      },
+      {
+        "name": "map_sum",
+        "module": "Mathlib.Algebra.BigOperators.Group.Finset.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[to_additive (attr := simp)]",
+        "compilationAlias": "@[to_additive (attr := simp)]"
+      },
+      {
+        "name": "fourierLp",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The family of monomials `fourier n`, parametrized by `n : ℤ` and considered as\nelements of the `Lp` space of functions `AddCircle T → ℂ`. -/\nabbrev fourierLp (p : ℝ≥0∞) [Fact (1 ≤ p)] (n : ℤ) : Lp ℂ p (@haarAddCircle T hT) :=\n  toLp (E := ℂ) p haarAddCircle ℂ (fourier n)",
+        "compilationAlias": "/-- The family of monomials `fourier n`, parametrized by `n : ℤ` and considered as\nelements of the `Lp` space of functions `AddCircle T → ℂ`. -/\nabbrev fourierLp (p : ℝ≥0∞) [Fact (1 ≤ p)] (n : ℤ) : Lp ℂ p (@haarAddCircle T hT) :=\n  toLp (E := ℂ) p haarAddCircle ℂ (fourier n)"
+      },
+      {
+        "name": "Real.rpow_natCast",
+        "module": "Mathlib.Analysis.SpecialFunctions.Pow.Real",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp, norm_cast]\ntheorem rpow_natCast (x : ℝ) (n : ℕ) : x ^ (n : ℝ) = x ^ n := by simpa using rpow_intCast x n",
+        "compilationAlias": "@[simp, norm_cast]\ntheorem rpow_natCast (x : ℝ) (n : ℕ) : x ^ (n : ℝ) = x ^ n := by simpa using rpow_intCast x n"
+      },
+      {
+        "name": "fourierCoeff",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The `n`-th Fourier coefficient of a function `AddCircle T → E`, for `E` a complete normed\n`ℂ`-vector space, defined as the integral over `AddCircle T` of `fourier (-n) t • f t`. -/\ndef fourierCoeff (f : AddCircle T → E) (n : ℤ) : E :=\n  ∫ t : AddCircle T, fourier (-n) t • f t ∂haarAddCircle",
+        "compilationAlias": "/-- The `n`-th Fourier coefficient of a function `AddCircle T → E`, for `E` a complete normed\n`ℂ`-vector space, defined as the integral over `AddCircle T` of `fourier (-n) t • f t`. -/\ndef fourierCoeff (f : AddCircle T → E) (n : ℤ) : E :=\n  ∫ t : AddCircle T, fourier (-n) t • f t ∂haarAddCircle"
+      },
+      {
+        "name": "Finset.Icc",
+        "module": "Mathlib.Order.Interval.Finset.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The finset $[a, b]$ of elements `x` such that `a ≤ x` and `x ≤ b`. Basically `Set.Icc a b` as a\nfinset. -/\ndef Icc (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIcc a b",
+        "compilationAlias": "/-- The finset $[a, b]$ of elements `x` such that `a ≤ x` and `x ≤ b`. Basically `Set.Icc a b` as a\nfinset. -/\ndef Icc (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIcc a b"
+      },
+      {
+        "name": "ENNReal",
+        "module": "Mathlib.Data.ENNReal.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The extended nonnegative real numbers. This is usually denoted [0, ∞],\n  and is relevant as the codomain of a measure. -/\ndef ENNReal := WithTop ℝ≥0\n  deriving Zero, Top, AddCommMonoidWithOne, SemilatticeSup, DistribLattice, Nontrivial",
+        "compilationAlias": "/-- The extended nonnegative real numbers. This is usually denoted [0, ∞],\n  and is relevant as the codomain of a measure. -/\ndef ENNReal := WithTop ℝ≥0\n  deriving Zero, Top, AddCommMonoidWithOne, SemilatticeSup, DistribLattice, Nontrivial"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "L2norm_sq_eq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+        "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+      },
+      {
+        "name": "fourierCoeff_eq_innerProduct",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+        "compilationAlias": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n"
+      },
+      {
+        "name": "partialFourierSumLp",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+        "compilationAlias": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nopen MeasureTheory AddCircle",
+    "postscopes": "end",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "partialFourierSumLp",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+      "compilationAlias": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n"
+    },
+    "goal": "⊢ (HAdd.hAdd 0 2).AtLeastTwo",
+    "content_sorry": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) := by sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) := by exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\nnoncomputable section\ndef partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+    "annotation": "def partialFourierSumLp {T : ℝ} [hT : Fact (0 < T)] (p : ENNReal) [Fact (1 ≤ p)] (N : ℕ) (f : ↥(Lp ℂ 2 (@haarAddCircle T hT))) : Lp ℂ p (@haarAddCircle T hT) :=\n    ∑ n ∈ Finset.Icc (-Int.ofNat N) N, fourierCoeff f n • fourierLp p n\n\n--TODO: add some lemma relating partialFourierSum and partialFourierSumLp\n\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "fourierLp",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The family of monomials `fourier n`, parametrized by `n : ℤ` and considered as\nelements of the `Lp` space of functions `AddCircle T → ℂ`. -/\nabbrev fourierLp (p : ℝ≥0∞) [Fact (1 ≤ p)] (n : ℤ) : Lp ℂ p (@haarAddCircle T hT) :=\n  toLp (E := ℂ) p haarAddCircle ℂ (fourier n)",
+        "compilationAlias": "/-- The family of monomials `fourier n`, parametrized by `n : ℤ` and considered as\nelements of the `Lp` space of functions `AddCircle T → ℂ`. -/\nabbrev fourierLp (p : ℝ≥0∞) [Fact (1 ≤ p)] (n : ℤ) : Lp ℂ p (@haarAddCircle T hT) :=\n  toLp (E := ℂ) p haarAddCircle ℂ (fourier n)"
+      },
+      {
+        "name": "fourierCoeff",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The `n`-th Fourier coefficient of a function `AddCircle T → E`, for `E` a complete normed\n`ℂ`-vector space, defined as the integral over `AddCircle T` of `fourier (-n) t • f t`. -/\ndef fourierCoeff (f : AddCircle T → E) (n : ℤ) : E :=\n  ∫ t : AddCircle T, fourier (-n) t • f t ∂haarAddCircle",
+        "compilationAlias": "/-- The `n`-th Fourier coefficient of a function `AddCircle T → E`, for `E` a complete normed\n`ℂ`-vector space, defined as the integral over `AddCircle T` of `fourier (-n) t • f t`. -/\ndef fourierCoeff (f : AddCircle T → E) (n : ℤ) : E :=\n  ∫ t : AddCircle T, fourier (-n) t • f t ∂haarAddCircle"
+      },
+      {
+        "name": "Finset.Icc",
+        "module": "Mathlib.Order.Interval.Finset.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The finset $[a, b]$ of elements `x` such that `a ≤ x` and `x ≤ b`. Basically `Set.Icc a b` as a\nfinset. -/\ndef Icc (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIcc a b",
+        "compilationAlias": "/-- The finset $[a, b]$ of elements `x` such that `a ≤ x` and `x ≤ b`. Basically `Set.Icc a b` as a\nfinset. -/\ndef Icc (a b : α) : Finset α :=\n  LocallyFiniteOrder.finsetIcc a b"
+      },
+      {
+        "name": "ENNReal",
+        "module": "Mathlib.Data.ENNReal.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The extended nonnegative real numbers. This is usually denoted [0, ∞],\n  and is relevant as the codomain of a measure. -/\ndef ENNReal := WithTop ℝ≥0\n  deriving Zero, Top, AddCommMonoidWithOne, SemilatticeSup, DistribLattice, Nontrivial",
+        "compilationAlias": "/-- The extended nonnegative real numbers. This is usually denoted [0, ∞],\n  and is relevant as the codomain of a measure. -/\ndef ENNReal := WithTop ℝ≥0\n  deriving Zero, Top, AddCommMonoidWithOne, SemilatticeSup, DistribLattice, Nontrivial"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "L2norm_sq_eq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+        "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+      },
+      {
+        "name": "fourierCoeff_eq_innerProduct",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+        "compilationAlias": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "open MeasureTheory AddCircle",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "fourierCoeff_eq_innerProduct",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+      "compilationAlias": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n"
+    },
+    "goal": "T : Real\nhT : Fact (LT.lt 0 T)\nh2 : Fact (LE.le 1 2)\nf : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haarAddCircle) x\nn : Int\n⊢ Eq (fourierCoeff (↑↑f) n) (Inner.inner (fourierLp 2 n) f)",
+    "content_sorry": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\nlemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n\n\n",
+    "annotation": "lemma fourierCoeff_eq_innerProduct {T : ℝ} [hT : Fact (0 < T)] [h2 : Fact (1 ≤ 2)] {f : ↥(Lp ℂ 2 haarAddCircle)} {n : ℤ} :\n    fourierCoeff f n = ⟪@fourierLp T hT 2 h2 n, f⟫_ℂ := by\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    h2 : Fact (LE.le 1 2)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    n : Int\n    ⊢ Eq (fourierCoeff (↑↑f) n) (Inner.inner (fourierLp 2 n) f)\n  -/\n  rw [← coe_fourierBasis, ← fourierBasis_repr]\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    h2 : Fact (LE.le 1 2)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    n : Int\n    ⊢ Eq (↑(fourierBasis.repr f) n) (Inner.inner (fourierBasis n) f)\n  -/\n  exact HilbertBasis.repr_apply_apply fourierBasis f n\n  /-\n    🎉 no goals\n  -/\n\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "fourierBasis",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- We define `fourierBasis` to be a `ℤ`-indexed Hilbert basis for `Lp ℂ 2 haarAddCircle`,\nwhich by definition is an isometric isomorphism from `Lp ℂ 2 haarAddCircle` to `ℓ²(ℤ, ℂ)`. -/\ndef fourierBasis : HilbertBasis ℤ ℂ (Lp ℂ 2 <| @haarAddCircle T hT) :=\n  HilbertBasis.mk orthonormal_fourier (span_fourierLp_closure_eq_top (by norm_num)).ge",
+        "compilationAlias": "/-- We define `fourierBasis` to be a `ℤ`-indexed Hilbert basis for `Lp ℂ 2 haarAddCircle`,\nwhich by definition is an isometric isomorphism from `Lp ℂ 2 haarAddCircle` to `ℓ²(ℤ, ℂ)`. -/\ndef fourierBasis : HilbertBasis ℤ ℂ (Lp ℂ 2 <| @haarAddCircle T hT) :=\n  HilbertBasis.mk orthonormal_fourier (span_fourierLp_closure_eq_top (by norm_num)).ge"
+      },
+      {
+        "name": "HilbertBasis.repr_apply_apply",
+        "module": "Mathlib.Analysis.InnerProductSpace.l2Space",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "protected theorem repr_apply_apply (b : HilbertBasis ι 𝕜 E) (v : E) (i : ι) :\n    b.repr v i = ⟪b i, v⟫ := by\n  classical\n  rw [← b.repr.inner_map_map (b i) v, b.repr_self, lp.inner_single_left]\n  simp",
+        "compilationAlias": "protected theorem repr_apply_apply (b : HilbertBasis ι 𝕜 E) (v : E) (i : ι) :\n    b.repr v i = ⟪b i, v⟫ := by\n  classical\n  rw [← b.repr.inner_map_map (b i) v, b.repr_self, lp.inner_single_left]\n  simp"
+      },
+      {
+        "name": "fourierBasis_repr",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Under the isometric isomorphism `fourierBasis` from `Lp ℂ 2 haarAddCircle` to `ℓ²(ℤ, ℂ)`, the\n`i`-th coefficient is `fourierCoeff f i`, i.e., the integral over `AddCircle T` of\n`fun t => fourier (-i) t * f t` with respect to the Haar measure of total mass 1. -/\ntheorem fourierBasis_repr (f : Lp ℂ 2 <| @haarAddCircle T hT) (i : ℤ) :\n    fourierBasis.repr f i = fourierCoeff f i := by\n  trans ∫ t : AddCircle T, conj ((@fourierLp T hT 2 _ i : AddCircle T → ℂ) t) * f t ∂haarAddCircle\n  · rw [fourierBasis.repr_apply_apply f i, MeasureTheory.L2.inner_def, coe_fourierBasis]\n    simp only [RCLike.inner_apply]\n  · apply integral_congr_ae\n    filter_upwards [coeFn_fourierLp 2 i] with _ ht\n    rw [ht, ← fourier_neg, smul_eq_mul]",
+        "compilationAlias": "/-- Under the isometric isomorphism `fourierBasis` from `Lp ℂ 2 haarAddCircle` to `ℓ²(ℤ, ℂ)`, the\n`i`-th coefficient is `fourierCoeff f i`, i.e., the integral over `AddCircle T` of\n`fun t => fourier (-i) t * f t` with respect to the Haar measure of total mass 1. -/\ntheorem fourierBasis_repr (f : Lp ℂ 2 <| @haarAddCircle T hT) (i : ℤ) :\n    fourierBasis.repr f i = fourierCoeff f i := by\n  trans ∫ t : AddCircle T, conj ((@fourierLp T hT 2 _ i : AddCircle T → ℂ) t) * f t ∂haarAddCircle\n  · rw [fourierBasis.repr_apply_apply f i, MeasureTheory.L2.inner_def, coe_fourierBasis]\n    simp only [RCLike.inner_apply]\n  · apply integral_congr_ae\n    filter_upwards [coeFn_fourierLp 2 i] with _ ht\n    rw [ht, ← fourier_neg, smul_eq_mul]"
+      },
+      {
+        "name": "coe_fourierBasis",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The elements of the Hilbert basis `fourierBasis` are the functions `fourierLp 2`, i.e. the\nmonomials `fourier n` on the circle considered as elements of `L²`. -/\n@[simp]\ntheorem coe_fourierBasis : ⇑(@fourierBasis T hT) = @fourierLp T hT 2 _ :=\n  HilbertBasis.coe_mk _ _",
+        "compilationAlias": "/-- The elements of the Hilbert basis `fourierBasis` are the functions `fourierLp 2`, i.e. the\nmonomials `fourier n` on the circle considered as elements of `L²`. -/\n@[simp]\ntheorem coe_fourierBasis : ⇑(@fourierBasis T hT) = @fourierLp T hT 2 _ :=\n  HilbertBasis.coe_mk _ _"
+      },
+      {
+        "name": "fourierLp",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The family of monomials `fourier n`, parametrized by `n : ℤ` and considered as\nelements of the `Lp` space of functions `AddCircle T → ℂ`. -/\nabbrev fourierLp (p : ℝ≥0∞) [Fact (1 ≤ p)] (n : ℤ) : Lp ℂ p (@haarAddCircle T hT) :=\n  toLp (E := ℂ) p haarAddCircle ℂ (fourier n)",
+        "compilationAlias": "/-- The family of monomials `fourier n`, parametrized by `n : ℤ` and considered as\nelements of the `Lp` space of functions `AddCircle T → ℂ`. -/\nabbrev fourierLp (p : ℝ≥0∞) [Fact (1 ≤ p)] (n : ℤ) : Lp ℂ p (@haarAddCircle T hT) :=\n  toLp (E := ℂ) p haarAddCircle ℂ (fourier n)"
+      },
+      {
+        "name": "fourierCoeff",
+        "module": "Mathlib.Analysis.Fourier.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The `n`-th Fourier coefficient of a function `AddCircle T → E`, for `E` a complete normed\n`ℂ`-vector space, defined as the integral over `AddCircle T` of `fourier (-n) t • f t`. -/\ndef fourierCoeff (f : AddCircle T → E) (n : ℤ) : E :=\n  ∫ t : AddCircle T, fourier (-n) t • f t ∂haarAddCircle",
+        "compilationAlias": "/-- The `n`-th Fourier coefficient of a function `AddCircle T → E`, for `E` a complete normed\n`ℂ`-vector space, defined as the integral over `AddCircle T` of `fourier (-n) t • f t`. -/\ndef fourierCoeff (f : AddCircle T → E) (n : ℤ) : E :=\n  ∫ t : AddCircle T, fourier (-n) t • f t ∂haarAddCircle"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "L2norm_sq_eq",
+        "module": "Carleson.Classical.SpectralProjectionBound",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+        "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "open MeasureTheory AddCircle",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "L2norm_sq_eq",
+      "module": "Carleson.Classical.SpectralProjectionBound",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+      "compilationAlias": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n"
+    },
+    "goal": "𝕜 : Type u_4\nE : Type u_5\ninst✝¹ : RCLike 𝕜\ninst✝ : SeminormedAddCommGroup E\nself : InnerProductSpace 𝕜 E\nx : E\n⊢ Eq (RCLike.re (Inner.inner x x)) (HPow.hPow (Norm.norm x) 2)",
+    "content_sorry": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  sorry",
+    "content_full_by_exact": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  exact?",
+    "content_full": "/- This file contains the proof of Lemma 11.1.10 (spectral projection bound).\n   At the moment, its results are not used as the section about truncated Hilbert transforms\n   is still missing.\n   Thus, the result here might not yet have the exact form needed later.\n-/\n\nimport Carleson.Classical.Basic\n\nopen MeasureTheory AddCircle\nopen scoped InnerProductSpace\n\n--TODO: move somewhere else?\nlemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  simp only [← norm_sq_eq_inner]\n\n",
+    "annotation": "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :\n    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by\n  /- The proof is inspired by parts of the proof of tsum_sq_fourierCoeff. -/\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ Eq (HPow.hPow (Norm.norm f) 2) (MeasureTheory.integral AddCircle.haarAddCirc …\n  -/\n  rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]\n  /-\n    T : Real\n    hT : Fact (LT.lt 0 T)\n    f : Subtype fun x => Membership.mem (MeasureTheory.Lp Complex 2 AddCircle.haar …\n    ⊢ Eq (MeasureTheory.integral AddCircle.haarAddCircle fun x => RCLike.re (Inner …\n  -/\n  simp only [← norm_sq_eq_inner]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "integral_re",
+        "module": "Mathlib.MeasureTheory.Integral.SetIntegral",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem integral_re {f : X → 𝕜} (hf : Integrable f μ) :\n    ∫ x, RCLike.re (f x) ∂μ = RCLike.re (∫ x, f x ∂μ) :=\n  (@RCLike.reCLM 𝕜 _).integral_comp_comm hf",
+        "compilationAlias": "theorem integral_re {f : X → 𝕜} (hf : Integrable f μ) :\n    ∫ x, RCLike.re (f x) ∂μ = RCLike.re (∫ x, f x ∂μ) :=\n  (@RCLike.reCLM 𝕜 _).integral_comp_comm hf"
+      },
+      {
+        "name": "AddCircle",
+        "module": "Mathlib.Topology.Instances.AddCircle",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The \"additive circle\": `𝕜 ⧸ (ℤ ∙ p)`. See also `Circle` and `Real.angle`. -/\nabbrev AddCircle [LinearOrderedAddCommGroup 𝕜] (p : 𝕜) :=\n  𝕜 ⧸ zmultiples p",
+        "compilationAlias": "/-- The \"additive circle\": `𝕜 ⧸ (ℤ ∙ p)`. See also `Circle` and `Real.angle`. -/\nabbrev AddCircle [LinearOrderedAddCommGroup 𝕜] (p : 𝕜) :=\n  𝕜 ⧸ zmultiples p"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

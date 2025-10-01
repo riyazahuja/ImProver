@@ -1,0 +1,978 @@
+[
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "TwoHDM.prodMatrix_to_higgsField",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- Given any smooth map `f` from spacetime to 2-by-2 complex matrices landing on positive\nsemi-definite matrices, there exist smooth Higgs fields `Φ1` and `Φ2` such that `f` is equal to\n`prodMatrix Φ1 Φ2`.\n\nSee https://arxiv.org/pdf/hep-ph/0605184\n-/\ninformal_lemma prodMatrix_to_higgsField where\n  deps := [``prodMatrix, ``HiggsField, ``prodMatrix_smooth]\n\n",
+      "compilationAlias": "/-- Given any smooth map `f` from spacetime to 2-by-2 complex matrices landing on positive\nsemi-definite matrices, there exist smooth Higgs fields `Φ1` and `Φ2` such that `f` is equal to\n`prodMatrix Φ1 Φ2`.\n\nSee https://arxiv.org/pdf/hep-ph/0605184\n-/\ninformal_lemma prodMatrix_to_higgsField where\n  deps := [``prodMatrix, ``HiggsField, ``prodMatrix_smooth]\n\n"
+    },
+    "goal": "⊢ _obj",
+    "content_sorry": "/-- Given any smooth map `f` from spacetime to 2-by-2 complex matrices landing on positive\nsemi-definite matrices, there exist smooth Higgs fields `Φ1` and `Φ2` such that `f` is equal to\n`prodMatrix Φ1 Φ2`.\n\nSee https://arxiv.org/pdf/hep-ph/0605184\n-/\ninformal_lemma prodMatrix_to_higgsField where\n  deps := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n/-- Given any smooth map `f` from spacetime to 2-by-2 complex matrices landing on positive\nsemi-definite matrices, there exist smooth Higgs fields `Φ1` and `Φ2` such that `f` is equal to\n`prodMatrix Φ1 Φ2`.\n\nSee https://arxiv.org/pdf/hep-ph/0605184\n-/\ninformal_lemma prodMatrix_to_higgsField where\n  deps := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n/-- Given any smooth map `f` from spacetime to 2-by-2 complex matrices landing on positive\nsemi-definite matrices, there exist smooth Higgs fields `Φ1` and `Φ2` such that `f` is equal to\n`prodMatrix Φ1 Φ2`.\n\nSee https://arxiv.org/pdf/hep-ph/0605184\n-/\ninformal_lemma prodMatrix_to_higgsField where\n  deps := [``prodMatrix, ``HiggsField, ``prodMatrix_smooth]\n\n",
+    "annotation": "/-- Given any smooth map `f` from spacetime to 2-by-2 complex matrices landing on positive\nsemi-definite matrices, there exist smooth Higgs fields `Φ1` and `Φ2` such that `f` is equal to\n`prodMatrix Φ1 Φ2`.\n\nSee https://arxiv.org/pdf/hep-ph/0605184\n-/\ninformal_lemma prodMatrix_to_higgsField where\n  deps := [``prodMatrix, ``HiggsField, ``prodMatrix_smooth]\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+        "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedSpaceRealMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+        "compilationAlias": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_posSemiDef",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_hermitian",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_smooth",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n",
+        "compilationAlias": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_invariant",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n",
+        "compilationAlias": "/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "TwoHDM.prodMatrix_invariant",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n",
+      "compilationAlias": "/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n"
+    },
+    "goal": "⊢ _obj",
+    "content_sorry": "/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n",
+    "annotation": "/-- The map `prodMatrix` is invariant under the simultaneous action of `gaugeAction` on the two\nHiggs fields. -/\ninformal_lemma prodMatrix_invariant where\n  deps := [``prodMatrix, ``gaugeAction]\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+        "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedSpaceRealMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+        "compilationAlias": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_posSemiDef",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_hermitian",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_smooth",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n",
+        "compilationAlias": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "TwoHDM.prodMatrix_smooth",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n",
+      "compilationAlias": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n"
+    },
+    "goal": "Φ1 Φ2 : StandardModel.HiggsField\n⊢ ContMDiff (modelWithCornersSelf Real SpaceTime) (modelWithCornersSelf Real (Matrix (Fin 2) (Fin 2) Complex)) Top.top (TwoHDM.prodMatrix Φ1 Φ2)",
+    "content_sorry": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  intro i\n  rw [contMDiff_pi_space]\n  intro j\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n",
+    "annotation": "/-- The map `prodMatrix` is a smooth function on spacetime. -/\nlemma prodMatrix_smooth (Φ1 Φ2 : HiggsField) :\n    ContMDiff 𝓘(ℝ, SpaceTime) 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) ⊤ (prodMatrix Φ1 Φ2) := by\n  rw [show 𝓘(ℝ, Matrix (Fin 2) (Fin 2) ℂ) = modelWithCornersSelf ℝ (Fin 2 → Fin 2 → ℂ) from rfl,\n    contMDiff_pi_space]\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    ⊢ ∀ (i : Fin 2), ContMDiff (modelWithCornersSelf Real SpaceTime) (modelWithCor …\n  -/\n  intro i\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    i : Fin 2\n    ⊢ ContMDiff (modelWithCornersSelf Real SpaceTime) (modelWithCornersSelf Real ( …\n  -/\n  rw [contMDiff_pi_space]\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    i : Fin 2\n    ⊢ ∀ (i_1 : Fin 2), ContMDiff (modelWithCornersSelf Real SpaceTime) (modelWithC …\n  -/\n  intro j\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    i j : Fin 2\n    ⊢ ContMDiff (modelWithCornersSelf Real SpaceTime) (modelWithCornersSelf Real C …\n  -/\n  fin_cases i <;> fin_cases j <;>\n    simpa only [prodMatrix, Fin.zero_eta, Fin.isValue, of_apply, cons_val', cons_val_zero,\n      empty_val', cons_val_fin_one] using smooth_innerProd _ _\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Fin.isValue",
+        "module": "Lean.Meta.Tactic.Simp.BuiltinSimprocs.Fin",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v",
+        "compilationAlias": "/-- Simplification procedure for ensuring `Fin n` literals are normalized. -/\nbuiltin_dsimproc [simp, seval] isValue ((OfNat.ofNat _ : Fin _)) := fun e => do\n  let_expr OfNat.ofNat _ m _ ← e | return .continue\n  let some ⟨n, v⟩ ← getFinValue? e | return .continue\n  let some m ← getNatValue? m | return .continue\n  if m < n then\n    -- Design decision: should we return `.continue` instead of `.done` when simplifying.\n    -- In the symbolic evaluator, we must return `.done`, otherwise it will unfold the `OfNat.ofNat`\n    return .done e\n  return .done <| toExpr v"
+      },
+      {
+        "name": "Fin.zero_eta",
+        "module": "Init.Data.Fin.Basic",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] theorem zero_eta : (⟨0, Nat.zero_lt_succ _⟩ : Fin (n + 1)) = 0 := rfl",
+        "compilationAlias": "@[simp] theorem zero_eta : (⟨0, Nat.zero_lt_succ _⟩ : Fin (n + 1)) = 0 := rfl"
+      },
+      {
+        "name": "contMDiff_pi_space",
+        "module": "Mathlib.Geometry.Manifold.ContMDiff.Constructions",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem contMDiff_pi_space :\n    ContMDiff I 𝓘(𝕜, ∀ i, Fi i) n φ ↔ ∀ i, ContMDiff I 𝓘(𝕜, Fi i) n fun x => φ x i :=\n  ⟨fun h i x => contMDiffAt_pi_space.1 (h x) i, fun h x => contMDiffAt_pi_space.2 fun i => h i x⟩",
+        "compilationAlias": "theorem contMDiff_pi_space :\n    ContMDiff I 𝓘(𝕜, ∀ i, Fi i) n φ ↔ ∀ i, ContMDiff I 𝓘(𝕜, Fi i) n fun x => φ x i :=\n  ⟨fun h i x => contMDiffAt_pi_space.1 (h x) i, fun h x => contMDiffAt_pi_space.2 fun i => h i x⟩"
+      },
+      {
+        "name": "rfl",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+        "compilationAlias": "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"
+      },
+      {
+        "name": "modelWithCornersSelf",
+        "module": "Mathlib.Geometry.Manifold.IsManifold.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A vector space is a model with corners, denoted as `𝓘(𝕜, E)` within the `Manifold` namespace. -/\ndef modelWithCornersSelf (𝕜 : Type*) [NontriviallyNormedField 𝕜] (E : Type*)\n    [NormedAddCommGroup E] [NormedSpace 𝕜 E] : ModelWithCorners 𝕜 E E where\n  toPartialEquiv := PartialEquiv.refl E\n  source_eq := rfl\n  uniqueDiffOn' := uniqueDiffOn_univ\n  target_subset_closure_interior := by simp\n  continuous_toFun := continuous_id\n  continuous_invFun := continuous_id",
+        "compilationAlias": "/-- A vector space is a model with corners, denoted as `𝓘(𝕜, E)` within the `Manifold` namespace. -/\ndef modelWithCornersSelf (𝕜 : Type*) [NontriviallyNormedField 𝕜] (E : Type*)\n    [NormedAddCommGroup E] [NormedSpace 𝕜 E] : ModelWithCorners 𝕜 E E where\n  toPartialEquiv := PartialEquiv.refl E\n  source_eq := rfl\n  uniqueDiffOn' := uniqueDiffOn_univ\n  target_subset_closure_interior := by simp\n  continuous_toFun := continuous_id\n  continuous_invFun := continuous_id"
+      },
+      {
+        "name": "Matrix",
+        "module": "Mathlib.Data.Matrix.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+        "compilationAlias": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"
+      },
+      {
+        "name": "SpaceTime",
+        "module": "HepLean.SpaceTime.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ",
+        "compilationAlias": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ"
+      },
+      {
+        "name": "ContMDiff",
+        "module": "Mathlib.Geometry.Manifold.ContMDiff.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A function is `n` times continuously differentiable in a manifold if it is continuous\nand, for any pair of points, it is `n` times continuously differentiable in the charts\naround these points. -/\ndef ContMDiff (n : WithTop ℕ∞) (f : M → M') :=\n  ∀ x, ContMDiffAt I I' n f x",
+        "compilationAlias": "/-- A function is `n` times continuously differentiable in a manifold if it is continuous\nand, for any pair of points, it is `n` times continuously differentiable in the charts\naround these points. -/\ndef ContMDiff (n : WithTop ℕ∞) (f : M → M') :=\n  ∀ x, ContMDiffAt I I' n f x"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+        "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedSpaceRealMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+        "compilationAlias": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_posSemiDef",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_hermitian",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "Given a smooth map \\( f \\) from spacetime to 2-by-2 complex matrices that are positive semi-definite, there exist smooth Higgs fields \\( \\Phi_1 \\) and \\( \\Phi_2 \\) such that \\( f \\) can be expressed as \\( \\prodMatrix \\Phi_1 \\Phi_2 \\).",
+    "informal_proof": "To establish this result, we begin by recognizing that the smoothness of the map \\( f \\) ensures that it can be decomposed into a product of two smooth Higgs fields. Specifically, \\( f \\) being a positive semi-definite matrix allows it to be factorized into the product of two matrices \\( \\Phi_1 \\) and \\( \\Phi_2 \\), which are constructed to satisfy the necessary properties of being Higgs fields. This decomposition is underpinned by foundational theorems in linear algebra and the theory of matrix factorizations, which guarantee that such a representation is possible under the given conditions. By applying these theorems, we conclude that \\( f \\) indeed equals \\( \\prodMatrix \\Phi_1 \\Phi_2 \\), thereby proving the statement.",
+    "id": {
+      "name": "TwoHDM.prodMatrix_hermitian",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n",
+      "compilationAlias": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n"
+    },
+    "goal": "Φ1 Φ2 : StandardModel.HiggsField\nx : SpaceTime\n⊢ (TwoHDM.prodMatrix Φ1 Φ2 x).IsHermitian",
+    "content_sorry": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n",
+    "annotation": "/-- The matrix `prodMatrix` is hermitian. -/\nlemma prodMatrix_hermitian (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).IsHermitian := (prodMatrix_posSemiDef Φ1 Φ2 x).isHermitian\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "SpaceTime",
+        "module": "HepLean.SpaceTime.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ",
+        "compilationAlias": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+        "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedSpaceRealMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+        "compilationAlias": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_posSemiDef",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "The `prodMatrix` function remains unchanged when the gauge group acts simultaneously on both Higgs fields.",
+    "informal_proof": "Consider the gauge group acting simultaneously on both Higgs fields, denoted as ϕ₁ and ϕ₂. When applying a gauge transformation represented by an invertible matrix \\( g \\in G \\), each Higgs field transforms as \\( ϕ_i \\rightarrow g^{-1} ϕ_i g \\) for \\( i = 1, 2 \\).\n\nThe invariance of the `prodMatrix` function implies that the product \\( P = \\prod_{i,j} ϕ_i ϕ_j \\) (or a similar matrix product) must remain unchanged under this transformation. Therefore, we require:\n\n\\[\ng^{-1} (ϕ₁ ϕ₂) g = (g^{-1} ϕ₁ g)(g^{-1} ϕ₂ g) = ϕ₁ ϕ₂\n\\]\n\nSince the gauge group's action is designed such that the product of the transformed Higgs fields equals the original product, it follows that `prodMatrix` is invariant under the gauge transformation.\n\nThus, for any gauge transformation \\( g \\), the equality \\( g^{-1} P g = P \\) holds, ensuring the invariance of `prodMatrix`.",
+    "id": {
+      "name": "TwoHDM.prodMatrix_posSemiDef",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n",
+      "compilationAlias": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n"
+    },
+    "goal": "Φ1 Φ2 : StandardModel.HiggsField\nx : SpaceTime\n⊢ (TwoHDM.prodMatrix Φ1 Φ2 x).PosSemidef",
+    "content_sorry": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n\n",
+    "annotation": "/-- The matrix `prodMatrix` is positive semi-definite. -/\nlemma prodMatrix_posSemiDef (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    (prodMatrix Φ1 Φ2 x).PosSemidef := by\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    x : SpaceTime\n    ⊢ (TwoHDM.prodMatrix Φ1 Φ2 x).PosSemidef\n  -/\n  rw [Matrix.posSemidef_iff_eq_transpose_mul_self]\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    x : SpaceTime\n    ⊢ Exists fun B => Eq (TwoHDM.prodMatrix Φ1 Φ2 x) (HMul.hMul B.conjTranspose B)\n  -/\n  use (fieldCompMatrix Φ1 Φ2 x).conjTranspose\n  /-\n    case h\n    Φ1 Φ2 : StandardModel.HiggsField\n    x : SpaceTime\n    ⊢ Eq (TwoHDM.prodMatrix Φ1 Φ2 x) (HMul.hMul (TwoHDM.fieldCompMatrix Φ1 Φ2 x).c …\n  -/\n  simpa using prodMatrix_eq_fieldCompMatrix_sq Φ1 Φ2 x\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Matrix.posSemidef_iff_eq_transpose_mul_self",
+        "module": "Mathlib.LinearAlgebra.Matrix.PosDef",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A matrix is positive semidefinite if and only if it has the form `Bᴴ * B` for some `B`. -/\nlemma posSemidef_iff_eq_transpose_mul_self {A : Matrix n n 𝕜} :\n    PosSemidef A ↔ ∃ (B : Matrix n n 𝕜), A = Bᴴ * B := by\n  classical\n  refine ⟨fun hA ↦ ⟨hA.sqrt, ?_⟩, fun ⟨B, hB⟩ ↦ (hB ▸ posSemidef_conjTranspose_mul_self B)⟩\n  simp_rw [← PosSemidef.sq_sqrt hA, pow_two]\n  rw [hA.posSemidef_sqrt.1]",
+        "compilationAlias": "/-- A matrix is positive semidefinite if and only if it has the form `Bᴴ * B` for some `B`. -/\nlemma posSemidef_iff_eq_transpose_mul_self {A : Matrix n n 𝕜} :\n    PosSemidef A ↔ ∃ (B : Matrix n n 𝕜), A = Bᴴ * B := by\n  classical\n  refine ⟨fun hA ↦ ⟨hA.sqrt, ?_⟩, fun ⟨B, hB⟩ ↦ (hB ▸ posSemidef_conjTranspose_mul_self B)⟩\n  simp_rw [← PosSemidef.sq_sqrt hA, pow_two]\n  rw [hA.posSemidef_sqrt.1]"
+      },
+      {
+        "name": "SpaceTime",
+        "module": "HepLean.SpaceTime.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ",
+        "compilationAlias": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+        "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedSpaceRealMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+        "compilationAlias": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "The function `prodMatrix` is a smooth map from spacetime to the space of complex 2x2 matrices.",
+    "informal_proof": "To establish that `prodMatrix` is a smooth function on spacetime, we proceed by decomposing the function into its constituent parts and verifying the smoothness at each step.\n\n1. **Space Transformation**: The space transformation is given by a движ (time) and a3 (spatial coordinates). We first confirm that this transformation is smooth, i.e., it belongs to the class `ContMDiff ⊤ (Fin 2 → Fin 2 → ℂ)`.\n\n2. **Function Application**: Applying the inner product operation to the transformed space ensures that the function remains within the space of complex 2x2 matrices. This operation preserves smoothness as it involves polynomial combinations and scalar multiplications.\n\n3. **Matrix Construction**: The matrix construction step involves assembling the elements of the matrix from the transformed space. Each entry in the matrix is computed as a product of smooth functions, thereby ensuring that the entire matrix is smooth.\n\nBy sequentially verifying the smoothness of each component and operation involved in the construction of `prodMatrix`, we conclude that the function `prodMatrix` is smooth over spacetime.",
+    "id": {
+      "name": "TwoHDM.instNormedSpaceRealMatrixFinOfNatNatComplex",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+      "compilationAlias": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n"
+    },
+    "goal": "⊢ NormedSpace Real (Matrix (Fin 2) (Fin 2) Complex)",
+    "content_sorry": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+    "annotation": "/-- An instance of `NormedSpace` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedSpace`. -/\nlocal instance : NormedSpace ℝ (Matrix (Fin 2) (Fin 2) ℂ) := Matrix.normedSpace\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Matrix.normedSpace",
+        "module": "Mathlib.Analysis.Matrix",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Normed space instance (using sup norm of sup norm) for matrices over a normed space.  Not\ndeclared as an instance because there are several natural choices for defining the norm of a\nmatrix. -/\nprotected def normedSpace : NormedSpace R (Matrix m n α) :=\n  Pi.normedSpace",
+        "compilationAlias": "/-- Normed space instance (using sup norm of sup norm) for matrices over a normed space.  Not\ndeclared as an instance because there are several natural choices for defining the norm of a\nmatrix. -/\nprotected def normedSpace : NormedSpace R (Matrix m n α) :=\n  Pi.normedSpace"
+      },
+      {
+        "name": "Matrix",
+        "module": "Mathlib.Data.Matrix.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+        "compilationAlias": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      },
+      {
+        "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+        "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "Given Hermitian matrices Φ₁(x) and Φ₂(x), their product Φ₁(x)Φ₂(x) is also a Hermitian matrix.",
+    "informal_proof": "To prove that the product Φ₁(x)Φ₂(x) is Hermitian, we need to show that (Φ₁(x)Φ₂(x))† = Φ₁(x)Φ₂(x). Since Φ₁(x) and Φ₂(x) are Hermitian, we have Φ₁(x)† = Φ₁(x) and Φ₂(x)† = Φ₂(x). The conjugate transpose of the product is (Φ₁(x)Φ₂(x))† = Φ₂(x)†Φ₁(x)† = Φ₂(x)Φ₁(x). For the product to be Hermitian, Φ₁(x)Φ₂(x) must equal Φ₂(x)Φ₁(x), meaning the matrices Φ₁(x) and Φ₂(x) must commute. Assuming that Φ₁(x) and Φ₂(x) commute, we have Φ₁(x)Φ₂(x) = Φ₂(x)Φ₁(x), and thus (Φ₁(x)Φ₂(x))† = Φ₁(x)Φ₂(x), proving the product is Hermitian.",
+    "id": {
+      "name": "TwoHDM.instNormedAddCommGroupMatrixFinOfNatNatComplex",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+      "compilationAlias": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n"
+    },
+    "goal": "⊢ NormedAddCommGroup (Matrix (Fin 2) (Fin 2) Complex)",
+    "content_sorry": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+    "annotation": "/-- An instance of `NormedAddCommGroup` on `Matrix (Fin 2) (Fin 2) ℂ` defined through\n  `Matrix.normedAddCommGroup`. -/\nlocal instance : NormedAddCommGroup (Matrix (Fin 2) (Fin 2) ℂ) :=\n  Matrix.normedAddCommGroup\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Matrix.normedAddCommGroup",
+        "module": "Mathlib.Analysis.Matrix",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Normed group instance (using sup norm of sup norm) for matrices over a normed group.  Not\ndeclared as an instance because there are several natural choices for defining the norm of a\nmatrix. -/\nprotected def normedAddCommGroup [NormedAddCommGroup α] : NormedAddCommGroup (Matrix m n α) :=\n  Pi.normedAddCommGroup",
+        "compilationAlias": "/-- Normed group instance (using sup norm of sup norm) for matrices over a normed group.  Not\ndeclared as an instance because there are several natural choices for defining the norm of a\nmatrix. -/\nprotected def normedAddCommGroup [NormedAddCommGroup α] : NormedAddCommGroup (Matrix m n α) :=\n  Pi.normedAddCommGroup"
+      },
+      {
+        "name": "Matrix",
+        "module": "Mathlib.Data.Matrix.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+        "compilationAlias": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      },
+      {
+        "name": "TwoHDM.instPartialOrderComplex",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+        "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "The matrix `prodMatrix` is positive semi-definite, meaning that it can be expressed as the product of a matrix with its conjugate transpose, ensuring all its eigenvalues are non-negative.",
+    "informal_proof": "To prove that the matrix `prodMatrix` is positive semi-definite, we employ the definition of positive semi-definiteness for matrices, which states that a matrix \\( A \\) is positive semi-definite if there exists a matrix \\( B \\) such that \\( A = B B^* \\), where \\( B^* \\) denotes the conjugate transpose of \\( B \\).\n\nIn this case, we assert that:\n\\[\n\\text{prodMatrix} = \\text{fieldCompMatrix}_\\Phi^1 \\Phi^2 x \\cdot \\left( \\text{fieldCompMatrix}_\\Phi^1 \\Phi^2 x \\right)^*\n\\]\nThis equality is established by the lemma `prodMatrix_eq_fieldCompMatrix_sq`, which likely performs the actual proof by demonstrating this relationship holds under the given conditions.\n\nThrough this construction, `prodMatrix` is expressed as a product of a matrix with its conjugate transpose. Such a construction inherently ensures that all eigenvalues of `prodMatrix` are non-negative, thereby satisfying the condition for positive semi-definiteness.\n\nThus, we conclude that the matrix `prodMatrix` satisfies the criteria of being positive semi-definite.",
+    "id": {
+      "name": "TwoHDM.instPartialOrderComplex",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+      "compilationAlias": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n"
+    },
+    "goal": "⊢ _obj",
+    "content_sorry": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+    "annotation": "/-- An instance of `PartialOrder` on `ℂ` defined through `Complex.partialOrder`. -/\nlocal instance : PartialOrder ℂ := Complex.partialOrder\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Complex.partialOrder",
+        "module": "Mathlib.Data.Complex.Order",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- We put a partial order on ℂ so that `z ≤ w` exactly if `w - z` is real and nonnegative.\nComplex numbers with different imaginary parts are incomparable.\n-/\nprotected def partialOrder : PartialOrder ℂ where\n  le z w := z.re ≤ w.re ∧ z.im = w.im\n  lt z w := z.re < w.re ∧ z.im = w.im\n  lt_iff_le_not_le z w := by\n    dsimp\n    rw [lt_iff_le_not_le]\n    tauto\n  le_refl _ := ⟨le_rfl, rfl⟩\n  le_trans _ _ _ h₁ h₂ := ⟨h₁.1.trans h₂.1, h₁.2.trans h₂.2⟩\n  le_antisymm _ _ h₁ h₂ := ext (h₁.1.antisymm h₂.1) h₁.2",
+        "compilationAlias": "/-- We put a partial order on ℂ so that `z ≤ w` exactly if `w - z` is real and nonnegative.\nComplex numbers with different imaginary parts are incomparable.\n-/\nprotected def partialOrder : PartialOrder ℂ where\n  le z w := z.re ≤ w.re ∧ z.im = w.im\n  lt z w := z.re < w.re ∧ z.im = w.im\n  lt_iff_le_not_le z w := by\n    dsimp\n    rw [lt_iff_le_not_le]\n    tauto\n  le_refl _ := ⟨le_rfl, rfl⟩\n  le_trans _ _ _ h₁ h₂ := ⟨h₁.1.trans h₂.1, h₁.2.trans h₂.2⟩\n  le_antisymm _ _ h₁ h₂ := ext (h₁.1.antisymm h₂.1) h₁.2"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      },
+      {
+        "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+        "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "For functions Φ₁ and Φ₂, and a point x, the matrix `prodMatrix Φ₁ Φ₂ x` is defined as the product of the matrix formed by Φ₁(x) and Φ₂(x) and its conjugate transpose. Specifically, `fieldCompMatrix Φ₁ Φ₂ x` constructs a 2x2 matrix from the components of Φ₁(x) and Φ₂(x), and multiplying this matrix by its conjugate transpose yields `prodMatrix Φ₁ Φ₂ x`.",
+    "informal_proof": "",
+    "id": {
+      "name": "TwoHDM.prodMatrix_eq_fieldCompMatrix_sq",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+      "compilationAlias": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n"
+    },
+    "goal": "Φ1 Φ2 : StandardModel.HiggsField\nx : SpaceTime\n⊢ Eq (TwoHDM.fieldCompMatrix Φ1 Φ2 x) (Matrix.of (Matrix.vecCons (Matrix.vecCons (Φ1 x 0) (Matrix.vecCons (Φ1 x 1) Matrix.vecEmpty)) (Matrix.vecCons (Matrix.vecCons (Φ2 x 0) (Matrix.vecCons (Φ2 x 1) Matrix.vecEmpty)) Matrix.vecEmpty)))",
+    "content_sorry": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    funext i j\n    fin_cases i <;> fin_cases j <;> ring_nf\n  · funext i j\n    fin_cases i <;> fin_cases j <;> rfl\n\n",
+    "annotation": "/-- The matrix `prodMatrix Φ1 Φ2 x` is equal to the square of `fieldCompMatrix Φ1 Φ2 x`. -/\nlemma prodMatrix_eq_fieldCompMatrix_sq (Φ1 Φ2 : HiggsField) (x : SpaceTime) :\n    prodMatrix Φ1 Φ2 x = fieldCompMatrix Φ1 Φ2 x * (fieldCompMatrix Φ1 Φ2 x).conjTranspose := by\n  /-\n    Φ1 Φ2 : StandardModel.HiggsField\n    x : SpaceTime\n    ⊢ Eq (TwoHDM.prodMatrix Φ1 Φ2 x) (HMul.hMul (TwoHDM.fieldCompMatrix Φ1 Φ2 x) ( …\n  -/\n  rw [fieldCompMatrix]\n  trans !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1] *\n    !![conj (Φ1 x 0), conj (Φ2 x 0); conj (Φ1 x 1), conj (Φ2 x 1)]\n  · rw [Matrix.mul_fin_two, prodMatrix, innerProd_expand', innerProd_expand', innerProd_expand',\n      innerProd_expand']\n    /-\n      Φ1 Φ2 : StandardModel.HiggsField\n      x : SpaceTime\n      ⊢ Eq (Matrix.of (Matrix.vecCons (Matrix.vecCons (HAdd.hAdd (HMul.hMul ((starRi …\n    -/\n    funext i j\n    /-\n      case h.h\n      Φ1 Φ2 : StandardModel.HiggsField\n      x : SpaceTime\n      i j : Fin 2\n      ⊢ Eq (Matrix.of (Matrix.vecCons (Matrix.vecCons (HAdd.hAdd (HMul.hMul ((starRi …\n    -/\n                                    /-\n                                      🎉 no goals\n                                    -/\n                                    /-\n                                      🎉 no goals\n                                    -/\n                                    /-\n                                      🎉 no goals\n                                    -/\n    fin_cases i <;> fin_cases j <;> ring_nf\n                                    /-\n                                      🎉 no goals\n                                    -/\n    /-\n      Φ1 Φ2 : StandardModel.HiggsField\n      x : SpaceTime\n      ⊢ Eq (HMul.hMul (Matrix.of (Matrix.vecCons (Matrix.vecCons (Φ1 x 0) (Matrix.ve …\n    -/\n  · funext i j\n    /-\n      case h.h\n      Φ1 Φ2 : StandardModel.HiggsField\n      x : SpaceTime\n      i j : Fin 2\n      ⊢ Eq (HMul.hMul (Matrix.of (Matrix.vecCons (Matrix.vecCons (Φ1 x 0) (Matrix.ve …\n    -/\n                                    /-\n                                      🎉 no goals\n                                    -/\n                                    /-\n                                      🎉 no goals\n                                    -/\n                                    /-\n                                      🎉 no goals\n                                    -/\n    fin_cases i <;> fin_cases j <;> rfl\n                                    /-\n                                      🎉 no goals\n                                    -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Matrix.mul_fin_two",
+        "module": "Mathlib.Data.Matrix.Notation",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem mul_fin_two [AddCommMonoid α] [Mul α] (a₁₁ a₁₂ a₂₁ a₂₂ b₁₁ b₁₂ b₂₁ b₂₂ : α) :\n    !![a₁₁, a₁₂;\n       a₂₁, a₂₂] * !![b₁₁, b₁₂;\n                      b₂₁, b₂₂] = !![a₁₁ * b₁₁ + a₁₂ * b₂₁, a₁₁ * b₁₂ + a₁₂ * b₂₂;\n                                     a₂₁ * b₁₁ + a₂₂ * b₂₁, a₂₁ * b₁₂ + a₂₂ * b₂₂] := by\n  ext i j\n  fin_cases i <;> fin_cases j <;> simp [Matrix.mul_apply, dotProduct, Fin.sum_univ_succ]",
+        "compilationAlias": "theorem mul_fin_two [AddCommMonoid α] [Mul α] (a₁₁ a₁₂ a₂₁ a₂₂ b₁₁ b₁₂ b₂₁ b₂₂ : α) :\n    !![a₁₁, a₁₂;\n       a₂₁, a₂₂] * !![b₁₁, b₁₂;\n                      b₂₁, b₂₂] = !![a₁₁ * b₁₁ + a₁₂ * b₂₁, a₁₁ * b₁₂ + a₁₂ * b₂₂;\n                                     a₂₁ * b₁₁ + a₂₂ * b₂₁, a₂₁ * b₁₂ + a₂₂ * b₂₂] := by\n  ext i j\n  fin_cases i <;> fin_cases j <;> simp [Matrix.mul_apply, dotProduct, Fin.sum_univ_succ]"
+      },
+      {
+        "name": "SpaceTime",
+        "module": "HepLean.SpaceTime.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ",
+        "compilationAlias": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      },
+      {
+        "name": "TwoHDM.fieldCompMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+        "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "` and `<PROOF>` section. Since the input is just a definition, there's no formal proof provided. So, I'll translate the definition into a natural language statement about `fieldCompMatrix`, explaining it is made up of components from two Higgs fields.\n\nFor the `<PROOF>` part, since there's no formal proof in the input, I can state that the translation is based solely on the provided comments and constructive the informal proof from existing knowledge, as per the user's instructions.\n\nI should ensure that the `<STATEMENT>` is clear and encapsulates the meaning of `fieldCompMatrix`, and the `<PROOF>` is a logical sequence that explains how the matrix is constructed from the two Higgs fields. I'll also keep in mind the structure and style of the examples provided to maintain consistency.\n\nOverall, my approach will be:\n1. Read and understand the Lean4 code snippet.\n2. Translate the definition into a natural language statement.\n3. Construct an informal proof based on my understanding of how the matrix is formed.\n4. Ensure that both the statement and proof follow the specified structure and formatting guidelines.\n\nI might need to recall or look up the specific terms like \"Higgs fields\" and \"2x2 complex matrices\" to provide an accurate and meaningful translation. However, based on the examples, I can work with the information at hand to provide a coherent and accurate translation.\n\nNow, let's try to formalize all that into the required format.\n</think>\n\n<STATEMENT>\n\nThe `fieldCompMatrix` is a 2x2 complex matrix constructed from the components of two Higgs fields evaluated at a given point in space-time.",
+    "informal_proof": "` section. Since the input is just a definition, there's no formal proof provided. So, I'll translate the definition into a natural language statement about `fieldCompMatrix`, explaining it is made up of components from two Higgs fields.\n\nFor the `<PROOF>` part, since there's no formal proof in the input, I can state that the translation is based solely on the provided comments and constructive the informal proof from existing knowledge, as per the user's instructions.\n\nI should ensure that the `<STATEMENT>` is clear and encapsulates the meaning of `fieldCompMatrix`, and the `<PROOF>` is a logical sequence that explains how the matrix is constructed from the two Higgs fields. I'll also keep in mind the structure and style of the examples provided to maintain consistency.\n\nOverall, my approach will be:\n1. Read and understand the Lean4 code snippet.\n2. Translate the definition into a natural language statement.\n3. Construct an informal proof based on my understanding of how the matrix is formed.\n4. Ensure that both the statement and proof follow the specified structure and formatting guidelines.\n\nI might need to recall or look up the specific terms like \"Higgs fields\" and \"2x2 complex matrices\" to provide an accurate and meaningful translation. However, based on the examples, I can work with the information at hand to provide a coherent and accurate translation.\n\nNow, let's try to formalize all that into the required format.\n</think>\n\n<STATEMENT>\n\nThe `fieldCompMatrix` is a 2x2 complex matrix constructed from the components of two Higgs fields evaluated at a given point in space-time.\n\n</STATEMENT>\n<PROOF>\n\nThe `fieldCompMatrix` is a 2x2 complex matrix where each entry is formed by evaluating the corresponding component of one of two Higgs fields at a given space-time point. Specifically, the (1,1) and (2,1) entries are taken from the first Higgs field, while the (1,2) and (2,2) entries are taken from the second Higgs field. This construction allows for the combination of information from both Higgs fields in a structured and mathematical manner, facilitating further analysis or operations within the theoretical framework it belongs to.",
+    "id": {
+      "name": "TwoHDM.fieldCompMatrix",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+      "compilationAlias": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n"
+    },
+    "goal": "Φ1 Φ2 : StandardModel.HiggsField\nx : SpaceTime\n⊢ Matrix (Fin 2) (Fin 2) Complex",
+    "content_sorry": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+    "annotation": "/-- The 2 x 2 complex matrices made up of components of the two Higgs fields. -/\ndef fieldCompMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![Φ1 x 0, Φ1 x 1; Φ2 x 0, Φ2 x 1]\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Matrix",
+        "module": "Mathlib.Data.Matrix.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+        "compilationAlias": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"
+      },
+      {
+        "name": "SpaceTime",
+        "module": "HepLean.SpaceTime.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ",
+        "compilationAlias": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "TwoHDM.prodMatrix",
+        "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+        "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "noncomputable section\n\nnamespace TwoHDM\n\nopen StandardModel ComplexConjugate StandardModel.HiggsField Manifold Matrix Complex SpaceTime",
+    "postscopes": "end\n\nend TwoHDM",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "TwoHDM.prodMatrix",
+      "module": "HepLean.BeyondTheStandardModel.TwoHDM.GaugeOrbits",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+      "compilationAlias": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n"
+    },
+    "goal": "Φ1 Φ2 : StandardModel.HiggsField\nx : SpaceTime\n⊢ Matrix (Fin 2) (Fin 2) Complex",
+    "content_sorry": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ := by exact?",
+    "content_full": "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.BeyondTheStandardModel.TwoHDM.Basic\nimport HepLean.StandardModel.HiggsBoson.GaugeAction\nimport Mathlib.LinearAlgebra.Matrix.PosDef\nimport Mathlib.Analysis.CStarAlgebra.Matrix\n/-!\n\n# Gauge orbits for the 2HDM\n\nThe main reference for material in this section is https://arxiv.org/pdf/hep-ph/0605184.\n\n-/\n\nnamespace TwoHDM\n\nopen StandardModel\nopen ComplexConjugate\nopen HiggsField\nopen Manifold\nopen Matrix\nopen Complex\nopen SpaceTime\n\nnoncomputable section\n\n/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+    "annotation": "/-- For two Higgs fields `Φ₁` and `Φ₂`, the map from space time to 2 x 2 complex matrices\n  defined by `((Φ₁^†Φ₁, Φ₂^†Φ₁), (Φ₁^†Φ₂, Φ₂^†Φ₂))`. -/\ndef prodMatrix (Φ1 Φ2 : HiggsField) (x : SpaceTime) : Matrix (Fin 2) (Fin 2) ℂ :=\n  !![⟪Φ1, Φ1⟫_H x, ⟪Φ2, Φ1⟫_H x; ⟪Φ1, Φ2⟫_H x, ⟪Φ2, Φ2⟫_H x]\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Matrix",
+        "module": "Mathlib.Data.Matrix.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α",
+        "compilationAlias": "/-- `Matrix m n R` is the type of matrices with entries in `R`, whose rows are indexed by `m`\nand whose columns are indexed by `n`. -/\ndef Matrix (m : Type u) (n : Type u') (α : Type v) : Type max u u' v :=\n  m → n → α"
+      },
+      {
+        "name": "SpaceTime",
+        "module": "HepLean.SpaceTime.Basic",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ",
+        "compilationAlias": "/-- The space-time -/\ndef SpaceTime : Type := Fin 4 → ℝ"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]
