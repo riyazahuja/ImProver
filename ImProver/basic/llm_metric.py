@@ -13,19 +13,32 @@ import argparse
 import duckdb
 import random
 import difflib
-
+from transformers import AutoTokenizer
 
 
 def run_inference(df, args, metric_config, use_heuristics=True):
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
-    os.environ["NCCL_P2P_DISABLE"] = "1"
-    try:
-        ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
-    except:
-        import getpass
-        ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/' + getpass.getuser() + '/ray_tmp')
-    DataContext.get_current().wait_for_min_actors_s = 1800
+    if args.nccl_p2p:
+        os.environ["NCCL_P2P_DISABLE"] = "0"
+    else:
+        os.environ["NCCL_P2P_DISABLE"] = "1"
+
+    # try:
+    #     ray.init(num_cpus=args.cpus, num_gpus=args.gpus)
+    # except:
+    #     import getpass
+    #     ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir='/data/user_data/' + getpass.getuser() + '/ray_tmp')
+
+    tmp_dir = os.environ.get(
+        "RAY_TMPDIR", f"/data/user_data/{os.getenv('USER','user')}/ray_tmp"
+    )
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    ray.init(num_cpus=args.cpus, num_gpus=args.gpus, _temp_dir=tmp_dir)
+
+    DataContext.get_current().wait_for_min_actors_s = args.ray_timeout
+
     ctx = DataContext.get_current()
     # ctx.progress_bar = True
     # ctx.execution_options.verbose_progress = True
@@ -37,14 +50,15 @@ def run_inference(df, args, metric_config, use_heuristics=True):
     # ds = ray.data.from_pandas(df)
     # Create a new dataframe with duplicated rows, each with a unique prompt_idx
     df2_parts = []
-    for i in range(args.n):
+    print(f"[Duplicating each row {args.judge_n} times for different judges]")
+    for i in range(args.judge_n):
         df_copy = df.copy()
         df_copy["prompt_idx"] = i
         df2_parts.append(df_copy)
 
     df2 = pd.concat(df2_parts, ignore_index=True)
     # Use df2 instead of df for the Ray dataset
-    ds = ray.data.from_pandas(df2).repartition(512)
+    ds = ray.data.from_pandas(df2).repartition(args.num_blocks)
     # ds = ray.data.from_pandas(df).repartition(args.gpus * 4)
     # ds = ray.data.read_text("s3://anonymous@air-example-data/prompts.txt")
     print(ds.schema())
@@ -55,20 +69,73 @@ def run_inference(df, args, metric_config, use_heuristics=True):
     # ctx.execution_options = ExecutionOptions(task_extra_resources={"CPU": 0.25})
 
     config = vLLMEngineProcessorConfig(
-        model_source=args.model if args.model else metric_config['llm']['metric_model'],
-        engine_resources={"CPU": 2, "GPU": 1},
-        concurrency=args.gpus,
+        model_source=args.judge_model,
+        engine_resources={
+            "CPU": args.engine_cpu_resources,
+            "GPU": args.engine_gpu_resources,
+        },
+        concurrency=args.concurrency,
         engine_kwargs={
-            "tensor_parallel_size": 1,
-            "enable_chunked_prefill": True,
-            "max_model_len": 16384,
-            "max_num_batched_tokens": 49152,
+            "tensor_parallel_size": args.tensor_parallel_size,
+            "enable_chunked_prefill": args.enable_chunked_prefill,
+            "max_model_len": args.max_model_len,
+            "max_num_batched_tokens": args.max_num_batched_tokens,
             # "max_num_batched_tokens": 4096,
             # "max_model_len": 16384,
+            # "gpu_memory_utilization":0.85,
+            "swap_space": 16,
         },
-        max_concurrent_batches=12,
-        batch_size=8,
+        max_concurrent_batches=args.max_concurrent_batches,
+        batch_size=args.batch_size,
     )
+    tokenizer = AutoTokenizer.from_pretrained(args.judge_model)
+
+    def preprocess_with_truncation(row):
+        # Truncate the prompt to fit within the model's context window
+        prompt = row["raw_prompt"]
+        tokens = tokenizer.encode(prompt)
+
+        # Calculate available space for prompt (reserve space for generation)
+        max_prompt_tokens = args.max_model_len - args.max_tokens
+
+        if len(tokens) > max_prompt_tokens:
+            # Truncate tokens and decode back to text
+            truncated_tokens = tokens[:max_prompt_tokens]
+            prompt = tokenizer.decode(truncated_tokens, skip_special_tokens=True)
+            print(
+                f"Truncated prompt from {len(tokens)} to {len(truncated_tokens)} tokens"
+            )
+        return dict(
+            messages=[
+                {"role": "system", "content": row["system"]},
+                {
+                    "role": "user",
+                    "content": row["raw_prompt"],
+                },  # + "\nRemember, output your final score wrapped in <SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive; DO NOT FORGET that -5 means that the FIRST proof is much better, 5 means the SECOND proof is much better, and 0 means they are of the same quality; THIS IS VERY IMPORTANT!\n"},
+            ],
+            sampling_params=dict(
+                # n=args.n,
+                # truncate_prompt_tokens=16384 - 1024,
+                # temperature=0.3,
+                max_tokens=args.max_tokens,
+                seed=int(row.get("prompt_idx", 0)),
+            ),
+        )
+
+        # return dict(
+        #     messages=[{"role": "user", "content": prompt}],
+        #     sampling_params=dict(
+        #         # n=args.n,
+        #         # truncate_prompt_tokens=args.truncate_prompt_tokens,  # Remove this as we're handling truncation manually
+        #         # temperature=0.3,
+        #         max_tokens=args.max_tokens,
+        #         temperature=0.3,
+        #         top_p=0.9,
+        #         repetition_penalty=1.05,
+        #         stop=["</IMPROVED>"],
+        #         seed=int(row.get("prompt_idx", 0)),
+        #     ),
+        # )
 
     def postprocess(row):
         if row["original"].strip() == row["improved"].strip():
@@ -80,7 +147,16 @@ def run_inference(df, args, metric_config, use_heuristics=True):
             if row["improved"].strip().startswith(row["original"].strip()):
                 # If the "improved" proof is just the original proof with extra spam on the end, we consider it worse
                 return dict(answer=(-5 if row["original_first"] else 5), **row)
-            if "".join([li[2] for li in difflib.ndiff(row["original"].replace("\n", "").replace(" ", ""), row["improved"].replace("\n", "").replace(" ", "")) if li[0] != ' ']) in ["by", "byapply", "byexact"]:
+            if "".join(
+                [
+                    li[2]
+                    for li in difflib.ndiff(
+                        row["original"].replace("\n", "").replace(" ", ""),
+                        row["improved"].replace("\n", "").replace(" ", ""),
+                    )
+                    if li[0] != " "
+                ]
+            ) in ["by", "byapply", "byexact"]:
                 # If the improved version is just a proof term changed into "by apply" or "by exact", we say they're the same
                 return dict(answer=0, **row)
 
@@ -120,9 +196,8 @@ def run_inference(df, args, metric_config, use_heuristics=True):
 
         # scaled_score = score / 5 # now its between -1 and 1
 
-
         return dict(answer=score, **row)
-        
+
         # IGNORE vvvv (OLD CODE)
         # match = re.search(r"(\d+)$", text)
         # if match:
@@ -137,30 +212,13 @@ def run_inference(df, args, metric_config, use_heuristics=True):
         #     score = (5 - score) / 10 * row["points"]
         # return dict(answer=score, **row)
 
-    
-    
-        
-#     system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them.
-# Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final score wrapped in<SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive, 
-# where -5 means the first proof is much better, 5 means the second proof is much better, and 0 means they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs."""
-
-    system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them.
-    # Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final answer wrapped in <SCORE>...</SCORE> tags: write <SCORE>FIRST</SCORE> if the first proof is better, <SCORE>SECOND</SCORE> if the second proof is better, and <SCORE>SAME</SCORE> if they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs. It is VERY IMPORTANT to do this; make SURE the tags you output are in the correct format, and match the proof that you have determined to be better!"""
+    #     system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, and you must determine which proof is better based on how the user tells you to evaluate them.
+    # Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final score wrapped in<SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive,
+    # where -5 means the first proof is much better, 5 means the second proof is much better, and 0 means they are of the same quality -- according to whatever the user's instructions are for how to evaluate the proofs."""
 
     vllm_processor = build_llm_processor(
         config,
-        preprocess=lambda row: dict(
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": row["raw_prompt"]} # + "\nRemember, output your final score wrapped in <SCORE>...</SCORE> tags as an integer between -5 and 5 inclusive; DO NOT FORGET that -5 means that the FIRST proof is much better, 5 means the SECOND proof is much better, and 0 means they are of the same quality; THIS IS VERY IMPORTANT!\n"},
-                ],
-            sampling_params=dict(
-                # n=args.n,
-                truncate_prompt_tokens=16384 - 1024,
-                # temperature=0.3,
-                max_tokens=1024,
-            ),
-        ),
+        preprocess=preprocess_with_truncation,
         postprocess=postprocess,
     )
     ds = vllm_processor(ds).materialize()
@@ -171,6 +229,12 @@ def run_inference(df, args, metric_config, use_heuristics=True):
     ds.repartition(16).write_parquet(f"local://{run_output_dir}")
 
     con = duckdb.connect(os.path.join("evals", args.run_id, "readability.duckdb"))
+
+    con.execute(
+        f"""
+        DROP TABLE IF EXISTS scores;
+    """
+    )
     con.execute(
         f"""
         CREATE TABLE IF NOT EXISTS scores AS
@@ -179,6 +243,7 @@ def run_inference(df, args, metric_config, use_heuristics=True):
     )
 
     return run_output_dir
+
 
 def strip_lean_comments(src: str) -> str:
     """
@@ -196,71 +261,133 @@ def strip_lean_comments(src: str) -> str:
     i, n = 0, len(src)
     out = []
     in_string = False
-    in_line   = False           # after "--"
-    depth     = 0               # nesting of /- … -/
+    in_line = False  # after "--"
+    depth = 0  # nesting of /- … -/
 
     while i < n:
         c = src[i]
 
         # ── inside string literal ────────────────────────────────────────────
         if in_string:
-            if c == '\\' and i + 1 < n:                 # keep escape + char
-                out.extend(src[i:i+2]); i += 2; continue
-            if c == '"':   in_string = False
-            out.append(c); i += 1; continue
+            if c == "\\" and i + 1 < n:  # keep escape + char
+                out.extend(src[i : i + 2])
+                i += 2
+                continue
+            if c == '"':
+                in_string = False
+            out.append(c)
+            i += 1
+            continue
 
         # ── inside single-line comment ───────────────────────────────────────
         if in_line:
-            if c == '\n':   in_line = False; out.append('\n')
-            i += 1; continue
+            if c == "\n":
+                in_line = False
+                out.append("\n")
+            i += 1
+            continue
 
         # ── inside (possibly nested) block/doc comment ───────────────────────
         if depth:
-            if src.startswith('-/', i):                # close one level
-                depth -= 1; i += 2; continue
-            if src.startswith('/--', i):               # nested doc
-                depth += 1; i += 3; continue
-            if src.startswith('/-', i):                # nested block
-                depth += 1; i += 2; continue
-            if c == '\n':   out.append('\n')           # keep new-lines
-            i += 1; continue
+            if src.startswith("-/", i):  # close one level
+                depth -= 1
+                i += 2
+                continue
+            if src.startswith("/--", i):  # nested doc
+                depth += 1
+                i += 3
+                continue
+            if src.startswith("/-", i):  # nested block
+                depth += 1
+                i += 2
+                continue
+            if c == "\n":
+                out.append("\n")  # keep new-lines
+            i += 1
+            continue
 
         # ── normal code region ───────────────────────────────────────────────
         # 1) attribute tags  @[ … ]
-        if src.startswith('@[', i):
+        if src.startswith("@[", i):
             i += 2
             # skip until corresponding ]
-            while i < n and src[i] != ']':
+            while i < n and src[i] != "]":
                 i += 1
-            if i < n: i += 1            # skip closing ]
+            if i < n:
+                i += 1  # skip closing ]
             # remove trailing spaces/tabs (leave new-line)
-            while i < n and src[i] in ' \t':
+            while i < n and src[i] in " \t":
                 i += 1
             continue
 
         # 2) open/close comment regions
-        if src.startswith('/--', i):     depth = 1; i += 3; continue
-        if src.startswith('/-',  i):     depth = 1; i += 2; continue
-        if src.startswith('--',  i):     in_line = True; i += 2; continue
+        if src.startswith("/--", i):
+            depth = 1
+            i += 3
+            continue
+        if src.startswith("/-", i):
+            depth = 1
+            i += 2
+            continue
+        if src.startswith("--", i):
+            in_line = True
+            i += 2
+            continue
 
         # 3) open string
-        if c == '"':   in_string = True; out.append(c); i += 1; continue
+        if c == '"':
+            in_string = True
+            out.append(c)
+            i += 1
+            continue
 
         # 4) ordinary code char
-        out.append(c); i += 1
+        out.append(c)
+        i += 1
 
-    return ''.join(out).strip()
+    return "".join(out).strip()
 
 
+def calculate_prompt(
+    proof1, proof1_annotated, proof2, proof2_annotated, original_first, metric_config
+):
 
-def calculate_prompt(proof1, proof2, original_first, metric_config):
+    system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, both of which are correctly compiling valid Lean4 proofs of the theorem, and you must determine which proof is better -- or if they are approximately the same quality -- based on how the user tells you to evaluate them.
+    
+Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final answer wrapped in <SCORE>...</SCORE> tags: write <SCORE>FIRST</SCORE> if the first proof is significantly better, <SCORE>SECOND</SCORE> if the second proof is significantly better, and <SCORE>SAME</SCORE> if they are of similar quality -- according to whatever the user's instructions are for how to evaluate the proofs. Do not mark proofs as being better for marginal differences: reserve your judgment for cases of clear superiority. It is VERY IMPORTANT to judge according to the user's instructions; additionally, make SURE the tags you output are in the correct format, and match the proof that you have determined to be better!"""
+
     ret = []
+    # print(f"[MAKING {len(metric_config['llm']['rubric'])} PROMPTS FOR EACH PROOF PAIR]")
+
+    if proof1.strip() != "" and proof2.strip() != "":
+        annotation = f"""Here are modified annotated forms of the two proofs, artifically augmented to include goal states for your reference during evaluation:
+    <ANNOTATIONS>
+    <ANNOTATED_FIRST_PROOF>
+    {proof1_annotated}
+    </ANNOTATED_FIRST_PROOF>
+
+    <ANNOTATED_SECOND_PROOF>
+    {proof2_annotated}
+    </ANNOTATED_SECOND_PROOF>
+    </ANNOTATIONS>
+
+    """
+
+        system = """You are an expert formal mathematician and quality evaluator of formal proofs. You will be given two proofs of the same theorem, both of which are correctly compiling valid Lean4 proofs of the theorem, and you must determine which proof is better -- or if they are approximately the same quality -- based on how the user tells you to evaluate them. You will additionally be given annotated versions of both proofs -- wrapped in <ANNOTATIONS>...<ANNOTATIONS> tags -- which have been artificially augmented to include goal states for your reference during evaluation. These annotations are not originally part of the actual proofs you must judge, but rather are provided to help you make a more informed decision about which proof is better by viewing the goal states at various points in the proof. You should use these annotations to help you understand the structure and intent of each proof, but your final judgements and evaluation must come from the actual original proofs.
+    
+Think and reason carefully about your answer, listen to exactly what the user tells you to do, and output your final answer wrapped in <SCORE>...</SCORE> tags: write <SCORE>FIRST</SCORE> if the first proof is significantly better, <SCORE>SECOND</SCORE> if the second proof is significantly better, and <SCORE>SAME</SCORE> if they are of similar quality -- according to whatever the user's instructions are for how to evaluate the proofs. Do not mark proofs as being better for marginal differences: reserve your judgment for cases of clear superiority. It is VERY IMPORTANT to judge according to the user's instructions; additionally, make SURE the tags you output are in the correct format, and match the proof that you have determined to be better!"""
+
+    else:
+        annotation = ""
+
     for i, rubric in enumerate(metric_config["llm"]["rubric"]):
         if rubric.get("comments", True):
             proof1, proof2 = strip_lean_comments(proof1), strip_lean_comments(proof2)
         prompt = (
             rubric["text"]
-            + f"""Here are the two proofs:
+            + "\n\n"
+            + f"{annotation}"
+            + f"""And here are the exact two proofs you must evaluate, in their entirety and original formatting:
 
 <FIRST_PROOF>
 {proof1}
@@ -272,20 +399,38 @@ def calculate_prompt(proof1, proof2, original_first, metric_config):
 """
         )
         if original_first:
-            ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i, "original": proof1, "improved": proof2})
+            ret.append(
+                {
+                    "system": system,
+                    "raw_prompt": prompt,
+                    "points": rubric["points"],
+                    "category": i,
+                    "original": proof1,
+                    "improved": proof2,
+                }
+            )
         else:
-            ret.append({"raw_prompt": prompt, "points": rubric["points"], "category": i, "original": proof2, "improved": proof1})
+            ret.append(
+                {
+                    "system": system,
+                    "raw_prompt": prompt,
+                    "points": rubric["points"],
+                    "category": i,
+                    "original": proof2,
+                    "improved": proof1,
+                }
+            )
     return ret
-
 
 
 first_time = True
 
+
 def aggregate_scores(rows, metric_config):
-    #given a list of rows with the same rowid, module, and decl, get the final score
-    #first, group the rows by prompt_idx, and for each group, do the following:
+    # given a list of rows with the same rowid, module, and decl, get the final score
+    # first, group the rows by prompt_idx, and for each group, do the following:
     # for a group, ensure that we have all of the len(READABILITY_RUBRIC_PROMPTS) categories,
-    # and for each item in the group corresponds to a distinct category. Then the answer column (actually the min(answer, points)) is 
+    # and for each item in the group corresponds to a distinct category. Then the answer column (actually the min(answer, points)) is
     # the final score for that item/category. Then you must simply sum up the scores for each category to get the final score for the group.
     # normalize this group score by the total points available, and then take the mean of these values across the groups. this is the final final score.
     global first_time
@@ -295,45 +440,48 @@ def aggregate_scores(rows, metric_config):
         # print(f">>> Aggregating scores for {len(rows)} rows [{rows[0]['module']}, {rows[0]['decl']}]")
         # for row in rows:
         #     print(f"  {row['prompt_idx']}: {row['answer']} / {row['points']}\t| {row['prompt']}")
-        
+
     # Group rows by prompt_idx
     prompt_groups = {}
     for row in rows:
-        idx = row['prompt_idx']
+        idx = row["prompt_idx"]
         if idx not in prompt_groups:
             prompt_groups[idx] = []
         prompt_groups[idx].append(row)
 
-    
     # Calculate total available points
-    total_available_points = sum(rubric['points'] for rubric in metric_config["llm"]["rubric"])
+    total_available_points = sum(
+        rubric["points"] for rubric in metric_config["llm"]["rubric"]
+    )
 
     # Process each prompt group
     normalized_scores = []
     for idx, group in prompt_groups.items():
         # Check if we have all categories
         if len(group) != len(metric_config["llm"]["rubric"]):
-            print(f"Warning: Group for prompt_idx {idx} has {len(group)} categories instead of {len(metric_config['llm']['rubric'])}")
+            print(
+                f"Warning: Group for prompt_idx {idx} has {len(group)} categories instead of {len(metric_config['llm']['rubric'])}"
+            )
             continue
-            
+
         # Ensure each category is distinct
-        categories = [item['category'] for item in group]
+        categories = [item["category"] for item in group]
         if len(set(categories)) != len(categories):
             print(f"Warning: Duplicate categories found in group for prompt_idx {idx}")
             continue
-            
+
         # Calculate score for each category
         total_score = 0
         for category in group:
-            s_i = category['answer']
+            s_i = category["answer"]
             if s_i is None:
                 continue
-            flip = 1 if category['original_first'] else -1
-            total_score += flip * s_i * category['points'] / 5
+            flip = 1 if category["original_first"] else -1
+            total_score += flip * s_i * category["points"] / 5
         normalized_score = total_score / total_available_points
-                
+
         normalized_scores.append(normalized_score)
-    
+
     # Return the mean of normalized scores across all groups
     if not normalized_scores:
         return 0  # Return 0 if no valid groups were found
@@ -346,48 +494,146 @@ def aggregate_scores(rows, metric_config):
 
     return total / len(normalized_scores)
 
-def get_readability_scores(readability_connection,args, metric_config):
+
+def aggregate_scores_maj(rows, metric_config):
+    # given a list of rows with the same rowid, module, and decl, get the final score
+    # first, group the rows by prompt_idx, and for each group, do the following:
+    # for a group, ensure that we have all of the len(READABILITY_RUBRIC_PROMPTS) categories,
+    # and for each item in the group corresponds to a distinct category. Then the answer column (actually the min(answer, points)) is
+    # the final score for that item/category. Then you must simply sum up the scores for each category to get the final score for the group.
+    # normalize this group score by the total points available, and then take the mean of these values across the groups. this is the final final score.
+
+    # print(f">>> Aggregating scores for {len(rows)} rows [{rows[0]['module']}, {rows[0]['decl']}]")
+    # for row in rows:
+    #     print(f"  {row['prompt_idx']}: {row['answer']} / {row['points']}\t| {row['prompt']}")
+
+    # Group rows by prompt_idx
+    prompt_groups = {}
+    for row in rows:
+        idx = row["prompt_idx"]
+        if idx not in prompt_groups:
+            prompt_groups[idx] = []
+        prompt_groups[idx].append(row)
+
+    # Calculate total available points
+    total_available_points = sum(
+        rubric["points"] for rubric in metric_config["llm"]["rubric"]
+    )
+
+    # Process each prompt group
+    normalized_scores = []
+
+    categorical_scores = {}
+    points = {}
+    for idx, group in prompt_groups.items():
+        # Check if we have all categories
+        if len(group) != len(metric_config["llm"]["rubric"]):
+            print(
+                f"Warning: Group for prompt_idx {idx} has {len(group)} categories instead of {len(metric_config['llm']['rubric'])}"
+            )
+            continue
+
+        # Ensure each category is distinct
+        categories = [item["category"] for item in group]
+        if len(set(categories)) != len(categories):
+            print(f"Warning: Duplicate categories found in group for prompt_idx {idx}")
+            continue
+
+        # Calculate score for each category
+        total_score = 0
+        for category in group:
+            i = category["category"]
+            s_i = category["answer"]
+            if s_i is None:
+                continue
+            if i not in categorical_scores:
+                categorical_scores[i] = []
+                points[i] = category["points"]
+
+            flip = 1 if category["original_first"] else -1
+            categorical_scores[i].append(flip * s_i / 5)
+
+    majority_votes = {}
+    for i, scores in categorical_scores.items():
+        if not scores:
+            majority_votes[i] = 0
+            continue
+        # Count votes for each category
+        positive_votes = sum(1 for s in scores if s > 0)
+        zero_votes = sum(1 for s in scores if s == 0)
+        negative_votes = sum(1 for s in scores if s < 0)
+
+        # Determine majority vote
+        if positive_votes > negative_votes and positive_votes > zero_votes:
+            majority_votes[i] = 1
+        elif negative_votes > positive_votes and negative_votes > zero_votes:
+            majority_votes[i] = -1
+        else:
+            majority_votes[i] = 0
+
+    total_score = sum(majority_votes[i] * points[i] for i in majority_votes)
+    return total_score / total_available_points
+
+    #     # normalized_score = total_score / total_available_points
+
+    #     # normalized_scores.append(normalized_score)
+
+    # # Return the mean of normalized scores across all groups
+    # if not normalized_scores:
+    #     return 0  # Return 0 if no valid groups were found
+
+    # # length_diff_penalty_factor = 0.25
+
+    # total = sum(normalized_scores)
+    # # if len(rows[0]["original"].split("\n")) / len(rows[0]["improved"].split("\n")) > 2 or len(rows[0]["improved"].split("\n")) / len(rows[0]["original"].split("\n")) > 2:
+    # #     total -= length_diff_penalty_factor * total_available_points
+
+    # return total / len(normalized_scores)
+
+
+def get_readability_scores(readability_connection, args, metric_config):
     # if prompts:
     #     condition = "WHERE is_og = TRUE"
     # else:
     #     condition = "WHERE is_og = FALSE"
-    prompts=True
-    
-    
+    prompts = True
+
     if readability_connection:
         try:
-            
+
             query = f"SELECT * FROM scores"
             result = readability_connection.execute(query).fetchdf()
-            
+
             if not result.empty:
                 # Group by module and decl
                 grouped_data = {}
                 for _, row in result.iterrows():
-                    key = (row['module'], row['decl'], int(row['rowid']))
+                    key = (row["module"], row["decl"], int(row["rowid"]))
                     if key not in grouped_data:
                         grouped_data[key] = []
                     grouped_data[key].append(row.to_dict())
-                
+
                 # Calculate scores for each group
                 final_scores = []
                 for (module, decl, rowid), rows in grouped_data.items():
                     score = aggregate_scores(rows, metric_config)
                     data = {
-                        'module': module,
-                        'decl': decl,
-                        'score': score,
-                        'rowid': rowid
+                        "module": module,
+                        "decl": decl,
+                        "score": score,
+                        "rowid": rowid,
                     }
                     # if not prompts:
                     #     data['rowid'] = rowid
-                        
+
                     final_scores.append(data)
-                
+
                 # Convert to DataFrame
                 scores_df = pd.DataFrame(final_scores)
-                print(f"Calculated readability scores for {len(scores_df)} original proofs")
-                                
+                print(
+                    f"Calculated readability scores for {len(scores_df)} original proofs"
+                )
+
                 return scores_df
             else:
                 print("No original proofs found in the readability database")
@@ -399,6 +645,7 @@ def get_readability_scores(readability_connection,args, metric_config):
         print("No readability database connection")
         return None
 
+
 def parse_readabilityDB(args, metric_config):
     readabilityDB_path = os.path.join("evals", args.run_id, "readability.duckdb")
     if readabilityDB_path:
@@ -408,7 +655,7 @@ def parse_readabilityDB(args, metric_config):
         except Exception as e:
             print(f"Error connecting to existing database: {e}")
             readability_connection = None
-            
+
     # # Query the database to get scores for original/new proof pairs
     # readability_scores_data = get_readability_scores(readability_connection,args)
     # if readability_scores_data is not None:
@@ -420,7 +667,7 @@ def parse_readabilityDB(args, metric_config):
     #     try:
     #         prompt_connection = duckdb.connect(prompt_db_path)
     #         print(f"Connected to prompt database at {prompt_db_path}")
-            
+
     #         # Create the table if it doesn't exist
     #         prompt_connection.execute("""
     #             CREATE TABLE IF NOT EXISTS readability_scores (
@@ -430,23 +677,25 @@ def parse_readabilityDB(args, metric_config):
     #                 PRIMARY KEY (module, decl)
     #             )
     #         """)
-            
+
     #         # Register the DataFrame as a view
     #         prompt_connection.register('temp_scores', readability_scores_data)
-            
+
     #         # Clear existing scores and insert new ones in a transaction
     #         prompt_connection.execute("BEGIN TRANSACTION")
     #         prompt_connection.execute("DELETE FROM readability_scores")
     #         prompt_connection.execute("INSERT INTO readability_scores SELECT module, decl, score FROM temp_scores")
     #         prompt_connection.execute("COMMIT")
-            
+
     #         print(f"Successfully stored {len(readability_scores_data)} readability scores in {prompt_db_path}")
     #         prompt_connection.close()
-            
+
     #     except Exception as e:
     #         print(f"Error storing readability scores: {e}")
-    
-    model_scores_data = get_readability_scores(readability_connection,args, metric_config)#,prompts=False)
+
+    model_scores_data = get_readability_scores(
+        readability_connection, args, metric_config
+    )  # ,prompts=False)
     print(f"Model scores data: {model_scores_data}")
     if model_scores_data is not None:
         # Open connection to eval database
@@ -456,44 +705,67 @@ def parse_readabilityDB(args, metric_config):
         try:
             eval_connection = duckdb.connect(eval_db_path)
             # prompt_connection = duckdb.connect(prompt_db_path)
-    
+
             print(f"Connected to evaluation database at {eval_db_path}")
             # print(f"Connected to prompt database at {prompt_db_path}")
             # First duplicate the evaluation_results to make a evaluation_results_legacy table
             try:
+                # ensure we have doubles
+                # eval_connection.execute(
+                #     """
+                #     ALTER TABLE evaluation_results ALTER COLUMN og_score TYPE DOUBLE;
+                # """
+                # )
+                # eval_connection.execute(
+                #     """
+                #     ALTER TABLE evaluation_results ALTER COLUMN new_score TYPE DOUBLE;
+                # """
+                # )
+                eval_connection.execute(
+                    """
+                    ALTER TABLE evaluation_results ALTER COLUMN delta TYPE DOUBLE;
+                """
+                )
+
                 # Check if the legacy table already exists
-                table_exists = eval_connection.execute("""
+                table_exists = eval_connection.execute(
+                    """
                     SELECT count(*) FROM information_schema.tables 
                     WHERE table_name = 'evaluation_results_legacy'
-                """).fetchone()[0]
-                
+                """
+                ).fetchone()[0]
+
                 if table_exists == 0:
                     # Create the legacy table
-                    eval_connection.execute("""
+                    eval_connection.execute(
+                        """
                         CREATE TABLE evaluation_results_legacy AS 
                         SELECT * FROM evaluation_results
-                    """)
+                    """
+                    )
                     print("Created evaluation_results_legacy backup table")
                 else:
-                    print("evaluation_results_legacy table already exists, skipping backup creation")
+                    print(
+                        "evaluation_results_legacy table already exists, skipping backup creation"
+                    )
             except Exception as e:
                 print(f"Error creating backup table: {e}")
             # Process each row in model_scores_data
             for _, row in model_scores_data.iterrows():
-                rowid = row['rowid']
-                module = row['module']
-                decl = row['decl']
-                score = row['score']
-                
+                rowid = row["rowid"]
+                module = row["module"]
+                decl = row["decl"]
+                score = row["score"]
+
                 # Get the original score from the prompt database
                 # result = prompt_connection.execute(
                 #     "SELECT score FROM readability_scores WHERE module = ? AND decl = ?",
                 #     [module, decl]
                 # ).fetchone()
-                
+
                 # if result:
                 # delta = float(result[0]) / 10
-                
+
                 # Update the row in the eval database
                 eval_connection.execute(
                     """
@@ -505,37 +777,43 @@ def parse_readabilityDB(args, metric_config):
                     WHERE 
                         rowid = ?
                     """,
-                    [0, 0, score, int(rowid)]
+                    [0, 0, score, int(rowid)],
                 )
-                    
-                print(f"Updated scores for rowid {rowid}, module {module}, decl {decl}: delta={score}")
+
+                print(
+                    f"Updated scores for rowid {rowid}, module {module}, decl {decl}: delta={score}"
+                )
                 # else:
                 #     print(f"Warning: No original score found for module {module}, decl {decl}")
-            
+
             # Commit the changes
             eval_connection.commit()
-            print(f"Successfully updated {len(model_scores_data)} rows in the evaluation database")
-            
+            print(
+                f"Successfully updated {len(model_scores_data)} rows in the evaluation database"
+            )
+
             # Close connections
             eval_connection.close()
 
-            
         except Exception as e:
             print(f"Error updating scores in evaluation database: {e}")
-            
-    
+
+
 def randomize_order(proof_data):
     for p in proof_data:
         if random.random() < 0.5:
-            p['proof1'], p['proof2'] = p['proof2'], p['proof1']
-            p['original_first'] = False
+            p["proof1"], p["proof2"] = p["proof2"], p["proof1"]
+            p["proof1_annotated"], p["proof2_annotated"] = (
+                p["proof2_annotated"],
+                p["proof1_annotated"],
+            )
+            p["original_first"] = False
         else:
-            p['original_first'] = True
+            p["original_first"] = True
 
 
 def main(args):
-    
-    
+
     # Try to open the eval.duckdb file
     eval_db_path = os.path.join("evals", args.run_id, "eval.duckdb")
     try:
@@ -549,14 +827,14 @@ def main(args):
 
     # # Get all improved proofs that are marked as correct
     # improved_proofs = eval_connection.execute("""
-    #     SELECT 
-    #         rowid, 
-    #         module, 
-    #         decl, 
-    #         new_raw 
-    #     FROM 
-    #         evaluation_results 
-    #     WHERE 
+    #     SELECT
+    #         rowid,
+    #         module,
+    #         decl,
+    #         new_raw
+    #     FROM
+    #         evaluation_results
+    #     WHERE
     #         new_correct = TRUE
     # """).fetchall()
 
@@ -572,43 +850,55 @@ def main(args):
     #         })
 
     # Get all pairs of original and improved proofs that are marked as correct and have non-empty proofs
-#     query = """
-# SELECT a.decl,
-#        struct_pack(a.*) AS row_a,
-#        struct_pack(b.*) AS row_b
-# FROM   evaluation_results AS a
-# JOIN   evaluation_results AS b
-#        ON  a.decl = b.decl
-#        AND a.module = b.module
-#        AND a.og_raw != ''
-#        AND b.new_raw != ''
-#        AND a.rowid != b.rowid
-#        AND a.is_og = TRUE
-#        AND b.is_og = FALSE
-#        AND b.new_correct = TRUE;"""
-    query = """SELECT module, decl, og_raw, new_trimmed, rowid 
+    #     query = """
+    # SELECT a.decl,
+    #        struct_pack(a.*) AS row_a,
+    #        struct_pack(b.*) AS row_b
+    # FROM   evaluation_results AS a
+    # JOIN   evaluation_results AS b
+    #        ON  a.decl = b.decl
+    #        AND a.module = b.module
+    #        AND a.og_raw != ''
+    #        AND b.new_raw != ''
+    #        AND a.rowid != b.rowid
+    #        AND a.is_og = TRUE
+    #        AND b.is_og = FALSE
+    #        AND b.new_correct = TRUE;"""
+    query = """SELECT module, decl, og_raw, og_annotated, new_trimmed, new_annotated, rowid 
 FROM evaluation_results
 WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct = TRUE"""
 
     df_pairs = eval_connection.execute(query).fetchall()
     # Couldn't be bothered to use pandas here
-    for module, decl, og_raw, new_trimmed, rowid in df_pairs:
-        proof_data.append({
-            'module': module,
-            'decl': decl,
-            'proof1': og_raw,
-            'proof2': new_trimmed,
-            'rowid': int(rowid),
-        })
-    
+    for (
+        module,
+        decl,
+        og_raw,
+        og_annotated,
+        new_trimmed,
+        new_annotated,
+        rowid,
+    ) in df_pairs:
+        proof_data.append(
+            {
+                "module": str(module),
+                "decl": str(decl),
+                "proof1": str(og_raw),
+                "proof1_annotated": str(og_annotated),
+                "proof2": str(new_trimmed),
+                "proof2_annotated": str(new_annotated),
+                "rowid": int(rowid),
+            }
+        )
+
     randomize_order(proof_data)
 
     # Load run config to get metric information
     run_config_path = os.path.join("evals", args.run_id, "config.json")
     try:
-        with open(run_config_path, 'r') as f:
+        with open(run_config_path, "r") as f:
             run_config = json.load(f)
-        metric = run_config['metric']
+        metric = run_config["metric"]
         print(f"Loaded run config: metric={metric}")
     except Exception as e:
         raise RuntimeError(f"Failed to load run config from {run_config_path}: {e}")
@@ -616,32 +906,36 @@ WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct =
     # Load metric config
     metric_config_path = os.path.join("metrics", metric, "config.json")
     try:
-        with open(metric_config_path, 'r') as f:
+        with open(metric_config_path, "r") as f:
             metric_config = json.load(f)
         print(f"Loaded metric config from {metric_config_path}")
     except Exception as e:
-        raise RuntimeError(f"Failed to load metric config from {metric_config_path}: {e}")
+        raise RuntimeError(
+            f"Failed to load metric config from {metric_config_path}: {e}"
+        )
 
     data = []
     for item in proof_data:
-        prompts = calculate_prompt(item["proof1"], item["proof2"], item["original_first"], metric_config)
+        prompts = calculate_prompt(
+            item["proof1"],
+            item["proof1_annotated"],
+            item["proof2"],
+            item["proof2_annotated"],
+            item["original_first"],
+            metric_config,
+        )
         data.extend([{**prompt, **item} for prompt in prompts])
-    
-    proof_df = pd.DataFrame(data)
 
-    
+    proof_df = pd.DataFrame(data)
+    print(proof_df.info())
 
     # returns the path to the directory containing run metadata and the parquet lake
 
     output_path = run_inference(proof_df, args, metric_config)
-    
-    
+
     parse_readabilityDB(args, metric_config)
-    
+
     ray.shutdown()
-    
-
-
 
 
 if __name__ == "__main__":
@@ -650,17 +944,17 @@ if __name__ == "__main__":
     )
     parser.add_argument("run_id", type=str, help="Run ID to use for evaluation")
     parser.add_argument(
-        "--model",
+        "--judge_model",
         type=str,
         default=None,
         help="Model to use",
     )
-    parser.add_argument(
-        "--split",
-        type=str,
-        default="train",
-        help="Dataset split to use (default: train)",
-    )
+    # parser.add_argument(
+    #     "--split",
+    #     type=str,
+    #     default="train",
+    #     help="Dataset split to use (default: train)",
+    # )
     parser.add_argument(
         "--cpus",
         type=int,
@@ -679,8 +973,95 @@ if __name__ == "__main__":
         default=available_gpus,
         help="Number of GPUs to use (default: all available)",
     )
-    #TODO: change back to n=3
-    parser.add_argument("--n", type=int, default=1, help="Best-of-n value (default: 3)")
+    # TODO: change back to n=3
+    parser.add_argument(
+        "--judge_n", type=int, default=1, help="Best-of-n value (default: 3)"
+    )
+
+    parser.add_argument(
+        "--nccl_p2p",
+        type=bool,
+        default=False,
+        help="Enable NCCL P2P - set to false if nvidia-smi topo -m shows SYS between gpus, or something or another about PCIE? A6000 -> false. (default: False)",
+    )
+    parser.add_argument(
+        "--ray_timeout",
+        type=int,
+        default=1800,
+        help="Ray timeout in seconds (default: 1800)",
+    )
+    parser.add_argument(
+        "--num_blocks",
+        type=int,
+        default=16,
+        help="Number of blocks to repartition the dataset into (default: 16)",
+    )
+    parser.add_argument(
+        "--engine_cpu_resources",
+        type=int,
+        default=multiprocessing.cpu_count() // available_gpus,
+        help="Number of CPU resources for the engine (default: cpus // gpus)",
+    )
+    parser.add_argument(
+        "--engine_gpu_resources",
+        type=int,
+        default=1,
+        help="Number of GPU resources for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=available_gpus,
+        help="Concurrency for the engine (default: gpus)",
+    )
+    parser.add_argument(
+        "--tensor_parallel_size",
+        type=int,
+        default=1,
+        help="Tensor parallel size for the engine (default: 1)",
+    )
+    parser.add_argument(
+        "--enable_chunked_prefill",
+        type=bool,
+        default=True,
+        help="Enable chunked prefill for the engine (default: True)",
+    )
+    parser.add_argument(
+        "--max_model_len",
+        type=int,
+        default=16384,
+        help="Maximum model length for the engine (default: 16384)",
+    )
+    parser.add_argument(
+        "--max_num_batched_tokens",
+        type=int,
+        default=65536,
+        help="Maximum number of batched tokens for the engine (default: 65536)",
+    )
+    parser.add_argument(
+        "--max_concurrent_batches",
+        type=int,
+        default=32,
+        help="Maximum number of concurrent batches for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size for the engine (default: 32)",
+    )
+    parser.add_argument(
+        "--truncate_prompt_tokens",
+        type=int,
+        default=16384 - 2048,
+        help="Number of prompt tokens to truncate (default: 16384 - 2048)",
+    )
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=2048,
+        help="Maximum number of tokens to generate (default: 2048)",
+    )
 
     args = parser.parse_args()
 

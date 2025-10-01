@@ -581,7 +581,7 @@ def main(args):
         for item in (args.prev_run_id.split(",") if args.prev_run_id else [])
     ]
 
-    final_dataset = []
+    final_dataset = {}
     if len(past_run_ids) > 0:
         prev_run_id = past_run_ids[0]
         prev_run_dataset = load_training_data_json(prev_run_id)
@@ -593,6 +593,7 @@ def main(args):
             print(type(prev_run_dataset))
             dataset = generate_specified_dataset(current_run_id, args, prev_run_dataset)
             prev_run_dataset = dataset
+            prev_run_id = current_run_id
 
         final_dataset = prev_run_dataset
     else:
@@ -637,7 +638,7 @@ def main(args):
     # Mark replay items if prev_run_id and replay_buffer_split are provided
 
     # Save dataset
-    save_jsonl(final_dataset, args.output_path)
+    # save_jsonl(final_dataset, args.output_path)
 
 
 def get_parser():

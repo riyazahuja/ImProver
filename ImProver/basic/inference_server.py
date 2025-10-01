@@ -281,23 +281,23 @@ async def _chat_complete_async(
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-    # data = {
-    #     "messages": [{"role": "user", "content": prompt}],
-    #     "max_completion_tokens": max_tokens,
-    #     # "temperature": 0.3,
-    #     # "top_p": 0.9,
-    #     # "repetition_penalty": 1.05,
-    #     # "stop": ["</IMPROVED>"]
-    # }
     data = {
-        "input": [{"role": "user", "content": prompt}],
-        "max_output_tokens": max_tokens,
-        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_completion_tokens": max_tokens,
         # "temperature": 0.3,
         # "top_p": 0.9,
         # "repetition_penalty": 1.05,
         # "stop": ["</IMPROVED>"]
     }
+    # data = {
+    #     "input": [{"role": "user", "content": prompt}],
+    #     "max_output_tokens": max_tokens,
+    #     "model": model,
+    #     # "temperature": 0.3,
+    #     # "top_p": 0.9,
+    #     # "repetition_penalty": 1.05,
+    #     # "stop": ["</IMPROVED>"]
+    # }
 
     # For Azure, the model is in the URL, not in the request body
     if not is_azure:
