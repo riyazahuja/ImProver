@@ -4,9 +4,8 @@
 #SBATCH --error=logs/final/dependency/dependency_iter_4.err
 #SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:L40S:8
+#SBATCH --gres=gpu:7
 #SBATCH --mem=250G
-#SBATCH --exclude=babel-15-36,babel-1-23
 
 source $HOME/miniconda3/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
@@ -32,7 +31,7 @@ sleep 5
 
 # eval prev iter model on train set
 
-./improver run pipeline --run_id IRPO_dependency_iter_3_train     --annotation --context 10  --informal --examples 4     --metric dependency --prompt_id /home/$USER/eval_improver/improver/prompts/final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_dependency_iter_3     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
+./improver run pipeline --run_id IRPO_dependency_iter_3_train     --annotation --context 10  --informal --examples 4     --metric dependency --prompt_id /home/$USER/eval_improver/improver/prompts/final_train_v2     --split train --model /data/user_data/riyaza/saved_models/IRPO_dependency_iter_3     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
 
 # first get wSFT data

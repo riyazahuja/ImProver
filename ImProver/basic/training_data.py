@@ -505,13 +505,13 @@ def save_jsonl(dataset: List[Dict[str, Any]], output_path: str):
         print(f"Error saving to {output_path}: {e}")
 
 
-def generate_specified_dataset(run_id, args, prev_run_dataset=None):
+def generate_specified_dataset(run_id, args, prev_run_dataset=None) -> Dict[str, Any]:
 
     # Load training data
     data = load_training_data_json(run_id)
     if not data:
         print("No training data found. Exiting.")
-        return []
+        return {}
 
     print(f"Loaded {len(data)} items from training data")
 
@@ -593,6 +593,7 @@ def main(args):
             print(type(prev_run_dataset))
             dataset = generate_specified_dataset(current_run_id, args, prev_run_dataset)
             prev_run_dataset = dataset
+            prev_run_id = current_run_id
 
         final_dataset = prev_run_dataset
     else:
@@ -637,7 +638,7 @@ def main(args):
     # Mark replay items if prev_run_id and replay_buffer_split are provided
 
     # Save dataset
-    save_jsonl(final_dataset, args.output_path)
+    # save_jsonl(final_dataset, args.output_path)
 
 
 def get_parser():

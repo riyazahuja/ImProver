@@ -1,0 +1,1084 @@
+[{"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_cocycle",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The exchange sign is a cocycle. -/\nlemma exchangeSign_cocycle (a b c : FieldStatistic) :\n    𝓢(a, b * c) * 𝓢(b, c) = 𝓢(a, b) * 𝓢(a * b, c) := by\n  fin_cases a <;> fin_cases b <;> fin_cases c <;> simp\n\n",
+   "compilationAlias":
+   "/-- The exchange sign is a cocycle. -/\nlemma exchangeSign_cocycle (a b c : FieldStatistic) :\n    𝓢(a, b * c) * 𝓢(b, c) = 𝓢(a, b) * 𝓢(a * b, c) := by\n  fin_cases a <;> fin_cases b <;> fin_cases c <;> simp\n\n"},
+  "goal":
+  "a b c : FieldStatistic\n⊢ Eq (HMul.hMul ((FieldStatistic.exchangeSign a) (HMul.hMul b c)) ((FieldStatistic.exchangeSign b) c)) (HMul.hMul ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeSign (HMul.hMul a b)) c))",
+  "content_sorry":
+  "/-- The exchange sign is a cocycle. -/\nlemma exchangeSign_cocycle (a b c : FieldStatistic) :\n    𝓢(a, b * c) * 𝓢(b, c) = 𝓢(a, b) * 𝓢(a * b, c) := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\nlemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n/-- The exchange sign is a cocycle. -/\nlemma exchangeSign_cocycle (a b c : FieldStatistic) :\n    𝓢(a, b * c) * 𝓢(b, c) = 𝓢(a, b) * 𝓢(a * b, c) := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\nlemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n/-- The exchange sign is a cocycle. -/\nlemma exchangeSign_cocycle (a b c : FieldStatistic) :\n    𝓢(a, b * c) * 𝓢(b, c) = 𝓢(a, b) * 𝓢(a * b, c) := by\n  fin_cases a <;> fin_cases b <;> fin_cases c <;> simp\n\n",
+  "annotation":
+  "/-- The exchange sign is a cocycle. -/\nlemma exchangeSign_cocycle (a b c : FieldStatistic) :\n    𝓢(a, b * c) * 𝓢(b, c) = 𝓢(a, b) * 𝓢(a * b, c) := by\n  /-\n    a b c : FieldStatistic\n    ⊢ Eq (HMul.hMul ((FieldStatistic.exchangeSign a) (HMul.hMul b c)) ((FieldStati …\n  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n  fin_cases a <;> fin_cases b <;> fin_cases c <;> simp\n                                                  /-\n                                                    🎉 no goals\n                                                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+   {"name": "FieldStatistic.bosonic_exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"},
+   {"name": "FieldStatistic.fermionic_exchangeSign_fermionic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_eq_if",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_mul_self",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"},
+   {"name": "FieldStatistic.exchangeSign_mul_self_swap",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"},
+   {"name": "FieldStatistic.exchangeSign_ofList_cons",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n",
+    "compilationAlias":
+    "lemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_ofList_cons",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n",
+   "compilationAlias":
+   "lemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n"},
+  "goal":
+  "𝓕 : Type\na : FieldStatistic\ns : 𝓕 → FieldStatistic\nφ : 𝓕\nφs : List 𝓕\n⊢ Eq ((FieldStatistic.exchangeSign a) (FieldStatistic.ofList s (List.cons φ φs))) (HMul.hMul ((FieldStatistic.exchangeSign a) (s φ)) ((FieldStatistic.exchangeSign a) (FieldStatistic.ofList s φs)))",
+  "content_sorry":
+  "lemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\nlemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\nlemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  rw [ofList_cons_eq_mul, map_mul]\n\n",
+  "annotation":
+  "lemma exchangeSign_ofList_cons (a : FieldStatistic)\n    (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    𝓢(a, ofList s (φ :: φs)) = 𝓢(a, s φ) * 𝓢(a, ofList s φs) := by\n  /-\n    𝓕 : Type\n    a : FieldStatistic\n    s : 𝓕 → FieldStatistic\n    φ : 𝓕\n    φs : List 𝓕\n    ⊢ Eq ((FieldStatistic.exchangeSign a) (FieldStatistic.ofList s (List.cons φ φs …\n  -/\n  rw [ofList_cons_eq_mul, map_mul]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "map_mul",
+    "module": "Mathlib.Algebra.Group.Hom.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- See note [low priority simp lemmas] -/\n@[to_additive (attr := simp low)]\ntheorem map_mul [MulHomClass F M N] (f : F) (x y : M) : f (x * y) = f x * f y :=\n  MulHomClass.map_mul f x y",
+    "compilationAlias":
+    "/-- See note [low priority simp lemmas] -/\n@[to_additive (attr := simp low)]\ntheorem map_mul [MulHomClass F M N] (f : F) (x y : M) : f (x * y) = f x * f y :=\n  MulHomClass.map_mul f x y"},
+   {"name": "FieldStatistic.ofList_cons_eq_mul",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma ofList_cons_eq_mul (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    ofList s (φ :: φs) = s φ * ofList s φs := by\n  have ha (a b : FieldStatistic) : (if a = b then bosonic else fermionic) = a * b := by\n    fin_cases a <;> fin_cases b <;> rfl\n  exact ha (s φ) (ofList s φs)",
+    "compilationAlias":
+    "lemma ofList_cons_eq_mul (s : 𝓕 → FieldStatistic) (φ : 𝓕) (φs : List 𝓕) :\n    ofList s (φ :: φs) = s φ * ofList s φs := by\n  have ha (a b : FieldStatistic) : (if a = b then bosonic else fermionic) = a * b := by\n    fin_cases a <;> fin_cases b <;> rfl\n  exact ha (s φ) (ofList s φs)"},
+   {"name": "FieldStatistic.ofList",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.Basic",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The field statistics of a list of fields is fermionic if there is an odd number of fermions,\n  otherwise it is bosonic. -/\ndef ofList (s : 𝓕 → FieldStatistic) : (φs : List 𝓕) → FieldStatistic\n  | [] => bosonic\n  | φ :: φs => if s φ = ofList s φs then bosonic else fermionic",
+    "compilationAlias":
+    "/-- The field statistics of a list of fields is fermionic if there is an odd number of fermions,\n  otherwise it is bosonic. -/\ndef ofList (s : 𝓕 → FieldStatistic) : (φs : List 𝓕) → FieldStatistic\n  | [] => bosonic\n  | φ :: φs => if s φ = ofList s φs then bosonic else fermionic"}],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+   {"name": "FieldStatistic.bosonic_exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"},
+   {"name": "FieldStatistic.fermionic_exchangeSign_fermionic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_eq_if",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_mul_self",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"},
+   {"name": "FieldStatistic.exchangeSign_mul_self_swap",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_mul_self_swap",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"},
+  "goal":
+  "a b : FieldStatistic\n⊢ Eq (HMul.hMul ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeSign b) a)) 1",
+  "content_sorry":
+  "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+  "annotation":
+  "@[simp]\nlemma exchangeSign_mul_self_swap (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(b, a) = 1 := by\n  /-\n    a b : FieldStatistic\n    ⊢ Eq (HMul.hMul ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeS …\n  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n                                  /-\n                                    🎉 no goals\n                                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+   {"name": "FieldStatistic.bosonic_exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"},
+   {"name": "FieldStatistic.fermionic_exchangeSign_fermionic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_eq_if",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_mul_self",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_mul_self",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n"},
+  "goal":
+  "a b : FieldStatistic\n⊢ Eq (HMul.hMul ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeSign a) b)) 1",
+  "content_sorry":
+  "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n\n",
+  "annotation":
+  "@[simp]\nlemma exchangeSign_mul_self (a b : FieldStatistic) : 𝓢(a, b) * 𝓢(a, b) = 1 := by\n  /-\n    a b : FieldStatistic\n    ⊢ Eq (HMul.hMul ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeS …\n  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n  fin_cases a <;> fin_cases b <;> simp [exchangeSign]\n                                  /-\n                                    🎉 no goals\n                                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+   {"name": "FieldStatistic.bosonic_exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"},
+   {"name": "FieldStatistic.fermionic_exchangeSign_fermionic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_eq_if",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_eq_if",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+   "compilationAlias":
+   "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+  "goal":
+  "a b : FieldStatistic\n⊢ Eq ((FieldStatistic.exchangeSign a) b) (ite (And (Eq a FieldStatistic.fermionic) (Eq b FieldStatistic.fermionic)) (-1) 1)",
+  "content_sorry":
+  "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\nlemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+  "annotation":
+  "lemma exchangeSign_eq_if (a b : FieldStatistic) :\n    𝓢(a, b) = if a = fermionic ∧ b = fermionic then - 1 else 1 := by\n  /-\n    a b : FieldStatistic\n    ⊢ Eq ((FieldStatistic.exchangeSign a) b) (ite (And (Eq a FieldStatistic.fermio …\n  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n  fin_cases a <;> fin_cases b <;> rfl\n                                  /-\n                                    🎉 no goals\n                                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+   {"name": "FieldStatistic.bosonic_exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"},
+   {"name": "FieldStatistic.fermionic_exchangeSign_fermionic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.fermionic_exchangeSign_fermionic",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n"},
+  "goal":
+  "⊢ Eq ((FieldStatistic.exchangeSign FieldStatistic.fermionic) FieldStatistic.fermionic) (-1)",
+  "content_sorry":
+  "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  rfl\n\n",
+  "annotation":
+  "@[simp]\nlemma fermionic_exchangeSign_fermionic : 𝓢(fermionic, fermionic) = - 1 := by\n  /-\n    ⊢ Eq ((FieldStatistic.exchangeSign FieldStatistic.fermionic) FieldStatistic.fe …\n  -/\n  rfl\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+   {"name": "FieldStatistic.bosonic_exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.bosonic_exchangeSign",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n"},
+  "goal":
+  "a : FieldStatistic\n⊢ Eq ((FieldStatistic.exchangeSign FieldStatistic.bosonic) a) 1",
+  "content_sorry":
+  "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n\n",
+  "annotation":
+  "@[simp]\nlemma bosonic_exchangeSign (a : FieldStatistic) : 𝓢(bosonic, a) = 1 := by\n  /-\n    a : FieldStatistic\n    ⊢ Eq ((FieldStatistic.exchangeSign FieldStatistic.bosonic) a) 1\n  -/\n  rw [exchangeSign_symm, exchangeSign_bosonic]\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+   {"name": "FieldStatistic.exchangeSign_bosonic",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+    "compilationAlias":
+    "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_bosonic",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+   "compilationAlias":
+   "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n"},
+  "goal":
+  "a : FieldStatistic\n⊢ Eq ((FieldStatistic.exchangeSign a) FieldStatistic.bosonic) 1",
+  "content_sorry":
+  "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  fin_cases a <;> rfl\n\n",
+  "annotation":
+  "@[simp]\nlemma exchangeSign_bosonic (a : FieldStatistic) : 𝓢(a, bosonic) = 1 := by\n  /-\n    a : FieldStatistic\n    ⊢ Eq ((FieldStatistic.exchangeSign a) FieldStatistic.bosonic) 1\n  -/\n                  /-\n                    🎉 no goals\n                  -/\n  fin_cases a <;> rfl\n                  /-\n                    🎉 no goals\n                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.exchangeSign_symm",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+    "compilationAlias":
+    "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign_symm",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+   "compilationAlias":
+   "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n"},
+  "goal":
+  "a b : FieldStatistic\n⊢ Eq ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeSign b) a)",
+  "content_sorry":
+  "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  fin_cases a <;> fin_cases b <;> rfl\n\n",
+  "annotation":
+  "/-- The exchange sign is symmetric. -/\nlemma exchangeSign_symm (a b : FieldStatistic) : 𝓢(a, b) = 𝓢(b, a) := by\n  /-\n    a b : FieldStatistic\n    ⊢ Eq ((FieldStatistic.exchangeSign a) b) ((FieldStatistic.exchangeSign b) a)\n  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n                                  /-\n                                    🎉 no goals\n                                  -/\n  fin_cases a <;> fin_cases b <;> rfl\n                                  /-\n                                    🎉 no goals\n                                  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«term𝓢(_,_)»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.«term𝓢(_,_)»",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+   "compilationAlias":
+   "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+  "annotation":
+  "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+   {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.«_aux___macroRules_FieldStatistic_term𝓢(_,_)_1»",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+   "compilationAlias":
+   "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+  "annotation":
+  "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+   {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+    "compilationAlias":
+    "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic._aux___unexpand_FieldStatistic_exchangeSign_1",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+   "compilationAlias":
+   "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n"},
+  "goal": "⊢ _obj",
+  "content_sorry": "",
+  "content_full_by_exact": "",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+  "annotation":
+  "@[inherit_doc exchangeSign]\nscoped[FieldStatistic] notation \"𝓢(\" a \",\" b \")\" => exchangeSign a b\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies":
+  [{"name": "FieldStatistic.exchangeSign",
+    "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+    "compilationAlias":
+    "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace FieldStatistic\n\nvariable {𝓕 : Type}",
+  "postscopes": "end FieldStatistic",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "FieldStatistic.exchangeSign",
+   "module": "HepLean.PerturbationTheory.FieldStatistics.ExchangeSign",
+   "kind": "def",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+   "compilationAlias":
+   "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n"},
+  "goal":
+  "motive : FieldStatistic → FieldStatistic → Sort u_1\na✝ b✝ : FieldStatistic\nh_1 : motive FieldStatistic.bosonic FieldStatistic.bosonic\nh_2 : motive FieldStatistic.bosonic FieldStatistic.fermionic\nh_3 : motive FieldStatistic.fermionic FieldStatistic.bosonic\nh_4 : motive FieldStatistic.fermionic FieldStatistic.fermionic\n⊢ motive a✝ b✝",
+  "content_sorry":
+  "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Joseph Tooby-Smith. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Joseph Tooby-Smith\n-/\nimport HepLean.PerturbationTheory.FieldStatistics.Basic\n/-!\n\n# Exchange sign for field statistics\n\nSuppose we have two fields `φ` and `ψ`, and the term `φψ`, if we swap them\n`ψφ`, we may pick up a sign. This sign is called the exchange sign.\nThis sign is `-1` if both fields `ψ` and `φ` are fermionic and `1` otherwise.\n\nIn this module we define the exchange sign for general field statistics,\nand prove some properties of it. Importantly:\n- It is symmetric `exchangeSign_symm`.\n- When multiplied with itself it is `1` `exchangeSign_mul_self`.\n- It is a cocycle `exchangeSign_cocycle`.\n\n-/\n\nnamespace FieldStatistic\n\nvariable {𝓕 : Type}\n\n/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        fin_cases a\n        <;> simp\n      map_mul' := fun c b => by\n        fin_cases a <;>\n          fin_cases b <;>\n          fin_cases c <;>\n          simp\n    }\n  map_one' := by\n    ext b\n    fin_cases b\n    <;> simp\n  map_mul' c b := by\n    ext a\n    fin_cases a\n    <;> fin_cases b <;> fin_cases c\n    <;> simp\n\n",
+  "annotation":
+  "/-- The exchange sign, `exchangeSign`, is defined as the group homomorphism\n\n  `FieldStatistic →* FieldStatistic →* ℂ`,\n\n  for which `exchangeSign a b` is `-1` if both `a` and `b` are `fermionic` and `1` otherwise.\n  The exchange sign is the sign one picks up on exchanging an operator or field `φ₁` of statistic\n  `a` with an operator or field `φ₂` of statistic `b`, i.e. `φ₁φ₂ → φ₂φ₁`.\n\n  The notation `𝓢(a, b)` is used for the exchange sign of `a` and `b`. -/\ndef exchangeSign : FieldStatistic →* FieldStatistic →* ℂ where\n  toFun a :=\n    {\n      toFun := fun b =>\n        match a, b with\n        | bosonic, _ => 1\n        | _, bosonic => 1\n        | fermionic, fermionic => -1\n      map_one' := by\n        /-\n          𝓕 : Type\n          a : FieldStatistic\n          ⊢ Eq ((fun b => FieldStatistic.exchangeSign.match_1 (fun a b => Complex) a b ( …\n        -/\n        fin_cases a\n            /-\n              case «0»\n              𝓕 : Type\n              ⊢ Eq ((fun b => FieldStatistic.exchangeSign.match_1 (fun a b => Complex) Field …\n            -/\n            /-\n              🎉 no goals\n            -/\n        <;> simp\n            /-\n              🎉 no goals\n            -/\n      map_mul' := fun c b => by\n        /-\n          𝓕 : Type\n          a c b : FieldStatistic\n          ⊢ Eq ({ toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun a b => Comp …\n        -/\n        fin_cases a <;>\n          /-\n            case «0»\n            𝓕 : Type\n            c b : FieldStatistic\n            ⊢ Eq ({ toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun a b => Comp …\n          -/\n          fin_cases b <;>\n          /-\n            case «0».«0»\n            𝓕 : Type\n            c : FieldStatistic\n            ⊢ Eq ({ toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun a b => Comp …\n          -/\n          fin_cases c <;>\n          /-\n            case «0».«0».«0»\n            𝓕 : Type\n            ⊢ Eq ({ toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun a b => Comp …\n          -/\n          /-\n            🎉 no goals\n          -/\n          /-\n            🎉 no goals\n          -/\n          /-\n            🎉 no goals\n          -/\n          /-\n            🎉 no goals\n          -/\n          /-\n            🎉 no goals\n          -/\n          /-\n            🎉 no goals\n          -/\n          /-\n            🎉 no goals\n          -/\n          simp\n          /-\n            🎉 no goals\n          -/\n    }\n  map_one' := by\n    /-\n      𝓕 : Type\n      ⊢ Eq ((fun a => { toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun a …\n    -/\n    ext b\n    /-\n      case h\n      𝓕 : Type\n      b : FieldStatistic\n      ⊢ Eq (((fun a => { toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun  …\n    -/\n    fin_cases b\n        /-\n          case h.«0»\n          𝓕 : Type\n          ⊢ Eq (((fun a => { toFun := fun b => FieldStatistic.exchangeSign.match_1 (fun  …\n        -/\n        /-\n          🎉 no goals\n        -/\n    <;> simp\n        /-\n          🎉 no goals\n        -/\n  map_mul' c b := by\n    /-\n      𝓕 : Type\n      c b : FieldStatistic\n      ⊢ Eq ({ toFun := fun a => { toFun := fun b => FieldStatistic.exchangeSign.matc …\n    -/\n    ext a\n    /-\n      case h\n      𝓕 : Type\n      c b a : FieldStatistic\n      ⊢ Eq (({ toFun := fun a => { toFun := fun b => FieldStatistic.exchangeSign.mat …\n    -/\n    fin_cases a\n        /-\n          case h.«0»\n          𝓕 : Type\n          c b : FieldStatistic\n          ⊢ Eq (({ toFun := fun a => { toFun := fun b => FieldStatistic.exchangeSign.mat …\n        -/\n    <;> fin_cases b <;> fin_cases c\n        /-\n          case h.«0».«0».«0»\n          𝓕 : Type\n          ⊢ Eq (({ toFun := fun a => { toFun := fun b => FieldStatistic.exchangeSign.mat …\n        -/\n        /-\n          🎉 no goals\n        -/\n        /-\n          🎉 no goals\n        -/\n        /-\n          🎉 no goals\n        -/\n        /-\n          🎉 no goals\n        -/\n        /-\n          🎉 no goals\n        -/\n        /-\n          🎉 no goals\n        -/\n        /-\n          🎉 no goals\n        -/\n    <;> simp\n        /-\n          🎉 no goals\n        -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies": [],
+  "C0_dependencies": []}]
