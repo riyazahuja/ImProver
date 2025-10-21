@@ -119,6 +119,58 @@ partial def depsInNormalSubtree (t : ProofTree)
 def isTrivial (child : ProofTree) : Bool :=
   workStepsUnder child ≤ 1 || (depsInNormalSubtree child).isEmpty
 
+/-- Strip all leading foralls from an expression, returning binders and body -/
+partial def stripForalls (e : Expr) : List (Name × Expr) × Expr :=
+  match e with
+  | Expr.forallE name type body _ =>
+    let (binders, finalBody) := stripForalls body
+    ((name, type) :: binders, finalBody)
+  | _ => ([], e)
+
+/-- Check if two expressions are definitionally equal using MetaM.
+    Creates a minimal MetaM context to perform the check.
+    Returns false on any errors (conservative approach). -/
+def isDefEqIO (env : Environment) (expr1 expr2 : Expr) : IO Bool := do
+  try
+    -- Use MetaM.run' to create a minimal MetaM context, then convert CoreM to IO
+    let coreResult := (Meta.isDefEq expr1 expr2).run'
+    -- Convert CoreM to IO with proper context and state structures
+    let ctx : Core.Context := {
+      fileName := "",
+      fileMap := default,
+      options := {}
+    }
+    let state : Core.State := {
+      env := env
+    }
+    let (result, _) ← coreResult.toIO ctx state
+    return result
+  catch _ =>
+    -- If MetaM/CoreM fails for any reason, conservatively return false
+    return false
+
+/-- Check if child expression is a duplicate via forall-abstraction.
+    Returns true if the child has leading foralls, and after stripping them,
+    the body is definitionally equal to the parent's goal type.
+
+    This catches cases like:
+    - Parent: `P ∧ Q → Q ∧ P` (where P, Q are parameters/context)
+    - Child:  `∀ P Q : Prop, P ∧ Q → Q ∧ P` (unnecessarily generalizing)
+
+    Also handles cases like:
+    - Parent: Uses `Nat`
+    - Child:  Uses `ℕ` (unicode alias) - these are defeq
+
+    Uses definitional equality checking to handle type aliases and unfolding. -/
+def isForallAbstractionDuplicate (env : Environment) (childExpr : Expr) (parentExpr : Expr) : IO Bool := do
+  let (forallBinders, childBody) := stripForalls childExpr
+
+  if forallBinders.isEmpty then
+    return false  -- No foralls to strip, not this kind of duplicate
+  else
+    -- Check if after stripping foralls, the child body is defeq to parent
+    isDefEqIO env childBody parentExpr
+
 /-- Collect all nodes in tree traversal order (preceding nodes first) -/
 partial def collectAllNodesInOrder (tree : ProofTree) (acc : List ProofTree := []) : List ProofTree :=
   let acc1 := acc ++ [tree]
@@ -200,7 +252,7 @@ partial def getAllEdgesWithDepth (tree : ProofTree) (depth : Nat := 0) : List (N
   --   curr := (depth, EdgeStatus.effective, spawned) :: curr
 
 
-partial def initializeStatusMap (tree : ProofTree) : StatusMap := Id.run do
+partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO StatusMap := do
 
   let mut statusMap : StatusMap := {}
 
@@ -224,32 +276,54 @@ partial def initializeStatusMap (tree : ProofTree) : StatusMap := Id.run do
       let deps := depsInNormalSubtree child
       let hasDeps := !deps.isEmpty
 
-      -- check for duplicate against all preceding edges with idx <= its idx
-      let precedingEdges : List (EdgeStatus × ProofStep × ProofTree) := depthMap.toList.filter (fun (d, _) => d <= depth) |>.flatMap (·.2)|>.filter (fun (_,_,c) => getEdgeId c != edgeId)  -- filter out self
-      match isDuplicateOfPreceding child (precedingEdges.map (·.2.2)) with
-      | some precedingType =>
+      -- First check if spawned goal is duplicate of parent's goal
+      let parentGoal := parent.goalBefore
+      let childGoal := child.node.goalBefore
+
+      if childGoal.type == parentGoal.type &&
+         (hypsKey parentGoal).all (fun h => (hypsKey childGoal).contains h) then
+        -- Spawned goal is exact duplicate of parent's goal
         let info : EdgeStatusInfo := {
           status := EdgeStatus.ineffective
           tacticStr := tacticStr
-          reason := some (IneffectiveReason.duplicate precedingType)
+          reason := some (IneffectiveReason.duplicate parentGoal.type)
         }
         statusMap := statusMap.insert edgeId info
-      | none =>
-        -- check for trivial
-        if isTrivial child then
+      else if ← isForallAbstractionDuplicate env childGoal.typeExpr parentGoal.typeExpr then
+        -- Spawned goal is duplicate via forall-abstraction over parent's context
+        let info : EdgeStatusInfo := {
+          status := EdgeStatus.ineffective
+          tacticStr := tacticStr
+          reason := some (IneffectiveReason.duplicate s!"{parentGoal.type} (forall-abstraction)")
+        }
+        statusMap := statusMap.insert edgeId info
+      else
+        -- check for duplicate against all preceding edges with idx <= its idx
+        let precedingEdges : List (EdgeStatus × ProofStep × ProofTree) := depthMap.toList.filter (fun (d, _) => d <= depth) |>.flatMap (·.2)|>.filter (fun (_,_,c) => getEdgeId c != edgeId)  -- filter out self
+        match isDuplicateOfPreceding child (precedingEdges.map (·.2.2)) with
+        | some precedingType =>
           let info : EdgeStatusInfo := {
             status := EdgeStatus.ineffective
             tacticStr := tacticStr
-            reason := some (IneffectiveReason.trivial workSteps hasDeps)
+            reason := some (IneffectiveReason.duplicate precedingType)
           }
           statusMap := statusMap.insert edgeId info
-        else
-          let info : EdgeStatusInfo := {
-            status := EdgeStatus.effective
-            tacticStr := tacticStr
-            reason := none
-          }
-          statusMap := statusMap.insert edgeId info
+        | none =>
+          -- check for trivial
+          if isTrivial child then
+            let info : EdgeStatusInfo := {
+              status := EdgeStatus.ineffective
+              tacticStr := tacticStr
+              reason := some (IneffectiveReason.trivial workSteps hasDeps)
+            }
+            statusMap := statusMap.insert edgeId info
+          else
+            let info : EdgeStatusInfo := {
+              status := EdgeStatus.effective
+              tacticStr := tacticStr
+              reason := none
+            }
+            statusMap := statusMap.insert edgeId info
     else
       -- normal edge
       let edgeId := getEdgeId child
@@ -544,9 +618,9 @@ def logSpawnedEdgeStatus (edgeId : EdgeId) (info : EdgeStatusInfo) (statusMap : 
   IO.println s!"[EdgeId={edgeId}] Status={statusStr} | Tactic: {info.tacticStr} | Reason: {reasonStr}"
 
 /-- Main function: compute effective spawned edges count -/
-def computeEffectiveSpawns (tree : ProofTree) (enableLogging : Bool := false) : IO Nat := do
+def computeEffectiveSpawns (env : Environment) (tree : ProofTree) (enableLogging : Bool := false) : IO Nat := do
   -- Step 2: Initialize status map
-  let statusMap := initializeStatusMap tree
+  let statusMap ← initializeStatusMap env tree
 
   if enableLogging then
     IO.println "\n========== INITIAL SPAWNED EDGE STATUS =========="
@@ -600,7 +674,8 @@ def declarativity2_score (cs : CompilationStep) : IO Float := do
   | none => return 0.0
   | some tree =>
     -- Enable logging by setting to true
-    let eff ← computeEffectiveSpawns tree
+    -- Use the 'after' environment from the compilation step
+    let eff ← computeEffectiveSpawns cs.after tree true
     return eff |>.toFloat
 
 
@@ -614,10 +689,17 @@ def getScore2 (mod : Name) (decl : Name) (new_proof : String) : IO (Float× Floa
   IO.println s!"[TIMING] Set search path: {afterSearchPath - startTime}ms"
 
   let fileName := (← findLean mod).toString
+  -- IO.println s!"Found file: {fileName}"
   let afterFindLean ← IO.monoMsNow
   IO.println s!"[TIMING] Find lean file: {afterFindLean - afterSearchPath}ms"
 
   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
+  -- IO.println s!"{← moduleSource mod}"
+
+  -- let forced ← steps.force
+  -- for c in forced do
+  --   IO.println s!"Compilation command: {c.src.toString}\n\n----------------------\n"
+
   let afterProcessInput ← IO.monoMsNow
   IO.println s!"[TIMING] Process input: {afterProcessInput - afterFindLean}ms"
 
@@ -631,6 +713,7 @@ def getScore2 (mod : Name) (decl : Name) (new_proof : String) : IO (Float× Floa
   | none =>
     let endTime ← IO.monoMsNow
     IO.println s!"[TIMING] Total (no target found): {endTime - startTime}ms"
+    IO.println s!"[ERROR] Target decls: {targets.map (fun (_, i) => i.name)}"
     return ((-1.0),(-1.0), false)
   | some (target_cmd, _) => do
     let beforeOgScore ← IO.monoMsNow
@@ -791,3 +874,60 @@ def repeats_and_unused := "lemma ofFieldOp_mul_ofFieldOp_eq_superCommute (φ φ'
   rw [h₃]"
 -- ((0.000000, 0.000000), (3.000000, 2.000000), true)
 -- #eval do getScore2 `HepLean.PerturbationTheory.FieldOpAlgebra.SuperCommute `FieldSpecification.FieldOpAlgebra.ofFieldOp_mul_ofFieldOp_eq_superCommute repeats_and_unused
+
+
+
+def repeat_main_goal := "lemma L2norm_sq_eq {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 <| @haarAddCircle T hT) :
+    ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by
+  -- Establish the basic framework of the proof
+  have h1 : ‖f‖ ^ 2 = ∫ (x : AddCircle T), ‖f x‖ ^ 2 ∂haarAddCircle := by
+    rw [@norm_sq_eq_inner ℂ, @L2.inner_def (AddCircle T) ℂ ℂ _ _ _ _ _ f f, ← integral_re (L2.integrable_inner f f)]
+    simp only [← norm_sq_eq_inner]
+  -- Conclude the proof by applying the established framework
+  exact h1"
+-- #eval do getScore2 `Carleson.Classical.SpectralProjectionBound `L2norm_sq_eq repeat_main_goal
+
+
+theorem foo (P Q : Prop) : P ∧ Q → Q ∧ P := by
+  have h₁ : P ∧ Q → Q ∧ P := by
+    intro h
+    constructor
+    . exact h.2
+    . exact h.1
+  exact h₁
+
+theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
+  have h₁ : ∀ P Q : Prop, P ∧ Q → Q ∧ P := by
+    intro P Q h
+    constructor
+    . exact h.2
+    . exact h.1
+  exact h₁ P Q
+
+
+def repeat_main_goal2 := "theorem foo (P Q : Prop) : P ∧ Q → Q ∧ P := by
+  have h₁ : P ∧ Q → Q ∧ P := by
+    intro h
+    constructor
+    . exact h.2
+    . exact h.1
+  exact h₁"
+
+
+
+def repeat_main_goal3 := "theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
+  have h₁ : ∀ P Q : Prop, P ∧ Q → Q ∧ P := by
+    intro P Q h
+    constructor
+    . exact h.2
+    . exact h.1
+  exact h₁ P Q"
+
+
+-- #eval do getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal2
+
+
+
+
+-- #eval do getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal3
+-- -- #eval do getScore2 `Carleson.Classical.SpectralProjectionBound `L2norm_sq_eq repeat_main_goal
