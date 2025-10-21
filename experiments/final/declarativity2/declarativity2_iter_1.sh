@@ -30,7 +30,7 @@ lake build eval_improver
 sleep 5
 
 
-# ./improver run pipeline --run_id baseline_decl2  --annotation --context 10  --informal --examples 4     --metric declarativity2 --prompt_id final_test     --split test --model deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --num_blocks 64     --config experiments/final/test_eval.yaml
+./improver run pipeline --run_id baseline_decl2  --annotation --context 10  --informal --examples 4     --metric declarativity2 --prompt_id final_test     --split test --model deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --num_blocks 64     --config experiments/final/test_eval.yaml
 ./improver run eval --run_id baseline_decl2  --config experiments/final/test_eval.yaml
 ./improver run analysis --run_id baseline_decl2
 

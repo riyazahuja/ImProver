@@ -122,42 +122,42 @@ def getScore (input : String) : IO ( Float) := do
     IO.println s!"cs contents: {cs.src.toString}"
     declarativity_score cs
 
-#eval do getScore (background ++ content)
+-- #eval do getScore (background ++ content)
 
 
-def getScore2 (mod : Name) (decl : Name) (new_proof : String) : IO (Float× Float × Bool) := do
+-- def getScore2 (mod : Name) (decl : Name) (new_proof : String) : IO (Float× Float × Bool) := do
 
-  searchPathRef.set compile_time_search_path%
-  let fileName := (← findLean mod).toString
-  -- let scope_import := "import ImProver.get_prompts.where_with_end\n"
-  let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
-  let iosteps ← steps.force
-  for s in iosteps do
-    IO.println s!"step: {s.src.toString}"
-    IO.println s!"diff: {s.diff.map (fun d => d.name)}"
-    IO.println s!"raw: {s.after.constants.map₁.toList.map (fun (n,_)=> n)}"
-    IO.println "----"
+--   searchPathRef.set compile_time_search_path%
+--   let fileName := (← findLean mod).toString
+--   -- let scope_import := "import ImProver.get_prompts.where_with_end\n"
+--   let steps := Lean.Elab.IO.processInput' (← moduleSource mod) none {} fileName
+--   let iosteps ← steps.force
+--   for s in iosteps do
+--     IO.println s!"step: {s.src.toString}"
+--     IO.println s!"diff: {s.diff.map (fun d => d.name)}"
+--     IO.println s!"raw: {s.after.constants.map₁.toList.map (fun (n,_)=> n)}"
+--     IO.println "----"
 
-  let targets ← (steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)).force
-  let target := targets.find? fun (_, i) => i.name == decl
-  IO.println s!"possible targets: {targets.map (fun (_, i) => i.name)}"
+--   let targets ← (steps.bind fun c => (MLList.ofList c.diff).map fun i => (c, i)).force
+--   let target := targets.find? fun (_, i) => i.name == decl
+--   IO.println s!"possible targets: {targets.map (fun (_, i) => i.name)}"
 
-  match target with
-  | none => return ((-1.0),(-1.0), false)
-  | some (target_cmd, _) => do
-    let og_score ← declarativity2_score target_cmd
+--   match target with
+--   | none => return ((-1.0),(-1.0), false)
+--   | some (target_cmd, _) => do
+--     let og_score ← declarativity2_score target_cmd
 
-    let background_content :=  (Substring.mk target_cmd.src.str 0 target_cmd.src.startPos) |>toString
-    let elaborated_steps := Lean.Elab.IO.compilationSteps
-      (Parser.mkInputContext (background_content ++ new_proof) fileName)
-      target_cmd.parserStateBefore
-      (target_cmd.commandStateBefore.withOptions {})
-    let new_target ← elaborated_steps.head?
-    match new_target with
-    | none => return (og_score, (-1.0), false)
-    | some new_target => do
-      let correct := not <| new_target.msgs.any (fun m => m.severity == .error)
-      return (og_score, ← declarativity2_score new_target, correct)
+--     let background_content :=  (Substring.mk target_cmd.src.str 0 target_cmd.src.startPos) |>toString
+--     let elaborated_steps := Lean.Elab.IO.compilationSteps
+--       (Parser.mkInputContext (background_content ++ new_proof) fileName)
+--       target_cmd.parserStateBefore
+--       (target_cmd.commandStateBefore.withOptions {})
+--     let new_target ← elaborated_steps.head?
+--     match new_target with
+--     | none => return (og_score, (-1.0), false)
+--     | some new_target => do
+--       let correct := not <| new_target.msgs.any (fun m => m.severity == .error)
+--       return (og_score, ← declarativity2_score new_target, correct)
 
 
 
@@ -179,7 +179,7 @@ def new_proof := "lemma KD5_weakerThan_KD45 : (Hilbert.KD5 α) ≤ₛ (Hilbert.K
   -- Combine the results to conclude the weakening relation
   exact h₁ h₂"
 -- ((0.000000, 0.000000), (2.000000, 2.000000), true)
-#eval do getScore2 `Foundation.Modal.Hilbert.WeakerThan.KD5_KD45 `LO.Modal.Hilbert.KD5_weakerThan_KD45 new_proof
+-- #eval do getScore2 `Foundation.Modal.Hilbert.WeakerThan.KD5_KD45 `LO.Modal.Hilbert.KD5_weakerThan_KD45 new_proof
 
 
 def new_proof2 := "lemma TwoSumAssumptions.decomposition_isRegular_both {M₁ M₂ : Matroid α}
@@ -205,7 +205,7 @@ def new_proof2 := "lemma TwoSumAssumptions.decomposition_isRegular_both {M₁ M�
   exact ⟨assumptions.decomposition_isRegular_left regularity, assumptions.decomposition_isRegular_right regularity⟩ <;> aesop
 "
 -- ((0.000000, 0.000000), (3.000000, 1.000000), true)
-#eval do getScore2 `Seymour.Matroid.Operations.Sum2.Regularity `TwoSumAssumptions.decomposition_isRegular_both new_proof2
+-- #eval do getScore2 `Seymour.Matroid.Operations.Sum2.Regularity `TwoSumAssumptions.decomposition_isRegular_both new_proof2
 
 
 
