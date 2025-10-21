@@ -705,7 +705,377 @@ def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
     else:
         print("Not enough data for improvement rate distribution plot.")
 
-    # 3. Average Score Distribution Relative to Best per Theorem
+    # 3. Histogram of Average Delta Distribution Across Theorems
+    if all_data_rows:
+        try:
+            import numpy as np
+
+            # Group all original rows by (module, decl) to analyze per theorem
+            theorem_groups_delta = defaultdict(list)
+            for row in all_data_rows:
+                key = (row["module"], row["decl"])
+                # Only take first n_config_val samples for each theorem
+                if len(theorem_groups_delta[key]) < n_config_val:
+                    theorem_groups_delta[key].append(row)
+
+            # Calculate delta distributions for each theorem
+            all_delta_distributions = []
+
+            for theorem_key, theorem_rows in theorem_groups_delta.items():
+                # Extract delta values, set None to 0
+                deltas = []
+                for row in theorem_rows:
+                    delta = get_delta(row)
+                    if delta is not None:
+                        deltas.append(delta)
+                    else:
+                        deltas.append(0.0)
+
+                if deltas:
+                    all_delta_distributions.append(deltas)
+
+            if all_delta_distributions:
+                # Flatten all delta values to determine overall distribution
+                all_deltas = []
+                for deltas in all_delta_distributions:
+                    all_deltas.extend(deltas)
+
+                if all_deltas:
+                    # Calculate statistics
+                    delta_mean = np.mean(all_deltas)
+                    delta_median = np.median(all_deltas)
+                    delta_std = np.std(all_deltas)
+
+                    # Create dynamic bins
+                    bins = 30
+
+                    # Calculate average distribution across all theorems
+                    theorem_histograms_delta = []
+
+                    # First, determine common bin edges from all data
+                    all_delta_bins = np.histogram_bin_edges(all_deltas, bins=bins)
+
+                    for deltas in all_delta_distributions:
+                        hist, _ = np.histogram(
+                            deltas, bins=all_delta_bins, density=False
+                        )
+                        # Normalize by number of samples in this theorem
+                        if len(deltas) > 0:
+                            hist_normalized = hist / len(deltas)
+                            theorem_histograms_delta.append(hist_normalized)
+
+                    if theorem_histograms_delta:
+                        # Calculate average across all theorems
+                        avg_hist_delta = np.mean(theorem_histograms_delta, axis=0)
+
+                        # Create the plot
+                        plt.figure(figsize=(14, 8))
+
+                        # Plot histogram bars
+                        bin_centers = (all_delta_bins[:-1] + all_delta_bins[1:]) / 2
+                        widths = all_delta_bins[1:] - all_delta_bins[:-1]
+
+                        # Color bars based on sign of delta and metric objective
+                        colors = []
+                        for center in bin_centers:
+                            if center < 0:
+                                # Negative delta
+                                colors.append(
+                                    "lightcoral"
+                                    if metric_objective == "max"
+                                    else "lightgreen"
+                                )
+                            elif center > 0:
+                                # Positive delta
+                                colors.append(
+                                    "lightgreen"
+                                    if metric_objective == "max"
+                                    else "lightcoral"
+                                )
+                            else:
+                                # Zero delta
+                                colors.append("gold")
+
+                        plt.bar(
+                            bin_centers,
+                            avg_hist_delta,
+                            width=widths * 0.8,
+                            alpha=0.7,
+                            color=colors,
+                            edgecolor="black",
+                            label="Delta Distribution",
+                        )
+
+                        # Add a vertical line at 0 (no change)
+                        plt.axvline(
+                            x=0,
+                            color="black",
+                            linestyle="--",
+                            linewidth=2,
+                            label="No Change (0)",
+                        )
+
+                        # Add mean and median lines
+                        plt.axvline(
+                            delta_mean,
+                            color="red",
+                            linestyle="--",
+                            linewidth=2,
+                            label=f"Mean: {delta_mean:.4f}",
+                        )
+                        plt.axvline(
+                            delta_median,
+                            color="purple",
+                            linestyle=":",
+                            linewidth=2,
+                            label=f"Median: {delta_median:.4f}",
+                        )
+
+                        # Add statistics text box
+                        total_theorems_delta = len(theorem_histograms_delta)
+                        avg_samples_per_theorem_delta = np.mean(
+                            [len(d) for d in all_delta_distributions]
+                        )
+
+                        plt.text(
+                            0.02,
+                            0.98,
+                            f"Theorems analyzed: {total_theorems_delta}\n"
+                            f"Avg samples per theorem: {avg_samples_per_theorem_delta:.1f}\n"
+                            f"Mean: {delta_mean:.4f}\n"
+                            f"Median: {delta_median:.4f}\n"
+                            f"Std Dev: {delta_std:.4f}",
+                            transform=plt.gca().transAxes,
+                            fontsize=10,
+                            verticalalignment="top",
+                            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+                        )
+
+                        improvement_label = (
+                            "Better" if metric_objective == "max" else "Worse"
+                        )
+                        degradation_label = (
+                            "Worse" if metric_objective == "max" else "Better"
+                        )
+
+                        plt.xlabel(
+                            f"Delta Value (Positive = {improvement_label}, Negative = {degradation_label})"
+                        )
+                        plt.ylabel("Average Fraction of Samples")
+                        plt.title(
+                            f"Average Delta Distribution Across All Theorems\n"
+                            f"(Metric: {metric_name}, Objective: {metric_objective}, N={n_config_val})"
+                        )
+
+                        plt.legend()
+                        plt.grid(True, alpha=0.3)
+                        plt.tight_layout()
+
+                        # Save plot
+                        delta_dist_path = os.path.join(
+                            analysis_base_path, "delta_distribution.png"
+                        )
+                        plt.savefig(delta_dist_path)
+                        print(f"Delta distribution plot saved to {delta_dist_path}")
+                        plt.close()
+                    else:
+                        print("No valid theorem histograms for delta distribution.")
+                else:
+                    print("No delta values found to create distribution.")
+            else:
+                print("No delta distributions calculated.")
+
+        except Exception as e:
+            print(f"Error generating delta distribution plot: {e}")
+    else:
+        print("No data available for delta distribution plot.")
+
+    # 3b. Histogram of Average Delta Distribution Across Theorems [but only the correct samples]
+    if all_data_rows:
+        try:
+            import numpy as np
+
+            # Group all original rows by (module, decl) to analyze per theorem
+            theorem_groups_delta = defaultdict(list)
+            for row in all_data_rows:
+                key = (row["module"], row["decl"])
+                # Only take first n_config_val samples for each theorem
+                if len(theorem_groups_delta[key]) < n_config_val:
+                    theorem_groups_delta[key].append(row)
+
+            # Calculate delta distributions for each theorem
+            all_delta_distributions = []
+
+            for theorem_key, theorem_rows in theorem_groups_delta.items():
+                # Extract delta values, set None to 0
+                deltas = []
+                for row in theorem_rows:
+                    delta = get_delta(row)
+                    if delta is not None and multiplier * delta > 0:
+                        deltas.append(delta)
+                    # else:
+                    # deltas.append(0.0)
+
+                if deltas:
+                    all_delta_distributions.append(deltas)
+
+            if all_delta_distributions:
+                # Flatten all delta values to determine overall distribution
+                all_deltas = []
+                for deltas in all_delta_distributions:
+                    all_deltas.extend(deltas)
+
+                if all_deltas:
+                    # Calculate statistics
+                    delta_mean = np.mean(all_deltas)
+                    delta_median = np.median(all_deltas)
+                    delta_std = np.std(all_deltas)
+
+                    # Create dynamic bins
+                    bins = 30
+
+                    # Calculate average distribution across all theorems
+                    theorem_histograms_delta = []
+
+                    # First, determine common bin edges from all data
+                    all_delta_bins = np.histogram_bin_edges(all_deltas, bins=bins)
+
+                    for deltas in all_delta_distributions:
+                        hist, _ = np.histogram(
+                            deltas, bins=all_delta_bins, density=False
+                        )
+                        # Normalize by number of samples in this theorem
+                        if len(deltas) > 0:
+                            hist_normalized = hist / len(deltas)
+                            theorem_histograms_delta.append(hist_normalized)
+
+                    if theorem_histograms_delta:
+                        # Calculate average across all theorems
+                        avg_hist_delta = np.mean(theorem_histograms_delta, axis=0)
+
+                        # Create the plot
+                        plt.figure(figsize=(14, 8))
+
+                        # Plot histogram bars
+                        bin_centers = (all_delta_bins[:-1] + all_delta_bins[1:]) / 2
+                        widths = all_delta_bins[1:] - all_delta_bins[:-1]
+
+                        # Color bars based on sign of delta and metric objective
+                        colors = []
+                        for center in bin_centers:
+                            if center < 0:
+                                # Negative delta
+                                colors.append(
+                                    "lightcoral"
+                                    if metric_objective == "max"
+                                    else "lightgreen"
+                                )
+                            elif center > 0:
+                                # Positive delta
+                                colors.append(
+                                    "lightgreen"
+                                    if metric_objective == "max"
+                                    else "lightcoral"
+                                )
+                            else:
+                                # Zero delta
+                                colors.append("gold")
+
+                        plt.bar(
+                            bin_centers,
+                            avg_hist_delta,
+                            width=widths * 0.8,
+                            alpha=0.7,
+                            color=colors,
+                            edgecolor="black",
+                            label="Delta Distribution (Correct Samples Only)",
+                        )
+
+                        # Add a vertical line at 0 (no change)
+                        plt.axvline(
+                            x=0,
+                            color="black",
+                            linestyle="--",
+                            linewidth=2,
+                            label="No Change (0)",
+                        )
+
+                        # Add mean and median lines
+                        plt.axvline(
+                            delta_mean,
+                            color="red",
+                            linestyle="--",
+                            linewidth=2,
+                            label=f"Mean: {delta_mean:.4f}",
+                        )
+                        plt.axvline(
+                            delta_median,
+                            color="purple",
+                            linestyle=":",
+                            linewidth=2,
+                            label=f"Median: {delta_median:.4f}",
+                        )
+
+                        # Add statistics text box
+                        total_theorems_delta = len(theorem_histograms_delta)
+                        avg_samples_per_theorem_delta = np.mean(
+                            [len(d) for d in all_delta_distributions]
+                        )
+
+                        plt.text(
+                            0.02,
+                            0.98,
+                            f"Theorems analyzed: {total_theorems_delta}\n"
+                            f"Avg correct samples per theorem: {avg_samples_per_theorem_delta:.1f}\n"
+                            f"Mean: {delta_mean:.4f}\n"
+                            f"Median: {delta_median:.4f}\n"
+                            f"Std Dev: {delta_std:.4f}",
+                            transform=plt.gca().transAxes,
+                            fontsize=10,
+                            verticalalignment="top",
+                            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+                        )
+
+                        improvement_label = (
+                            "Better" if metric_objective == "max" else "Worse"
+                        )
+                        degradation_label = (
+                            "Worse" if metric_objective == "max" else "Better"
+                        )
+
+                        plt.xlabel(
+                            f"Delta Value (Positive = {improvement_label}, Negative = {degradation_label})"
+                        )
+                        plt.ylabel("Average Fraction of Samples")
+                        plt.title(
+                            f"Average Delta Distribution Across All Theorems (Correct samples only)\n"
+                            f"(Metric: {metric_name}, Objective: {metric_objective}, N={n_config_val})"
+                        )
+
+                        plt.legend()
+                        plt.grid(True, alpha=0.3)
+                        plt.tight_layout()
+
+                        # Save plot
+                        delta_dist_path = os.path.join(
+                            analysis_base_path, "delta_distribution_correct.png"
+                        )
+                        plt.savefig(delta_dist_path)
+                        print(f"Correctness trimmed delta distribution plot saved to {delta_dist_path}")
+                        plt.close()
+                    else:
+                        print("No valid theorem histograms for delta distribution.")
+                else:
+                    print("No delta values found to create distribution.")
+            else:
+                print("No delta distributions calculated.")
+
+        except Exception as e:
+            print(f"Error generating delta distribution plot: {e}")
+    else:
+        print("No data available for delta distribution plot.")
+
+    # 4. Average Score Distribution Relative to Best per Theorem
     if all_data_rows:
         try:
 

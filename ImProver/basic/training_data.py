@@ -366,13 +366,24 @@ def create_dpo_dataset(
     num_invalid: int = 2,
     max_champions: int = 3,
     reject_valid: bool = False,  # idea is that if this is true, we reject all other valid samples as well: may overlap/double count if max_champions>1.
+    min_gap: float = 0.0,  # (require delta > min_gap for valid)
 ) -> List[Dict[str, str]]:
     """Create DPO preference pairs dataset."""
     dataset = []
 
     for key, item in data.items():
 
-        invalid_samples = item["invalid_samples"]
+        valid_og = item["valid_samples"]
+        invalid_og = item["invalid_samples"]
+        valid_filtered, invalid_filtered = [], []
+        for valid in valid_og:
+            if valid["delta"] is None or valid["delta"] <= min_gap:
+                invalid_filtered.append(valid)
+            else:
+                valid_filtered.append(valid)
+        invalid_filtered += invalid_og
+
+        invalid_samples = invalid_filtered  # item["invalid_samples"]
         # Deduplicate invalid_samples by output
         unique_invalid_samples = []
         seen_invalid_outputs = set()
@@ -390,7 +401,7 @@ def create_dpo_dataset(
             invalids = unique_invalid_samples
 
         valid_samples = sorted(
-            item["valid_samples"],
+            valid_filtered,
             key=lambda x: x.get("delta", float("-inf")),
             reverse=True,
         )
@@ -621,6 +632,7 @@ def main(args):
             args.num_invalid,
             args.max_champions,
             args.reject_valid,
+            args.min_gap,
         )
     else:
         print(f"Unknown training type: {args.type}")
@@ -710,6 +722,12 @@ def get_parser():
         "--reject_valid",
         action="store_true",
         help="Reject all valid samples if this is true (default: False)",
+    )
+    parser.add_argument(
+        "--min_gap",
+        default=0.0,
+        type=float,
+        help="Minimum gap required for valid samples (default: 0.0)",
     )
 
     parser.add_argument(
