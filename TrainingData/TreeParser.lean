@@ -6,14 +6,19 @@ import TrainingData.Utils.utils
 
 open Lean Elab Server Std String
 
+abbrev TypeKey := UInt64
+
 structure Hypothesis where
   username : String
   type : String
   value : Option String
   -- unique identifier for the hypothesis, fvarId
   id : String
+  fid      : FVarId
   isProof : String
-  deriving Inhabited, ToJson, FromJson
+  typeKey : TypeKey
+  typeExpr : Expr
+  deriving Inhabited--, ToJson, FromJson
 
 structure GoalInfo where
   username : String
@@ -21,7 +26,25 @@ structure GoalInfo where
   hyps : List Hypothesis
   -- unique identifier for the goal, mvarId
   id : MVarId
-  deriving Inhabited, ToJson, FromJson
+  typeKey : TypeKey
+  typeExpr : Expr
+  deriving Inhabited--, ToJson, FromJson
+
+open Meta in
+def typeKeyOf (e : Expr) : MetaM TypeKey := do
+  let e ← instantiateMVars e
+  let e ← whnf e
+  pure e.hash -- `Expr.hash` is UInt64
+
+/-- Compute a key for a local hypothesis type under the goal's lctx. -/
+def hypTypeKey (printCtx : ContextInfo) (lctx : LocalContext) (hypDecl : LocalDecl) : IO TypeKey := do
+  printCtx.runMetaM lctx do typeKeyOf hypDecl.type
+
+/-- Compute a key for the goal type. -/
+def goalTypeKey (printCtx : ContextInfo) (decl : MetavarDecl) : IO TypeKey := do
+  printCtx.runMetaM decl.lctx do typeKeyOf decl.type
+
+
 
 instance : BEq GoalInfo where
   beq g1 g2 := g1.id == g2.id
@@ -45,7 +68,7 @@ structure ProofStep where
   spawnedGoals : List GoalInfo
   pos : Option Pos := none
   tailPos : Option Pos := none
-  deriving Inhabited, ToJson, FromJson
+  deriving Inhabited--, ToJson, FromJson
 
 def stepGoalsAfter (step : ProofStep) : List GoalInfo := step.goalsAfter ++ step.spawnedGoals
 
@@ -100,14 +123,19 @@ def printGoalInfo (printCtx : ContextInfo) (id : MVarId) : IO GoalInfo := do
     let type ← liftM (ppExprWithInfos ppContext hypDecl.type)
     let value ← liftM (hypDecl.value?.mapM (ppExprWithInfos ppContext))
     let isProof : String ← printCtx.runMetaM decl.lctx (mayBeProof hypDecl.toExpr)
+    let tkey ← hypTypeKey printCtx decl.lctx hypDecl
     return ({
       username := hypDecl.userName.toString,
       type := type.fmt.pretty,
       value := value.map (·.fmt.pretty),
+      fid := hypDecl.fvarId,
       id := hypDecl.fvarId.name.toString,
-      isProof := isProof
+      isProof := isProof,
+      typeKey := tkey,
+      typeExpr := hypDecl.type
     } : Hypothesis) :: acc)
-  return ⟨ decl.userName.toString, (← ppExprWithInfos ppContext decl.type).fmt.pretty, hyps, id⟩
+  let gkey ← goalTypeKey printCtx decl
+  return ⟨ decl.userName.toString, (← ppExprWithInfos ppContext decl.type).fmt.pretty, hyps, id, gkey, decl.type⟩
 
 -- Returns unassigned goals from the provided list of goals
 def getUnassignedGoals (goals : List MVarId) (mctx : MetavarContext) : IO (List MVarId) := do
@@ -230,7 +258,10 @@ def filter_universe_hyp (gi : GoalInfo) : GoalInfo :=
     ⟨gi.username,
     gi.type,
     gi.hyps.filter (fun hyp => not <| hyp.isProof == "universe"),
-    gi.id⟩
+    gi.id,
+    gi.typeKey,
+    gi.typeExpr
+    ⟩
 
 -- def filterBacktracking (steps : List ProofStep) : List ProofStep := Id.run do
 --   let mut result : List ProofStep := []
@@ -277,7 +308,7 @@ structure ProofTree where
   node : ProofStep
   children :  Array ProofTree
   spawned_children :  Array ProofTree
-deriving Inhabited, ToJson, FromJson
+deriving Inhabited--, ToJson, FromJson
 
 instance : BEq ProofTree where
   beq t1 t2 := t1.node.tacticString == t2.node.tacticString

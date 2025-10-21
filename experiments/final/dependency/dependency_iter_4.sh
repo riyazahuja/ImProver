@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:7
 #SBATCH --mem=250G
 
-source $HOME/miniconda3/bin/activate env
+source $HOME/miniconda/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -24,7 +24,7 @@ export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
 
-cd /home/$USER/eval_improver/improver
+cd /home/shivansg/ImProver
 lake build eval_improver
 sleep 5
 
@@ -41,11 +41,11 @@ sleep 5
     
 # convert wSFT data
 
-python /home/$USER/eval_improver/improver/experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/improver/experiments/final/dependency/data/wSFT_dependency_iter_4.jsonl /home/riyaza/eval_improver/improver/experiments/final/dependency/data/wSFT_dependency_iter_4
+python experiments/final/preprocess_weights.py     /home/shivansg/ImProver/experiments/final/dependency/data/wSFT_dependency_iter_4.jsonl /home/shivansg/ImProver/experiments/final/dependency/data/wSFT_dependency_iter_4
 
 # train wSFT model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/dependency/configs/wSFT_dependency_iter_4.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/dependency/configs/wSFT_dependency_iter_4.yaml
 
 # merge wSFT LoRA with base to get final wSFT model
 
@@ -64,7 +64,7 @@ python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /
     
 # train IRPO model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/dependency/configs/IRPO_dependency_iter_4.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/dependency/configs/IRPO_dependency_iter_4.yaml
 
 
 # eval IRPO model on test set

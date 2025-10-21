@@ -8,7 +8,7 @@
 #SBATCH --mem=250G
 
 
-source $HOME/miniconda3/bin/activate env
+source $HOME/miniconda/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -25,7 +25,7 @@ export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
 
-cd /home/$USER/eval_improver/improver
+cd /home/shivansg/ImProver
 lake build eval_improver
 sleep 5
 

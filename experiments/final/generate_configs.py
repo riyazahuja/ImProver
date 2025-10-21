@@ -102,7 +102,7 @@ sequence_len: 8192
 flash_attn_2: true
 gradient_checkpointing: true
 
-micro_batch_size: 2
+micro_batch_size: 1
 gradient_accumulation_steps: 4
 num_epochs: 3
 learning_rate: 5e-6

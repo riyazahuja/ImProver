@@ -8,7 +8,7 @@
 #SBATCH --mem=250G
 #SBATCH --exclude=babel-15-36,babel-1-23
 
-source $HOME/miniconda3/bin/activate env
+source $HOME/miniconda/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -46,7 +46,7 @@ python experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/im
 
 # train wSFT model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/length/configs/wSFT_length_iter_3.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/length/configs/wSFT_length_iter_3.yaml
 
 # merge wSFT LoRA with base to get final wSFT model
 
@@ -65,7 +65,7 @@ python experiments/final/merge.py     --ref /data/user_data/riyaza/saved_models/
     
 # train IRPO model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/length/configs/IRPO_length_iter_3.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/length/configs/IRPO_length_iter_3.yaml
 
 
 # eval IRPO model on test set
