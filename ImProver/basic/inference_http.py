@@ -147,6 +147,18 @@ def run_inference(df, args, ray_init=True):
         #                         max_tokens=20,
         #                     ),
         #                 ),
+        return dict(
+            payload=dict(
+                messages=[{"role": "user", "content": prompt}],
+                model=args.model,  # "gpt-5-chat",
+                max_tokens=args.max_tokens,
+                # temperature=0.3,
+                # top_p=0.9,
+                # repetition_penalty=1.05,
+                # stop=["</IMPROVED>"],
+                # seed=int(row.get("prompt_idx", 0)),
+            )
+        )
         if args.model == "gpt-5-chat" or args.model == "DeepSeek-R1-0528":
             return dict(
                 payload=dict(
@@ -200,6 +212,15 @@ def run_inference(df, args, ray_init=True):
                 seed=int(row.get("prompt_idx", 0)),
             )
 
+    def postprocess_fn(row):
+        # try:
+        return dict(
+            answer=row["http_response"]["choices"][0]["message"]["content"], **row
+        )
+
+    # except KeyError:
+    #     return dict(answer=f"ERROR: {json.dumps(row['http_response'])}", **row)
+
     vllm_processor = build_llm_processor(
         config,
         preprocess=preprocess_with_truncation,  # lambda row: dict(
@@ -211,13 +232,14 @@ def run_inference(df, args, ray_init=True):
         #         max_tokens=args.max_tokens,
         #     ),
         # ),
-        postprocess=lambda row: (
-            dict(answer=row["http_response"]["choices"][0]["message"]["content"], **row)
-            if args.model != "gpt-5-mini"
-            else dict(
-                answer=row["http_response"]["output"][-1]["content"]["text"], **row
-            )
-        ),
+        postprocess=postprocess_fn,
+        # lambda row: (:
+        #         dict(answer=row["http_response"]["choices"][0]["message"]["content"], **row)
+        #         # if True or args.model != "gpt-5-mini"
+        #         # else dict(
+        #         #     answer=row["http_response"]["output"][-1]["content"]["text"], **row
+        #         # )
+        # ),
     )  # http_response output -1 content text
     ds = vllm_processor(ds).materialize()
 

@@ -39,7 +39,9 @@ def filter_by_improvement_rate(
     return filtered_data, high_improvement_data
 
 
-def mark_replay_items(current_data: Dict[str, Any], prev_run_id: str) -> Dict[str, Any]:
+def mark_replay_items(
+    current_data: Dict[str, Any], prev_run_id: str, replay_mode: str
+) -> Dict[str, Any]:
     """Mark items as replay or frontier based on previous run data."""
     prev_data = load_training_data_json(prev_run_id)
 
@@ -53,10 +55,43 @@ def mark_replay_items(current_data: Dict[str, Any], prev_run_id: str) -> Dict[st
     for key, item in current_data.items():
         if key in replay_keys:
             item["split"] = "replay"  # i.e. if it was solved in the previous run
+
+            if replay_mode == "join":
+                prev_valid_samples = prev_data[key].get("valid_samples", [])
+                prev_invalid_samples = prev_data[key].get("invalid_samples", [])
+                item["valid_samples"] = sorted(
+                    item["valid_samples"] + prev_valid_samples,
+                    key=lambda x: x["delta"],
+                    reverse=True,
+                )
+                item["invalid_samples"] = item["invalid_samples"] + prev_invalid_samples
+
+            elif replay_mode == "replace":
+                prev_valid_samples = prev_data[key].get("valid_samples", [])
+                prev_invalid_samples = prev_data[key].get("invalid_samples", [])
+                item["valid_samples"] = sorted(
+                    prev_valid_samples, key=lambda x: x["delta"], reverse=True
+                )
+                item["invalid_samples"] = prev_invalid_samples
+            else:
+                pass
+
         else:
             item["split"] = "frontier"
 
-    return current_data
+    # return current_data
+    output = current_data
+
+    additional_replay_items = {}
+    for key in list(replay_keys - set(current_data.keys())):
+        prev_data[key]["split"] = "frontier"
+        additional_replay_items[key] = prev_data[key]
+    print(f"Found {len(list(additional_replay_items.keys()))} additional replay items")
+
+    if replay_mode == "join" or replay_mode == "replace":
+        output.update(additional_replay_items)
+
+    return output
 
 
 def adjust_replay_proportion(
@@ -330,6 +365,7 @@ def create_dpo_dataset(
     num_samples: int = 1,
     num_invalid: int = 2,
     max_champions: int = 3,
+    reject_valid: bool = False,  # idea is that if this is true, we reject all other valid samples as well: may overlap/double count if max_champions>1.
 ) -> List[Dict[str, str]]:
     """Create DPO preference pairs dataset."""
     dataset = []
@@ -346,9 +382,12 @@ def create_dpo_dataset(
                 unique_invalid_samples.append(invalid)
                 seen_invalid_outputs.add(output)
 
-        invalids = (
-            unique_invalid_samples[:num_invalid] if unique_invalid_samples else []
-        )
+        if num_invalid >= 0:
+            invalids = (
+                unique_invalid_samples[:num_invalid] if unique_invalid_samples else []
+            )
+        else:
+            invalids = unique_invalid_samples
 
         valid_samples = sorted(
             item["valid_samples"],
@@ -365,7 +404,12 @@ def create_dpo_dataset(
                 seen_deltas.add(delta)
         valids = unique_valid_samples
 
-        for i in range(min(max_champions, len(valids))):
+        if max_champions >= 0:
+            rng = min(max_champions, len(valids))
+        else:
+            rng = len(valids)
+
+        for i in range(rng):
 
             samples = valids[i + 1 :]
 
@@ -428,7 +472,11 @@ def create_dpo_dataset(
                     }
                 )
 
-            for invalid in invalids:
+            possible_valids_with_invalids = invalids
+            if reject_valid:
+                possible_valids_with_invalids = selected_samples + invalids
+
+            for invalid in possible_valids_with_invalids:
                 dataset.append(
                     {
                         "prompt": item["prompt"],
@@ -457,6 +505,77 @@ def save_jsonl(dataset: List[Dict[str, Any]], output_path: str):
         print(f"Error saving to {output_path}: {e}")
 
 
+def generate_specified_dataset(run_id, args, prev_run_dataset=None):
+
+    # Load training data
+    data = load_training_data_json(run_id)
+    if not data:
+        print("No training data found. Exiting.")
+        return []
+
+    print(f"Loaded {len(data)} items from training data")
+
+    # Filter out items with improvement_rate <= 0
+    data = {k: v for k, v in data.items() if v.get("improvement_rate", 0.0) > 0}
+    print(f"After filtering improvement_rate > 0: {len(data)} items")
+
+    if prev_run_dataset and args.replay_buffer_split is not None:
+        data = mark_replay_items(data, prev_run_dataset, args.replay_type)  # ADD ARGS
+        replay_count = sum(1 for item in data.values() if item.get("split") == "replay")
+        frontier_count = sum(
+            1 for item in data.values() if item.get("split") == "frontier"
+        )
+        print(f"Marked items - Replay: {replay_count}, Frontier: {frontier_count}")
+
+    # Filter by improvement rate threshold
+    data, high_improvement_data = filter_by_improvement_rate(
+        data, args.filter_threshold
+    )
+    print(
+        f"After filtering improvement_rate < {args.filter_threshold}: {len(data)} items"
+    )
+    print(f"High improvement items set aside: {len(high_improvement_data)} items")
+
+    # Adjust replay proportion if needed
+    if prev_run_dataset and args.replay_buffer_split is not None:
+        data = adjust_replay_proportion(
+            data, high_improvement_data, args.replay_buffer_split
+        )
+        replay_count = sum(1 for item in data.values() if item.get("split") == "replay")
+        frontier_count = sum(
+            1 for item in data.values() if item.get("split") == "frontier"
+        )
+        print(
+            f"After replay adjustment - Replay: {replay_count}, Frontier: {frontier_count}"
+        )
+
+    # Create dataset based on training type
+    if args.type == "sft":
+        dataset = create_sft_dataset(data, args.thinking)
+    elif args.type == "weighted_sft":
+        dataset = create_weighted_sft_dataset(
+            data,
+            args.thinking,
+            args.tau,
+            args.num_samples,
+            args.epsilon,
+            args.variance_threshold,
+        )
+    elif args.type == "dpo":
+        dataset = create_dpo_dataset(
+            data,
+            args.thinking,
+            args.num_samples,
+            args.num_invalid,
+            args.max_champions,
+            args.reject_valid,
+        )
+    else:
+        print(f"Unknown training type: {args.type}")
+        dataset = []
+    return dataset
+
+
 def main(args):
     # run_id: str, output_path: Optional[str] = None, thinking: bool = False,
     #      filter_threshold: float = 1.0, prev_run_id: Optional[str] = None,
@@ -482,64 +601,37 @@ def main(args):
             "evals", args.run_id, "analysis", "BoN", "training_data.jsonl"
         )
 
-    # Load training data
-    data = load_training_data_json(args.run_id)
-    if not data:
-        print("No training data found. Exiting.")
-        return
+    past_run_ids = [
+        item.strip()
+        for item in (args.prev_run_id.split(",") if args.prev_run_id else [])
+    ]
 
-    print(f"Loaded {len(data)} items from training data")
+    final_dataset = []
+    if len(past_run_ids) > 0:
+        prev_run_id = past_run_ids[0]
+        prev_run_dataset = load_training_data_json(prev_run_id)
 
-    # Filter out items with improvement_rate <= 0
-    data = {k: v for k, v in data.items() if v.get("improvement_rate", 0.0) > 0}
-    print(f"After filtering improvement_rate > 0: {len(data)} items")
+        for current_run_id in past_run_ids[1:] + [args.run_id]:
+            print(
+                f"Generating dataset for run {current_run_id} with replay from {prev_run_id}"
+            )
+            dataset = generate_specified_dataset(current_run_id, args, prev_run_dataset)
+            prev_run_dataset = dataset
+
+        final_dataset = prev_run_dataset
+    else:
+        final_dataset = generate_specified_dataset(args.run_id, args)
+
+    # proceed to build the dataset in pairs (prev_run_replay_dataset, current_run_id)
+    # namely, we modify the current_run_raw_dataset to have the replay buffer
+    # and this gives us the prev_run_replay_dataset for the next iteration
+
+    # so, first initialize the first prev_dataset as the first of the past_run_ids's raw dataset
 
     # Mark replay items if prev_run_id and replay_buffer_split are provided
-    if args.prev_run_id and args.replay_buffer_split is not None:
-        data = mark_replay_items(data, args.prev_run_id)
-        replay_count = sum(1 for item in data.values() if item.get("split") == "replay")
-        frontier_count = sum(
-            1 for item in data.values() if item.get("split") == "frontier"
-        )
-        print(f"Marked items - Replay: {replay_count}, Frontier: {frontier_count}")
-
-    # Filter by improvement rate threshold
-    data, high_improvement_data = filter_by_improvement_rate(
-        data, args.filter_threshold
-    )
-    print(
-        f"After filtering improvement_rate < {args.filter_threshold}: {len(data)} items"
-    )
-    print(f"High improvement items set aside: {len(high_improvement_data)} items")
-
-    # Adjust replay proportion if needed
-    if args.prev_run_id and args.replay_buffer_split is not None:
-        data = adjust_replay_proportion(
-            data, high_improvement_data, args.replay_buffer_split
-        )
-        replay_count = sum(1 for item in data.values() if item.get("split") == "replay")
-        frontier_count = sum(
-            1 for item in data.values() if item.get("split") == "frontier"
-        )
-        print(
-            f"After replay adjustment - Replay: {replay_count}, Frontier: {frontier_count}"
-        )
-
-    # Create dataset based on training type
-    if args.type == "sft":
-        dataset = create_sft_dataset(data, args.thinking)
-    elif args.type == "weighted_sft":
-        dataset = create_weighted_sft_dataset(
-            data, args.thinking, args.tau, args.num_samples
-        )
-    elif args.type == "dpo":
-        dataset = create_dpo_dataset(data, args.thinking, args.num_samples)
-    else:
-        print(f"Unknown training type: {args.type}")
-        return
 
     # Save dataset
-    save_jsonl(dataset, args.output_path)
+    save_jsonl(final_dataset, args.output_path)
 
 
 def get_parser():
@@ -566,7 +658,7 @@ def get_parser():
     parser.add_argument(
         "--prev_run_id",
         default=None,
-        help="Previous run ID for replay buffer (default: None)",
+        help="Previous run ID(s) for replay buffer (default: []) -> give as comma separated list: base,iter1,iter2,...",
     )
     parser.add_argument(
         "--replay_buffer_split",
@@ -585,9 +677,45 @@ def get_parser():
     )
     parser.add_argument(
         "--num_samples",
-        default=1,
+        default=-1,
         type=int,
         help="Number of samples to include (weighted SFT ignores invalid, DPO gets 1 invalid) (-1 means all)",
+    )
+    parser.add_argument(
+        "--replay_type",
+        default=None,
+        help='Type of replay buffer (default: None; choices: ["join","replace", None])',
+        choices=["join", "replace", None],
+    )
+    parser.add_argument(
+        "--num_invalid",
+        default=1,
+        type=int,
+        help="Number of invalid samples (default: 1)",
+    )
+    parser.add_argument(
+        "--max_champions",
+        default=1,
+        type=int,
+        help="Maximum number of champions (default: 1)",
+    )
+    parser.add_argument(
+        "--reject_valid",
+        action="store_true",
+        help="Reject all valid samples if this is true (default: False)",
+    )
+
+    parser.add_argument(
+        "--epsilon",
+        default=0.0,
+        type=float,
+        help="Epsilon value for exploration (default: 0.0)",
+    )
+    parser.add_argument(
+        "--variance_threshold",
+        default=1.0,
+        type=float,
+        help="(Max) Variance threshold for filtering (default: 1.0)",
     )
 
     return parser

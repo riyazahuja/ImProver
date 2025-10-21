@@ -17,7 +17,7 @@ partial def getSpawnedGoalsCount (tree : ProofTree) (acc : Nat := 0) : Nat :=
   let curr := tree.spawned_children.size
   counts.foldl (fun a b => a + b) curr
 
-def declarativity_score (cs : CompilationStep) : IO Float := do
+def declarativity_score_old (cs : CompilationStep) : IO Float := do
   let tree? := getProofTree <| (← (cs.trees.filterMapM (BetterParser)) ).flatMap (fun result => result.steps)
 
   match tree? with

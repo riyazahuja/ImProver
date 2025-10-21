@@ -1,0 +1,379 @@
+[{"rag": [],
+  "prescopes": "namespace Set\n\nopen Filter Finset",
+  "postscopes": "end Set",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "Set.limsup_eq_tendsto_sum_indicator_atTop",
+   "module": "Mathlib.Algebra.Order.Archimedean.IndicatorCard",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma limsup_eq_tendsto_sum_indicator_atTop {α R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) (s : ℕ → Set α) :\n    atTop.limsup s = { ω | atTop.Tendsto\n      (fun n ↦ ∑ k ∈ Finset.range n, (s k).indicator (fun _ ↦ r) ω) atTop } := by\n  nth_rw 1 [← Nat.cofinite_eq_atTop, cofinite.limsup_set_eq]\n  ext ω\n  rw [mem_setOf_eq, mem_setOf_eq, infinite_iff_tendsto_sum_indicator_atTop h, iff_eq_eq]\n  congr\n\n",
+   "compilationAlias":
+   "lemma limsup_eq_tendsto_sum_indicator_atTop {α R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) (s : ℕ → Set α) :\n    atTop.limsup s = { ω | atTop.Tendsto\n      (fun n ↦ ∑ k ∈ Finset.range n, (s k).indicator (fun _ ↦ r) ω) atTop } := by\n  nth_rw 1 [← Nat.cofinite_eq_atTop, cofinite.limsup_set_eq]\n  ext ω\n  rw [mem_setOf_eq, mem_setOf_eq, infinite_iff_tendsto_sum_indicator_atTop h, iff_eq_eq]\n  congr\n\n"},
+  "goal":
+  "α : Type u_1\nR : Type u_2\ninst✝² : OrderedAddCommMonoid R\ninst✝¹ : AddLeftStrictMono R\ninst✝ : Archimedean R\nr : R\nh : LT.lt 0 r\ns : Nat → Set α\n⊢ Eq (Filter.limsup s Filter.atTop) (setOf fun ω => Filter.Tendsto (fun n => (Finset.range n).sum fun k => (s k).indicator (fun x => r) ω) Filter.atTop Filter.atTop)",
+  "content_sorry":
+  "lemma limsup_eq_tendsto_sum_indicator_atTop {α R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) (s : ℕ → Set α) :\n    atTop.limsup s = { ω | atTop.Tendsto\n      (fun n ↦ ∑ k ∈ Finset.range n, (s k).indicator (fun _ ↦ r) ω) atTop } := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Damien Thomine. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Damien Thomine\n-/\nimport Mathlib.Algebra.Order.Archimedean.Basic\nimport Mathlib.Algebra.Order.BigOperators.Group.Finset\nimport Mathlib.Algebra.Order.Group.Indicator\nimport Mathlib.Order.LiminfLimsup\nimport Mathlib.SetTheory.Cardinal.Finite\n\n/-!\n# Cardinality and limit of sum of indicators\nThis file contains results relating the cardinality of subsets of ℕ and limits,\nlimsups of sums of indicators.\n\n## Tags\nfinite, indicator, limsup, tendsto\n-/\n\nnamespace Set\n\nopen Filter Finset\n\nlemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\nlemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\nlemma limsup_eq_tendsto_sum_indicator_atTop {α R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) (s : ℕ → Set α) :\n    atTop.limsup s = { ω | atTop.Tendsto\n      (fun n ↦ ∑ k ∈ Finset.range n, (s k).indicator (fun _ ↦ r) ω) atTop } := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Damien Thomine. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Damien Thomine\n-/\nimport Mathlib.Algebra.Order.Archimedean.Basic\nimport Mathlib.Algebra.Order.BigOperators.Group.Finset\nimport Mathlib.Algebra.Order.Group.Indicator\nimport Mathlib.Order.LiminfLimsup\nimport Mathlib.SetTheory.Cardinal.Finite\n\n/-!\n# Cardinality and limit of sum of indicators\nThis file contains results relating the cardinality of subsets of ℕ and limits,\nlimsups of sums of indicators.\n\n## Tags\nfinite, indicator, limsup, tendsto\n-/\n\nnamespace Set\n\nopen Filter Finset\n\nlemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\nlemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\nlemma limsup_eq_tendsto_sum_indicator_atTop {α R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) (s : ℕ → Set α) :\n    atTop.limsup s = { ω | atTop.Tendsto\n      (fun n ↦ ∑ k ∈ Finset.range n, (s k).indicator (fun _ ↦ r) ω) atTop } := by\n  nth_rw 1 [← Nat.cofinite_eq_atTop, cofinite.limsup_set_eq]\n  ext ω\n  rw [mem_setOf_eq, mem_setOf_eq, infinite_iff_tendsto_sum_indicator_atTop h, iff_eq_eq]\n  congr\n\n",
+  "annotation":
+  "lemma limsup_eq_tendsto_sum_indicator_atTop {α R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) (s : ℕ → Set α) :\n    atTop.limsup s = { ω | atTop.Tendsto\n      (fun n ↦ ∑ k ∈ Finset.range n, (s k).indicator (fun _ ↦ r) ω) atTop } := by\n  /-\n    α : Type u_1\n    R : Type u_2\n    inst✝² : OrderedAddCommMonoid R\n    inst✝¹ : AddLeftStrictMono R\n    inst✝ : Archimedean R\n    r : R\n    h : LT.lt 0 r\n    s : Nat → Set α\n    ⊢ Eq (Filter.limsup s Filter.atTop) (setOf fun ω => Filter.Tendsto (fun n => ( …\n  -/\n  nth_rw 1 [← Nat.cofinite_eq_atTop, cofinite.limsup_set_eq]\n  /-\n    α : Type u_1\n    R : Type u_2\n    inst✝² : OrderedAddCommMonoid R\n    inst✝¹ : AddLeftStrictMono R\n    inst✝ : Archimedean R\n    r : R\n    h : LT.lt 0 r\n    s : Nat → Set α\n    ⊢ Eq (setOf fun x => (setOf fun n => Membership.mem (s n) x).Infinite) (setOf  …\n  -/\n  ext ω\n  /-\n    case h\n    α : Type u_1\n    R : Type u_2\n    inst✝² : OrderedAddCommMonoid R\n    inst✝¹ : AddLeftStrictMono R\n    inst✝ : Archimedean R\n    r : R\n    h : LT.lt 0 r\n    s : Nat → Set α\n    ω : α\n    ⊢ Iff (Membership.mem (setOf fun x => (setOf fun n => Membership.mem (s n) x). …\n  -/\n  rw [mem_setOf_eq, mem_setOf_eq, infinite_iff_tendsto_sum_indicator_atTop h, iff_eq_eq]\n  /-\n    case h\n    α : Type u_1\n    R : Type u_2\n    inst✝² : OrderedAddCommMonoid R\n    inst✝¹ : AddLeftStrictMono R\n    inst✝ : Archimedean R\n    r : R\n    h : LT.lt 0 r\n    s : Nat → Set α\n    ω : α\n    ⊢ Eq (Filter.Tendsto (fun n => (Finset.range n).sum fun k => (setOf fun n => M …\n  -/\n  congr\n  /-\n    🎉 no goals\n  -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "iff_eq_eq",
+    "module": "Mathlib.Logic.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma iff_eq_eq {a b : Prop} : (a ↔ b) = (a = b) := propext ⟨propext, Eq.to_iff⟩",
+    "compilationAlias":
+    "lemma iff_eq_eq {a b : Prop} : (a ↔ b) = (a = b) := propext ⟨propext, Eq.to_iff⟩"},
+   {"name": "Set.mem_setOf_eq",
+    "module": "Mathlib.Data.Set.Operations",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp, mfld_simps] theorem mem_setOf_eq {x : α} {p : α → Prop} : (x ∈ {y | p y}) = p x := rfl",
+    "compilationAlias":
+    "@[simp, mfld_simps] theorem mem_setOf_eq {x : α} {p : α → Prop} : (x ∈ {y | p y}) = p x := rfl"},
+   {"name": "Nat.cofinite_eq_atTop",
+    "module": "Mathlib.Order.Filter.Cofinite",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- For natural numbers the filters `Filter.cofinite` and `Filter.atTop` coincide. -/\ntheorem Nat.cofinite_eq_atTop : @cofinite ℕ = atTop := by\n  refine le_antisymm ?_ atTop_le_cofinite\n  refine atTop_basis.ge_iff.2 fun N _ => ?_\n  simpa only [mem_cofinite, compl_Ici] using finite_lt_nat N",
+    "compilationAlias":
+    "/-- For natural numbers the filters `Filter.cofinite` and `Filter.atTop` coincide. -/\ntheorem Nat.cofinite_eq_atTop : @cofinite ℕ = atTop := by\n  refine le_antisymm ?_ atTop_le_cofinite\n  refine atTop_basis.ge_iff.2 fun N _ => ?_\n  simpa only [mem_cofinite, compl_Ici] using finite_lt_nat N"},
+   {"name": "Set.indicator",
+    "module": "Mathlib.Algebra.Group.Indicator",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[to_additive \"`Set.indicator s f a` is `f a` if `a ∈ s`, `0` otherwise.\"]",
+    "compilationAlias":
+    "@[to_additive \"`Set.indicator s f a` is `f a` if `a ∈ s`, `0` otherwise.\"]"},
+   {"name": "Finset.range",
+    "module": "Mathlib.Data.Finset.Range",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩",
+    "compilationAlias":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "AddLeftStrictMono",
+    "module": "Mathlib.Algebra.Order.Monoid.Unbundled.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Typeclass for monotonicity of addition on the left,\nnamely `b₁ < b₂ → a + b₁ < a + b₂`.\n\nYou should usually not use this very granular typeclass directly, but rather a typeclass like\n`OrderedAddCommGroup`. -/\nabbrev AddLeftStrictMono [Add M] [LT M] : Prop :=\n  CovariantClass M M (· + ·) (· < ·)",
+    "compilationAlias":
+    "/-- Typeclass for monotonicity of addition on the left,\nnamely `b₁ < b₂ → a + b₁ < a + b₂`.\n\nYou should usually not use this very granular typeclass directly, but rather a typeclass like\n`OrderedAddCommGroup`. -/\nabbrev AddLeftStrictMono [Add M] [LT M] : Prop :=\n  CovariantClass M M (· + ·) (· < ·)"}],
+  "C0_dependencies":
+  [{"name": "Set.sum_indicator_eventually_eq_card",
+    "module": "Mathlib.Algebra.Order.Archimedean.IndicatorCard",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n",
+    "compilationAlias":
+    "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n"},
+   {"name": "Set.infinite_iff_tendsto_sum_indicator_atTop",
+    "module": "Mathlib.Algebra.Order.Archimedean.IndicatorCard",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\n",
+    "compilationAlias":
+    "lemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace Set\n\nopen Filter Finset",
+  "postscopes": "end Set",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "Set.infinite_iff_tendsto_sum_indicator_atTop",
+   "module": "Mathlib.Algebra.Order.Archimedean.IndicatorCard",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\n",
+   "compilationAlias":
+   "lemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\n"},
+  "goal":
+  "R : Type u_1\ninst✝² : OrderedAddCommMonoid R\ninst✝¹ : AddLeftStrictMono R\ninst✝ : Archimedean R\nr : R\nh : LT.lt 0 r\ns : Set Nat\n⊢ Iff s.Infinite (Filter.Tendsto (fun n => (Finset.range n).sum fun k => s.indicator (fun x => r) k) Filter.atTop Filter.atTop)",
+  "content_sorry":
+  "lemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Damien Thomine. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Damien Thomine\n-/\nimport Mathlib.Algebra.Order.Archimedean.Basic\nimport Mathlib.Algebra.Order.BigOperators.Group.Finset\nimport Mathlib.Algebra.Order.Group.Indicator\nimport Mathlib.Order.LiminfLimsup\nimport Mathlib.SetTheory.Cardinal.Finite\n\n/-!\n# Cardinality and limit of sum of indicators\nThis file contains results relating the cardinality of subsets of ℕ and limits,\nlimsups of sums of indicators.\n\n## Tags\nfinite, indicator, limsup, tendsto\n-/\n\nnamespace Set\n\nopen Filter Finset\n\nlemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\nlemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Damien Thomine. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Damien Thomine\n-/\nimport Mathlib.Algebra.Order.Archimedean.Basic\nimport Mathlib.Algebra.Order.BigOperators.Group.Finset\nimport Mathlib.Algebra.Order.Group.Indicator\nimport Mathlib.Order.LiminfLimsup\nimport Mathlib.SetTheory.Cardinal.Finite\n\n/-!\n# Cardinality and limit of sum of indicators\nThis file contains results relating the cardinality of subsets of ℕ and limits,\nlimsups of sums of indicators.\n\n## Tags\nfinite, indicator, limsup, tendsto\n-/\n\nnamespace Set\n\nopen Filter Finset\n\nlemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\nlemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    intro hs n\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    obtain ⟨m, hm⟩ := t.bddAbove\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n  · contrapose\n    intro hs\n    rw [not_infinite] at hs\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    push_neg\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n\n",
+  "annotation":
+  "lemma infinite_iff_tendsto_sum_indicator_atTop {R : Type*} [OrderedAddCommMonoid R]\n    [AddLeftStrictMono R] [Archimedean R] {r : R} (h : 0 < r) {s : Set ℕ} :\n    s.Infinite ↔ atTop.Tendsto (fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k) atTop := by\n  /-\n    R : Type u_1\n    inst✝² : OrderedAddCommMonoid R\n    inst✝¹ : AddLeftStrictMono R\n    inst✝ : Archimedean R\n    r : R\n    h : LT.lt 0 r\n    s : Set Nat\n    ⊢ Iff s.Infinite (Filter.Tendsto (fun n => (Finset.range n).sum fun k => s.ind …\n  -/\n  constructor\n  · have h_mono : Monotone fun n ↦ ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ r) k := by\n      refine (sum_mono_set_of_nonneg ?_).comp range_mono\n      exact (fun _ ↦ indicator_nonneg (fun _ _ ↦ h.le) _)\n    /-\n      case mp\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      ⊢ s.Infinite → Filter.Tendsto (fun n => (Finset.range n).sum fun k => s.indica …\n    -/\n    rw [h_mono.tendsto_atTop_atTop_iff]\n    /-\n      case mp\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      ⊢ s.Infinite → ∀ (b : R), Exists fun a => LE.le b ((Finset.range a).sum fun k  …\n    -/\n    intro hs n\n    /-\n      case mp\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      hs : s.Infinite\n      n : R\n      ⊢ Exists fun a => LE.le n ((Finset.range a).sum fun k => s.indicator (fun x => …\n    -/\n    obtain ⟨n', hn'⟩ := exists_lt_nsmul h n\n    /-\n      case mp.intro\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      hs : s.Infinite\n      n : R\n      n' : Nat\n      hn' : LT.lt n (HSMul.hSMul n' r)\n      ⊢ Exists fun a => LE.le n ((Finset.range a).sum fun k => s.indicator (fun x => …\n    -/\n    obtain ⟨t, t_s, t_card⟩ := hs.exists_subset_card_eq n'\n    /-\n      case mp.intro.intro.intro\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      hs : s.Infinite\n      n : R\n      n' : Nat\n      hn' : LT.lt n (HSMul.hSMul n' r)\n      t : Finset Nat\n      t_s : HasSubset.Subset (↑t) s\n      t_card : Eq t.card n'\n      ⊢ Exists fun a => LE.le n ((Finset.range a).sum fun k => s.indicator (fun x => …\n    -/\n    obtain ⟨m, hm⟩ := t.bddAbove\n    /-\n      case mp.intro.intro.intro.intro\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      hs : s.Infinite\n      n : R\n      n' : Nat\n      hn' : LT.lt n (HSMul.hSMul n' r)\n      t : Finset Nat\n      t_s : HasSubset.Subset (↑t) s\n      t_card : Eq t.card n'\n      m : Nat\n      hm : Membership.mem (upperBounds ↑t) m\n      ⊢ Exists fun a => LE.le n ((Finset.range a).sum fun k => s.indicator (fun x => …\n    -/\n    refine ⟨m + 1, hn'.le.trans ?_⟩\n    /-\n      case mp.intro.intro.intro.intro\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      hs : s.Infinite\n      n : R\n      n' : Nat\n      hn' : LT.lt n (HSMul.hSMul n' r)\n      t : Finset Nat\n      t_s : HasSubset.Subset (↑t) s\n      t_card : Eq t.card n'\n      m : Nat\n      hm : Membership.mem (upperBounds ↑t) m\n      ⊢ LE.le (HSMul.hSMul n' r) ((Finset.range (HAdd.hAdd m 1)).sum fun k => s.indi …\n    -/\n    apply (sum_le_sum fun i _ ↦ (indicator_le_indicator_of_subset t_s (fun _ ↦ h.le)) i).trans_eq'\n    have h : t ⊆ Finset.range (m + 1) := by\n      intro i i_t\n      rw [Finset.mem_range]\n      exact (hm i_t).trans_lt (lt_add_one m)\n    /-\n      case mp.intro.intro.intro.intro\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h✝ : LT.lt 0 r\n      s : Set Nat\n      h_mono : Monotone fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n      hs : s.Infinite\n      n : R\n      n' : Nat\n      hn' : LT.lt n (HSMul.hSMul n' r)\n      t : Finset Nat\n      t_s : HasSubset.Subset (↑t) s\n      t_card : Eq t.card n'\n      m : Nat\n      hm : Membership.mem (upperBounds ↑t) m\n      h : HasSubset.Subset t (Finset.range (HAdd.hAdd m 1))\n      ⊢ Eq (HSMul.hSMul n' r) ((Finset.range (HAdd.hAdd m 1)).sum fun i => (↑t).indi …\n    -/\n    rw [sum_indicator_subset (fun _ ↦ r) h, sum_eq_card_nsmul (fun _ _ ↦ rfl), t_card]\n    /-\n      🎉 no goals\n    -/\n    /-\n      case mpr\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      ⊢ Filter.Tendsto (fun n => (Finset.range n).sum fun k => s.indicator (fun x => …\n    -/\n  · contrapose\n    /-\n      case mpr\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      ⊢ Not s.Infinite → Not (Filter.Tendsto (fun n => (Finset.range n).sum fun k => …\n    -/\n    intro hs\n    /-\n      case mpr\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      hs : Not s.Infinite\n      ⊢ Not (Filter.Tendsto (fun n => (Finset.range n).sum fun k => s.indicator (fun …\n    -/\n    rw [not_infinite] at hs\n    /-\n      case mpr\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      hs : s.Finite\n      ⊢ Not (Filter.Tendsto (fun n => (Finset.range n).sum fun k => s.indicator (fun …\n    -/\n    rw [tendsto_congr' (sum_indicator_eventually_eq_card r hs), tendsto_atTop_atTop]\n    /-\n      case mpr\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      hs : s.Finite\n      ⊢ Not (∀ (b : R), Exists fun i => ∀ (a : Nat), LE.le i a → LE.le b (HSMul.hSMu …\n    -/\n    push_neg\n    /-\n      case mpr\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      hs : s.Finite\n      ⊢ Exists fun b => ∀ (i : Nat), Exists fun a => And (LE.le i a) (Not (LE.le b ( …\n    -/\n    obtain ⟨m, hm⟩ := exists_lt_nsmul h (Nat.card s • r)\n    /-\n      case mpr.intro\n      R : Type u_1\n      inst✝² : OrderedAddCommMonoid R\n      inst✝¹ : AddLeftStrictMono R\n      inst✝ : Archimedean R\n      r : R\n      h : LT.lt 0 r\n      s : Set Nat\n      hs : s.Finite\n      m : Nat\n      hm : LT.lt (HSMul.hSMul (Nat.card ↑s) r) (HSMul.hSMul m r)\n      ⊢ Exists fun b => ∀ (i : Nat), Exists fun a => And (LE.le i a) (Not (LE.le b ( …\n    -/\n    exact ⟨m • r, fun n ↦ ⟨n, le_refl n, not_le_of_lt hm⟩⟩\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "not_le_of_lt",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma not_le_of_lt (hab : a < b) : ¬ b ≤ a := (lt_iff_le_not_le.1 hab).2",
+    "compilationAlias":
+    "lemma not_le_of_lt (hab : a < b) : ¬ b ≤ a := (lt_iff_le_not_le.1 hab).2"},
+   {"name": "le_refl",
+    "module": "Mathlib.Order.Defs.PartialOrder",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- The relation `≤` on a preorder is reflexive. -/\n@[refl, simp] lemma le_refl : ∀ a : α, a ≤ a := Preorder.le_refl",
+    "compilationAlias":
+    "/-- The relation `≤` on a preorder is reflexive. -/\n@[refl, simp] lemma le_refl : ∀ a : α, a ≤ a := Preorder.le_refl"},
+   {"name": "Nat.card",
+    "module": "Mathlib.SetTheory.Cardinal.Finite",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Nat.card α` is the cardinality of `α` as a natural number.\n  If `α` is infinite, `Nat.card α = 0`. -/\nprotected def card (α : Type*) : ℕ :=\n  toNat (mk α)",
+    "compilationAlias":
+    "/-- `Nat.card α` is the cardinality of `α` as a natural number.\n  If `α` is infinite, `Nat.card α = 0`. -/\nprotected def card (α : Type*) : ℕ :=\n  toNat (mk α)"},
+   {"name": "Set.not_infinite",
+    "module": "Mathlib.Data.Finite.Defs",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem not_infinite {s : Set α} : ¬s.Infinite ↔ s.Finite :=\n  not_not",
+    "compilationAlias":
+    "@[simp]\ntheorem not_infinite {s : Set α} : ¬s.Infinite ↔ s.Finite :=\n  not_not"},
+   {"name": "rfl",
+    "module": "Init.Prelude",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a",
+    "compilationAlias":
+    "/--\n`rfl : a = a` is the unique constructor of the equality type. This is the\nsame as `Eq.refl` except that it takes `a` implicitly instead of explicitly.\n\nThis is a more powerful theorem than it may appear at first, because although\nthe statement of the theorem is `a = a`, Lean will allow anything that is\ndefinitionally equal to that type. So, for instance, `2 + 2 = 4` is proven in\nLean by `rfl`, because both sides are the same up to definitional equality.\n-/\n@[match_pattern] def rfl {α : Sort u} {a : α} : Eq a a := Eq.refl a"},
+   {"name": "lt_add_one",
+    "module": "Mathlib.Algebra.Order.Monoid.NatCast",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma lt_add_one [One α] [AddZeroClass α] [PartialOrder α] [ZeroLEOneClass α]\n    [NeZero (1 : α)] [AddLeftStrictMono α] (a : α) : a < a + 1 :=\n  lt_add_of_pos_right _ zero_lt_one",
+    "compilationAlias":
+    "lemma lt_add_one [One α] [AddZeroClass α] [PartialOrder α] [ZeroLEOneClass α]\n    [NeZero (1 : α)] [AddLeftStrictMono α] (a : α) : a < a + 1 :=\n  lt_add_of_pos_right _ zero_lt_one"},
+   {"name": "Finset.mem_range",
+    "module": "Mathlib.Data.Finset.Range",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_range : m ∈ range n ↔ m < n :=\n  Multiset.mem_range",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_range : m ∈ range n ↔ m < n :=\n  Multiset.mem_range"},
+   {"name": "Set.indicator_le_indicator_of_subset",
+    "module": "Mathlib.Algebra.Order.Group.Indicator",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "exists_lt_nsmul",
+    "module": "Mathlib.Algebra.Order.Archimedean.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive]",
+    "compilationAlias": "@[to_additive]"},
+   {"name": "Set.indicator_nonneg",
+    "module": "Mathlib.Algebra.Order.Group.Indicator",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive indicator_nonneg]",
+    "compilationAlias": "@[to_additive indicator_nonneg]"},
+   {"name": "Monotone",
+    "module": "Mathlib.Order.Monotone.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A function `f` is monotone if `a ≤ b` implies `f a ≤ f b`. -/\ndef Monotone (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a ≤ b → f a ≤ f b",
+    "compilationAlias":
+    "/-- A function `f` is monotone if `a ≤ b` implies `f a ≤ f b`. -/\ndef Monotone (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a ≤ b → f a ≤ f b"},
+   {"name": "Finset.range",
+    "module": "Mathlib.Data.Finset.Range",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩",
+    "compilationAlias":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"},
+   {"name": "AddLeftStrictMono",
+    "module": "Mathlib.Algebra.Order.Monoid.Unbundled.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- Typeclass for monotonicity of addition on the left,\nnamely `b₁ < b₂ → a + b₁ < a + b₂`.\n\nYou should usually not use this very granular typeclass directly, but rather a typeclass like\n`OrderedAddCommGroup`. -/\nabbrev AddLeftStrictMono [Add M] [LT M] : Prop :=\n  CovariantClass M M (· + ·) (· < ·)",
+    "compilationAlias":
+    "/-- Typeclass for monotonicity of addition on the left,\nnamely `b₁ < b₂ → a + b₁ < a + b₂`.\n\nYou should usually not use this very granular typeclass directly, but rather a typeclass like\n`OrderedAddCommGroup`. -/\nabbrev AddLeftStrictMono [Add M] [LT M] : Prop :=\n  CovariantClass M M (· + ·) (· < ·)"}],
+  "C0_dependencies":
+  [{"name": "Set.sum_indicator_eventually_eq_card",
+    "module": "Mathlib.Algebra.Order.Archimedean.IndicatorCard",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n",
+    "compilationAlias":
+    "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n"}]},
+ {"rag": [],
+  "prescopes": "namespace Set\n\nopen Filter Finset",
+  "postscopes": "end Set",
+  "informal_statement": "",
+  "informal_proof": "",
+  "id":
+  {"name": "Set.sum_indicator_eventually_eq_card",
+   "module": "Mathlib.Algebra.Order.Archimedean.IndicatorCard",
+   "kind": "theorem",
+   "isExtracted": false,
+   "errorMsgs": [],
+   "content":
+   "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n",
+   "compilationAlias":
+   "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n"},
+  "goal":
+  "α : Type u_1\ninst✝ : AddCommMonoid α\na : α\ns : Set Nat\nhs : s.Finite\n⊢ Filter.Eventually (fun n => Eq ((Finset.range n).sum fun k => s.indicator (fun x => a) k) (HSMul.hSMul (Nat.card ↑s) a)) Filter.atTop",
+  "content_sorry":
+  "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  sorry",
+  "content_full_by_exact":
+  "/-\nCopyright (c) 2024 Damien Thomine. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Damien Thomine\n-/\nimport Mathlib.Algebra.Order.Archimedean.Basic\nimport Mathlib.Algebra.Order.BigOperators.Group.Finset\nimport Mathlib.Algebra.Order.Group.Indicator\nimport Mathlib.Order.LiminfLimsup\nimport Mathlib.SetTheory.Cardinal.Finite\n\n/-!\n# Cardinality and limit of sum of indicators\nThis file contains results relating the cardinality of subsets of ℕ and limits,\nlimsups of sums of indicators.\n\n## Tags\nfinite, indicator, limsup, tendsto\n-/\n\nnamespace Set\n\nopen Filter Finset\n\nlemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  exact?",
+  "content_full":
+  "/-\nCopyright (c) 2024 Damien Thomine. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Damien Thomine\n-/\nimport Mathlib.Algebra.Order.Archimedean.Basic\nimport Mathlib.Algebra.Order.BigOperators.Group.Finset\nimport Mathlib.Algebra.Order.Group.Indicator\nimport Mathlib.Order.LiminfLimsup\nimport Mathlib.SetTheory.Cardinal.Finite\n\n/-!\n# Cardinality and limit of sum of indicators\nThis file contains results relating the cardinality of subsets of ℕ and limits,\nlimsups of sums of indicators.\n\n## Tags\nfinite, indicator, limsup, tendsto\n-/\n\nnamespace Set\n\nopen Filter Finset\n\nlemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n  · rw [Finset.mem_range]\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n\n",
+  "annotation":
+  "lemma sum_indicator_eventually_eq_card {α : Type*} [AddCommMonoid α] (a : α) {s : Set ℕ}\n    (hs : s.Finite) :\n    ∀ᶠ n in atTop, ∑ k ∈ Finset.range n, s.indicator (fun _ ↦ a) k = (Nat.card s) • a := by\n  have key : ∀ x ∈ hs.toFinset, s.indicator (fun _ ↦ a) x = a := by\n    intro x hx\n    rw [indicator_of_mem (hs.mem_toFinset.1 hx) (fun _ ↦ a)]\n  /-\n    α : Type u_1\n    inst✝ : AddCommMonoid α\n    a : α\n    s : Set Nat\n    hs : s.Finite\n    key : ∀ (x : Nat), Membership.mem hs.toFinset x → Eq (s.indicator (fun x => a) …\n    ⊢ Filter.Eventually (fun n => Eq ((Finset.range n).sum fun k => s.indicator (f …\n  -/\n  rw [Nat.card_eq_card_finite_toFinset hs, ← sum_eq_card_nsmul key, eventually_atTop]\n  /-\n    α : Type u_1\n    inst✝ : AddCommMonoid α\n    a : α\n    s : Set Nat\n    hs : s.Finite\n    key : ∀ (x : Nat), Membership.mem hs.toFinset x → Eq (s.indicator (fun x => a) …\n    ⊢ Exists fun a_1 => ∀ (b : Nat), GE.ge b a_1 → Eq ((Finset.range b).sum fun k  …\n  -/\n  obtain ⟨m, hm⟩ := hs.bddAbove\n  /-\n    case intro\n    α : Type u_1\n    inst✝ : AddCommMonoid α\n    a : α\n    s : Set Nat\n    hs : s.Finite\n    key : ∀ (x : Nat), Membership.mem hs.toFinset x → Eq (s.indicator (fun x => a) …\n    m : Nat\n    hm : Membership.mem (upperBounds s) m\n    ⊢ Exists fun a_1 => ∀ (b : Nat), GE.ge b a_1 → Eq ((Finset.range b).sum fun k  …\n  -/\n  refine ⟨m + 1, fun n n_m ↦ (sum_subset ?_ ?_).symm⟩ <;> intro x <;> rw [hs.mem_toFinset]\n    /-\n      case intro.refine_1\n      α : Type u_1\n      inst✝ : AddCommMonoid α\n      a : α\n      s : Set Nat\n      hs : s.Finite\n      key : ∀ (x : Nat), Membership.mem hs.toFinset x → Eq (s.indicator (fun x => a) …\n      m : Nat\n      hm : Membership.mem (upperBounds s) m\n      n : Nat\n      n_m : GE.ge n (HAdd.hAdd m 1)\n      x : Nat\n      ⊢ Membership.mem s x → Membership.mem (Finset.range n) x\n    -/\n  · rw [Finset.mem_range]\n    /-\n      case intro.refine_1\n      α : Type u_1\n      inst✝ : AddCommMonoid α\n      a : α\n      s : Set Nat\n      hs : s.Finite\n      key : ∀ (x : Nat), Membership.mem hs.toFinset x → Eq (s.indicator (fun x => a) …\n      m : Nat\n      hm : Membership.mem (upperBounds s) m\n      n : Nat\n      n_m : GE.ge n (HAdd.hAdd m 1)\n      x : Nat\n      ⊢ Membership.mem s x → LT.lt x n\n    -/\n    exact fun x_s ↦ ((mem_upperBounds.1 hm) x x_s).trans_lt (Nat.lt_of_succ_le n_m)\n    /-\n      🎉 no goals\n    -/\n    /-\n      case intro.refine_2\n      α : Type u_1\n      inst✝ : AddCommMonoid α\n      a : α\n      s : Set Nat\n      hs : s.Finite\n      key : ∀ (x : Nat), Membership.mem hs.toFinset x → Eq (s.indicator (fun x => a) …\n      m : Nat\n      hm : Membership.mem (upperBounds s) m\n      n : Nat\n      n_m : GE.ge n (HAdd.hAdd m 1)\n      x : Nat\n      ⊢ Membership.mem (Finset.range n) x → Not (Membership.mem s x) → Eq (s.indicat …\n    -/\n  · exact fun _ x_s ↦ indicator_of_not_mem x_s (fun _ ↦ a)\n    /-\n      🎉 no goals\n    -/\n\n",
+  "C2_dependencies": [],
+  "C1_dependencies":
+  [{"name": "Set.indicator_of_not_mem",
+    "module": "Mathlib.Algebra.Group.Indicator",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Nat.lt_of_succ_le",
+    "module": "Init.Data.Nat.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem lt_of_succ_le {n m : Nat} (h : succ n ≤ m) : n < m := h",
+    "compilationAlias":
+    "theorem lt_of_succ_le {n m : Nat} (h : succ n ≤ m) : n < m := h"},
+   {"name": "mem_upperBounds",
+    "module": "Mathlib.Order.Bounds.Basic",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "theorem mem_upperBounds : a ∈ upperBounds s ↔ ∀ x ∈ s, x ≤ a :=\n  Iff.rfl",
+    "compilationAlias":
+    "theorem mem_upperBounds : a ∈ upperBounds s ↔ ∀ x ∈ s, x ≤ a :=\n  Iff.rfl"},
+   {"name": "Finset.mem_range",
+    "module": "Mathlib.Data.Finset.Range",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "@[simp]\ntheorem mem_range : m ∈ range n ↔ m < n :=\n  Multiset.mem_range",
+    "compilationAlias":
+    "@[simp]\ntheorem mem_range : m ∈ range n ↔ m < n :=\n  Multiset.mem_range"},
+   {"name": "symm",
+    "module": "Mathlib.Order.Defs.Unbundled",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _",
+    "compilationAlias":
+    "lemma symm [IsSymm α r] : a ≺ b → b ≺ a := IsSymm.symm _ _"},
+   {"name": "Nat.card_eq_card_finite_toFinset",
+    "module": "Mathlib.SetTheory.Cardinal.Finite",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "lemma card_eq_card_finite_toFinset {s : Set α} (hs : s.Finite) : Nat.card s = hs.toFinset.card := by\n  simp only [← Nat.card_eq_finsetCard, hs.mem_toFinset]",
+    "compilationAlias":
+    "lemma card_eq_card_finite_toFinset {s : Set α} (hs : s.Finite) : Nat.card s = hs.toFinset.card := by\n  simp only [← Nat.card_eq_finsetCard, hs.mem_toFinset]"},
+   {"name": "Set.indicator_of_mem",
+    "module": "Mathlib.Algebra.Group.Indicator",
+    "kind": "theorem",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content": "@[to_additive (attr := simp)]",
+    "compilationAlias": "@[to_additive (attr := simp)]"},
+   {"name": "Nat.card",
+    "module": "Mathlib.SetTheory.Cardinal.Finite",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `Nat.card α` is the cardinality of `α` as a natural number.\n  If `α` is infinite, `Nat.card α = 0`. -/\nprotected def card (α : Type*) : ℕ :=\n  toNat (mk α)",
+    "compilationAlias":
+    "/-- `Nat.card α` is the cardinality of `α` as a natural number.\n  If `α` is infinite, `Nat.card α = 0`. -/\nprotected def card (α : Type*) : ℕ :=\n  toNat (mk α)"},
+   {"name": "Finset.range",
+    "module": "Mathlib.Data.Finset.Range",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩",
+    "compilationAlias":
+    "/-- `range n` is the set of natural numbers less than `n`. -/\ndef range (n : ℕ) : Finset ℕ :=\n  ⟨_, nodup_range n⟩"},
+   {"name": "Set",
+    "module": "Mathlib.Data.Set.Defs",
+    "kind": "def",
+    "isExtracted": false,
+    "errorMsgs": [],
+    "content":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop",
+    "compilationAlias":
+    "/-- A set is a collection of elements of some type `α`.\n\nAlthough `Set` is defined as `α → Prop`, this is an implementation detail which should not be\nrelied on. Instead, `setOf` and membership of a set (`∈`) should be used to convert between sets\nand predicates.\n-/\ndef Set (α : Type u) := α → Prop"}],
+  "C0_dependencies": []}]

@@ -8,7 +8,7 @@ USER = os.getenv("USER", "riyaza")
 improver_base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 models_path = f"/data/user_data/{USER}/saved_models"
 deepspeed_path = os.path.join(improver_base_path, "deepspeed_configs")
-conda_dir = f"$HOME/miniconda"
+conda_dir = "$HOME/miniconda3"
 conda_env = "env"
 
 
@@ -36,7 +36,7 @@ lora_target_modules: [q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj]
 
 merge_lora: true
 
-sequence_len: 32768
+sequence_len: 16384
 flash_attn_2: true
 gradient_checkpointing: true
 
@@ -98,7 +98,7 @@ rl_beta: 0.07
 rpo_alpha: 1.0
 
 
-sequence_len: 16384
+sequence_len: 8192
 flash_attn_2: true
 gradient_checkpointing: true
 
@@ -126,8 +126,8 @@ output_dir: {output_model_path}
 
 # Optional trackers
 wandb_project: "{name}"
-logging_steps: 2
-evals_per_epoch: 2
+logging_steps: 10
+evals_per_epoch: 1
 save_strategy: "no"
 """
     with open(output_path, "w") as f:
@@ -161,7 +161,7 @@ def make_slurm(
 #SBATCH --error=logs/final/{metric}/{run_name}.err
 #SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:L40S:8
+#SBATCH --gres=gpu:8
 #SBATCH --mem=250G
 #SBATCH --exclude=babel-15-36,babel-1-23
 
@@ -259,7 +259,7 @@ accelerate launch -m  axolotl.cli.train {IRPO_config}
 
 
 # params = ["length", "declarativity", "dependency"]
-params = ["declarativity2"]
+params = ["length"]
 max_iterations = 5
 base_path = os.path.join(improver_base_path, "experiments", "final")
 

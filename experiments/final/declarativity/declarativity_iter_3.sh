@@ -4,9 +4,9 @@
 #SBATCH --error=logs/final/declarativity/declarativity_iter_3.err
 #SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:6
+#SBATCH --gres=gpu:L40S:8
 #SBATCH --mem=250G
-#SBATCH --exclude=babel-12-29
+#SBATCH --exclude=babel-15-36,babel-1-23
 
 
 
@@ -25,7 +25,6 @@ export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_BLOCKING_WAIT=1
 export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 cd /home/shivansg/ImProver
 lake build eval_improver
@@ -34,12 +33,12 @@ sleep 5
 
 # eval prev iter model on train set
 
-# ./improver run pipeline --run_id IRPO_declarativity_iter_2_train     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id final_train     --split train --model /data/user_data/shivansg/saved_models/IRPO_declarativity_iter_2     --num_blocks 512     --config experiments/final/test_eval.yaml
+./improver run pipeline --run_id IRPO_declarativity_iter_2_train     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id /home/$USER/eval_improver/improver/prompts/final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_declarativity_iter_2     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
 
 # first get wSFT data
 
-# ./improver run training_data --run_id IRPO_declarativity_iter_2_train --tau 0.5 --output_path /home/shivansg/ImProver/experiments/final/declarativity/data/wSFT_declarativity_iter_3.jsonl     --type weighted_sft --epsilon 0.1 --variance_threshold 0.8 --filter_threshold 1.1     --replay_buffer_split 0.4 --replay_type replace --prev_run_id base_declarativity_train,IRPO_declarativity_iter_1_train
+./improver run training_data --run_id IRPO_declarativity_iter_2_train --tau 0.5 --output_path /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/wSFT_declarativity_iter_3.jsonl     --type weighted_sft --epsilon 0.1 --variance_threshold 0.8 --filter_threshold 1.1     --replay_buffer_split 0.4 --replay_type replace --prev_run_id base_declarativity_train,IRPO_declarativity_iter_1_train
 
     
 # # convert wSFT data
@@ -52,17 +51,17 @@ sleep 5
 
 # # merge wSFT LoRA with base to get final wSFT model
 
-# python experiments/final/merge.py     --ref /data/user_data/shivansg/saved_models/IRPO_declarativity_iter_2     --adapter /data/user_data/shivansg/saved_models/wSFT_declarativity_iter_3_lora     --output /data/user_data/shivansg/saved_models/wSFT_declarativity_iter_3
+python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /data/user_data/riyaza/saved_models/IRPO_declarativity_iter_2     --adapter /data/user_data/riyaza/saved_models/wSFT_declarativity_iter_3_lora     --output /data/user_data/riyaza/saved_models/wSFT_declarativity_iter_3
 
 # # eval wSFT model on test set
 
-# ./improver run pipeline --run_id wSFT_declarativity_iter_3_test     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id final_test     --split test --model /data/user_data/shivansg/saved_models/wSFT_declarativity_iter_3     --num_blocks 64     --config experiments/final/test_eval.yaml
+./improver run pipeline --run_id wSFT_declarativity_iter_3_test     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id /home/$USER/eval_improver/improver/prompts/final_test     --split test --model /data/user_data/riyaza/saved_models/wSFT_declarativity_iter_3     --num_blocks 64     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
 # # get IRPO data
 
 
 
-# ./improver run training_data --run_id IRPO_declarativity_iter_2_train --output_path /home/shivansg/ImProver/experiments/final/declarativity/data/IRPO_declarativity_iter_3.jsonl     --type dpo --num_invalid -1 --max_champions -1 --filter_threshold 1.1     --replay_buffer_split 0.4 --replay_type replace --prev_run_id base_declarativity_train,IRPO_declarativity_iter_1_train
+./improver run training_data --run_id IRPO_declarativity_iter_2_train --output_path /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/IRPO_declarativity_iter_3.jsonl     --type dpo --num_invalid -1 --max_champions -1 --filter_threshold 1.1     --replay_buffer_split 0.4 --replay_type replace --prev_run_id base_declarativity_train,IRPO_declarativity_iter_1_train
 
     
 # train IRPO model
@@ -74,5 +73,5 @@ accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/fina
 
 # eval IRPO model on test set
 
-./improver run pipeline --run_id DPO_declarativity_iter_3_test     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id final_test     --split test --model /data/user_data/shivansg/saved_models/DPO_declarativity_iter_3     --num_blocks 64     --config experiments/final/test_eval.yaml
+./improver run pipeline --run_id IRPO_declarativity_iter_3_test     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id /home/$USER/eval_improver/improver/prompts/final_test     --split test --model /data/user_data/riyaza/saved_models/IRPO_declarativity_iter_3     --num_blocks 64     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
