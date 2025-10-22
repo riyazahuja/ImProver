@@ -25,7 +25,7 @@ export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
 
-cd /home/$USER/eval_improver/improver
+cd /home/shivansg/ImProver
 lake build eval_improver
 sleep 5
 
@@ -42,11 +42,11 @@ sleep 5
     
 # convert wSFT data
 
-python /home/$USER/eval_improver/improver/experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/improver/experiments/final/dependency/data/wSFT_dependency_iter_2.jsonl /home/riyaza/eval_improver/improver/experiments/final/dependency/data/wSFT_dependency_iter_2
+python experiments/final/preprocess_weights.py     /home/shivansg/ImProver/experiments/final/dependency/data/wSFT_dependency_iter_2.jsonl /home/shivansg/ImProver/experiments/final/dependency/data/wSFT_dependency_iter_2
 
 # train wSFT model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/dependency/configs/wSFT_dependency_iter_2.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/dependency/configs/wSFT_dependency_iter_2.yaml
 
 # merge wSFT LoRA with base to get final wSFT model
 
@@ -54,7 +54,7 @@ python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /
 
 # eval wSFT model on test set
 
-./improver run pipeline --run_id wSFT_dependency_iter_2_test     --annotation --context 10  --informal --examples 4     --metric dependency --prompt_id /home/$USER/eval_improver/improver/prompts/final_test     --split test --model /data/user_data/riyaza/saved_models/wSFT_dependency_iter_2     --num_blocks 64     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
+./improver run pipeline --run_id wSFT_dependency_iter_2_test     --annotation --context 10  --informal --examples 4     --metric dependency --prompt_id final_test     --split test --model /data/user_data/shivansg/saved_models/wSFT_dependency_iter_2     --num_blocks 64     --config experiments/final/test_eval.yaml
 
 # get IRPO data
 
@@ -65,7 +65,7 @@ python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /
     
 # train IRPO model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/dependency/configs/IRPO_dependency_iter_2.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/dependency/configs/IRPO_dependency_iter_2.yaml
 
 
 # eval IRPO model on test set

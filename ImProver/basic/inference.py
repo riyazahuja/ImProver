@@ -231,8 +231,13 @@ def construct_prompt_core(
     if annotation:
         prompt += f"<ANNOTATION>\n{item['annotation']}\n</ANNOTATION>\n\n"
 
-    if informal:
-        prompt += f"<INFORMAL>\nTheorem: {item['informal_statement']}\n\nProof:\n{item['informal_proof']}\n</INFORMAL>\n\n"
+    if informal and item["informal_proof"].strip() != "":
+        if item["informal_proof"].strip() != "":
+            prompt += f"<INFORMAL>\nTheorem: {item['informal_statement']}\n\nProof:\n{item['informal_proof']}\n</INFORMAL>\n\n"
+        else:
+            prompt += (
+                f"<INFORMAL>\nTheorem: {item['informal_statement']}\n</INFORMAL>\n\n"
+            )
 
     if goal_state:
         prompt += f"<GOAL_STATE>\n{item['goal_state']}\n</GOAL_STATE>\n\n"

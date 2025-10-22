@@ -1,782 +1,757 @@
-[{"rag": [],
-  "prescopes":
-  "namespace Mathlib.Meta.Positivity\n\nopen Lean Mathlib.Meta Lean.Meta Qq Function\n\nvariable {α β : Type*} [OrderedCommSemiring α]",
-  "postscopes": "end Mathlib.Meta.Positivity",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "Mathlib.Meta.Positivity.evalAlgebraMap",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "def",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n",
-   "compilationAlias":
-   "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n"},
-  "goal": "⊢ _obj",
-  "content_sorry":
-  "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := by sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosStrictMono\nend StrictOrderedSemiring\n\nnamespace Mathlib.Meta.Positivity\nopen Lean Meta Qq Function\n\n/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := by exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosStrictMono\nend StrictOrderedSemiring\n\nnamespace Mathlib.Meta.Positivity\nopen Lean Meta Qq Function\n\n/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n",
-  "annotation":
-  "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "le_of_lt",
-    "module": "Mathlib.Order.Defs.PartialOrder",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma le_of_lt (hab : a < b) : a ≤ b := (lt_iff_le_not_le.1 hab).1",
-    "compilationAlias":
-    "lemma le_of_lt (hab : a < b) : a ≤ b := (lt_iff_le_not_le.1 hab).1"},
-   {"name": "inferInstance",
-    "module": "Init.Prelude",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
-    "compilationAlias":
-    "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"},
-   {"name": "Mathlib.Meta.Positivity.core",
-    "module": "Mathlib.Tactic.Positivity.Core",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Run each registered `positivity` extension on an expression, returning a `NormNum.Result`. -/\ndef core (e : Q($α)) : MetaM (Strictness zα pα e) := do\n  let mut result := .none\n  trace[Tactic.positivity] \"trying to prove positivity of {e}\"\n  for ext in ← (positivityExt.getState (← getEnv)).2.getMatch e do\n    try\n      result ← orElse result <| ext.eval zα pα e\n    catch err =>\n      trace[Tactic.positivity] \"{e} failed: {err.toMessageData}\"\n  result ← orElse result <| normNumPositivity zα pα e\n  result ← orElse result <| positivityCanon zα pα e\n  if let .positive _ := result then\n    trace[Tactic.positivity] \"{e} => {result.toString}\"\n    return result\n  for ldecl in ← getLCtx do\n    if !ldecl.isImplementationDetail then\n      result ← orElse result <| compareHyp zα pα e ldecl\n  trace[Tactic.positivity] \"{e} => {result.toString}\"\n  throwNone (pure result)",
-    "compilationAlias":
-    "/-- Run each registered `positivity` extension on an expression, returning a `NormNum.Result`. -/\ndef core (e : Q($α)) : MetaM (Strictness zα pα e) := do\n  let mut result := .none\n  trace[Tactic.positivity] \"trying to prove positivity of {e}\"\n  for ext in ← (positivityExt.getState (← getEnv)).2.getMatch e do\n    try\n      result ← orElse result <| ext.eval zα pα e\n    catch err =>\n      trace[Tactic.positivity] \"{e} failed: {err.toMessageData}\"\n  result ← orElse result <| normNumPositivity zα pα e\n  result ← orElse result <| positivityCanon zα pα e\n  if let .positive _ := result then\n    trace[Tactic.positivity] \"{e} => {result.toString}\"\n    return result\n  for ldecl in ← getLCtx do\n    if !ldecl.isImplementationDetail then\n      result ← orElse result <| compareHyp zα pα e ldecl\n  trace[Tactic.positivity] \"{e} => {result.toString}\"\n  throwNone (pure result)"},
-   {"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-   {"name": "algebraMap_nonneg",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"},
-   {"name": "algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-    "compilationAlias":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"},
-   {"name": "algebraMap_strictMono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"},
-   {"name": "GCongr.algebraMap_lt_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"},
-   {"name": "algebraMap_pos",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n"},
-   {"name": "algebraMap_lt_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-    "compilationAlias":
-    "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} {β : Type*} [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α} [SMulPosReflectLT α β]",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "algebraMap_lt_algebraMap",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-   "compilationAlias":
-   "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝⁴ : OrderedCommSemiring α\ninst✝³ : StrictOrderedSemiring β\ninst✝² : Algebra α β\ninst✝¹ : SMulPosStrictMono α β\na₁ a₂ : α\ninst✝ : SMulPosReflectLT α β\n⊢ Eq (LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LT.lt a₁ a₂)",
-  "content_sorry":
-  "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-  "annotation":
-  "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝⁴ : OrderedCommSemiring α\n    inst✝³ : StrictOrderedSemiring β\n    inst✝² : Algebra α β\n    inst✝¹ : SMulPosStrictMono α β\n    a₁ a₂ : α\n    inst✝ : SMulPosReflectLT α β\n    ⊢ Iff (LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LT.lt a₁ a₂)\n  -/\n  simp [Algebra.algebraMap_eq_smul_one]\n  /-\n    🎉 no goals\n  -/\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "Algebra.algebraMap_eq_smul_one",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
-    "compilationAlias":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"},
-   {"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-   {"name": "algebraMap_nonneg",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"},
-   {"name": "algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-    "compilationAlias":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"},
-   {"name": "algebraMap_strictMono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"},
-   {"name": "GCongr.algebraMap_lt_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"},
-   {"name": "algebraMap_pos",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "algebraMap_pos",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
-   "compilationAlias":
-   "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : StrictOrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosStrictMono α β\na : α\nha : LT.lt 0 a\n⊢ LT.lt 0 ((algebraMap α β) a)",
-  "content_sorry":
-  "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
-  "annotation":
-  "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝³ : OrderedCommSemiring α\n    inst✝² : StrictOrderedSemiring β\n    inst✝¹ : Algebra α β\n    inst✝ : SMulPosStrictMono α β\n    a : α\n    ha : LT.lt 0 a\n    ⊢ LT.lt 0 ((algebraMap α β) a)\n  -/\n  simpa using algebraMap_strictMono β ha\n  /-\n    🎉 no goals\n  -/\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-   {"name": "algebraMap_nonneg",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"},
-   {"name": "algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-    "compilationAlias":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"},
-   {"name": "algebraMap_strictMono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"},
-   {"name": "GCongr.algebraMap_lt_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "GCongr.algebraMap_lt_algebraMap",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
-   "compilationAlias":
-   "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : StrictOrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosStrictMono α β\na₁ a₂ : α\nha : LT.lt a₁ a₂\n⊢ LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)",
-  "content_sorry":
-  "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := by sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := by exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
-  "annotation":
-  "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-   {"name": "algebraMap_nonneg",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"},
-   {"name": "algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-    "compilationAlias":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"},
-   {"name": "algebraMap_strictMono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "algebraMap_strictMono",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
-   "compilationAlias":
-   "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : StrictOrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosStrictMono α β\n⊢ StrictMono ⇑(algebraMap α β)",
-  "content_sorry":
-  "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
-  "annotation":
-  "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    /-\n      α : Type u_1\n      β : Type u_2\n      inst✝³ : OrderedCommSemiring α\n      inst✝² : StrictOrderedSemiring β\n      inst✝¹ : Algebra α β\n      inst✝ : SMulPosStrictMono α β\n      a₁ a₂ : α\n      ha : LT.lt a₁ a₂\n      ⊢ LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)\n    -/\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n    /-\n      🎉 no goals\n    -/\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "zero_lt_one",
-    "module": "Mathlib.Algebra.Order.ZeroLEOne",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- See `zero_lt_one'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_one : (0 : α) < 1 := zero_le_one.lt_of_ne (NeZero.ne' 1)",
-    "compilationAlias":
-    "/-- See `zero_lt_one'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_one : (0 : α) < 1 := zero_le_one.lt_of_ne (NeZero.ne' 1)"},
-   {"name": "smul_lt_smul_of_pos_right",
-    "module": "Mathlib.Algebra.Order.Module.Defs",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[gcongr] lemma smul_lt_smul_of_pos_right [SMulPosStrictMono α β] (ha : a₁ < a₂) (hb : 0 < b) :\n    a₁ • b < a₂ • b := strictMono_smul_right_of_pos hb ha",
-    "compilationAlias":
-    "@[gcongr] lemma smul_lt_smul_of_pos_right [SMulPosStrictMono α β] (ha : a₁ < a₂) (hb : 0 < b) :\n    a₁ • b < a₂ • b := strictMono_smul_right_of_pos hb ha"},
-   {"name": "Algebra.algebraMap_eq_smul_one",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
-    "compilationAlias":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"},
-   {"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"},
-   {"name": "StrictMono",
-    "module": "Mathlib.Order.Monotone.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A function `f` is strictly monotone if `a < b` implies `f a < f b`. -/\ndef StrictMono (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a < b → f a < f b",
-    "compilationAlias":
-    "/-- A function `f` is strictly monotone if `a < b` implies `f a < f b`. -/\ndef StrictMono (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a < b → f a < f b"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-   {"name": "algebraMap_nonneg",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"},
-   {"name": "algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-    "compilationAlias":
-    "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α β : Type*} [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosMono α β]\n  [SMulPosReflectLE α β] {a₁ a₂ : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "algebraMap_le_algebraMap",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-   "compilationAlias":
-   "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝⁴ : OrderedCommSemiring α\ninst✝³ : StrictOrderedSemiring β\ninst✝² : Algebra α β\ninst✝¹ : SMulPosMono α β\ninst✝ : SMulPosReflectLE α β\na₁ a₂ : α\n⊢ Eq (LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LE.le a₁ a₂)",
-  "content_sorry":
-  "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
-  "annotation":
-  "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝⁴ : OrderedCommSemiring α\n    inst✝³ : StrictOrderedSemiring β\n    inst✝² : Algebra α β\n    inst✝¹ : SMulPosMono α β\n    inst✝ : SMulPosReflectLE α β\n    a₁ a₂ : α\n    ⊢ Iff (LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LE.le a₁ a₂)\n  -/\n  simp [Algebra.algebraMap_eq_smul_one]\n  /-\n    🎉 no goals\n  -/\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "Algebra.algebraMap_eq_smul_one",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
-    "compilationAlias":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"},
-   {"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-   {"name": "algebraMap_nonneg",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-    "compilationAlias":
-    "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "algebraMap_nonneg",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-   "compilationAlias":
-   "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : OrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosMono α β\na : α\nha : LE.le 0 a\n⊢ LE.le 0 ((algebraMap α β) a)",
-  "content_sorry":
-  "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
-  "annotation":
-  "                                                                  /-\n                                                                    α : Type u_1\n                                                                    β : Type u_2\n                                                                    inst✝³ : OrderedCommSemiring α\n                                                                    inst✝² : OrderedSemiring β\n                                                                    inst✝¹ : Algebra α β\n                                                                    inst✝ : SMulPosMono α β\n                                                                    a : α\n                                                                    ha : LE.le 0 a\n                                                                    ⊢ LE.le 0 ((algebraMap α β) a)\n                                                                  -/\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n                                                                  /-\n                                                                    🎉 no goals\n                                                                  -/\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-   {"name": "GCongr.algebraMap_le_algebraMap",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-    "compilationAlias":
-    "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "GCongr.algebraMap_le_algebraMap",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-   "compilationAlias":
-   "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : OrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosMono α β\na₁ a₂ : α\nha : LE.le a₁ a₂\n⊢ LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)",
-  "content_sorry":
-  "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := by sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := by exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-  "annotation":
-  "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"}],
-  "C0_dependencies":
-  [{"name": "algebraMap_mono",
-    "module": "Mathlib.Algebra.Order.Module.Algebra",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-    "compilationAlias":
-    "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"}]},
- {"rag": [],
-  "prescopes":
-  "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}",
-  "postscopes": "",
-  "informal_statement": "",
-  "informal_proof": "",
-  "id":
-  {"name": "algebraMap_mono",
-   "module": "Mathlib.Algebra.Order.Module.Algebra",
-   "kind": "theorem",
-   "isExtracted": false,
-   "errorMsgs": [],
-   "content":
-   "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-   "compilationAlias":
-   "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"},
-  "goal":
-  "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : OrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosMono α β\n⊢ Monotone ⇑(algebraMap α β)",
-  "content_sorry":
-  "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    sorry",
-  "content_full_by_exact":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    exact?",
-  "content_full":
-  "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
-  "annotation":
-  "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    /-\n      α : Type u_1\n      β : Type u_2\n      inst✝³ : OrderedCommSemiring α\n      inst✝² : OrderedSemiring β\n      inst✝¹ : Algebra α β\n      inst✝ : SMulPosMono α β\n      a₁ a₂ : α\n      ha : LE.le a₁ a₂\n      ⊢ LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)\n    -/\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n    /-\n      🎉 no goals\n    -/\n\n",
-  "C2_dependencies": [],
-  "C1_dependencies":
-  [{"name": "zero_le_one",
-    "module": "Mathlib.Algebra.Order.ZeroLEOne",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- `zero_le_one` with the type argument implicit. -/\n@[simp] lemma zero_le_one [Zero α] [One α] [LE α] [ZeroLEOneClass α] : (0 : α) ≤ 1 :=\n  ZeroLEOneClass.zero_le_one",
-    "compilationAlias":
-    "/-- `zero_le_one` with the type argument implicit. -/\n@[simp] lemma zero_le_one [Zero α] [One α] [LE α] [ZeroLEOneClass α] : (0 : α) ≤ 1 :=\n  ZeroLEOneClass.zero_le_one"},
-   {"name": "smul_le_smul_of_nonneg_right",
-    "module": "Mathlib.Algebra.Order.Module.Defs",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "@[gcongr] lemma smul_le_smul_of_nonneg_right [SMulPosMono α β] (ha : a₁ ≤ a₂) (hb : 0 ≤ b) :\n    a₁ • b ≤ a₂ • b := monotone_smul_right_of_nonneg hb ha",
-    "compilationAlias":
-    "@[gcongr] lemma smul_le_smul_of_nonneg_right [SMulPosMono α β] (ha : a₁ ≤ a₂) (hb : 0 ≤ b) :\n    a₁ • b ≤ a₂ • b := monotone_smul_right_of_nonneg hb ha"},
-   {"name": "Algebra.algebraMap_eq_smul_one",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "theorem",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
-    "compilationAlias":
-    "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"},
-   {"name": "algebraMap",
-    "module": "Mathlib.Algebra.Algebra.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
-    "compilationAlias":
-    "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"},
-   {"name": "Monotone",
-    "module": "Mathlib.Order.Monotone.Defs",
-    "kind": "def",
-    "isExtracted": false,
-    "errorMsgs": [],
-    "content":
-    "/-- A function `f` is monotone if `a ≤ b` implies `f a ≤ f b`. -/\ndef Monotone (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a ≤ b → f a ≤ f b",
-    "compilationAlias":
-    "/-- A function `f` is monotone if `a ≤ b` implies `f a ≤ f b`. -/\ndef Monotone (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a ≤ b → f a ≤ f b"}],
-  "C0_dependencies": []}]
+[
+  {
+    "rag": [],
+    "prescopes": "namespace Mathlib.Meta.Positivity\n\nopen Lean Mathlib.Meta Lean.Meta Qq Function\n\nvariable {α β : Type*} [OrderedCommSemiring α]",
+    "postscopes": "end Mathlib.Meta.Positivity",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "Mathlib.Meta.Positivity.evalAlgebraMap",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "def",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n",
+      "compilationAlias": "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n"
+    },
+    "goal": "⊢ _obj",
+    "content_sorry": "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosStrictMono\nend StrictOrderedSemiring\n\nnamespace Mathlib.Meta.Positivity\nopen Lean Meta Qq Function\n\n/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := by exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosStrictMono\nend StrictOrderedSemiring\n\nnamespace Mathlib.Meta.Positivity\nopen Lean Meta Qq Function\n\n/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n",
+    "annotation": "/-- Extension for `algebraMap`. -/\n@[positivity algebraMap _ _ _]\ndef evalAlgebraMap : PositivityExt where eval {u β} _zβ _pβ e := do\n  let ~q(@algebraMap $α _ $instα $instβ $instαβ $a) := e | throwError \"not `algebraMap`\"\n  let pα ← synthInstanceQ (q(PartialOrder $α) : Q(Type u_1))\n  match ← core q(inferInstance) pα a with\n  | .positive pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    try\n      let _instβring ← synthInstanceQ q(StrictOrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosStrictMono $α $β)\n      assertInstancesCommute\n      return .positive q(algebraMap_pos $β $pa)\n    catch _ =>\n      let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n      let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n      assertInstancesCommute\n      return .nonnegative q(algebraMap_nonneg $β <| le_of_lt $pa)\n  | .nonnegative pa =>\n    let _instαring ← synthInstanceQ q(OrderedCommSemiring $α)\n    let _instβring ← synthInstanceQ q(OrderedSemiring $β)\n    let _instαβsmul ← synthInstanceQ q(SMulPosMono $α $β)\n    assertInstancesCommute\n    return .nonnegative q(algebraMap_nonneg $β $pa)\n  | _ => pure .none\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "le_of_lt",
+        "module": "Mathlib.Order.Defs.PartialOrder",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma le_of_lt (hab : a < b) : a ≤ b := (lt_iff_le_not_le.1 hab).1",
+        "compilationAlias": "lemma le_of_lt (hab : a < b) : a ≤ b := (lt_iff_le_not_le.1 hab).1"
+      },
+      {
+        "name": "inferInstance",
+        "module": "Init.Prelude",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i",
+        "compilationAlias": "/--\n`inferInstance` synthesizes a value of any target type by typeclass\ninference. This function has the same type signature as the identity\nfunction, but the square brackets on the `[i : α]` argument means that it will\nattempt to construct this argument by typeclass inference. (This will fail if\n`α` is not a `class`.) Example:\n```\n#check (inferInstance : Inhabited Nat) -- Inhabited Nat\n\ndef foo : Inhabited (Nat × Nat) :=\n  inferInstance\n\nexample : foo.default = (default, default) :=\n  rfl\n```\n-/\nabbrev inferInstance {α : Sort u} [i : α] : α := i"
+      },
+      {
+        "name": "Mathlib.Meta.Positivity.core",
+        "module": "Mathlib.Tactic.Positivity.Core",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Run each registered `positivity` extension on an expression, returning a `NormNum.Result`. -/\ndef core (e : Q($α)) : MetaM (Strictness zα pα e) := do\n  let mut result := .none\n  trace[Tactic.positivity] \"trying to prove positivity of {e}\"\n  for ext in ← (positivityExt.getState (← getEnv)).2.getMatch e do\n    try\n      result ← orElse result <| ext.eval zα pα e\n    catch err =>\n      trace[Tactic.positivity] \"{e} failed: {err.toMessageData}\"\n  result ← orElse result <| normNumPositivity zα pα e\n  result ← orElse result <| positivityCanon zα pα e\n  if let .positive _ := result then\n    trace[Tactic.positivity] \"{e} => {result.toString}\"\n    return result\n  for ldecl in ← getLCtx do\n    if !ldecl.isImplementationDetail then\n      result ← orElse result <| compareHyp zα pα e ldecl\n  trace[Tactic.positivity] \"{e} => {result.toString}\"\n  throwNone (pure result)",
+        "compilationAlias": "/-- Run each registered `positivity` extension on an expression, returning a `NormNum.Result`. -/\ndef core (e : Q($α)) : MetaM (Strictness zα pα e) := do\n  let mut result := .none\n  trace[Tactic.positivity] \"trying to prove positivity of {e}\"\n  for ext in ← (positivityExt.getState (← getEnv)).2.getMatch e do\n    try\n      result ← orElse result <| ext.eval zα pα e\n    catch err =>\n      trace[Tactic.positivity] \"{e} failed: {err.toMessageData}\"\n  result ← orElse result <| normNumPositivity zα pα e\n  result ← orElse result <| positivityCanon zα pα e\n  if let .positive _ := result then\n    trace[Tactic.positivity] \"{e} => {result.toString}\"\n    return result\n  for ldecl in ← getLCtx do\n    if !ldecl.isImplementationDetail then\n      result ← orElse result <| compareHyp zα pα e ldecl\n  trace[Tactic.positivity] \"{e} => {result.toString}\"\n  throwNone (pure result)"
+      },
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_nonneg",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+      },
+      {
+        "name": "algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+        "compilationAlias": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+      },
+      {
+        "name": "algebraMap_strictMono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_lt_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_pos",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n"
+      },
+      {
+        "name": "algebraMap_lt_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+        "compilationAlias": "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} {β : Type*} [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α} [SMulPosReflectLT α β]",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "algebraMap_lt_algebraMap",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+      "compilationAlias": "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝⁴ : OrderedCommSemiring α\ninst✝³ : StrictOrderedSemiring β\ninst✝² : Algebra α β\ninst✝¹ : SMulPosStrictMono α β\na₁ a₂ : α\ninst✝ : SMulPosReflectLT α β\n⊢ Eq (LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LT.lt a₁ a₂)",
+    "content_sorry": "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\nvariable {β}\nvariable [SMulPosReflectLT α β]\n\n@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+    "annotation": "@[simp] lemma algebraMap_lt_algebraMap : algebraMap α β a₁ < algebraMap α β a₂ ↔ a₁ < a₂ := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝⁴ : OrderedCommSemiring α\n    inst✝³ : StrictOrderedSemiring β\n    inst✝² : Algebra α β\n    inst✝¹ : SMulPosStrictMono α β\n    a₁ a₂ : α\n    inst✝ : SMulPosReflectLT α β\n    ⊢ Iff (LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LT.lt a₁ a₂)\n  -/\n  simp [Algebra.algebraMap_eq_smul_one]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Algebra.algebraMap_eq_smul_one",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
+        "compilationAlias": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"
+      },
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_nonneg",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+      },
+      {
+        "name": "algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+        "compilationAlias": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+      },
+      {
+        "name": "algebraMap_strictMono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_lt_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_pos",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "algebraMap_pos",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
+      "compilationAlias": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : StrictOrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosStrictMono α β\na : α\nha : LT.lt 0 a\n⊢ LT.lt 0 ((algebraMap α β) a)",
+    "content_sorry": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\nlemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  simpa using algebraMap_strictMono β ha\n\n",
+    "annotation": "lemma algebraMap_pos (ha : 0 < a) : 0 < algebraMap α β a := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝³ : OrderedCommSemiring α\n    inst✝² : StrictOrderedSemiring β\n    inst✝¹ : Algebra α β\n    inst✝ : SMulPosStrictMono α β\n    a : α\n    ha : LT.lt 0 a\n    ⊢ LT.lt 0 ((algebraMap α β) a)\n  -/\n  simpa using algebraMap_strictMono β ha\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_nonneg",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+      },
+      {
+        "name": "algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+        "compilationAlias": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+      },
+      {
+        "name": "algebraMap_strictMono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_lt_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "GCongr.algebraMap_lt_algebraMap",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
+      "compilationAlias": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : StrictOrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosStrictMono α β\na₁ a₂ : α\nha : LT.lt a₁ a₂\n⊢ LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)",
+    "content_sorry": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := by exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
+    "annotation": "/-- A version of `algebraMap_strictMono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_lt_algebraMap {a₁ a₂ : α} (ha : a₁ < a₂) :\n    algebraMap α β a₁ < algebraMap α β a₂ := algebraMap_strictMono _ ha\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_nonneg",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+      },
+      {
+        "name": "algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+        "compilationAlias": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+      },
+      {
+        "name": "algebraMap_strictMono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosStrictMono α β]\n  {a a₁ a₂ : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "algebraMap_strictMono",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
+      "compilationAlias": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : StrictOrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosStrictMono α β\n⊢ StrictMono ⇑(algebraMap α β)",
+    "content_sorry": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\nend SMulPosMono\n\nsection SMulPosStrictMono\nvariable [SMulPosStrictMono α β] {a a₁ a₂ : α}\nvariable (β)\n\n@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n\n",
+    "annotation": "@[mono] lemma algebraMap_strictMono : StrictMono (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    /-\n      α : Type u_1\n      β : Type u_2\n      inst✝³ : OrderedCommSemiring α\n      inst✝² : StrictOrderedSemiring β\n      inst✝¹ : Algebra α β\n      inst✝ : SMulPosStrictMono α β\n      a₁ a₂ : α\n      ha : LT.lt a₁ a₂\n      ⊢ LT.lt ((algebraMap α β) a₁) ((algebraMap α β) a₂)\n    -/\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_lt_smul_of_pos_right ha zero_lt_one\n    /-\n      🎉 no goals\n    -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "zero_lt_one",
+        "module": "Mathlib.Algebra.Order.ZeroLEOne",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- See `zero_lt_one'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_one : (0 : α) < 1 := zero_le_one.lt_of_ne (NeZero.ne' 1)",
+        "compilationAlias": "/-- See `zero_lt_one'` for a version with the type explicit. -/\n@[simp] lemma zero_lt_one : (0 : α) < 1 := zero_le_one.lt_of_ne (NeZero.ne' 1)"
+      },
+      {
+        "name": "smul_lt_smul_of_pos_right",
+        "module": "Mathlib.Algebra.Order.Module.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[gcongr] lemma smul_lt_smul_of_pos_right [SMulPosStrictMono α β] (ha : a₁ < a₂) (hb : 0 < b) :\n    a₁ • b < a₂ • b := strictMono_smul_right_of_pos hb ha",
+        "compilationAlias": "@[gcongr] lemma smul_lt_smul_of_pos_right [SMulPosStrictMono α β] (ha : a₁ < a₂) (hb : 0 < b) :\n    a₁ • b < a₂ • b := strictMono_smul_right_of_pos hb ha"
+      },
+      {
+        "name": "Algebra.algebraMap_eq_smul_one",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
+        "compilationAlias": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"
+      },
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      },
+      {
+        "name": "StrictMono",
+        "module": "Mathlib.Order.Monotone.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A function `f` is strictly monotone if `a < b` implies `f a < f b`. -/\ndef StrictMono (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a < b → f a < f b",
+        "compilationAlias": "/-- A function `f` is strictly monotone if `a < b` implies `f a < f b`. -/\ndef StrictMono (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a < b → f a < f b"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_nonneg",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+      },
+      {
+        "name": "algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+        "compilationAlias": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α β : Type*} [OrderedCommSemiring α] [StrictOrderedSemiring β] [Algebra α β] [SMulPosMono α β]\n  [SMulPosReflectLE α β] {a₁ a₂ : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "algebraMap_le_algebraMap",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+      "compilationAlias": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝⁴ : OrderedCommSemiring α\ninst✝³ : StrictOrderedSemiring β\ninst✝² : Algebra α β\ninst✝¹ : SMulPosMono α β\ninst✝ : SMulPosReflectLE α β\na₁ a₂ : α\n⊢ Eq (LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LE.le a₁ a₂)",
+    "content_sorry": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\nend OrderedSemiring\n\nsection StrictOrderedSemiring\nvariable [StrictOrderedSemiring β] [Algebra α β]\n\nsection SMulPosMono\nvariable [SMulPosMono α β] [SMulPosReflectLE α β] {a₁ a₂ : α}\n\n@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  simp [Algebra.algebraMap_eq_smul_one]\n\n",
+    "annotation": "@[simp] lemma algebraMap_le_algebraMap : algebraMap α β a₁ ≤ algebraMap α β a₂ ↔ a₁ ≤ a₂ := by\n  /-\n    α : Type u_1\n    β : Type u_2\n    inst✝⁴ : OrderedCommSemiring α\n    inst✝³ : StrictOrderedSemiring β\n    inst✝² : Algebra α β\n    inst✝¹ : SMulPosMono α β\n    inst✝ : SMulPosReflectLE α β\n    a₁ a₂ : α\n    ⊢ Iff (LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)) (LE.le a₁ a₂)\n  -/\n  simp [Algebra.algebraMap_eq_smul_one]\n  /-\n    🎉 no goals\n  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "Algebra.algebraMap_eq_smul_one",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
+        "compilationAlias": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"
+      },
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      },
+      {
+        "name": "algebraMap_nonneg",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+        "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "algebraMap_nonneg",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+      "compilationAlias": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : OrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosMono α β\na : α\nha : LE.le 0 a\n⊢ LE.le 0 ((algebraMap α β) a)",
+    "content_sorry": "lemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n\n",
+    "annotation": "                                                                  /-\n                                                                    α : Type u_1\n                                                                    β : Type u_2\n                                                                    inst✝³ : OrderedCommSemiring α\n                                                                    inst✝² : OrderedSemiring β\n                                                                    inst✝¹ : Algebra α β\n                                                                    inst✝ : SMulPosMono α β\n                                                                    a : α\n                                                                    ha : LE.le 0 a\n                                                                    ⊢ LE.le 0 ((algebraMap α β) a)\n                                                                  -/\nlemma algebraMap_nonneg (ha : 0 ≤ a) : 0 ≤ algebraMap α β a := by simpa using algebraMap_mono β ha\n                                                                  /-\n                                                                    🎉 no goals\n                                                                  -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      },
+      {
+        "name": "GCongr.algebraMap_le_algebraMap",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+        "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "GCongr.algebraMap_le_algebraMap",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+      "compilationAlias": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : OrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosMono α β\na₁ a₂ : α\nha : LE.le a₁ a₂\n⊢ LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)",
+    "content_sorry": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := by sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := by exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+    "annotation": "/-- A version of `algebraMap_mono` for use by `gcongr` since it currently does not preprocess\n`Monotone` conclusions. -/\n@[gcongr] protected lemma GCongr.algebraMap_le_algebraMap {a₁ a₂ : α} (ha : a₁ ≤ a₂) :\n    algebraMap α β a₁ ≤ algebraMap α β a₂ := algebraMap_mono _ ha\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      }
+    ],
+    "C0_dependencies": [
+      {
+        "name": "algebraMap_mono",
+        "module": "Mathlib.Algebra.Order.Module.Algebra",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+        "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+      }
+    ]
+  },
+  {
+    "rag": [],
+    "prescopes": "variable {α : Type*} (β : Type*) [OrderedCommSemiring α] [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}",
+    "postscopes": "",
+    "informal_statement": "",
+    "informal_proof": "",
+    "id": {
+      "name": "algebraMap_mono",
+      "module": "Mathlib.Algebra.Order.Module.Algebra",
+      "kind": "theorem",
+      "isExtracted": false,
+      "errorMsgs": [],
+      "content": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+      "compilationAlias": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n"
+    },
+    "goal": "α : Type u_1\nβ : Type u_2\ninst✝³ : OrderedCommSemiring α\ninst✝² : OrderedSemiring β\ninst✝¹ : Algebra α β\ninst✝ : SMulPosMono α β\n⊢ Monotone ⇑(algebraMap α β)",
+    "content_sorry": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    sorry",
+    "content_full_by_exact": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    exact?",
+    "content_full": "/-\nCopyright (c) 2023 Yaël Dillies. All rights reserved.\nReleased under Apache 2.0 license as described in the file LICENSE.\nAuthors: Yaël Dillies\n-/\nimport Mathlib.Algebra.Algebra.Defs\nimport Mathlib.Algebra.Order.Module.Defs\n\n/-!\n# Ordered algebras\n\nThis file proves properties of algebras where both rings are ordered compatibly.\n\n## TODO\n\n`positivity` extension for `algebraMap`\n-/\n\nvariable {α β : Type*} [OrderedCommSemiring α]\n\nsection OrderedSemiring\nvariable (β)\nvariable [OrderedSemiring β] [Algebra α β] [SMulPosMono α β] {a : α}\n\n@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n\n",
+    "annotation": "@[mono] lemma algebraMap_mono : Monotone (algebraMap α β) :=\n  fun a₁ a₂ ha ↦ by\n    /-\n      α : Type u_1\n      β : Type u_2\n      inst✝³ : OrderedCommSemiring α\n      inst✝² : OrderedSemiring β\n      inst✝¹ : Algebra α β\n      inst✝ : SMulPosMono α β\n      a₁ a₂ : α\n      ha : LE.le a₁ a₂\n      ⊢ LE.le ((algebraMap α β) a₁) ((algebraMap α β) a₂)\n    -/\n    simpa only [Algebra.algebraMap_eq_smul_one] using smul_le_smul_of_nonneg_right ha zero_le_one\n    /-\n      🎉 no goals\n    -/\n\n",
+    "C2_dependencies": [],
+    "C1_dependencies": [
+      {
+        "name": "zero_le_one",
+        "module": "Mathlib.Algebra.Order.ZeroLEOne",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- `zero_le_one` with the type argument implicit. -/\n@[simp] lemma zero_le_one [Zero α] [One α] [LE α] [ZeroLEOneClass α] : (0 : α) ≤ 1 :=\n  ZeroLEOneClass.zero_le_one",
+        "compilationAlias": "/-- `zero_le_one` with the type argument implicit. -/\n@[simp] lemma zero_le_one [Zero α] [One α] [LE α] [ZeroLEOneClass α] : (0 : α) ≤ 1 :=\n  ZeroLEOneClass.zero_le_one"
+      },
+      {
+        "name": "smul_le_smul_of_nonneg_right",
+        "module": "Mathlib.Algebra.Order.Module.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "@[gcongr] lemma smul_le_smul_of_nonneg_right [SMulPosMono α β] (ha : a₁ ≤ a₂) (hb : 0 ≤ b) :\n    a₁ • b ≤ a₂ • b := monotone_smul_right_of_nonneg hb ha",
+        "compilationAlias": "@[gcongr] lemma smul_le_smul_of_nonneg_right [SMulPosMono α β] (ha : a₁ ≤ a₂) (hb : 0 ≤ b) :\n    a₁ • b ≤ a₂ • b := monotone_smul_right_of_nonneg hb ha"
+      },
+      {
+        "name": "Algebra.algebraMap_eq_smul_one",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "theorem",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm",
+        "compilationAlias": "theorem algebraMap_eq_smul_one (r : R) : algebraMap R A r = r • (1 : A) :=\n  calc\n    algebraMap R A r = algebraMap R A r * 1 := (mul_one _).symm\n    _ = r • (1 : A) := (Algebra.smul_def r 1).symm"
+      },
+      {
+        "name": "algebraMap",
+        "module": "Mathlib.Algebra.Algebra.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap",
+        "compilationAlias": "/-- Embedding `R →+* A` given by `Algebra` structure. -/\ndef algebraMap (R : Type u) (A : Type v) [CommSemiring R] [Semiring A] [Algebra R A] : R →+* A :=\n  Algebra.algebraMap"
+      },
+      {
+        "name": "Monotone",
+        "module": "Mathlib.Order.Monotone.Defs",
+        "kind": "def",
+        "isExtracted": false,
+        "errorMsgs": [],
+        "content": "/-- A function `f` is monotone if `a ≤ b` implies `f a ≤ f b`. -/\ndef Monotone (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a ≤ b → f a ≤ f b",
+        "compilationAlias": "/-- A function `f` is monotone if `a ≤ b` implies `f a ≤ f b`. -/\ndef Monotone (f : α → β) : Prop :=\n  ∀ ⦃a b⦄, a ≤ b → f a ≤ f b"
+      }
+    ],
+    "C0_dependencies": []
+  }
+]

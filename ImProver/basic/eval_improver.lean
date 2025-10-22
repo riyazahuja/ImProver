@@ -27,6 +27,7 @@ structure Instance where
   -- recgen : Option (List TheoremData) := none
   og_annotated : String
   new_annotated : String
+  recgen : Option (List TheoremData) := none
 deriving Inhabited, ToJson
 
 
@@ -112,6 +113,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
     -- let old_score := if old_correct then some (tacs.length.toFloat) else none
     let old_score ← if old_correct then do pure <| some (← route_metric metric original) else pure none
     let og_annotated ← insert_state_comments original
+
     -- let contentsBefore : Substring := match original.src with
     --   | ⟨s, b, _⟩ => ⟨s, 0, b⟩
     -- let trimmed_output := model_output.trim.replace "<IMPROVED>" "" |>.replace "</IMPROVED>" "" |>.trim
@@ -224,6 +226,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         head.src.toString
       else
         trimmed_output
+
 
       let final_annotated ← if correct then
         insert_state_comments head

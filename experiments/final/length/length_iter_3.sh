@@ -4,11 +4,11 @@
 #SBATCH --error=logs/final/length/length_iter_3.err
 #SBATCH --cpus-per-task=64
 #SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:L40S:8
+#SBATCH --gres=gpu:8
 #SBATCH --mem=250G
 #SBATCH --exclude=babel-15-36,babel-1-23
 
-source $HOME/miniconda3/bin/activate env
+source $HOME/miniconda/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -25,14 +25,14 @@ export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
 
-cd /home/$USER/eval_improver/improver
+cd /home/riyaza/eval_improver/improver
 lake build eval_improver
 sleep 5
 
 
 # eval prev iter model on train set
 
-./improver run pipeline --run_id IRPO_length_iter_2_train     --annotation --context 10  --informal --examples 4     --metric length --prompt_id /home/$USER/eval_improver/improver/prompts/final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_length_iter_2     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
+./improver run pipeline --run_id IRPO_length_iter_2_train     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_length_iter_2     --num_blocks 512     --config experiments/final/test_eval.yaml
 
 
 # first get wSFT data
@@ -42,19 +42,19 @@ sleep 5
     
 # convert wSFT data
 
-python /home/$USER/eval_improver/improver/experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/improver/experiments/final/length/data/wSFT_length_iter_3.jsonl /home/riyaza/eval_improver/improver/experiments/final/length/data/wSFT_length_iter_3
+python experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/improver/experiments/final/length/data/wSFT_length_iter_3.jsonl /home/riyaza/eval_improver/improver/experiments/final/length/data/wSFT_length_iter_3
 
 # train wSFT model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/length/configs/wSFT_length_iter_3.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/length/configs/wSFT_length_iter_3.yaml
 
 # merge wSFT LoRA with base to get final wSFT model
 
-python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /data/user_data/riyaza/saved_models/IRPO_length_iter_2     --adapter /data/user_data/riyaza/saved_models/wSFT_length_iter_3_lora     --output /data/user_data/riyaza/saved_models/wSFT_length_iter_3
+python experiments/final/merge.py     --ref /data/user_data/riyaza/saved_models/IRPO_length_iter_2     --adapter /data/user_data/riyaza/saved_models/wSFT_length_iter_3_lora     --output /data/user_data/riyaza/saved_models/wSFT_length_iter_3
 
 # eval wSFT model on test set
 
-./improver run pipeline --run_id wSFT_length_iter_3_test     --annotation --context 10  --informal --examples 4     --metric length --prompt_id /home/$USER/eval_improver/improver/prompts/final_test     --split test --model /data/user_data/riyaza/saved_models/wSFT_length_iter_3     --num_blocks 64     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
+./improver run pipeline --run_id wSFT_length_iter_3_test     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_test     --split test --model /data/user_data/riyaza/saved_models/wSFT_length_iter_3     --num_blocks 64     --config experiments/final/test_eval.yaml
 
 # get IRPO data
 
@@ -65,10 +65,10 @@ python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /
     
 # train IRPO model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/length/configs/IRPO_length_iter_3.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/length/configs/IRPO_length_iter_3.yaml
 
 
 # eval IRPO model on test set
 
-./improver run pipeline --run_id IRPO_length_iter_3_test     --annotation --context 10  --informal --examples 4     --metric length --prompt_id /home/$USER/eval_improver/improver/prompts/final_test     --split test --model /data/user_data/riyaza/saved_models/IRPO_length_iter_3     --num_blocks 64     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
+./improver run pipeline --run_id IRPO_length_iter_3_test     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_test     --split test --model /data/user_data/riyaza/saved_models/IRPO_length_iter_3     --num_blocks 64     --config experiments/final/test_eval.yaml
 

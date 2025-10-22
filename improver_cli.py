@@ -423,6 +423,8 @@ def run_llm_metric(**kwargs):
     llm_metric_main(args)
 
 
+
+
 @run.command("synthetic_thinking")
 @click.option("--run_id", required=False, help="Run ID for synthetic thinking.")
 @click.option("--model", required=False, help="Model for synthetic thinking.")
@@ -460,12 +462,10 @@ def run_synthetic_thinking(**kwargs):
 @click.option("--dataset_path", required=False, help="Path to the dataset.")
 @click.option("--prompt_id", required=False, help="Prompt ID.")
 @click.option("--model", default="deepseek-ai/DeepSeek-Prover-V2-7B")
-@click.option("--judge_model", default="deepseek-ai/DeepSeek-Prover-V2-7B")
 @click.option("--split", default="train")
 @click.option("--cpus", default=multiprocessing.cpu_count())
 @click.option("--gpus", default=None)
 @click.option("--n", default=1)
-@click.option("--judge_n", default=1)
 @click.option("--annotation", is_flag=True, default=False)
 @click.option("--informal", is_flag=True, default=False)
 @click.option("--context", default=0)
@@ -572,6 +572,9 @@ def run_pipeline(**kwargs):
     help="Reject all valid samples if this is true (default: False)",
 )
 @click.option(
+    "--min_gap", type=float, default=0.0, help="Minimum gap value (default: 0.0)"
+)
+@click.option(
     "--epsilon", default=0.0, help="Epsilon value for weighted SFT (default: 0.0)"
 )
 @click.option(
@@ -580,7 +583,7 @@ def run_pipeline(**kwargs):
     help="Variance threshold for weighted SFT (default: 1.0)",
 )
 @click.option("--config", type=click.Path(exists=True), default=None)
-def run_pipeline(**kwargs):
+def run_training_data(**kwargs):
     from ImProver.basic.training_data import main as training_data_main
 
     config = kwargs.pop("config")

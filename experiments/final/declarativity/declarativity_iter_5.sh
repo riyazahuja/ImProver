@@ -8,7 +8,7 @@
 #SBATCH --mem=250G
 #SBATCH --exclude=babel-15-36,babel-1-23
 
-source $HOME/miniconda3/bin/activate env
+source $HOME/miniconda/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -25,7 +25,7 @@ export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
 
-cd /home/$USER/eval_improver/improver
+cd /home/shivansg/ImProver
 lake build eval_improver
 sleep 5
 
@@ -42,11 +42,11 @@ sleep 5
     
 # convert wSFT data
 
-python /home/$USER/eval_improver/improver/experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/wSFT_declarativity_iter_5.jsonl /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/wSFT_declarativity_iter_5
+python experiments/final/preprocess_weights.py     /home/shivansg/ImProver/experiments/final/declarativity/data/wSFT_declarativity_iter_5.jsonl /home/shivansg/ImProver/experiments/final/declarativity/data/wSFT_declarativity_iter_5
 
 # train wSFT model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/declarativity/configs/wSFT_declarativity_iter_5.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/declarativity/configs/wSFT_declarativity_iter_5.yaml
 
 # merge wSFT LoRA with base to get final wSFT model
 
@@ -65,7 +65,7 @@ python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /
     
 # train IRPO model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/declarativity/configs/IRPO_declarativity_iter_5.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/declarativity/configs/IRPO_declarativity_iter_5.yaml
 
 
 # eval IRPO model on test set

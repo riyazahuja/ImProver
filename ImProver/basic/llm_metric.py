@@ -244,7 +244,6 @@ def run_inference(df, args, metric_config, use_heuristics=True):
 
     return run_output_dir
 
-
 def strip_lean_comments(src: str) -> str:
     """
     Remove *all* Lean-4 comments **and** leading attribute tags.
@@ -645,7 +644,6 @@ def get_readability_scores(readability_connection, args, metric_config):
         print("No readability database connection")
         return None
 
-
 def parse_readabilityDB(args, metric_config):
     readabilityDB_path = os.path.join("evals", args.run_id, "readability.duckdb")
     if readabilityDB_path:
@@ -655,7 +653,6 @@ def parse_readabilityDB(args, metric_config):
         except Exception as e:
             print(f"Error connecting to existing database: {e}")
             readability_connection = None
-
     # # Query the database to get scores for original/new proof pairs
     # readability_scores_data = get_readability_scores(readability_connection,args)
     # if readability_scores_data is not None:
@@ -667,7 +664,6 @@ def parse_readabilityDB(args, metric_config):
     #     try:
     #         prompt_connection = duckdb.connect(prompt_db_path)
     #         print(f"Connected to prompt database at {prompt_db_path}")
-
     #         # Create the table if it doesn't exist
     #         prompt_connection.execute("""
     #             CREATE TABLE IF NOT EXISTS readability_scores (
@@ -705,7 +701,6 @@ def parse_readabilityDB(args, metric_config):
         try:
             eval_connection = duckdb.connect(eval_db_path)
             # prompt_connection = duckdb.connect(prompt_db_path)
-
             print(f"Connected to evaluation database at {eval_db_path}")
             # print(f"Connected to prompt database at {prompt_db_path}")
             # First duplicate the evaluation_results to make a evaluation_results_legacy table

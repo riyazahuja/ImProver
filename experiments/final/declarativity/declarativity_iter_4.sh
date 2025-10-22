@@ -8,7 +8,7 @@
 #SBATCH --mem=250G
 #SBATCH --exclude=babel-15-36,babel-1-23
 
-source $HOME/miniconda3/bin/activate env
+source $HOME/miniconda/bin/activate env
 export HF_HOME="/data/user_data/$USER/HF"
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -25,7 +25,7 @@ export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
 
-cd /home/$USER/eval_improver/improver
+cd /home/shivansg/ImProver
 lake build eval_improver
 sleep 5
 
@@ -35,28 +35,28 @@ sleep 5
 ./improver run pipeline --run_id IRPO_declarativity_iter_3_train     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id /home/$USER/eval_improver/improver/prompts/final_train     --split train --model /data/user_data/riyaza/saved_models/IRPO_declarativity_iter_3     --num_blocks 512     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
 
-# first get wSFT data
+# # first get wSFT data
 
 ./improver run training_data --run_id IRPO_declarativity_iter_3_train --tau 0.5 --output_path /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/wSFT_declarativity_iter_4.jsonl     --type weighted_sft --epsilon 0.1 --variance_threshold 0.8 --filter_threshold 1.1     --replay_buffer_split 0.4 --replay_type replace --prev_run_id base_declarativity_train,IRPO_declarativity_iter_1_train,IRPO_declarativity_iter_2_train
 
     
-# convert wSFT data
+# # convert wSFT data
 
-python /home/$USER/eval_improver/improver/experiments/final/preprocess_weights.py     /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/wSFT_declarativity_iter_4.jsonl /home/riyaza/eval_improver/improver/experiments/final/declarativity/data/wSFT_declarativity_iter_4
+# python experiments/final/preprocess_weights.py     /home/shivansg/ImProver/experiments/final/declarativity/data/wSFT_declarativity_iter_4.jsonl /home/shivansg/ImProver/experiments/final/declarativity/data/wSFT_declarativity_iter_4
 
-# train wSFT model
+# # train wSFT model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/declarativity/configs/wSFT_declarativity_iter_4.yaml
+# accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/declarativity/configs/wSFT_declarativity_iter_4.yaml
 
-# merge wSFT LoRA with base to get final wSFT model
+# # merge wSFT LoRA with base to get final wSFT model
 
 python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /data/user_data/riyaza/saved_models/IRPO_declarativity_iter_3     --adapter /data/user_data/riyaza/saved_models/wSFT_declarativity_iter_4_lora     --output /data/user_data/riyaza/saved_models/wSFT_declarativity_iter_4
 
-# eval wSFT model on test set
+# # eval wSFT model on test set
 
 ./improver run pipeline --run_id wSFT_declarativity_iter_4_test     --annotation --context 10  --informal --examples 4     --metric declarativity --prompt_id /home/$USER/eval_improver/improver/prompts/final_test     --split test --model /data/user_data/riyaza/saved_models/wSFT_declarativity_iter_4     --num_blocks 64     --config /home/$USER/eval_improver/improver/experiments/final/test_eval.yaml
 
-# get IRPO data
+# # get IRPO data
 
 
 
@@ -65,7 +65,7 @@ python /home/$USER/eval_improver/improver/experiments/final/merge.py     --ref /
     
 # train IRPO model
 
-accelerate launch -m  axolotl.cli.train /home/riyaza/eval_improver/improver/experiments/final/declarativity/configs/IRPO_declarativity_iter_4.yaml
+accelerate launch -m  axolotl.cli.train /home/shivansg/ImProver/experiments/final/declarativity/configs/IRPO_declarativity_iter_4.yaml
 
 
 # eval IRPO model on test set
