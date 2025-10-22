@@ -59,8 +59,7 @@ sleep 5
 
 
 
-./improver run training_data --run_id IRPO_length_iter_1_train --output_path /home/riyaz/ImProver/experiments/final/length/data/IRPO_length_iter_2.jsonl     --type dpo --num_invalid 2 --max_champions 4 --filter_threshold 0.8 --min_gap 3   
---replay_buffer_split 0.2 --replay_type replace --prev_run_id base_length_train
+./improver run training_data --run_id IRPO_length_iter_1_train --output_path /home/riyaz/ImProver/experiments/final/length/data/IRPO_length_iter_2.jsonl     --type dpo --num_invalid 2 --max_champions 4 --filter_threshold 0.8 --min_gap 3   --replay_buffer_split 0.2 --replay_type replace --prev_run_id base_length_train
 
     
 # train IRPO model

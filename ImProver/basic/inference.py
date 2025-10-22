@@ -274,7 +274,7 @@ def construct_prompts(config_data, data, args):
         if args.context != 0:
             prompt += config_data["prompts"]["context_prompt"] + "\n"
 
-        if args.file_context != 0:
+        if args.file_context != 0:  # fix todo
             prompt += config_data["prompts"]["file_context_prompt"] + "\n"
 
         if args.rag != 0:
