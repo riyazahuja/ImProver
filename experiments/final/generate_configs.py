@@ -102,7 +102,7 @@ sequence_len: 8192
 flash_attn_2: true
 gradient_checkpointing: true
 
-micro_batch_size: 1
+micro_batch_size: 2
 gradient_accumulation_steps: 4
 num_epochs: 3
 learning_rate: 5e-6
@@ -259,7 +259,7 @@ accelerate launch -m  axolotl.cli.train {IRPO_config}
 
 
 # params = ["length", "declarativity", "dependency"]
-params = ["length"]
+params = ["readability2"]
 max_iterations = 5
 base_path = os.path.join(improver_base_path, "experiments", "final")
 

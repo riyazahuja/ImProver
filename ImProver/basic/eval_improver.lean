@@ -24,6 +24,9 @@ structure Instance where
   new_trimmed : String
   original_prompt : String
   decl_idx : String
+  -- recgen : Option (List TheoremData) := none
+  og_annotated : String
+  new_annotated : String
   recgen : Option (List TheoremData) := none
 deriving Inhabited, ToJson
 
@@ -109,7 +112,7 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
     let old_correct := oldMsgs.isEmpty && original.trees.length > 0 && original.src.toString.trim != ""
     -- let old_score := if old_correct then some (tacs.length.toFloat) else none
     let old_score ← if old_correct then do pure <| some (← route_metric metric original) else pure none
-
+    let og_annotated ← insert_state_comments original
 
     -- let contentsBefore : Substring := match original.src with
     --   | ⟨s, b, _⟩ => ⟨s, 0, b⟩
@@ -135,7 +138,9 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         new_raw := model_output,
         new_trimmed := trimmed_output,
         original_prompt := prompt,
-        decl_idx := decl_idx
+        decl_idx := decl_idx,
+        og_annotated := og_annotated,
+        new_annotated := ""
       }
 
       instances := out :: instances
@@ -222,6 +227,12 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
       else
         trimmed_output
 
+
+      let final_annotated ← if correct then
+        insert_state_comments head
+      else
+        pure ""
+
       let out := {
         module := mod,
         decl := ci.name.toString,
@@ -237,7 +248,9 @@ def getInstances (preinstances : Array (CompilationStep × ConstantInfo × Strin
         -- new_trimmed := trimmed_output,
         new_trimmed := final_trimmed,
         original_prompt := prompt,
-        decl_idx := decl_idx
+        decl_idx := decl_idx,
+        og_annotated := og_annotated,
+        new_annotated := final_annotated
       }
 
       instances := out :: instances

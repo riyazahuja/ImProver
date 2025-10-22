@@ -390,11 +390,25 @@ def run_analysis(**kwargs):
 
 @run.command("llm_metric")
 @click.option("--run_id", required=False, help="Run ID for LLM metric.")
-@click.option("--model", default=None)
-@click.option("--split", default="train")
+@click.option("--judge_model", default=None)
+# @click.option("--split", default="train")
 @click.option("--cpus", default=multiprocessing.cpu_count())
 @click.option("--gpus", default=None)
-@click.option("--n", default=3)
+@click.option("--judge_n", default=1)
+@click.option("--nccl_p2p", is_flag=True, default=False)
+@click.option("--ray_timeout", default=1800)
+@click.option("--num_blocks", default=16)
+@click.option("--engine_cpu_resources", default=None)
+@click.option("--engine_gpu_resources", default=1)
+@click.option("--concurrency", default=None)
+@click.option("--tensor_parallel_size", default=1)
+@click.option("--enable_chunked_prefill", is_flag=True, default=True)
+@click.option("--max_model_len", default=16384)
+@click.option("--max_num_batched_tokens", default=65536)
+@click.option("--max_concurrent_batches", default=32)
+@click.option("--batch_size", default=32)
+@click.option("--truncate_prompt_tokens", default=14336)
+@click.option("--max_tokens", default=2048)
 @click.option("--config", type=click.Path(exists=True), default=None)
 def run_llm_metric(**kwargs):
     from ImProver.basic.llm_metric import main as llm_metric_main
@@ -407,6 +421,8 @@ def run_llm_metric(**kwargs):
 
     args = argparse.Namespace(**params)
     llm_metric_main(args)
+
+
 
 
 @run.command("synthetic_thinking")

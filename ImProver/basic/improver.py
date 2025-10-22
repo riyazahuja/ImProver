@@ -31,6 +31,12 @@ def get_parser():
         help="Model to use",
     )
     parser.add_argument(
+        "--judge_model",
+        type=str,
+        default="deepseek-ai/DeepSeek-Prover-V2-7B",
+        help="Model to use",
+    )
+    parser.add_argument(
         "--split", type=str, default="train", help="Dataset split to use"
     )
     # parser.add_argument("--prompts_dir", type=str, default=".prompts/", help="Directory of prompt data")
@@ -54,6 +60,7 @@ def get_parser():
 
     # Generation settings
     parser.add_argument("--n", type=int, default=1, help="Best-of-n value")
+    parser.add_argument("--judge_n", type=int, default=1, help="Best-of-n value")
     parser.add_argument(
         "--annotation",
         action=argparse.BooleanOptionalAction,
@@ -293,12 +300,26 @@ def main(args):
             prompts_id=args.prompt_id,
             # inference=True,
             # output_dir=args.output_dir,
-            model=args.model,
-            split=args.split,
+            judge_model=args.judge_model,
+            # split=args.split,
             # prompts_dir=args.prompts_dir,
             cpus=args.cpus,
             gpus=args.gpus,
-            n=3,  # Default for llm is 3
+            judge_n=args.judge_n,
+            nccl_p2p=args.nccl_p2p,
+            ray_timeout=args.ray_timeout,
+            num_blocks=args.num_blocks,
+            engine_cpu_resources=args.engine_cpu_resources,
+            engine_gpu_resources=args.engine_gpu_resources,
+            concurrency=args.concurrency,
+            tensor_parallel_size=args.tensor_parallel_size,
+            enable_chunked_prefill=args.enable_chunked_prefill,
+            max_model_len=args.max_model_len,
+            max_num_batched_tokens=args.max_num_batched_tokens,
+            max_concurrent_batches=args.max_concurrent_batches,
+            batch_size=args.batch_size,
+            truncate_prompt_tokens=args.truncate_prompt_tokens,
+            max_tokens=args.max_tokens,
         )
         llm_main(llm_args)
 

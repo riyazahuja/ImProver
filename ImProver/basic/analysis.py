@@ -1061,7 +1061,9 @@ def run_best_of_n_analysis(run_id, db_con, config, metric_objective):
                             analysis_base_path, "delta_distribution_correct.png"
                         )
                         plt.savefig(delta_dist_path)
-                        print(f"Correctness trimmed delta distribution plot saved to {delta_dist_path}")
+                        print(
+                            f"Correctness trimmed delta distribution plot saved to {delta_dist_path}"
+                        )
                         plt.close()
                     else:
                         print("No valid theorem histograms for delta distribution.")
