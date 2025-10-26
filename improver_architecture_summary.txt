@@ -1,0 +1,356 @@
+================================================================================
+                    IMPROVER SYSTEM ARCHITECTURE SUMMARY
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          COMPONENT RELATIONSHIPS                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+PHASE 1: DATA PREPARATION & EXTRACTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Lean Repositories          Datasets (JSON)          MetaProgramming
+  ├─ Mathlib                ├─ train                 │
+  ├─ FLT                    ├─ test                  └─ TrainingData/
+  ├─ Foundation             └─ validation               ├─ Frontend.lean (compilation)
+  ├─ PFR                                              ├─ ExtractGoal.lean (state)
+  ├─ HepLean                                          ├─ TreeParser.lean (structure)
+  └─ Compfiles                                        └─ Utils/ (helpers)
+                                   ↓
+                         ┌─────────────────┐
+                         │ Lake Build System│  (lakefile.lean)
+                         └────────┬────────┘
+                                  ↓
+                      PROMPT GENERATION
+                      ┌─────────────────┐
+                      │ get_prompts.py  │  (async orchestration)
+                      │ get_prompts.lean│  (Lean extraction)
+                      └────────┬────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │ Prompts with Metadata│
+                    │ (prompts/{id}/src/)  │
+                    └──────────┬───────────┘
+                               ↓
+                      RAG BUILDING (Optional)
+                      ┌──────────────────┐
+                      │ preprocess_rag.py │  (declaration extraction)
+                      │ informalize.py    │  (LLM formalization)
+                      │ build_db.py       │  (vector embeddings)
+                      └──────────┬────────┘
+                                 ↓
+                    ┌─────────────────────┐
+                    │ RAG Cache (Chroma)  │
+                    │ (rag/{id}/)         │
+                    └─────────────────────┘
+
+
+PHASE 2: PROOF GENERATION
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Prompts (JSON)     RAG Cache         Config
+        │                │               │
+        └────────────────┼───────────────┘
+                         ↓
+            ┌──────────────────────────┐
+            │  inference.py            │
+            │  (inference orchestration)│
+            └──────────────┬───────────┘
+                           ↓
+            ┌─────────────────────────────┐
+            │ Ray/vLLM Distributed Engine │
+            │ • Tensor parallelism        │
+            │ • Dynamic batching          │
+            │ • Context window mgmt       │
+            └──────────────┬──────────────┘
+                           ↓
+            ┌─────────────────────────────┐
+            │ Generated Proofs (Parquet)  │
+            │ (evals/{run_id}/data/)      │
+            └─────────────────────────────┘
+
+
+PHASE 3: EVALUATION & ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Generated Proofs       Config        Metric Definitions
+        │                  │               │
+        └──────────────────┼───────────────┘
+                           ↓
+            ┌──────────────────────────┐
+            │ eval_improver.py         │  (async evaluation)
+            │ eval_improver.lean       │  (Lean executable)
+            └──────────────┬───────────┘
+                           ↓
+            ┌──────────────────────────────────┐
+            │ Lean Evaluation Process:         │
+            │ • Compilation check              │
+            │ • Error detection                │
+            │ • Metric scoring (via router)    │
+            │ • Delta calculation (improvement)│
+            └──────────────┬───────────────────┘
+                           ↓
+            ┌─────────────────────────────────┐
+            │ Evaluation Results (JSON)       │
+            │ (evals/{run_id}/evals/)         │
+            └──────────────┬──────────────────┘
+                           ↓
+            ┌─────────────────────────────────┐
+            │ analysis.py (aggregation)       │
+            │ • Accuracy metrics              │
+            │ • Improvement statistics        │
+            │ • Best-of-N selection           │
+            └──────────────┬──────────────────┘
+                           ↓
+            ┌─────────────────────────────────┐
+            │ Analysis Results                │
+            │ (evals/{run_id}/analysis/)      │
+            └─────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            CORE MODULES                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ImProver/
+├── ImProver/
+│   ├── basic/                    Inference & Evaluation
+│   │   ├── improver.py          Main entry point
+│   │   ├── inference.py         Ray/vLLM orchestration
+│   │   ├── inference_server.py  HTTP inference server
+│   │   ├── eval_improver.py     Evaluation orchestration
+│   │   ├── eval_improver.lean   Lean evaluation code
+│   │   ├── analysis.py          Metrics aggregation
+│   │   ├── readability.py       LLM-based readability scoring
+│   │   ├── training_data.py     Training data preparation
+│   │   ├── llm_metric.py        Generic LLM metrics
+│   │   └── synth_thinking.py    Synthetic thinking (CoT)
+│   │
+│   ├── build/                   RAG Construction
+│   │   ├── preprocess_rag.lean  Declaration extraction
+│   │   ├── preprocess_rag.py    Python wrapper
+│   │   ├── informalize.py       LLM formalization
+│   │   ├── informalize.lean     Lean formalization utils
+│   │   ├── build_db.py          Vector DB construction
+│   │   └── rag.py              RAG orchestration
+│   │
+│   ├── get_prompts/             Prompt Generation
+│   │   ├── get_prompts.lean    Theorem extraction
+│   │   ├── get_prompts.py      Orchestration
+│   │   ├── rag.py              Retrieval integration
+│   │   ├── utils.lean          Utilities
+│   │   ├── index.lean          Indexing
+│   │   └── where_with_end.lean Formatting
+│   │
+│   └── metrics/                 Metric Definitions
+│       ├── add.py              Metric creation CLI
+│       ├── reload.py           Metric reloading
+│       └── get_examples.lean   Example extraction
+│
+├── TrainingData/               Lean MetaProgramming
+│   ├── Frontend.lean           Source compilation
+│   ├── ExtractGoal.lean        Goal state extraction
+│   ├── TreeParser.lean         Proof structure parsing
+│   ├── InfoTree/               AST utilities
+│   └── Utils/                  Helper modules
+│
+├── metrics/                    Metric Implementations
+│   ├── length/                 Proof length minimization
+│   ├── readability/            Proof readability
+│   ├── declarativity/          Declarative style
+│   ├── declarativity2/         Alternative declarative
+│   ├── dependency/             Dependency minimization
+│   ├── completion/             Full proof generation
+│   ├── conjecturer/            Theorem conjecture
+│   └── router.lean             Central metric router
+│
+├── prompts/                    Generated Prompts
+│   ├── final_test/             Test split prompts
+│   ├── final_train/            Training prompts
+│   └── {prompts_id}/           Custom prompt sets
+│
+├── data/                       Datasets
+│   ├── final_dataset_fixed.json  Main dataset
+│   ├── train_test_split.json     Split definitions
+│   ├── agora_dataset.json        Alternative data
+│   └── *.json                    Dataset variants
+│
+└── experiments/                Experiment Scripts
+    ├── expert_iteration.py     Expert iteration loop
+    ├── final/                  Final experiments
+    └── *.sh                    SLURM scripts
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        METRIC SYSTEM ARCHITECTURE                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+METRIC DEFINITION PATTERN:
+─────────────────────────
+
+metrics/{metric_name}/
+├── config.json           ← Metric configuration
+├── examples.lean         ← Tagged theorem examples
+├── examples.json         ← Extracted examples (auto-generated)
+└── {metric_name}.lean    ← Lean scoring function
+
+CONFIG.JSON STRUCTURE:
+──────────────────────
+{
+  "name": "metric_name",
+  "scoring": {
+    "score_fn": "metrics/metric/metric.lean",
+    "minmax": "min|max",
+    "sorry_ok": false,
+    "correctness_condition": "eq|compiles|none"
+  },
+  "prompts": {
+    "system_prompt": "...",
+    "annotation_prompt": "...",
+    "rag_prompt": "..."
+  },
+  "examples": { ... },
+  "llm": { "llm_metric": false, "rubric": null }
+}
+
+METRIC ROUTING:
+───────────────
+metrics/router.lean contains:
+  def route_metric(name: String, cs: CompilationStep): IO Float :=
+    match name with
+    | "length" => length_score cs
+    | "readability" => readability_score cs
+    | ... => error
+
+BUILT-IN METRICS:
+─────────────────
+Length         → Minimize tactic count
+Readability    → LLM evaluation with rubric (6 criteria, 9 points)
+Declarativity  → Maximize "have" statements
+Dependency     → Minimize external dependencies
+Completion     → Full proof generation (no sorries)
+Conjecturer    → Theorem variation proposals
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DATA FLOW PIPELINE                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+INPUT: Lean Repository Code
+   ↓
+DATASET: Define files to optimize
+   ├─ Repository: Files to process
+   └─ Optional: Specific theorems
+   ↓
+EXTRACTION: Lean metaprogramming
+   ├─ Compile each file
+   ├─ Identify human theorems
+   ├─ Extract structure + metadata
+   └─ Generate goal states
+   ↓
+PROMPT GENERATION:
+   ├─ System prompt (metric-specific)
+   ├─ Theorem statement
+   ├─ Original proof
+   ├─ Goal states (annotated)
+   ├─ Context (definitions, imports)
+   └─ Examples (similar optimizations)
+   ↓
+RAG ENHANCEMENT (optional):
+   ├─ Informal proof retrieval
+   ├─ Vector similarity search
+   └─ Top-k injection into prompt
+   ↓
+INFERENCE:
+   ├─ Ray dataset creation
+   ├─ Batch processing
+   ├─ vLLM generation
+   ├─ Sampling (temperature, top_p)
+   └─ Output: Generated proofs
+   ↓
+EVALUATION:
+   ├─ Lean compilation
+   ├─ Correctness checking
+   ├─ Metric scoring
+   ├─ Delta calculation (improvement)
+   └─ Result aggregation
+   ↓
+ANALYSIS:
+   ├─ Accuracy statistics
+   ├─ Improvement metrics
+   ├─ Best-of-N selection
+   └─ Summary reports
+   ↓
+OUTPUT: Optimized proofs + metrics
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    IMPORTANT CONFIGURATION PARAMETERS                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+INFERENCE PARAMETERS (Ray/vLLM):
+────────────────────────────────
+temperature: 0.3            # Sampling randomness
+top_p: 0.9                  # Nucleus sampling
+repetition_penalty: 1.05    # Prevent repetition
+max_tokens: 2048            # Generation limit
+max_model_len: 16384        # Context window
+max_num_batched_tokens: 65536  # Batch token limit
+tensor_parallel_size: 1     # Model parallelism
+enable_chunked_prefill: true
+batch_size: 32
+max_concurrent_batches: 32
+
+LEAN EVALUATION:
+────────────────
+sorry_ok: false             # Allow sorries in proof
+correctness_condition:      # Comparison method
+  - "eq": output == original
+  - "compiles": proof compiles
+  - "none": no check
+
+CONCURRENCY:
+─────────────
+Ray workers: 1 per GPU      # Process parallelism
+vLLM concurrency: GPU count # Inference workers
+asyncio semaphores: variable # CPU task limiting
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      TYPICAL WORKFLOW EXAMPLE                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. DEFINE DATASET
+   └─ data/my_dataset.json
+
+2. GENERATE PROMPTS (Lake + Lean)
+   └─ ./improver prompts get --dataset_path data/my_dataset.json
+
+3. BUILD RAG (optional, LLM-intensive)
+   └─ ./improver rag build --dataset_path data/my_dataset.json
+
+4. RUN INFERENCE (GPU-intensive)
+   └─ python ImProver/basic/improver.py "metric" data/my_dataset.json prompts_id
+
+5. EVALUATE (CPU-intensive, Lean compilation)
+   └─ python ImProver/basic/eval_improver.py run_id
+
+6. ANALYZE RESULTS
+   └─ python ImProver/basic/analysis.py --run_id run_id
+
+OUTPUT:
+  evals/{run_id}/
+  ├─ data/          (inference outputs, Parquet)
+  ├─ evals/         (per-file evaluation results, JSON)
+  ├─ analysis/      (aggregated metrics)
+  └─ *.duckdb       (queryable tables)
+
+TYPICAL METRICS REPORTED:
+  • Accuracy: % of valid generated proofs
+  • Improvement Rate: % achieving metric improvement
+  • Average Improvement: mean metric delta
+  • Best-of-N: best achievable improvement with N samples
+  • Compilation Success Rate: % of valid Lean code
+
+
+================================================================================

@@ -47,6 +47,9 @@ structure ProofStep where
   tailPos : Option Pos := none
   deriving Inhabited, ToJson, FromJson
 
+instance : Hashable ProofStep where
+  hash ps := hash (ps.pos, ps.tailPos)
+
 def stepGoalsAfter (step : ProofStep) : List GoalInfo := step.goalsAfter ++ step.spawnedGoals
 
 def noInEdgeGoals (allGoals : Std.HashSet GoalInfo) (steps : List ProofStep) : Std.HashSet GoalInfo :=
@@ -282,6 +285,9 @@ deriving Inhabited, ToJson, FromJson
 instance : BEq ProofTree where
   beq t1 t2 := t1.node.tacticString == t2.node.tacticString
 
+instance : Hashable ProofTree where
+  hash t := hash t.node
+
 partial def ptts_helper (t : ProofTree) (indent : String) (isFirst : Bool) (isSpawned : Bool) : String :=
   let prefix' := if isFirst then indent else indent ++ "└─ "
   let childIndent := if isFirst then indent else indent ++ "   "
@@ -309,6 +315,12 @@ def ProofTree.toString (tree : ProofTree) : String :=
 
 instance : ToString ProofTree where
   toString := ProofTree.toString
+
+
+
+
+
+
 
 
 

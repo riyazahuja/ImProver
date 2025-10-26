@@ -298,6 +298,10 @@ structure TheoremData where
   informal_statement : Option String := none
   informal_proof : Option String := none
 
+  proofTree : Option ProofTree --:= none
+  denoisingTrajectory : Array String --:= #[]
+
+
   -- fromSrc : Bool := false
   deriving Inhabited, ToJson, FromJson
 

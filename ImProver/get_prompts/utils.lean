@@ -254,6 +254,16 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
 
       C2_dependencies := split_thm :: C2_dependencies
 
+      let steps := (← cmd.trees.filterMapM BetterParser).flatMap (·.steps)
+      let proofTree := getProofTree steps
+
+      let denoising_trajectory : Array String :=
+        match proofTree with
+        | none => #[]
+        | some tree =>
+          let traj := getDenoisingTrajectory tree
+
+
       -- we don't get all the fancy data for splits bc we are lazy...
       let split_data : TheoremData :=
         { id := split_thm,
@@ -262,6 +272,9 @@ def getPromptsAux (targets_new : Array (CompilationStep × ConstantInfo))
           C0_dependencies := prev_ids, --idk yet whether to keep this
           C1_dependencies := deps.map (fun ctx => {name := ctx.name, module := ctx.module, content := some ctx.text}) |>.toArray,
           C2_dependencies := #[]
+          proofTree := proofTree,
+
+
         }
       extracted_thms := split_data :: extracted_thms
 

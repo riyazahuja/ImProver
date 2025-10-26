@@ -1,12 +1,26 @@
 #!/bin/bash
-#SBATCH --job-name=length_iter_1
-#SBATCH --output=logs/final/length/length_iter_1.out
-#SBATCH --error=logs/final/length/length_iter_1.err
+#SBATCH --job-name=ablation_sweep
+#SBATCH --output=logs/final/ablations/first_iter_sweep.out
+#SBATCH --error=logs/final/ablations/first_iter_sweep.err
 #SBATCH --cpus-per-task=64
-#SBATCH --time=1-00:00:00
+#SBATCH --time=3-00:00:00
 #SBATCH --gres=gpu:L40S:8
 #SBATCH --mem=250G
 
+# ============================================================
+# Comprehensive Ablation Study for First Iteration Training
+# ============================================================
+# This script orchestrates:
+# 1. Initial pipeline run to generate base data
+# 2. Data generation with different parameters
+# 3. Training with hyperparameter sweeps using Axolotl
+# 4. Evaluation of all trained models
+# 5. Automatic selection of best models
+# ============================================================
+
+set -e  # Exit on error
+
+# ============ Environment Setup ============
 source $HOME/miniconda3/bin/activate env
 export NCCL_DEBUG=INFO
 export NCCL_BLOCKING=1
@@ -14,6 +28,7 @@ export ACCELERATE_USE_REENTRANT_CHECKPOINT=0
 export DEEPSPEED_LOG_LEVEL=DEBUG
 export PYTHONUNBUFFERED=1
 export RAY_TMPDIR=/home/riyaz/ray_tmp
+export HF_HOME="/home/riyaz/HF"
 
 export DEEPSPEED_COMM=nccl
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
@@ -21,132 +36,386 @@ export TORCH_NCCL_BLOCKING_WAIT=1
 export TORCH_NCCL_DUMP_ON_TIMEOUT=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 
+# ============ Path Configuration ============
+IMPROVER_BASE=/home/riyaz/ImProver
+ABLATION_DIR=$IMPROVER_BASE/experiments/final/ablations/first_iter_sweep
+CONFIG_DIR=$ABLATION_DIR/configs/base
+SWEEP_DIR=$ABLATION_DIR/sweeps
+DATA_DIR=$ABLATION_DIR/data
+SCRIPTS_DIR=$ABLATION_DIR/scripts
+MODELS_DIR=/home/riyaz/saved_models/ablations
+EVALS_DIR=$IMPROVER_BASE/evals
 
-cd /home/riyaz/ImProver
+BASE_MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+METRIC="length"
+BASE_RUN_ID="base_${METRIC}_train"
+
+# ============ Build ImProver ============
+echo "Building ImProver..."
+cd $IMPROVER_BASE
 lake build eval_improver
 sleep 5
 
-
-
-# ./improver run pipeline --run_id IRPO_length_iter_1_train     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_train     --split train --model deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --num_blocks 64     --config experiments/final/test_eval.yaml
-
-
-# ============ DATA ===========
-
-#SFT 
-
-./improver run training_data --run_id base_length_train --output_path /home/riyaz/ImProver/experiments/final/length/data/wSFT_length_iter_1.jsonl     --type sft
-
-#wSFT
-
-./improver run training_data --run_id base_length_train --output_path /home/riyaz/ImProver/experiments/final/length/data/wSFT_length_iter_1.jsonl     --type weighted_sft 
-
-
-
-#DPO
-
-./improver run training_data --run_id base_length_train --output_path /home/riyaz/ImProver/experiments/final/length/data/IRPO_length_iter_1.jsonl     --type dpo --num_invalid 2 --max_champions 4 --filter_threshold 0.8  --min_gap 2  --replay_buffer_split 0.2 --replay_type replace
-
-
-#IRPO
-
-./improver run training_data --run_id base_length_train --output_path /home/riyaz/ImProver/experiments/final/length/data/IRPO_length_iter_1.jsonl     --type dpo --num_invalid 2 --max_champions 4 --filter_threshold 0.8  --min_gap 2  --replay_buffer_split 0.2 --replay_type replace
-
-# ============ Basic ===========
-
-
-
-
-#each on best of 8: epsilon = 0.1, tau = 0.8
-
-# for each, sweep across LR = [1e-6,5e-5,1e-5,2e-5] and effective BS = [1,4,8] (alpha = 0 and beta =0.05) and hardness = [0.75,1.0]
-
-
-
-
-
-
-# =========== Additional DPO/IRPO ===========
-
-
-# for best, sweep across IRPO/DPO beta = [0.02,0.05,0.1] and for IRPO alpha = [0.2, 0.5, 1.0]. Pairs given by (W,L)=(2,1).
-
-# for best, sweep across W,L = [1,4,8]. for best, test min_gap = [0,1,2]
-
-
-# =========== Combined ===========
-
-
-# Take best (w)SFT and (IR/D)PO combination and run back to back, sweeping variance threshold = [0.5,0.8,1.0]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# eval prev iter model on train set
-
-# ./improver run pipeline --run_id IRPO_length_iter_1_test     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_test     --split test --model deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --num_blocks 16     --config experiments/final/test_eval.yaml
-# ./improver run pipeline --run_id IRPO_length_iter_1_train     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_train     --split train --model deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --num_blocks 64     --config experiments/final/test_eval.yaml
-
-
-# first get wSFT data
-
-# ./improver run training_data --run_id base_length_train --tau 0.5 --output_path /home/riyaz/ImProver/experiments/final/length/data/wSFT_length_iter_1.jsonl     --type weighted_sft --epsilon 0.1 --variance_threshold 0.8 --filter_threshold 0.8     --replay_buffer_split 0.4 --replay_type replace --prev_run_id base_length_train
-
-    
-# # convert wSFT data
-
-# python experiments/final/preprocess_weights.py     /home/riyaz/ImProver/experiments/final/length/data/wSFT_length_iter_1.jsonl /home/riyaz/ImProver/experiments/final/length/data/wSFT_length_iter_1
-
-# # train wSFT model
-
-# accelerate launch -m  axolotl.cli.train /home/riyaz/ImProver/experiments/final/length/configs/wSFT_length_iter_1.yaml
-
-# # merge wSFT LoRA with base to get final wSFT model
-
-# python experiments/final/merge.py     --ref deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --adapter /home/riyaz/saved_models/wSFT_length_iter_1_lora     --output /home/riyaz/saved_models/wSFT_length_iter_1
-
-# eval wSFT model on test set
-
-# python experiments/final/merge.py     --ref deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --adapter /home/riyaz/saved_models/wSFT_length_iter_1_lora/checkpoint-9     --output /home/riyaz/saved_models/wSFT_length_iter_1_ep1
-
-# python experiments/final/merge.py     --ref deepseek-ai/DeepSeek-R1-Distill-Qwen-7B     --adapter /home/riyaz/saved_models/wSFT_length_iter_1_lora/checkpoint-18     --output /home/riyaz/saved_models/wSFT_length_iter_1_ep2
-
-# ./improver run pipeline --run_id wSFT_length_iter_1_test_ep1     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_test     --split test --model /home/riyaz/saved_models/wSFT_length_iter_1_ep1     --num_blocks 16     --config experiments/final/test_eval.yaml
-
-
-
-# ./improver run pipeline --run_id wSFT_length_iter_1_test_ep2    --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_test     --split test --model /home/riyaz/saved_models/wSFT_length_iter_1_ep2     --num_blocks 16     --config experiments/final/test_eval.yaml
-
-
-# get IRPO data
-
-
-./improver run training_data --run_id base_length_train --output_path /home/riyaz/ImProver/experiments/final/length/data/IRPO_length_iter_1.jsonl     --type dpo --num_invalid 2 --max_champions 4 --filter_threshold 0.8  --min_gap 2  --replay_buffer_split 0.2 --replay_type replace
-
-    
-# # train IRPO model
-
-accelerate launch -m  axolotl.cli.train /home/riyaz/ImProver/experiments/final/length/configs/IRPO_length_iter_1.yaml
-
-
-# # eval IRPO model on test set
-
-./improver run pipeline --run_id IRPO_length_iter_1_test     --annotation --context 10  --informal --examples 4     --metric length --prompt_id final_test     --split test --model /home/riyaz/saved_models/IRPO_length_iter_1     --num_blocks 16     --config experiments/final/test_eval.yaml
-
+# ============================================================
+# PHASE 1: Generate Base Data
+# ============================================================
+echo "============================================================"
+echo "PHASE 1: Generating Base Data"
+echo "============================================================"
+
+./improver run pipeline \
+    --run_id $BASE_RUN_ID \
+    --annotation --informal --examples 4 \
+    --metric $METRIC --prompt_id final_train \
+    --split train --model $BASE_MODEL \
+    --num_blocks 64 \
+    --config experiments/final/test_eval.yaml
+
+echo "✓ Base data generated"
+
+# ============================================================
+# PHASE 2: Generate Training Datasets
+# ============================================================
+echo "============================================================"
+echo "PHASE 2: Generating Training Datasets"
+echo "============================================================"
+
+# Run the auto-generated data generation script
+bash $SCRIPTS_DIR/generate_data.sh
+
+echo "✓ All training datasets generated"
+
+# ============================================================
+# PHASE 3A: SFT Training Sweeps
+# ============================================================
+echo "============================================================"
+echo "PHASE 3A: SFT Learning Rate Sweep"
+echo "============================================================"
+
+accelerate launch -m axolotl.cli.train \
+    $CONFIG_DIR/SFT_base.yaml \
+    --sweep $SWEEP_DIR/SFT_lr.yaml
+
+echo "✓ SFT sweep completed"
+
+# Merge all SFT LoRA models
+echo "Merging SFT models..."
+for lr in 1e-06 5e-06 1e-05 2e-05; do
+    python $IMPROVER_BASE/experiments/final/merge.py \
+        --ref $BASE_MODEL \
+        --adapter ${MODELS_DIR}/SFT_lr${lr}_lora \
+        --output ${MODELS_DIR}/SFT_lr${lr}
+    rm -rf ${MODELS_DIR}/SFT_lr${lr}_lora
+done
+
+# ============================================================
+# PHASE 3B: wSFT Training Sweeps
+# ============================================================
+echo "============================================================"
+echo "PHASE 3B: wSFT Learning Rate Sweep"
+echo "============================================================"
+
+accelerate launch -m axolotl.cli.train \
+    $CONFIG_DIR/wSFT_base.yaml \
+    --sweep $SWEEP_DIR/wSFT_lr.yaml
+
+echo "✓ wSFT LR sweep completed"
+
+# Merge all wSFT LoRA models
+echo "Merging wSFT models..."
+for lr in 1e-06 5e-06 1e-05 2e-05; do
+    python $IMPROVER_BASE/experiments/final/merge.py \
+        --ref $BASE_MODEL \
+        --adapter ${MODELS_DIR}/wSFT_lr${lr}_lora \
+        --output ${MODELS_DIR}/wSFT_lr${lr}
+    rm -rf ${MODELS_DIR}/wSFT_lr${lr}_lora
+done
+
+echo "============================================================"
+echo "PHASE 3C: wSFT Data Parameter Sweep"
+echo "============================================================"
+
+accelerate launch -m axolotl.cli.train \
+    $CONFIG_DIR/wSFT_base.yaml \
+    --sweep $SWEEP_DIR/wSFT_data.yaml
+
+echo "✓ wSFT data sweep completed"
+
+# Merge wSFT data sweep models
+echo "Merging wSFT data sweep models..."
+for vt in 0.5 0.8 1.0; do
+    python $IMPROVER_BASE/experiments/final/merge.py \
+        --ref $BASE_MODEL \
+        --adapter ${MODELS_DIR}/wSFT_vt${vt}_lora \
+        --output ${MODELS_DIR}/wSFT_vt${vt}
+    rm -rf ${MODELS_DIR}/wSFT_vt${vt}_lora
+done
+
+# ============================================================
+# PHASE 4: Evaluate SFT and wSFT Models
+# ============================================================
+echo "============================================================"
+echo "PHASE 4: Evaluating SFT and wSFT Models"
+echo "============================================================"
+
+# Evaluate SFT models
+for lr in 1e-06 5e-06 1e-05 2e-05; do
+    echo "Evaluating SFT_lr${lr}..."
+    ./improver run pipeline \
+        --run_id SFT_lr${lr}_test \
+        --annotation --informal --examples 4 \
+        --metric $METRIC --prompt_id final_test \
+        --split test --model ${MODELS_DIR}/SFT_lr${lr} \
+        --num_blocks 16 \
+        --config experiments/final/test_eval.yaml
+done
+
+# Evaluate wSFT LR sweep models
+for lr in 1e-06 5e-06 1e-05 2e-05; do
+    echo "Evaluating wSFT_lr${lr}..."
+    ./improver run pipeline \
+        --run_id wSFT_lr${lr}_test \
+        --annotation --informal --examples 4 \
+        --metric $METRIC --prompt_id final_test \
+        --split test --model ${MODELS_DIR}/wSFT_lr${lr} \
+        --num_blocks 16 \
+        --config experiments/final/test_eval.yaml
+done
+
+# Evaluate wSFT data sweep models
+for vt in 0.5 0.8 1.0; do
+    echo "Evaluating wSFT_vt${vt}..."
+    ./improver run pipeline \
+        --run_id wSFT_vt${vt}_test \
+        --annotation --informal --examples 4 \
+        --metric $METRIC --prompt_id final_test \
+        --split test --model ${MODELS_DIR}/wSFT_vt${vt} \
+        --num_blocks 16 \
+        --config experiments/final/test_eval.yaml
+done
+
+echo "✓ All SFT/wSFT evaluations completed"
+
+# ============================================================
+# PHASE 5: Select Best SFT and wSFT Models
+# ============================================================
+echo "============================================================"
+echo "PHASE 5: Selecting Best Models"
+echo "============================================================"
+
+# Select best SFT model
+echo "Selecting best SFT model..."
+python $SCRIPTS_DIR/select_best_model.py \
+    SFT_lr1e-06_test SFT_lr5e-06_test SFT_lr1e-05_test SFT_lr2e-05_test \
+    --evals-path $EVALS_DIR \
+    --models-path $MODELS_DIR \
+    --output-file $ABLATION_DIR/.best_sft_model
+
+BEST_SFT_MODEL=$(cat $ABLATION_DIR/.best_sft_model)
+echo "Best SFT Model: $BEST_SFT_MODEL"
+
+# Select best wSFT model (combining LR and data sweeps)
+echo "Selecting best wSFT model..."
+python $SCRIPTS_DIR/select_best_model.py \
+    wSFT_lr1e-06_test wSFT_lr5e-06_test wSFT_lr1e-05_test wSFT_lr2e-05_test \
+    wSFT_vt0.5_test wSFT_vt0.8_test wSFT_vt1.0_test \
+    --evals-path $EVALS_DIR \
+    --models-path $MODELS_DIR \
+    --output-file $ABLATION_DIR/.best_wsft_model
+
+BEST_WSFT_MODEL=$(cat $ABLATION_DIR/.best_wsft_model)
+echo "Best wSFT Model: $BEST_WSFT_MODEL"
+
+# ============================================================
+# PHASE 6A: IRPO Training Sweeps (using best wSFT model)
+# ============================================================
+echo "============================================================"
+echo "PHASE 6A: IRPO Training Sweeps"
+echo "============================================================"
+
+# Update IRPO base config to use best wSFT model
+# Note: You may need to manually update the base config or use a template approach
+echo "Using best wSFT model for IRPO: $BEST_WSFT_MODEL"
+
+# Update the base config's base_model and ref_model
+sed -i "s|base_model:.*|base_model: $BEST_WSFT_MODEL|g" $CONFIG_DIR/IRPO_base.yaml
+sed -i "s|ref_model:.*|ref_model: $BEST_WSFT_MODEL|g" $CONFIG_DIR/IRPO_base.yaml
+
+# IRPO LR sweep
+echo "Running IRPO LR sweep..."
+accelerate launch -m axolotl.cli.train \
+    $CONFIG_DIR/IRPO_base.yaml \
+    --sweep $SWEEP_DIR/IRPO_lr.yaml
+
+# IRPO parameter sweep (beta, alpha, W/L, gap)
+echo "Running IRPO parameter sweep..."
+accelerate launch -m axolotl.cli.train \
+    $CONFIG_DIR/IRPO_base.yaml \
+    --sweep $SWEEP_DIR/IRPO_params.yaml
+
+echo "✓ IRPO sweeps completed"
+
+# ============================================================
+# PHASE 6B: DPO Training Sweeps (using best wSFT model)
+# ============================================================
+echo "============================================================"
+echo "PHASE 6B: DPO Training Sweeps"
+echo "============================================================"
+
+# Update DPO base config to use best wSFT model
+sed -i "s|base_model:.*|base_model: $BEST_WSFT_MODEL|g" $CONFIG_DIR/DPO_base.yaml
+sed -i "s|ref_model:.*|ref_model: $BEST_WSFT_MODEL|g" $CONFIG_DIR/DPO_base.yaml
+
+echo "Running DPO parameter sweep..."
+accelerate launch -m axolotl.cli.train \
+    $CONFIG_DIR/DPO_base.yaml \
+    --sweep $SWEEP_DIR/DPO_params.yaml
+
+echo "✓ DPO sweeps completed"
+
+# ============================================================
+# PHASE 7: Evaluate IRPO and DPO Models
+# ============================================================
+echo "============================================================"
+echo "PHASE 7: Evaluating IRPO and DPO Models"
+echo "============================================================"
+
+# Evaluate IRPO LR sweep
+for lr in 1e-06 5e-06 1e-05 2e-05; do
+    echo "Evaluating IRPO_lr${lr}..."
+    ./improver run pipeline \
+        --run_id IRPO_lr${lr}_test \
+        --annotation --informal --examples 4 \
+        --metric $METRIC --prompt_id final_test \
+        --split test --model ${MODELS_DIR}/IRPO_lr${lr} \
+        --num_blocks 16 \
+        --config experiments/final/test_eval.yaml
+done
+
+# Evaluate IRPO parameter sweep models
+# Beta/Alpha combinations
+for beta in 0.02 0.05 0.1; do
+    for alpha in 0.2 0.5 1.0; do
+        echo "Evaluating IRPO_beta${beta}_alpha${alpha}..."
+        ./improver run pipeline \
+            --run_id IRPO_beta${beta}_alpha${alpha}_test \
+            --annotation --informal --examples 4 \
+            --metric $METRIC --prompt_id final_test \
+            --split test --model ${MODELS_DIR}/IRPO_beta${beta}_alpha${alpha} \
+            --num_blocks 16 \
+            --config experiments/final/test_eval.yaml
+    done
+done
+
+# W/L pairs
+for w in 1 2 4; do
+    for l in 1 2 4; do
+        echo "Evaluating IRPO_w${w}_l${l}..."
+        ./improver run pipeline \
+            --run_id IRPO_w${w}_l${l}_test \
+            --annotation --informal --examples 4 \
+            --metric $METRIC --prompt_id final_test \
+            --split test --model ${MODELS_DIR}/IRPO_w${w}_l${l} \
+            --num_blocks 16 \
+            --config experiments/final/test_eval.yaml
+    done
+done
+
+# Min gap
+for gap in 0 1 2; do
+    echo "Evaluating IRPO_gap${gap}..."
+    ./improver run pipeline \
+        --run_id IRPO_gap${gap}_test \
+        --annotation --informal --examples 4 \
+        --metric $METRIC --prompt_id final_test \
+        --split test --model ${MODELS_DIR}/IRPO_gap${gap} \
+        --num_blocks 16 \
+        --config experiments/final/test_eval.yaml
+done
+
+# Evaluate DPO models
+for beta in 0.02 0.05 0.1; do
+    echo "Evaluating DPO_beta${beta}..."
+    ./improver run pipeline \
+        --run_id DPO_beta${beta}_test \
+        --annotation --informal --examples 4 \
+        --metric $METRIC --prompt_id final_test \
+        --split test --model ${MODELS_DIR}/DPO_beta${beta} \
+        --num_blocks 16 \
+        --config experiments/final/test_eval.yaml
+done
+
+echo "✓ All IRPO/DPO evaluations completed"
+
+# ============================================================
+# PHASE 8: Select Best IRPO/DPO Models
+# ============================================================
+echo "============================================================"
+echo "PHASE 8: Final Model Selection"
+echo "============================================================"
+
+# Collect all IRPO run IDs
+IRPO_RUN_IDS=""
+for lr in 1e-06 5e-06 1e-05 2e-05; do
+    IRPO_RUN_IDS="$IRPO_RUN_IDS IRPO_lr${lr}_test"
+done
+for beta in 0.02 0.05 0.1; do
+    for alpha in 0.2 0.5 1.0; do
+        IRPO_RUN_IDS="$IRPO_RUN_IDS IRPO_beta${beta}_alpha${alpha}_test"
+    done
+done
+for w in 1 2 4; do
+    for l in 1 2 4; do
+        IRPO_RUN_IDS="$IRPO_RUN_IDS IRPO_w${w}_l${l}_test"
+    done
+done
+for gap in 0 1 2; do
+    IRPO_RUN_IDS="$IRPO_RUN_IDS IRPO_gap${gap}_test"
+done
+
+echo "Selecting best IRPO model..."
+python $SCRIPTS_DIR/select_best_model.py \
+    $IRPO_RUN_IDS \
+    --evals-path $EVALS_DIR \
+    --models-path $MODELS_DIR \
+    --output-file $ABLATION_DIR/.best_irpo_model
+
+BEST_IRPO_MODEL=$(cat $ABLATION_DIR/.best_irpo_model)
+echo "Best IRPO Model: $BEST_IRPO_MODEL"
+
+# Select best DPO model
+DPO_RUN_IDS="DPO_beta0.02_test DPO_beta0.05_test DPO_beta0.1_test"
+echo "Selecting best DPO model..."
+python $SCRIPTS_DIR/select_best_model.py \
+    $DPO_RUN_IDS \
+    --evals-path $EVALS_DIR \
+    --models-path $MODELS_DIR \
+    --output-file $ABLATION_DIR/.best_dpo_model
+
+BEST_DPO_MODEL=$(cat $ABLATION_DIR/.best_dpo_model)
+echo "Best DPO Model: $BEST_DPO_MODEL"
+
+# ============================================================
+# Summary
+# ============================================================
+echo "============================================================"
+echo "ABLATION STUDY COMPLETE"
+echo "============================================================"
+echo ""
+echo "Best Models:"
+echo "  SFT:  $BEST_SFT_MODEL"
+echo "  wSFT: $BEST_WSFT_MODEL"
+echo "  IRPO: $BEST_IRPO_MODEL"
+echo "  DPO:  $BEST_DPO_MODEL"
+echo ""
+echo "Results saved to:"
+echo "  - Configs: $CONFIG_DIR"
+echo "  - Sweeps: $SWEEP_DIR"
+echo "  - Data: $DATA_DIR"
+echo "  - Models: $MODELS_DIR"
+echo "  - Evaluations: $EVALS_DIR"
+echo ""
+echo "To use these models for the next iteration:"
+echo "  1. Use the best wSFT model as the base for further IRPO/DPO training"
+echo "  2. Use the best IRPO/DPO model for the next iteration's pipeline"
+echo "============================================================"
