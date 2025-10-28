@@ -17,7 +17,8 @@ structure Hypothesis where
   fid      : FVarId
   isProof : String
   typeKey : TypeKey
-  deriving Inhabited, ToJson, FromJson
+  typeExpr : Expr
+  deriving Inhabited--, ToJson, FromJson
 
 structure GoalInfo where
   username : String
@@ -26,7 +27,8 @@ structure GoalInfo where
   -- unique identifier for the goal, mvarId
   id : MVarId
   typeKey : TypeKey
-  deriving Inhabited, ToJson, FromJson
+  typeExpr : Expr
+  deriving Inhabited--, ToJson, FromJson
 
 open Meta in
 def typeKeyOf (e : Expr) : MetaM TypeKey := do
@@ -66,7 +68,7 @@ structure ProofStep where
   spawnedGoals : List GoalInfo
   pos : Option Pos := none
   tailPos : Option Pos := none
-  deriving Inhabited, ToJson, FromJson
+  deriving Inhabited--, ToJson, FromJson
 
 def stepGoalsAfter (step : ProofStep) : List GoalInfo := step.goalsAfter ++ step.spawnedGoals
 
@@ -129,10 +131,11 @@ def printGoalInfo (printCtx : ContextInfo) (id : MVarId) : IO GoalInfo := do
       fid := hypDecl.fvarId,
       id := hypDecl.fvarId.name.toString,
       isProof := isProof,
-      typeKey := tkey
+      typeKey := tkey,
+      typeExpr := hypDecl.type
     } : Hypothesis) :: acc)
   let gkey ← goalTypeKey printCtx decl
-  return ⟨ decl.userName.toString, (← ppExprWithInfos ppContext decl.type).fmt.pretty, hyps, id, gkey⟩
+  return ⟨ decl.userName.toString, (← ppExprWithInfos ppContext decl.type).fmt.pretty, hyps, id, gkey, decl.type⟩
 
 -- Returns unassigned goals from the provided list of goals
 def getUnassignedGoals (goals : List MVarId) (mctx : MetavarContext) : IO (List MVarId) := do
@@ -256,7 +259,9 @@ def filter_universe_hyp (gi : GoalInfo) : GoalInfo :=
     gi.type,
     gi.hyps.filter (fun hyp => not <| hyp.isProof == "universe"),
     gi.id,
-    gi.typeKey⟩
+    gi.typeKey,
+    gi.typeExpr
+    ⟩
 
 -- def filterBacktracking (steps : List ProofStep) : List ProofStep := Id.run do
 --   let mut result : List ProofStep := []
@@ -303,7 +308,7 @@ structure ProofTree where
   node : ProofStep
   children :  Array ProofTree
   spawned_children :  Array ProofTree
-deriving Inhabited, ToJson, FromJson
+deriving Inhabited--, ToJson, FromJson
 
 instance : BEq ProofTree where
   beq t1 t2 := t1.node.tacticString == t2.node.tacticString

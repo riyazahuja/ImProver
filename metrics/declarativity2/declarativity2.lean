@@ -87,6 +87,7 @@ def sameContext (a b : GoalInfo) : Bool :=
   hypsKey a == hypsKey b
 
 /-- Check if child is a duplicate of any preceding goal, returning the preceding goal type if found -/
+-- NOT CHECKING MODULO FORALL!!!!
 partial def isDuplicateOfPreceding (child : ProofTree) (preceding : List ProofTree) : Option String :=
   preceding.findSome? fun p =>
     let childGoal := child.node.goalBefore
@@ -119,57 +120,225 @@ partial def depsInNormalSubtree (t : ProofTree)
 def isTrivial (child : ProofTree) : Bool :=
   workStepsUnder child ≤ 1 || (depsInNormalSubtree child).isEmpty
 
-/-- Strip all leading foralls from an expression, returning binders and body -/
-partial def stripForalls (e : Expr) : List (Name × Expr) × Expr :=
-  match e with
-  | Expr.forallE name type body _ =>
-    let (binders, finalBody) := stripForalls body
-    ((name, type) :: binders, finalBody)
-  | _ => ([], e)
 
-/-- Check if two expressions are definitionally equal using MetaM.
-    Creates a minimal MetaM context to perform the check.
-    Returns false on any errors (conservative approach). -/
-def isDefEqIO (env : Environment) (expr1 expr2 : Expr) : IO Bool := do
-  try
-    -- Use MetaM.run' to create a minimal MetaM context, then convert CoreM to IO
-    let coreResult := (Meta.isDefEq expr1 expr2).run'
-    -- Convert CoreM to IO with proper context and state structures
-    let ctx : Core.Context := {
-      fileName := "",
-      fileMap := default,
-      options := {}
-    }
-    let state : Core.State := {
-      env := env
-    }
-    let (result, _) ← coreResult.toIO ctx state
-    return result
-  catch _ =>
-    -- If MetaM/CoreM fails for any reason, conservatively return false
-    return false
+/--
+Make a brand new flexible metavariable *and* its type, with no assumptions.
 
-/-- Check if child expression is a duplicate via forall-abstraction.
-    Returns true if the child has leading foralls, and after stripping them,
-    the body is definitionally equal to the parent's goal type.
+We produce:
+  (?ty : Sort u), (?m : ?ty)
 
-    This catches cases like:
-    - Parent: `P ∧ Q → Q ∧ P` (where P, Q are parameters/context)
-    - Child:  `∀ P Q : Prop, P ∧ Q → Q ∧ P` (unnecessarily generalizing)
+so that ?m can later unify with literally anything, and ?ty can unify
+with whatever universe/type is needed. This avoids needing the original
+fvar's type from its old local context. This pattern follows the idea
+that `isDefEq` in Lean 4 will happily assign metavariables to make two
+expressions definitionally equal, including solving universe/term
+metavariables. :contentReference[oaicite:5]{index=5}
+-/
+private def mkFlexibleMVar : MetaM Expr := do
+  -- make a fresh Sort ?u
+  let u ← mkFreshLevelMVar
+  let ty := Expr.sort u
+  -- now make a term metavariable : ty
+  mkFreshExprMVar ty
 
-    Also handles cases like:
-    - Parent: Uses `Nat`
-    - Child:  Uses `ℕ` (unicode alias) - these are defeq
 
-    Uses definitional equality checking to handle type aliases and unfolding. -/
-def isForallAbstractionDuplicate (env : Environment) (childExpr : Expr) (parentExpr : Expr) : IO Bool := do
-  let (forallBinders, childBody) := stripForalls childExpr
+/--
+Replace any free variable (Expr.fvar fid) in `e` that is *not* declared
+in the current local context with a brand new flexible metavariable
+(`?m : ?α`) so that `isDefEq` can unify it later.
 
-  if forallBinders.isEmpty then
-    return false  -- No foralls to strip, not this kind of duplicate
-  else
-    -- Check if after stripping foralls, the child body is defeq to parent
-    isDefEqIO env childBody parentExpr
+We memoize so each external fvar id maps to a single metavariable.
+This lets `isDefEq` discover equalities like "_uniq.6803" = p, etc.
+
+This is similar in spirit to how tactics walk a context, create
+metavariables, and then call `isDefEq` to see if something unifies. :contentReference[oaicite:6]{index=6}
+-/
+partial def loosenFVars (e : Expr) : MetaM Expr := do
+  let cacheRef ← IO.mkRef ({} : Std.HashMap FVarId Expr)
+
+  let rec go (e : Expr) : MetaM Expr := do
+    match e with
+    | .fvar fid =>
+        let lctx ← getLCtx
+        match lctx.find? fid with
+        | some _ =>
+            -- It's already in our context; keep it rigid.
+            pure e
+        | none =>
+            -- It's from some *other* context. Replace with flexible mvar.
+            let cache ← cacheRef.get
+            match cache.find? fid with
+            | some mv => pure mv
+            | none => do
+                let mv ← mkFlexibleMVar
+                cacheRef.set (cache.insert fid mv)
+                pure mv
+
+    | .app f a =>
+        return .app (← go f) (← go a)
+
+    | .lam n ty body bi =>
+        let ty' ← go ty
+        withLocalDecl n bi ty' fun f => do
+          let body' := body.instantiate1 f
+          let body'' ← go body'
+          mkLambdaFVars #[f] body''
+
+    | .forallE n ty body bi =>
+        let ty' ← go ty
+        withLocalDecl n bi ty' fun f => do
+          let body' := body.instantiate1 f
+          let body'' ← go body'
+          mkForallFVars #[f] body''
+
+    | .letE n ty val body nonDep =>
+        return .letE n (← go ty) (← go val) (← go body) nonDep
+
+    | .mdata md b =>
+        return .mdata md (← go b)
+
+    | .proj s i b =>
+        return .proj s i (← go b)
+
+    | _ =>
+        pure e
+
+  go e
+
+
+/--
+Open leading `∀` binders from `e` *as long as* each binder's type is `Prop`
+or `Sort u` (i.e. "type-level" / "Prop-level" arguments) and keep peeling.
+
+For each peeled binder:
+  * introduce it as a fresh local fvar
+  * instantiate the body with that fvar
+and recurse.
+
+We then call `k params body` *inside that extended local context*,
+so `params` are real locals in-scope and `body` is the remaining
+expression after peeling all the type-level binders.
+
+This mirrors how Lean's `forallTelescope` / `forallTelescopeReducing`
+expose forall-bound vars as `fvar`s only within a continuation. After
+the continuation exits, Lean would re-generalize those locals back into
+foralls, so you can't just "return" `body` and use it later without a
+continuation. :contentReference[oaicite:7]{index=7}
+-/
+partial def withTypeForallParams
+    (e : Expr)
+    (k : Array Expr → Expr → MetaM α)
+    : MetaM α :=
+
+  let rec loop (e : Expr) (acc : Array Expr)
+      (k : Array Expr → Expr → MetaM α)
+      : MetaM α := do
+    match e with
+    | .forallE n ty body bi =>
+        -- Check if this binder is a "type/Prop param"
+        let isTyParam := ty.isSort
+
+        if isTyParam then
+          withLocalDecl n bi ty fun fvar => do
+            let body' := body.instantiate1 fvar
+            loop body' (acc.push fvar) k
+        else
+          -- hit first value-level argument, stop stripping
+          k acc e
+
+    | _ =>
+        -- no more forall binders
+        k acc e
+
+  loop e #[] k
+
+
+/--
+Check if `childExpr` is just a forall-generalized version of `parentExpr`.
+
+Steps:
+1. Peel all leading `∀ x : Prop | Type, ...` from `childExpr`.
+   This gives us locals `params` (like `P Q : Prop`) and a body `strippedBody`
+   which might look like `P ∧ Q → Q ∧ P`.
+
+2. If we didn't peel anything (`params` is empty), return `false`.
+
+3. "Loosen" `parentExpr` by replacing any free vars that are *not*
+   in this local context with flexible metavariables `?m : ?α`,
+   so `isDefEq` can unify them. This handles the fact that your parent goal
+   has locals `_uniq.6803`, `_uniq.6804` from a different goal context,
+   which otherwise wouldn't α-rename automatically. Lean identifies locals
+   by `FVarId`, and different `FVarId`s don't unify by default. :contentReference[oaicite:8]{index=8}
+
+4. Call `Meta.isDefEq strippedBody parentLoosened`. `isDefEq` in Lean 4
+   solves metavariables during unification, so if the only difference is
+   renaming/universally-quantifying context params, this should now succeed. :contentReference[oaicite:9]{index=9}
+-/
+def isForallAbstractionDuplicateMeta
+    (childExpr parentExpr : Expr) : MetaM Bool := do
+  IO.println s!"[inside meta] Checking forall-abstraction duplicate between:\n Child: {childExpr}\n Parent: {parentExpr}"
+  withTypeForallParams childExpr fun params strippedBody => do
+    if params.isEmpty then
+      return false
+    else
+      let parentLoosened ← loosenFVars parentExpr
+      -- DEBUG:
+      IO.println "----- after peeling -----"
+      IO.println s!"params: {params.size}"
+      IO.println s!"strippedBody: {strippedBody}"
+      IO.println s!"parentLoosened: {parentLoosened}"
+      IO.println "-------------------------"
+
+      Meta.isDefEq strippedBody parentLoosened
+
+
+/--
+IO wrapper so you can call this from "normal" code with just an `Environment`
+and two `Expr`s.
+
+This builds a minimal `Core.Context` and `Core.State`, runs the MetaM logic,
+and gives you a Bool. This pattern is standard in Lean 4 when you want to
+run `MetaM` stuff in plain `IO`. :contentReference[oaicite:10]{index=10}
+-/
+def isForallAbstractionDuplicate
+    (env : Environment)
+    (childExpr parentExpr : Expr)
+    : IO Bool := do
+
+  IO.println s!"Checking forall-abstraction duplicate between:\n Child: {childExpr}\n Parent: {parentExpr}"
+
+  let coreCtx : Core.Context := {
+    fileName := "<internal>"
+    fileMap  := default
+    options  := {}
+  }
+
+  let coreState : Core.State := {
+    env := env
+  }
+
+  let metaComp : MetaM Bool :=
+    isForallAbstractionDuplicateMeta childExpr parentExpr
+
+  let coreComp : CoreM Bool := metaComp.run'
+  let (b, _st) ← coreComp.toIO coreCtx coreState
+  pure b
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /-- Collect all nodes in tree traversal order (preceding nodes first) -/
 partial def collectAllNodesInOrder (tree : ProofTree) (acc : List ProofTree := []) : List ProofTree :=
@@ -279,6 +448,13 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
       -- First check if spawned goal is duplicate of parent's goal
       let parentGoal := parent.goalBefore
       let childGoal := child.node.goalBefore
+      IO.println "============================================="
+      IO.println s!"Checking edge ([{parent.tacticString}] -> [{child.node.tacticString}]) for duplication"
+      IO.println s!"Parent goal type: {parentGoal.type}"
+      IO.println s!"Child goal type: {childGoal.type}"
+
+
+
 
       if childGoal.type == parentGoal.type &&
          (hypsKey parentGoal).all (fun h => (hypsKey childGoal).contains h) then
@@ -288,6 +464,7 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
           tacticStr := tacticStr
           reason := some (IneffectiveReason.duplicate parentGoal.type)
         }
+        IO.println s!"Marking edge as ineffective due to duplicate goal type: {parentGoal.type}"
         statusMap := statusMap.insert edgeId info
       else if ← isForallAbstractionDuplicate env childGoal.typeExpr parentGoal.typeExpr then
         -- Spawned goal is duplicate via forall-abstraction over parent's context
@@ -296,6 +473,7 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
           tacticStr := tacticStr
           reason := some (IneffectiveReason.duplicate s!"{parentGoal.type} (forall-abstraction)")
         }
+        IO.println s!"Marking edge as ineffective due to forall-abstraction duplicate goal type: {parentGoal.type}"
         statusMap := statusMap.insert edgeId info
       else
         -- check for duplicate against all preceding edges with idx <= its idx
@@ -307,6 +485,7 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
             tacticStr := tacticStr
             reason := some (IneffectiveReason.duplicate precedingType)
           }
+          IO.println s!"Marking edge as ineffective due to duplicate goal type to preceding edge: {precedingType}"
           statusMap := statusMap.insert edgeId info
         | none =>
           -- check for trivial
@@ -335,6 +514,7 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
         reason := none
       }
       statusMap := statusMap.insert edgeId info
+  IO.println "============================================="
 
   return statusMap
 
@@ -828,18 +1008,6 @@ def new_proof3 := "@[simp] lemma det_mul (a : R) : (mul R R a).det = a := by
 -- #eval do getScore2 `FLT.Mathlib.LinearAlgebra.Determinant `LinearMap.det_mul new_proof3
 
 
-def new_proof4 := "lemma C6_forest' (hkn : k ≤ n) :
-    ℭ₆ (X := X) k n j = ⋃ l ∈ Iio (4 * n + 12), ⋃ u ∈ 𝔘₄ k n j l, 𝔗₂ k n j u := by
-  -- Main lemma: Rewrite ℭ₆ using the C6_forest result
-  have h₁ : ∀ hkn : k ≤ n, ℭ₆ (X := X) k n j = ⋃ l ∈ Iio (4 * n + 12), ⋃ u ∈ 𝔘₄ k n j l, 𝔗₂ k n j u := by
-    intro hkn
-    rw [C6_forest, ← iUnion_𝔘₄ hkn]
-    simp
-  -- Apply the main lemma to the specific case
-  exact h₁ hkn"
--- ((0.000000, 0.000000), (1.000000, 1.000000), true)
--- #eval do getScore2 `Carleson.Discrete.ForestUnion `C6_forest' new_proof4
-
 def unused := "lemma index_smul (a : G) (S : AddSubgroup A) : (a • S).index = S.index := by
   -- Introduce the first sub-proof to handle the general case of the bijection
   have h₁ : ∀ a : G, (a • S).index = S.index → (a • S).index = S.index := by
@@ -916,6 +1084,7 @@ def repeat_main_goal2 := "theorem foo (P Q : Prop) : P ∧ Q → Q ∧ P := by
 
 
 def repeat_main_goal3 := "theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
+  have hh : 1=1 := by rfl
   have h₁ : ∀ P Q : Prop, P ∧ Q → Q ∧ P := by
     intro P Q h
     constructor
@@ -923,8 +1092,24 @@ def repeat_main_goal3 := "theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
     . exact h.1
   exact h₁ P Q"
 
+-- Test new_proof (should have 2 effective spawned edges: (0.0, 2.0, true))
+-- #eval do
+  -- IO.println "\n=== Testing new_proof ==="
+  -- let result ← getScore2 `Foundation.Modal.Hilbert.WeakerThan.KD5_KD45 `LO.Modal.Hilbert.KD5_weakerThan_KD45 new_proof
+  -- IO.println s!"Result: {result}"
 
--- #eval do getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal2
+-- Test repeat_main_goal2 (exact duplicate: should be (0.0, 0.0, true))
+-- #eval do
+  -- IO.println "\n=== Testing repeat_main_goal2 ==="
+  -- let result ← getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal2
+  -- IO.println s!"Result: {result}"
+
+-- Test repeat_main_goal3 (forall-abstraction duplicate: should be (0.0, 0.0, true))
+-- #eval do
+--   IO.println "\n=== Testing repeat_main_goal3 ==="
+--   let result ← getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal3
+--   IO.println s!"Result: {result}"
+
 
 
 
