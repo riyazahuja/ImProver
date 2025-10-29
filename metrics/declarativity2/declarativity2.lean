@@ -121,89 +121,75 @@ def isTrivial (child : ProofTree) : Bool :=
   workStepsUnder child ≤ 1 || (depsInNormalSubtree child).isEmpty
 
 
-/--
-Make a brand new flexible metavariable *and* its type, with no assumptions.
 
-We produce:
-  (?ty : Sort u), (?m : ?ty)
-
-so that ?m can later unify with literally anything, and ?ty can unify
-with whatever universe/type is needed. This avoids needing the original
-fvar's type from its old local context. This pattern follows the idea
-that `isDefEq` in Lean 4 will happily assign metavariables to make two
-expressions definitionally equal, including solving universe/term
-metavariables. :contentReference[oaicite:5]{index=5}
--/
-private def mkFlexibleMVar : MetaM Expr := do
-  -- make a fresh Sort ?u
-  let u ← mkFreshLevelMVar
-  let ty := Expr.sort u
-  -- now make a term metavariable : ty
-  mkFreshExprMVar ty
+/-- A term metavariable with a fresh *type* metavariable: produce `?m : ?α` with `?α : Sort ?u`. -/
+private def mkFlexibleTermMVar : MetaM Expr := do
+  let u  ← mkFreshLevelMVar
+  let α  ← mkFreshExprMVar (mkSort u)  -- `?α : Sort ?u`
+  mkFreshExprMVar α                    -- `?m : ?α`
 
 
-/--
-Replace any free variable (Expr.fvar fid) in `e` that is *not* declared
-in the current local context with a brand new flexible metavariable
-(`?m : ?α`) so that `isDefEq` can unify it later.
+partial def loosenLevels (e : Expr) : MetaM Expr := do
+  let cacheRef ← IO.mkRef ({} : Std.HashMap Expr (Array Level))
 
-We memoize so each external fvar id maps to a single metavariable.
-This lets `isDefEq` discover equalities like "_uniq.6803" = p, etc.
+  let rec go (e : Expr) : MetaM Expr := do
+    match e with
+    | .const nm lvls =>
+        -- We ignore the given lvls and make fresh ones of the same arity
+        -- but we memoize per `const nm lvls`-shape so multiple occurrences
+        -- of the same const share level mvars, to give `isDefEq` a chance.
+        let cache ← cacheRef.get
+        let some newLvls := cache.get? e
+          | do
+            let newLvls ← lvls.mapM (fun _ => mkFreshLevelMVar)
+            cacheRef.set (cache.insert e newLvls.toArray)
+            return .const nm newLvls
+        return .const nm newLvls.toList
+    | .app f a       => return .app (← go f) (← go a)
+    | .lam n t b bi  => return .lam n (← go t) (← go b) bi
+    | .forallE n t b bi => return .forallE n (← go t) (← go b) bi
+    | .letE n t v b nd => return .letE n (← go t) (← go v) (← go b) nd
+    | .mdata md b    => return .mdata md (← go b)
+    | .proj s i b    => return .proj s i (← go b)
+    | _              => pure e
+  go e
 
-This is similar in spirit to how tactics walk a context, create
-metavariables, and then call `isDefEq` to see if something unifies. :contentReference[oaicite:6]{index=6}
--/
+
 partial def loosenFVars (e : Expr) : MetaM Expr := do
   let cacheRef ← IO.mkRef ({} : Std.HashMap FVarId Expr)
-
   let rec go (e : Expr) : MetaM Expr := do
     match e with
     | .fvar fid =>
         let lctx ← getLCtx
         match lctx.find? fid with
-        | some _ =>
-            -- It's already in our context; keep it rigid.
-            pure e
-        | none =>
-            -- It's from some *other* context. Replace with flexible mvar.
-            let cache ← cacheRef.get
-            match cache.find? fid with
-            | some mv => pure mv
-            | none => do
-                let mv ← mkFlexibleMVar
-                cacheRef.set (cache.insert fid mv)
-                pure mv
-
-    | .app f a =>
-        return .app (← go f) (← go a)
-
-    | .lam n ty body bi =>
+        | some _  => pure e
+        | none    =>
+          let cache ← cacheRef.get
+          match cache.get? fid with
+          | some mv => pure mv
+          | none    => do
+              let mv ← mkFlexibleTermMVar   -- <-- use the fixed version
+              cacheRef.set (cache.insert fid mv)
+              pure mv
+    | .app f a                => return .app (← go f) (← go a)
+    | .lam n ty b bi          =>
         let ty' ← go ty
         withLocalDecl n bi ty' fun f => do
-          let body' := body.instantiate1 f
-          let body'' ← go body'
-          mkLambdaFVars #[f] body''
-
-    | .forallE n ty body bi =>
+          let b' := b.instantiate1 f
+          let b'' ← go b'
+          mkLambdaFVars #[f] b''
+    | .forallE n ty b bi      =>
         let ty' ← go ty
         withLocalDecl n bi ty' fun f => do
-          let body' := body.instantiate1 f
-          let body'' ← go body'
-          mkForallFVars #[f] body''
-
-    | .letE n ty val body nonDep =>
-        return .letE n (← go ty) (← go val) (← go body) nonDep
-
-    | .mdata md b =>
-        return .mdata md (← go b)
-
-    | .proj s i b =>
-        return .proj s i (← go b)
-
-    | _ =>
-        pure e
-
+          let b' := b.instantiate1 f
+          let b'' ← go b'
+          mkForallFVars #[f] b''
+    | .letE n ty v b nonDep   => return .letE n (← go ty) (← go v) (← go b) nonDep
+    | .mdata md b             => return .mdata md (← go b)
+    | .proj s i b             => return .proj s i (← go b)
+    | _                       => pure e
   go e
+
 
 
 /--
@@ -236,9 +222,14 @@ partial def withTypeForallParams
     match e with
     | .forallE n ty body bi =>
         -- Check if this binder is a "type/Prop param"
-        let isTyParam := ty.isSort
+        -- IO.println s!"Checking forall binder: {n} : {ty}"
+        let isTyParam := (← inferType ty).isProp
+        -- IO.println s!"isSort? {isTyParam} | isType? {ty.isType}"
+        -- let inferred ← inferType ty
+        -- IO.println s!"inferred type: {inferred}"
+        -- IO.println s!"inferred isSort? {inferred.isSort} | inferred isType? {inferred.isType}"
 
-        if isTyParam then
+        if !isTyParam then
           withLocalDecl n bi ty fun fvar => do
             let body' := body.instantiate1 fvar
             loop body' (acc.push fvar) k
@@ -253,43 +244,41 @@ partial def withTypeForallParams
   loop e #[] k
 
 
-/--
-Check if `childExpr` is just a forall-generalized version of `parentExpr`.
-
-Steps:
-1. Peel all leading `∀ x : Prop | Type, ...` from `childExpr`.
-   This gives us locals `params` (like `P Q : Prop`) and a body `strippedBody`
-   which might look like `P ∧ Q → Q ∧ P`.
-
-2. If we didn't peel anything (`params` is empty), return `false`.
-
-3. "Loosen" `parentExpr` by replacing any free vars that are *not*
-   in this local context with flexible metavariables `?m : ?α`,
-   so `isDefEq` can unify them. This handles the fact that your parent goal
-   has locals `_uniq.6803`, `_uniq.6804` from a different goal context,
-   which otherwise wouldn't α-rename automatically. Lean identifies locals
-   by `FVarId`, and different `FVarId`s don't unify by default. :contentReference[oaicite:8]{index=8}
-
-4. Call `Meta.isDefEq strippedBody parentLoosened`. `isDefEq` in Lean 4
-   solves metavariables during unification, so if the only difference is
-   renaming/universally-quantifying context params, this should now succeed. :contentReference[oaicite:9]{index=9}
--/
 def isForallAbstractionDuplicateMeta
     (childExpr parentExpr : Expr) : MetaM Bool := do
-  IO.println s!"[inside meta] Checking forall-abstraction duplicate between:\n Child: {childExpr}\n Parent: {parentExpr}"
+  IO.println "[inside meta] start forall-abstraction check"
+
   withTypeForallParams childExpr fun params strippedBody => do
     if params.isEmpty then
       return false
     else
-      let parentLoosened ← loosenFVars parentExpr
-      -- DEBUG:
-      IO.println "----- after peeling -----"
-      IO.println s!"params: {params.size}"
-      IO.println s!"strippedBody: {strippedBody}"
-      IO.println s!"parentLoosened: {parentLoosened}"
-      IO.println "-------------------------"
+      -- specialize child over peeled params
+      let lamChild ← Meta.mkLambdaFVars params strippedBody
+      let argMVars ← params.mapM (fun p => do
+        let pTy ← inferType p
+        mkFreshExprMVar pTy
+      )
+      let childSpecialized := mkAppN lamChild argMVars
 
-      Meta.isDefEq strippedBody parentLoosened
+      -- loosen parent vars
+      let parentLoosened₀ ← loosenFVars parentExpr
+
+      -- NEW: make universe levels flexible on both sides
+      let childRelaxed    ← loosenLevels childSpecialized
+      let parentLoosened  ← loosenLevels parentLoosened₀
+
+      -- try unify, swallow errors
+      let success ←
+        try
+          Meta.isDefEq childRelaxed parentLoosened
+        catch _ =>
+          pure false
+
+      -- hygiene
+      discard (instantiateMVars childRelaxed)
+      discard (instantiateMVars parentLoosened)
+
+      return success
 
 
 /--
@@ -305,7 +294,7 @@ def isForallAbstractionDuplicate
     (childExpr parentExpr : Expr)
     : IO Bool := do
 
-  IO.println s!"Checking forall-abstraction duplicate between:\n Child: {childExpr}\n Parent: {parentExpr}"
+  -- IO.println s!"Checking forall-abstraction duplicate between:\n Child: {childExpr}\n Parent: {parentExpr}"
 
   let coreCtx : Core.Context := {
     fileName := "<internal>"
@@ -449,9 +438,9 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
       let parentGoal := parent.goalBefore
       let childGoal := child.node.goalBefore
       IO.println "============================================="
-      IO.println s!"Checking edge ([{parent.tacticString}] -> [{child.node.tacticString}]) for duplication"
-      IO.println s!"Parent goal type: {parentGoal.type}"
-      IO.println s!"Child goal type: {childGoal.type}"
+      -- IO.println s!"Checking edge ([{parent.tacticString}] -> [{child.node.tacticString}]) for duplication"
+      -- IO.println s!"Parent goal type: {parentGoal.type}"
+      -- IO.println s!"Child goal type: {childGoal.type}"
 
 
 
@@ -1084,7 +1073,6 @@ def repeat_main_goal2 := "theorem foo (P Q : Prop) : P ∧ Q → Q ∧ P := by
 
 
 def repeat_main_goal3 := "theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
-  have hh : 1=1 := by rfl
   have h₁ : ∀ P Q : Prop, P ∧ Q → Q ∧ P := by
     intro P Q h
     constructor
@@ -1094,9 +1082,9 @@ def repeat_main_goal3 := "theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
 
 -- Test new_proof (should have 2 effective spawned edges: (0.0, 2.0, true))
 -- #eval do
-  -- IO.println "\n=== Testing new_proof ==="
-  -- let result ← getScore2 `Foundation.Modal.Hilbert.WeakerThan.KD5_KD45 `LO.Modal.Hilbert.KD5_weakerThan_KD45 new_proof
-  -- IO.println s!"Result: {result}"
+--   IO.println "\n=== Testing new_proof ==="
+--   let result ← getScore2 `Foundation.Modal.Hilbert.WeakerThan.KD5_KD45 `LO.Modal.Hilbert.KD5_weakerThan_KD45 new_proof
+--   IO.println s!"Result: {result}"
 
 -- Test repeat_main_goal2 (exact duplicate: should be (0.0, 0.0, true))
 -- #eval do
@@ -1110,6 +1098,22 @@ def repeat_main_goal3 := "theorem foo2 (P Q : Prop) : P ∧ Q → Q ∧ P := by
 --   let result ← getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal3
 --   IO.println s!"Result: {result}"
 
+
+
+def repeat_main_goal4 := "theorem foo2 (n : ℕ) : n=n → n=n := by
+  have h₁ : ∀ n : ℕ, n=n → n=n := by
+    intro n hn
+    have duh : ∀ m : ℕ, m=m := by
+      intro m
+      rfl
+    exact duh n
+  intro hn
+  exact h₁ n hn"
+
+-- #eval do
+--   IO.println "\n=== Testing repeat_main_goal4 ==="
+--   let result ← getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal4
+--   IO.println s!"Result: {result}"
 
 
 
