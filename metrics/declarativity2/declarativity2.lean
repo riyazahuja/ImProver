@@ -122,280 +122,138 @@ def isTrivial (child : ProofTree) : Bool :=
 
 
 
-/-- A term metavariable with a fresh *type* metavariable: produce `?m : ?α` with `?α : Sort ?u`. -/
-private def mkFlexibleTermMVar : MetaM Expr := do
-  let u  ← mkFreshLevelMVar
-  let α  ← mkFreshExprMVar (mkSort u)  -- `?α : Sort ?u`
-  mkFreshExprMVar α                    -- `?m : ?α`
 
 
-partial def loosenLevels (e : Expr) : MetaM Expr := do
-  let cacheRef ← IO.mkRef ({} : Std.HashMap Expr (Array Level))
-
-  let rec go (e : Expr) : MetaM Expr := do
-    match e with
-    | .const nm lvls =>
-        -- We ignore the given lvls and make fresh ones of the same arity
-        -- but we memoize per `const nm lvls`-shape so multiple occurrences
-        -- of the same const share level mvars, to give `isDefEq` a chance.
-        let cache ← cacheRef.get
-        let some newLvls := cache.get? e
-          | do
-            let newLvls ← lvls.mapM (fun _ => mkFreshLevelMVar)
-            cacheRef.set (cache.insert e newLvls.toArray)
-            return .const nm newLvls
-        return .const nm newLvls.toList
-    | .app f a       => return .app (← go f) (← go a)
-    | .lam n t b bi  => return .lam n (← go t) (← go b) bi
-    | .forallE n t b bi => return .forallE n (← go t) (← go b) bi
-    | .letE n t v b nd => return .letE n (← go t) (← go v) (← go b) nd
-    | .mdata md b    => return .mdata md (← go b)
-    | .proj s i b    => return .proj s i (← go b)
-    | _              => pure e
-  go e
 
 
-partial def loosenFVars (e : Expr) : MetaM Expr := do
-  let cacheRef ← IO.mkRef ({} : Std.HashMap FVarId Expr)
+/-- Collect all free variable ids in an expression. -/
+partial def gatherFVarIds (e : Expr) (acc : Std.HashSet FVarId := {}) : Std.HashSet FVarId :=
+  match e with
+  | .fvar fid        => acc.insert fid
+  | .app f a         => gatherFVarIds a (gatherFVarIds f acc)
+  | .lam _ ty bd _   => gatherFVarIds bd (gatherFVarIds ty acc)
+  | .forallE _ ty bd _ => gatherFVarIds bd (gatherFVarIds ty acc)
+  | .letE _ ty v b _ => gatherFVarIds b (gatherFVarIds v (gatherFVarIds ty acc))
+  | .mdata _ b       => gatherFVarIds b acc
+  | .proj _ _ b      => gatherFVarIds b acc
+  | _                => acc
+
+/-- Replace fvars that are **not** in the current local context with fresh mvars. -/
+partial def replaceUnknownFVarsWithMVars (e : Expr) : MetaM Expr := do
+  let lctx ← getLCtx
   let rec go (e : Expr) : MetaM Expr := do
     match e with
     | .fvar fid =>
-        let lctx ← getLCtx
-        match lctx.find? fid with
-        | some _  => pure e
-        | none    =>
-          let cache ← cacheRef.get
-          match cache.get? fid with
-          | some mv => pure mv
-          | none    => do
-              let mv ← mkFlexibleTermMVar   -- <-- use the fixed version
-              cacheRef.set (cache.insert fid mv)
-              pure mv
-    | .app f a                => return .app (← go f) (← go a)
-    | .lam n ty b bi          =>
-        let ty' ← go ty
-        withLocalDecl n bi ty' fun f => do
-          let b' := b.instantiate1 f
-          let b'' ← go b'
-          mkLambdaFVars #[f] b''
-    | .forallE n ty b bi      =>
-        let ty' ← go ty
-        withLocalDecl n bi ty' fun f => do
-          let b' := b.instantiate1 f
-          let b'' ← go b'
-          mkForallFVars #[f] b''
-    | .letE n ty v b nonDep   => return .letE n (← go ty) (← go v) (← go b) nonDep
-    | .mdata md b             => return .mdata md (← go b)
-    | .proj s i b             => return .proj s i (← go b)
-    | _                       => pure e
+      match lctx.find? fid with
+      | some _ => pure e
+      | none   =>
+        let u ← mkFreshLevelMVar
+        let α ← mkFreshExprMVar (mkSort u)
+        mkFreshExprMVar α
+    | .app f a           => return .app (← go f) (← go a)
+    | .lam n ty b bi     => return .lam n (← go ty) (← go b) bi
+    | .forallE n ty b bi => return .forallE n (← go ty) (← go b) bi
+    | .letE n ty v b nd  => return .letE n (← go ty) (← go v) (← go b) nd
+    | .mdata md b        => return .mdata md (← go b)
+    | .proj s i b        => return .proj s i (← go b)
+    | e                  => pure e
   go e
 
-
-
-/--
-Open leading `∀` binders from `e` *as long as* each binder's type is `Prop`
-or `Sort u` (i.e. "type-level" / "Prop-level" arguments) and keep peeling.
-
-For each peeled binder:
-  * introduce it as a fresh local fvar
-  * instantiate the body with that fvar
-and recurse.
-
-We then call `k params body` *inside that extended local context*,
-so `params` are real locals in-scope and `body` is the remaining
-expression after peeling all the type-level binders.
-
-This mirrors how Lean's `forallTelescope` / `forallTelescopeReducing`
-expose forall-bound vars as `fvar`s only within a continuation. After
-the continuation exits, Lean would re-generalize those locals back into
-foralls, so you can't just "return" `body` and use it later without a
-continuation. :contentReference[oaicite:7]{index=7}
--/
-partial def withTypeForallParams
-    (e : Expr)
-    (k : Array Expr → Expr → MetaM α)
-    : MetaM α :=
-
-  let rec loop (e : Expr) (acc : Array Expr)
-      (k : Array Expr → Expr → MetaM α)
-      : MetaM α := do
+/-- Make universe levels flexible everywhere (helps defEq). -/
+partial def loosenLevels (e : Expr) : MetaM Expr := do
+  let cacheRef ← IO.mkRef ({} : Std.HashMap Name (Array Level))
+  let rec go (e : Expr) : MetaM Expr := do
     match e with
-    | .forallE n ty body bi =>
-        -- Check if this binder is a "type/Prop param"
-        -- IO.println s!"Checking forall binder: {n} : {ty}"
-        let isTyParam := (← inferType ty).isProp
-        -- IO.println s!"isSort? {isTyParam} | isType? {ty.isType}"
-        -- let inferred ← inferType ty
-        -- IO.println s!"inferred type: {inferred}"
-        -- IO.println s!"inferred isSort? {inferred.isSort} | inferred isType? {inferred.isType}"
+    | .const nm lvls =>
+      let cache ← cacheRef.get
+      match cache.get? nm with
+      | some newLvls => return .const nm newLvls.toList
+      | none =>
+        let newLvls ← lvls.mapM (fun _ => mkFreshLevelMVar)
+        cacheRef.set (cache.insert nm newLvls.toArray)
+        return .const nm newLvls
+    | .app f a           => return .app (← go f) (← go a)
+    | .lam n ty b bi     => return .lam n (← go ty) (← go b) bi
+    | .forallE n ty b bi => return .forallE n (← go ty) (← go b) bi
+    | .letE n ty v b nd  => return .letE n (← go ty) (← go v) (← go b) nd
+    | .mdata md b        => return .mdata md (← go b)
+    | .proj s i b        => return .proj s i (← go b)
+    | _                  => pure e
+  go e
 
-        if !isTyParam then
-          withLocalDecl n bi ty fun fvar => do
-            let body' := body.instantiate1 fvar
-            loop body' (acc.push fvar) k
-        else
-          -- hit first value-level argument, stop stripping
-          k acc e
+/-- Definitional equality "modulo ∀": peel all Π/∀, standardize parameters, then check `isDefEq`.
 
-    | _ =>
-        -- no more forall binders
-        k acc e
+    Strategy:
+    1. Replace external fvars with mvars (prevents "unknown free variable" errors)
+    2. Loosen universe levels (helps unification)
+    3. Peel ALL Π-binders (∀ and →) from both sides
+    4. Abstract bodies into lambdas over peeled parameters
+    5. Apply lambdas with fresh mvars (standardizes parameter names)
+    6. Check definitional equality on the applications
 
-  loop e #[] k
+    This handles cases like:
+    - Child: `∀ C : Set α, M.Circuit C → C.Nonempty`
+    - Parent: `C.Nonempty` (where C and M.Circuit C are in context)
+    - After peeling and standardizing: both reduce to `?C.Nonempty` → Match! -/
+def defEqModuloForallMeta (a b : Expr) : MetaM Bool := do
+  -- Step 1: Replace all external fvars with fresh mvars
+  -- This handles fvars from the original proof context that don't exist in current lctx
+  let a0 ← replaceUnknownFVarsWithMVars a
+  let b0 ← replaceUnknownFVarsWithMVars b
 
+  -- Step 2: Make universe levels flexible (helps unification)
+  let a1 ← loosenLevels a0
+  let b1 ← loosenLevels b0
 
-def isForallAbstractionDuplicateMeta
-    (childExpr parentExpr : Expr) : MetaM Bool := do
-  IO.println "[inside meta] start forall-abstraction check"
-
-  withTypeForallParams childExpr fun params strippedBody => do
-    if params.isEmpty then
+  -- Step 3: Peel ALL Π-binders (∀ and →) from child
+  forallTelescopeReducing a1 fun paramsA bodyA => do
+    -- Child must have foralls to be a forall-abstraction duplicate
+    if paramsA.isEmpty then
       return false
-    else
-      -- specialize child over peeled params
-      let lamChild ← Meta.mkLambdaFVars params strippedBody
-      let argMVars ← params.mapM (fun p => do
-        let pTy ← inferType p
-        mkFreshExprMVar pTy
-      )
-      let childSpecialized := mkAppN lamChild argMVars
 
-      -- loosen parent vars
-      let parentLoosened₀ ← loosenFVars parentExpr
+    -- Step 4: Peel ALL Π-binders from parent (might have none)
+    forallTelescopeReducing b1 fun paramsB bodyB => do
+      -- Step 5: Abstract child body over its parameters
+      -- This creates: λ (p₁ : T₁) ... (pₙ : Tₙ) => bodyA
+      let lamA ← mkLambdaFVars paramsA bodyA
 
-      -- NEW: make universe levels flexible on both sides
-      let childRelaxed    ← loosenLevels childSpecialized
-      let parentLoosened  ← loosenLevels parentLoosened₀
+      -- Step 6: Apply lambda with fresh mvars
+      -- This gives: bodyA[p₁ := ?m₁, ..., pₙ := ?mₙ]
+      let mvarsA ← paramsA.mapM (fun p => do
+        let ty ← inferType p
+        mkFreshExprMVar ty)
+      let instA := mkAppN lamA mvarsA
 
-      -- try unify, swallow errors
-      let success ←
-        try
-          Meta.isDefEq childRelaxed parentLoosened
-        catch _ =>
-          pure false
+      -- Step 7: Do same for parent (if it had any foralls)
+      let instB ← if paramsB.isEmpty then
+        -- Parent has no foralls, just use the body directly
+        pure bodyB
+      else
+        -- Parent also had foralls, abstract and apply
+        let lamB ← mkLambdaFVars paramsB bodyB
+        let mvarsB ← paramsB.mapM (fun p => do
+          let ty ← inferType p
+          mkFreshExprMVar ty)
+        pure (mkAppN lamB mvarsB)
 
-      -- hygiene
-      discard (instantiateMVars childRelaxed)
-      discard (instantiateMVars parentLoosened)
-
-      return success
-
-
-/--
-IO wrapper so you can call this from "normal" code with just an `Environment`
-and two `Expr`s.
-
-This builds a minimal `Core.Context` and `Core.State`, runs the MetaM logic,
-and gives you a Bool. This pattern is standard in Lean 4 when you want to
-run `MetaM` stuff in plain `IO`. :contentReference[oaicite:10]{index=10}
--/
-def isForallAbstractionDuplicate
-    (env : Environment)
-    (childExpr parentExpr : Expr)
-    : IO Bool := do
-
-  -- IO.println s!"Checking forall-abstraction duplicate between:\n Child: {childExpr}\n Parent: {parentExpr}"
-
-  let coreCtx : Core.Context := {
-    fileName := "<internal>"
-    fileMap  := default
-    options  := {}
-  }
-
-  let coreState : Core.State := {
-    env := env
-  }
-
-  let metaComp : MetaM Bool :=
-    isForallAbstractionDuplicateMeta childExpr parentExpr
-
-  let coreComp : CoreM Bool := metaComp.run'
-  let (b, _st) ← coreComp.toIO coreCtx coreState
-  pure b
+      -- Step 8: Check definitional equality
+      -- instA and instB now have standardized parameters (mvars)
+      try
+        isDefEq instA instB
+      catch _ =>
+        -- Handle any type errors gracefully
+        return false
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-/-- Collect all nodes in tree traversal order (preceding nodes first) -/
-partial def collectAllNodesInOrder (tree : ProofTree) (acc : List ProofTree := []) : List ProofTree :=
-  let acc1 := acc ++ [tree]
-  let acc2 := tree.children.toList.foldl (fun s c => collectAllNodesInOrder c s) acc1
-  tree.spawned_children.toList.foldl (fun s c => collectAllNodesInOrder c s) acc2
-
--- Step 2: Initialize status map
-
-/-- Initialize status map: mark trivial and duplicate spawned goals as ineffective -/
--- partial def initializeStatusMap (tree : ProofTree) (preceding : List ProofTree := [])
---     (statusMap : StatusMap := {}) : StatusMap :=
---   -- For each spawned child, check if it's trivial or duplicate
---   -- Also check against sibling spawned goals processed so far
---   let (statusMap1, _) := tree.spawned_children.toList.foldl (fun (sm, prevSiblings) child =>
---     let edgeId := getEdgeId child
---     let tacticStr := getTacticStr child
---     let workSteps := workStepsUnder child
---     let deps := depsInNormalSubtree child
---     let hasDeps := !deps.isEmpty
-
---     -- Check for duplicate against preceding AND sibling spawned goals
---     let allPreceding := preceding ++ prevSiblings
---     match isDuplicateOfPreceding child allPreceding with
---     | some precedingType =>
---       let info : EdgeStatusInfo := {
---         status := EdgeStatus.ineffective
---         tacticStr := tacticStr
---         reason := some (IneffectiveReason.duplicate precedingType)
---       }
---       (sm.insert edgeId info, prevSiblings ++ [child])
---     | none =>
---       -- Check for trivial
---       if isTrivial child then
---         let info : EdgeStatusInfo := {
---           status := EdgeStatus.ineffective
---           tacticStr := tacticStr
---           reason := some (IneffectiveReason.trivial workSteps hasDeps)
---         }
---         (sm.insert edgeId info, prevSiblings ++ [child])
---       else
---         let info : EdgeStatusInfo := {
---           status := EdgeStatus.effective
---           tacticStr := tacticStr
---           reason := none
---         }
---         (sm.insert edgeId info, prevSiblings ++ [child])
---   ) (statusMap, [])
-
---   let (statusMap1WithNormal, _) := tree.children.toList.filter (fun c =>
---     !tree.spawned_children.toList.contains c) |>.foldl (fun (sm, prevSiblings) c =>
---     let edgeId := getEdgeId c
---     let tacticStr := getTacticStr c
---     let info : EdgeStatusInfo := {
---       status := EdgeStatus.normal
---       tacticStr := tacticStr
---       reason := none
---     }
---     (sm.insert edgeId info, prevSiblings ++ [c])
---   ) (statusMap1, [])
-
---   -- Update preceding list and recurse into NORMAL children only (spawned already processed above)
---   let newPreceding := preceding ++ [tree]
---   let normalChildren := tree.children.toList.filter (fun c =>
---     !tree.spawned_children.toList.contains c)
---   normalChildren.foldl (fun sm c =>
---     initializeStatusMap c newPreceding sm
---   ) statusMap1WithNormal
+def defEqModuloForall (env : Environment) (a b : Expr) : IO Bool := do
+  IO.println s!"Checking defEqModuloForall between:\n A: {a}\n B: {b}"
+  let coreCtx : Core.Context := { fileName := "<internal>", fileMap := default, options := {} }
+  let coreState : Core.State := { env := env }
+  let m := defEqModuloForallMeta a b
+  let (output, _)← (m.run').toIO coreCtx coreState
+  return output
 
 -- edge depth i for e: A -> B means that B's depth is i
 partial def getAllEdgesWithDepth (tree : ProofTree) (depth : Nat := 0) : List (Nat × EdgeStatus × ProofStep × ProofTree) := Id.run do
@@ -406,16 +264,11 @@ partial def getAllEdgesWithDepth (tree : ProofTree) (depth : Nat := 0) : List (N
     curr := (depth, status, tree.node, child) :: curr ++ recursive
   curr
 
-  -- for spawned in tree.spawned_children.toList do
-  --   curr := (depth, EdgeStatus.effective, spawned) :: curr
 
 
 partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO StatusMap := do
-
   let mut statusMap : StatusMap := {}
 
-
-  -- first get all edges in the tree, in order given by index pairs (edge, idx). parallel/sibling edges have the same idx and idx gives the depth
   let allEdgesWithDepth := getAllEdgesWithDepth tree |>.toArray
   let depthMap : Std.HashMap Nat (List (EdgeStatus × ProofStep × ProofTree)) :=
     allEdgesWithDepth.foldl (fun dm (d, s, ps, pt) =>
@@ -423,87 +276,76 @@ partial def initializeStatusMap (env : Environment) (tree : ProofTree) : IO Stat
       dm.insert d ((s, ps, pt) :: existing)
     ) {}
 
-
-  -- now for each edge, figure out if its trivial or duplicate by checking all edges with idx <= its idx
   for (depth, status, parent, child) in allEdgesWithDepth do
+    let edgeId := getEdgeId child
+    let childTacticStr := getTacticStr child
+    let tacticStr := s!"([{parent.tacticString}] -> [{childTacticStr}])"
+
     if status == EdgeStatus.effective then
-      let edgeId := getEdgeId child
-      let childTacticStr := getTacticStr child
-      let tacticStr := s!"([{parent.tacticString}] -> [{childTacticStr}])"
-      let workSteps := workStepsUnder child
-      let deps := depsInNormalSubtree child
-      let hasDeps := !deps.isEmpty
-
-      -- First check if spawned goal is duplicate of parent's goal
-      let parentGoal := parent.goalBefore
       let childGoal := child.node.goalBefore
-      IO.println "============================================="
-      -- IO.println s!"Checking edge ([{parent.tacticString}] -> [{child.node.tacticString}]) for duplication"
-      -- IO.println s!"Parent goal type: {parentGoal.type}"
-      -- IO.println s!"Child goal type: {childGoal.type}"
+      let parentGoal := parent.goalBefore
 
-
-
-
-      if childGoal.type == parentGoal.type &&
-         (hypsKey parentGoal).all (fun h => (hypsKey childGoal).contains h) then
-        -- Spawned goal is exact duplicate of parent's goal
+      -- (1) Duplicate to parent, modulo forall-unrolling
+      let dupToParent ← defEqModuloForall env childGoal.typeExpr parent.goalBefore.typeExpr
+      if dupToParent then
         let info : EdgeStatusInfo := {
-          status := EdgeStatus.ineffective
+          status := .ineffective
           tacticStr := tacticStr
-          reason := some (IneffectiveReason.duplicate parentGoal.type)
+          reason := some (IneffectiveReason.duplicate s!"{parentGoal.type} (mod ∀)")
         }
-        IO.println s!"Marking edge as ineffective due to duplicate goal type: {parentGoal.type}"
         statusMap := statusMap.insert edgeId info
-      else if ← isForallAbstractionDuplicate env childGoal.typeExpr parentGoal.typeExpr then
-        -- Spawned goal is duplicate via forall-abstraction over parent's context
-        let info : EdgeStatusInfo := {
-          status := EdgeStatus.ineffective
-          tacticStr := tacticStr
-          reason := some (IneffectiveReason.duplicate s!"{parentGoal.type} (forall-abstraction)")
-        }
-        IO.println s!"Marking edge as ineffective due to forall-abstraction duplicate goal type: {parentGoal.type}"
-        statusMap := statusMap.insert edgeId info
-      else
-        -- check for duplicate against all preceding edges with idx <= its idx
-        let precedingEdges : List (EdgeStatus × ProofStep × ProofTree) := depthMap.toList.filter (fun (d, _) => d <= depth) |>.flatMap (·.2)|>.filter (fun (_,_,c) => getEdgeId c != edgeId)  -- filter out self
-        match isDuplicateOfPreceding child (precedingEdges.map (·.2.2)) with
-        | some precedingType =>
+        continue
+
+      -- (2) Duplicate to any preceding (≤ depth), modulo forall-unrolling
+      let preceding : List (EdgeStatus × ProofStep × ProofTree) :=
+        depthMap.toList.filter (fun (d, _) => d ≤ depth) |>.flatMap (·.2)
+
+      let mut hit : Option String := none
+      for (_, _, preTree) in preceding do
+        if getEdgeId preTree == edgeId then
+          continue
+        let preGoal := preTree.node.goalBefore
+
+        let ok ← defEqModuloForall env childGoal.typeExpr preGoal.typeExpr
+        if ok then
+          hit := some preGoal.type
+          break
+
+      match hit with
+      | some typ =>
           let info : EdgeStatusInfo := {
-            status := EdgeStatus.ineffective
+            status := .ineffective
             tacticStr := tacticStr
-            reason := some (IneffectiveReason.duplicate precedingType)
+            reason := some (IneffectiveReason.duplicate s!"{typ} (mod ∀)")
           }
-          IO.println s!"Marking edge as ineffective due to duplicate goal type to preceding edge: {precedingType}"
           statusMap := statusMap.insert edgeId info
-        | none =>
-          -- check for trivial
-          if isTrivial child then
+      | none =>
+          -- (3) Not a duplicate: fall back to your triviality gate
+          let workSteps := workStepsUnder child
+          let hasDeps := !(depsInNormalSubtree child).isEmpty
+          if workSteps ≤ 1 || !hasDeps then
             let info : EdgeStatusInfo := {
-              status := EdgeStatus.ineffective
+              status := .ineffective
               tacticStr := tacticStr
               reason := some (IneffectiveReason.trivial workSteps hasDeps)
             }
             statusMap := statusMap.insert edgeId info
           else
             let info : EdgeStatusInfo := {
-              status := EdgeStatus.effective
+              status := .effective
               tacticStr := tacticStr
               reason := none
             }
             statusMap := statusMap.insert edgeId info
+
     else
       -- normal edge
-      let edgeId := getEdgeId child
-      let childTacticStr := getTacticStr child
-      let tacticStr := s!"([{parent.tacticString}] -> [{childTacticStr}])"
       let info : EdgeStatusInfo := {
-        status := EdgeStatus.normal
+        status := .normal
         tacticStr := tacticStr
         reason := none
       }
       statusMap := statusMap.insert edgeId info
-  IO.println "============================================="
 
   return statusMap
 
@@ -1118,5 +960,40 @@ def repeat_main_goal4 := "theorem foo2 (n : ℕ) : n=n → n=n := by
 
 
 
--- #eval do getScore2 `FLT.Mathlib.GroupTheory.Index `AddSubgroup.index_smul repeat_main_goal3
--- -- #eval do getScore2 `Carleson.Classical.SpectralProjectionBound `L2norm_sq_eq repeat_main_goal
+
+
+def matroid := "lemma Matroid.Circuit.nonempty {M : Matroid α} {C : Set α} (hC : M.Circuit C) : C.Nonempty := by
+  -- Extract the property that a circuit must be nonempty
+  have h_nonempty : ∀ C : Set α, M.Circuit C → C.Nonempty := by
+    intro C hC
+    -- Assume for contradiction that the circuit is empty
+    by_contra! h_empty
+    -- Rewrite the assumption to show the empty set cannot be a circuit
+    rw [h_empty] at hC
+    -- Derive a contradiction since an empty set cannot be a circuit
+    exact hC.not_empty
+  -- Apply the extracted property to conclude the proof
+  apply h_nonempty
+  exact hC"
+
+#eval do
+  IO.println "\n=== Testing matroid ==="
+  let result ← getScore2 `Seymour.Matroid.Notions.Circuit `Matroid.Circuit.nonempty matroid
+  IO.println s!"Result: {result}"
+
+
+def singleton := "theorem op_eq_singleton_iff (x y : TSet γ) (z : TSet β) :
+    op hβ hγ x y = singleton hβ z ↔ singleton hγ x = z ∧ singleton hγ y = z := by
+  -- Define the equivalence for the operation op resulting in a singleton set
+  have h1 : ∀ x y z, op hβ hγ x y = singleton hβ z ↔ singleton hγ x = z ∧ singleton hγ y = z := by
+    intro x y z
+    rw [op, up_eq_singleton_iff, and_congr_right_iff]
+    rintro rfl
+    simp only [up_eq_singleton_iff, true_and, singleton_inj]
+  -- Apply the established equivalence
+  exact h1 x y z"
+
+-- #eval do
+--   IO.println "\n=== Testing singleton ==="
+--   let result ← getScore2 `ConNF.Model.Hailperin `ConNF.TSet.op_eq_singleton_iff singleton
+--   IO.println s!"Result: {result}"
