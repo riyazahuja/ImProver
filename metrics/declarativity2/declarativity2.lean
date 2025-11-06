@@ -976,10 +976,10 @@ def matroid := "lemma Matroid.Circuit.nonempty {M : Matroid α} {C : Set α} (hC
   apply h_nonempty
   exact hC"
 
-#eval do
-  IO.println "\n=== Testing matroid ==="
-  let result ← getScore2 `Seymour.Matroid.Notions.Circuit `Matroid.Circuit.nonempty matroid
-  IO.println s!"Result: {result}"
+-- #eval do
+--   IO.println "\n=== Testing matroid ==="
+--   let result ← getScore2 `Seymour.Matroid.Notions.Circuit `Matroid.Circuit.nonempty matroid
+--   IO.println s!"Result: {result}"
 
 
 def singleton := "theorem op_eq_singleton_iff (x y : TSet γ) (z : TSet β) :
