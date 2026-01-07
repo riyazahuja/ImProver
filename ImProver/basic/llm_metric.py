@@ -14,9 +14,273 @@ import duckdb
 import random
 import difflib
 from transformers import AutoTokenizer
+import asyncio
+import aiohttp
+from typing import List, Dict, Any, Optional
+from tqdm import tqdm
+import pandas as pd
+
+from .inference_server import _chat_complete_async, RateLimiter
+
+
+def postprocess(row):
+    if row["original"].strip() == row["improved"].strip():
+        # This is kinda jank, but I don't want to do more filtering so we'll do inference on these anyway
+        return dict(answer=0, **row)
+
+    # CUSTOM HEURISTICS
+    if use_heuristics:
+        if row["improved"].strip().startswith(row["original"].strip()):
+            # If the "improved" proof is just the original proof with extra spam on the end, we consider it worse
+            return dict(answer=(-5 if row["original_first"] else 5), **row)
+        if "".join(
+            [
+                li[2]
+                for li in difflib.ndiff(
+                    row["original"].replace("\n", "").replace(" ", ""),
+                    row["improved"].replace("\n", "").replace(" ", ""),
+                )
+                if li[0] != " "
+            ]
+        ) in ["by", "byapply", "byexact"]:
+            # If the improved version is just a proof term changed into "by apply" or "by exact", we say they're the same
+            return dict(answer=0, **row)
+
+    text = row["generated_text"]
+    import re
+
+    # Search for <SCORE>...</SCORE> in the text
+    match = re.search(r"<SCORE>(.*?)</SCORE>", text, re.DOTALL)
+    if match:
+        score_str = match.group(1).strip()
+    else:
+        # If no <SCORE> tag, try to find <SCORE> and go to end
+        match_start = re.search(r"<SCORE>(.*)", text, re.DOTALL)
+        if match_start:
+            score_str = match_start.group(1).strip()
+        else:
+            # If no <SCORE> tag at all, try from beginning
+            score_str = text.strip()
+    if not score_str:
+        return dict(answer=None, **row)
+
+    # Now, try to parse score_str as an integer between -5 and 5 inclusive
+    try:
+        score = int(score_str)
+        if score < -5 or score > 5:
+            score = None
+    except Exception:
+        score = None
+    return dict(answer=score, **row)
+
+
+async def run_inference_async_azure(
+    df: pd.DataFrame, args, metric_config, use_heuristics
+) -> str:
+    """
+    Asynchronous inference that processes prompts concurrently with rate limiting.
+    """
+    # Get API configuration - handle both Azure and standard OpenAI
+    azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+
+    if azure_key and azure_endpoint:
+        # Azure OpenAI configuration
+        api_key = azure_key
+        base_url = azure_endpoint
+        # For Azure, we need to use the deployment name as the model
+        model_name = args.judge_model
+        is_azure = True
+    else:
+        # Standard OpenAI configuration
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY (or API_KEY) must be set for OpenAI-compatible endpoints."
+            )
+
+        base_url = os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        model_name = args.judge_model
+        is_azure = False
+
+    # Duplicate rows for best-of-n behavior (preserve original semantics)
+    df2_parts = []
+    for i in range(args.judge_n):
+        df_copy = df.copy()
+        df_copy["prompt_idx"] = i
+        df2_parts.append(df_copy)
+    df2 = pd.concat(df2_parts, ignore_index=True)
+
+    size = len(df2)
+    print(f"Size of dataset: {size} prompts")
+
+    # Configure rate limiting (adjust based on your API limits)
+    rate_limiter = RateLimiter(
+        max_requests_per_minute=(
+            args.server_rate_limit if hasattr(args, "server_rate_limit") else 60
+        )
+    )
+
+    outputs: List[Dict[str, Any]] = []
+
+    # Create progress bar
+    pbar = tqdm(total=size, desc="Processing prompts", unit="prompt")
+
+    def postprocess(row):
+        if row["original"].strip() == row["improved"].strip():
+            # This is kinda jank, but I don't want to do more filtering so we'll do inference on these anyway
+            return dict(answer=0, **row)
+
+        # CUSTOM HEURISTICS
+        if use_heuristics:
+            if row["improved"].strip().startswith(row["original"].strip()):
+                # If the "improved" proof is just the original proof with extra spam on the end, we consider it worse
+                return dict(answer=(-5 if row["original_first"] else 5), **row)
+            if "".join(
+                [
+                    li[2]
+                    for li in difflib.ndiff(
+                        row["original"].replace("\n", "").replace(" ", ""),
+                        row["improved"].replace("\n", "").replace(" ", ""),
+                    )
+                    if li[0] != " "
+                ]
+            ) in ["by", "byapply", "byexact"]:
+                # If the improved version is just a proof term changed into "by apply" or "by exact", we say they're the same
+                return dict(answer=0, **row)
+
+        text = row["generated_text"]
+        import re
+
+        # Search for <SCORE>...</SCORE> in the text
+        match = re.search(r"<SCORE>(.*?)</SCORE>", text, re.DOTALL)
+        if match:
+            score_str = match.group(1).strip()
+        else:
+            # If no <SCORE> tag, try to find <SCORE> and go to end
+            match_start = re.search(r"<SCORE>(.*)", text, re.DOTALL)
+            if match_start:
+                score_str = match_start.group(1).strip()
+            else:
+                # If no <SCORE> tag at all, try from beginning
+                score_str = text.strip()
+        if not score_str:
+            return dict(answer=None, **row)
+
+        # Now, try to parse score_str as an integer between -5 and 5 inclusive
+        try:
+            score = int(score_str)
+            if score < -5 or score > 5:
+                score = None
+        except Exception:
+            score = None
+        return dict(answer=score, **row)
+
+    async def process_prompt(row_idx: int, row) -> Dict[str, Any]:
+        raw_prompt: str = getattr(row, "raw_prompt")
+
+        # # Optional prompt truncation (approximate)
+        # if args.truncate_prompt_tokens is not None and args.truncate_prompt_tokens > 0:
+        #     approx_chars = int(args.truncate_prompt_tokens) * 4
+        #     if len(raw_prompt) > approx_chars:
+        #         raw_prompt = raw_prompt[-approx_chars:]
+
+        answer_text = await _chat_complete_async(
+            session,
+            base_url,
+            api_key,
+            model_name,
+            raw_prompt,
+            args.max_tokens,
+            rate_limiter,
+            is_azure,
+        )
+        print(f"Prompt {row_idx} completed.")
+        print(f"Answer:\n{answer_text}")
+        print("#" * 80)
+
+        # Convert named tuple to dictionary for postprocess
+        row_dict = row._asdict()
+        row_dict["generated_text"] = answer_text
+
+        pbar.update(1)
+        return postprocess(row_dict)
+
+    # Process prompts with controlled concurrency
+    semaphore = asyncio.Semaphore(
+        args.server_concurrency if hasattr(args, "server_concurrency") else 10
+    )
+
+    async def process_with_semaphore(row_idx: int, row):
+        async with semaphore:
+            return await process_prompt(row_idx, row)
+
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for row_idx, row in enumerate(df2.itertuples(index=False), start=1):
+            task = process_with_semaphore(row_idx, row)
+            tasks.append(task)
+
+        # Process in batches to avoid overwhelming the system
+        batch_size = (
+            args.server_concurrency if hasattr(args, "server_concurrency") else 50
+        )
+        for i in range(0, len(tasks), batch_size):
+            batch = tasks[i : i + batch_size]
+            batch_results = await asyncio.gather(*batch, return_exceptions=True)
+
+            for result in batch_results:
+                if isinstance(result, Exception):
+                    outputs.append(
+                        dict(
+                            answer=f"[ERROR] {type(result).__name__}: {result}\n\n{result.__dict__}"
+                        )
+                    )
+                else:
+                    outputs.append(result)
+
+    pbar.close()
+
+    run_output_dir = os.path.join("evals", args.run_id, "readability")
+    os.makedirs(run_output_dir, exist_ok=True)
+
+    df_out = pd.DataFrame(outputs)
+
+    # Try to write via pandas/pyarrow; if unavailable, fall back to DuckDB COPY.
+    parquet_file = os.path.join(run_output_dir, "part-00000.parquet")
+    try:
+        df_out.to_parquet(parquet_file, index=False)
+    except Exception:
+        # Fallback via DuckDB COPY
+        con_tmp = duckdb.connect()
+        con_tmp.register("df_out", df_out)
+        con_tmp.execute(f"COPY df_out TO '{parquet_file}' (FORMAT PARQUET)")
+        con_tmp.unregister("df_out")
+        con_tmp.close()
+
+    con = duckdb.connect(os.path.join("evals", args.run_id, "readability.duckdb"))
+
+    con.execute(
+        f"""
+        DROP TABLE IF EXISTS scores;
+    """
+    )
+    con.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS scores AS
+        SELECT * FROM read_parquet('{run_output_dir}/*.parquet');
+    """
+    )
+
+    return run_output_dir
 
 
 def run_inference(df, args, metric_config, use_heuristics=True):
+    if args.azure:
+        return asyncio.run(
+            run_inference_async_azure(df, args, metric_config, use_heuristics)
+        )
+
     # assuming gpus sit behind different PCIe host bridges on separate
     # NUMA sockets (i.e. nvidia-smi topo -m shows SYS between gpus)
     if args.nccl_p2p:
@@ -179,20 +443,20 @@ def run_inference(df, args, metric_config, use_heuristics=True):
             return dict(answer=None, **row)
 
         # Now, try to parse score_str as an integer between -5 and 5 inclusive
-        # try:
-        #     score = int(score_str)
-        #     if score < -5 or score > 5:
-        #         score = None
-        # except Exception:
-        #     score = None
-        if score_str.lower() == "first":
-            score = -5
-        elif score_str.lower() == "second":
-            score = 5
-        elif score_str.lower() == "same":
-            score = 0
-        else:
+        try:
+            score = int(score_str)
+            if score < -5 or score > 5:
+                score = None
+        except Exception:
             score = None
+        # if score_str.lower() == "first":
+        #     score = -5
+        # elif score_str.lower() == "second":
+        #     score = 5
+        # elif score_str.lower() == "same":
+        #     score = 0
+        # else:
+        #     score = None
 
         # scaled_score = score / 5 # now its between -1 and 1
 
@@ -540,55 +804,65 @@ def aggregate_scores_maj(rows, metric_config):
             continue
 
         # Calculate score for each category
+        # total_score = 0
+        # for category in group:
+        #     i = category["category"]
+        #     s_i = category["answer"]
+        #     if s_i is None:
+        #         continue
+        #     if i not in categorical_scores:
+        #         categorical_scores[i] = []
+        #         points[i] = category["points"]
+
+        #     flip = 1 if category["original_first"] else -1
+        #     categorical_scores[i].append(flip * s_i / 5)
         total_score = 0
         for category in group:
-            i = category["category"]
             s_i = category["answer"]
             if s_i is None:
                 continue
-            if i not in categorical_scores:
-                categorical_scores[i] = []
-                points[i] = category["points"]
-
             flip = 1 if category["original_first"] else -1
-            categorical_scores[i].append(flip * s_i / 5)
+            total_score += flip * s_i * category["points"] / 5
+        normalized_score = total_score / total_available_points
 
-    majority_votes = {}
-    for i, scores in categorical_scores.items():
-        if not scores:
-            majority_votes[i] = 0
-            continue
-        # Count votes for each category
-        positive_votes = sum(1 for s in scores if s > 0)
-        zero_votes = sum(1 for s in scores if s == 0)
-        negative_votes = sum(1 for s in scores if s < 0)
+        normalized_scores.append(normalized_score)
 
-        # Determine majority vote
-        if positive_votes > negative_votes and positive_votes > zero_votes:
-            majority_votes[i] = 1
-        elif negative_votes > positive_votes and negative_votes > zero_votes:
-            majority_votes[i] = -1
-        else:
-            majority_votes[i] = 0
+    # majority_votes = {}
+    # for i, scores in categorical_scores.items():
+    #     if not scores:
+    #         majority_votes[i] = 0
+    #         continue
+    #     # Count votes for each category
+    #     positive_votes = sum(1 for s in scores if s > 0)
+    #     zero_votes = sum(1 for s in scores if s == 0)
+    #     negative_votes = sum(1 for s in scores if s < 0)
 
-    total_score = sum(majority_votes[i] * points[i] for i in majority_votes)
-    return total_score / total_available_points
+    #     # Determine majority vote
+    #     if positive_votes > negative_votes and positive_votes > zero_votes:
+    #         majority_votes[i] = 1
+    #     elif negative_votes > positive_votes and negative_votes > zero_votes:
+    #         majority_votes[i] = -1
+    #     else:
+    #         majority_votes[i] = 0
 
-    #     # normalized_score = total_score / total_available_points
+    # total_score = sum(majority_votes[i] * points[i] for i in majority_votes)
+    # return total_score / total_available_points
 
-    #     # normalized_scores.append(normalized_score)
+    # normalized_score = total_score / total_available_points
 
-    # # Return the mean of normalized scores across all groups
-    # if not normalized_scores:
-    #     return 0  # Return 0 if no valid groups were found
+    # normalized_scores.append(normalized_score)
 
-    # # length_diff_penalty_factor = 0.25
+    # Return the mean of normalized scores across all groups
+    if not normalized_scores:
+        return 0  # Return 0 if no valid groups were found
 
-    # total = sum(normalized_scores)
-    # # if len(rows[0]["original"].split("\n")) / len(rows[0]["improved"].split("\n")) > 2 or len(rows[0]["improved"].split("\n")) / len(rows[0]["original"].split("\n")) > 2:
-    # #     total -= length_diff_penalty_factor * total_available_points
+    # length_diff_penalty_factor = 0.25
 
-    # return total / len(normalized_scores)
+    total = sum(normalized_scores)
+    # if len(rows[0]["original"].split("\n")) / len(rows[0]["improved"].split("\n")) > 2 or len(rows[0]["improved"].split("\n")) / len(rows[0]["original"].split("\n")) > 2:
+    #     total -= length_diff_penalty_factor * total_available_points
+
+    return total / len(normalized_scores)
 
 
 def get_readability_scores(readability_connection, args, metric_config):
@@ -825,45 +1099,6 @@ def main(args):
     # Initialize our dataframe to hold proofs for evaluation
     proof_data = []
 
-    # # Get all improved proofs that are marked as correct
-    # improved_proofs = eval_connection.execute("""
-    #     SELECT
-    #         rowid,
-    #         module,
-    #         decl,
-    #         new_raw
-    #     FROM
-    #         evaluation_results
-    #     WHERE
-    #         new_correct = TRUE
-    # """).fetchall()
-
-    # # Add improved proofs to our data
-    # for rowid, module, decl, new_raw in improved_proofs:
-    #     if new_raw:  # Ensure we have a valid proof
-    #         proof_data.append({
-    #             'module': module,
-    #             'decl': decl,
-    #             'proof': new_raw,
-    #             'rowid': int(rowid),
-    #             'is_og': False
-    #         })
-
-    # Get all pairs of original and improved proofs that are marked as correct and have non-empty proofs
-    #     query = """
-    # SELECT a.decl,
-    #        struct_pack(a.*) AS row_a,
-    #        struct_pack(b.*) AS row_b
-    # FROM   evaluation_results AS a
-    # JOIN   evaluation_results AS b
-    #        ON  a.decl = b.decl
-    #        AND a.module = b.module
-    #        AND a.og_raw != ''
-    #        AND b.new_raw != ''
-    #        AND a.rowid != b.rowid
-    #        AND a.is_og = TRUE
-    #        AND b.is_og = FALSE
-    #        AND b.new_correct = TRUE;"""
     query = """SELECT module, decl, og_raw, og_annotated, new_trimmed, new_annotated, rowid 
 FROM evaluation_results
 WHERE og_raw != '' AND new_trimmed != '' AND og_correct = TRUE AND new_correct = TRUE"""
@@ -948,6 +1183,32 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Model to use",
+    )
+
+    parser.add_argument(
+        "--azure",
+        type=bool,
+        default=False,
+        help="Use Azure endpoints (default: False)",
+    )
+    parser.add_argument(
+        "--server_concurrency",
+        type=int,
+        default=10,
+        help="Number of concurrent API requests (default: 10)",
+    )
+    parser.add_argument(
+        "--server_rate_limit",
+        type=int,
+        default=60,
+        help="Maximum requests per minute for rate limiting (default: 60)",
+    )
+
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=2048,
+        help="Maximum number of tokens to generate (default: 2048)",
     )
     # parser.add_argument(
     #     "--split",

@@ -1,45 +1,40 @@
 import os
-import requests
-import json
+from huggingface_hub import HfApi, create_repo
+from pathlib import Path
 
 
-def call_azure_openai_model():
-    # Get API key from environment variable
-    # api_key = os.getenv("AZURE_API_KEY")
-    # if not api_key:
-    #     raise ValueError("AZURE_API_KEY environment variable not set")
+def upload_models_to_huggingface():
+    # Initialize Hugging Face API
+    api = HfApi()
 
-    # API endpoint
-    url = "https://riyaz-mfrbnakc-eastus2.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview"
+    # Path to saved models directory
+    models_dir = Path("/data/user_data/trowney/saved_models")
 
-    # Headers
-    headers = {"Authorization": f"Bearer {api_key}"}
+    # Check if directory exists
+    if not models_dir.exists():
+        print(f"Directory {models_dir} does not exist")
+        return
 
-    # Request payload
-    data = {
-        "messages": [
-            {"role": "user", "content": "I am going to Paris, what should I see?"}
-        ],
-        "max_tokens": 1024,
-        # "temperature": 1,
-        # "top_p": 1,
-        "model": "DeepSeek-R1-0528",
-    }
+    # Iterate through each subdirectory
+    for model_path in models_dir.iterdir():
+        if model_path.is_dir():
+            model_name = model_path.name
+            repo_id = f"taterowney/{model_name}"  # Replace 'your_username' with your HF username
 
-    # Make the request
-    response = requests.post(url, headers=headers, json=data)
-    # print(response.__dict__)
-    # Check if request was successful
-    response.raise_for_status()
+            try:
+                # Create repository on Hugging Face
+                create_repo(repo_id=repo_id, exist_ok=True)
+                print(f"Created/verified repository: {repo_id}")
 
-    # Return the response JSON
-    return response.json()
+                # Upload all files in the model directory
+                api.upload_folder(
+                    folder_path=str(model_path), repo_id=repo_id, repo_type="model"
+                )
+                print(f"Successfully uploaded {model_name} to {repo_id}")
+
+            except Exception as e:
+                print(f"Error uploading {model_name}: {str(e)}")
 
 
-# Example usage
 if __name__ == "__main__":
-    try:
-        result = call_azure_openai_model()
-        print(json.dumps(result, indent=2))
-    except Exception as e:
-        print(f"Error: {e}")
+    upload_models_to_huggingface()

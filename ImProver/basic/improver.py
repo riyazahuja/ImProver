@@ -224,59 +224,59 @@ def main(args):
     # Create output directory if it doesn't exist
     os.makedirs("evals", exist_ok=True)
 
-    # 1. Run Inference
-    print(
-        f"[IMPROVER: Running inference for {args.metric} with prompt {args.prompt_id}...]"
-    )
-    inference_args = argparse.Namespace(
-        metric=args.metric,
-        dataset_path=args.dataset_path,
-        prompt_id=args.prompt_id,
-        model=args.model,
-        split=args.split,
-        # prompts_dir=args.prompts_dir,
-        # output_dir=args.output_dir,
-        cpus=args.cpus,
-        gpus=args.gpus,
-        n=args.n,
-        annotation=args.annotation,
-        informal=args.informal,
-        context=args.context,
-        rag=args.rag,
-        examples=args.examples,
-        goal_state=args.goal_state,
-        file_context=args.file_context,
-        server_concurrency=args.server_concurrency,
-        server_rate_limit=args.server_rate_limit,
-        nccl_p2p=args.nccl_p2p,
-        ray_timeout=args.ray_timeout,
-        num_blocks=args.num_blocks,
-        engine_cpu_resources=args.engine_cpu_resources,
-        engine_gpu_resources=args.engine_gpu_resources,
-        concurrency=args.concurrency,
-        tensor_parallel_size=args.tensor_parallel_size,
-        enable_chunked_prefill=args.enable_chunked_prefill,
-        max_model_len=args.max_model_len,
-        max_num_batched_tokens=args.max_num_batched_tokens,
-        max_concurrent_batches=args.max_concurrent_batches,
-        batch_size=args.batch_size,
-        truncate_prompt_tokens=args.truncate_prompt_tokens,
-        max_tokens=args.max_tokens,
-        run_id=args.run_id,
-    )
-    if args.azure:
-        inference_server_main(inference_args)
-    else:
-        inference_main(inference_args)
+    # # 1. Run Inference
+    # print(
+    #     f"[IMPROVER: Running inference for {args.metric} with prompt {args.prompt_id}...]"
+    # )
+    # inference_args = argparse.Namespace(
+    #     metric=args.metric,
+    #     dataset_path=args.dataset_path,
+    #     prompt_id=args.prompt_id,
+    #     model=args.model,
+    #     split=args.split,
+    #     # prompts_dir=args.prompts_dir,
+    #     # output_dir=args.output_dir,
+    #     cpus=args.cpus,
+    #     gpus=args.gpus,
+    #     n=args.n,
+    #     annotation=args.annotation,
+    #     informal=args.informal,
+    #     context=args.context,
+    #     rag=args.rag,
+    #     examples=args.examples,
+    #     goal_state=args.goal_state,
+    #     file_context=args.file_context,
+    #     server_concurrency=args.server_concurrency,
+    #     server_rate_limit=args.server_rate_limit,
+    #     nccl_p2p=args.nccl_p2p,
+    #     ray_timeout=args.ray_timeout,
+    #     num_blocks=args.num_blocks,
+    #     engine_cpu_resources=args.engine_cpu_resources,
+    #     engine_gpu_resources=args.engine_gpu_resources,
+    #     concurrency=args.concurrency,
+    #     tensor_parallel_size=args.tensor_parallel_size,
+    #     enable_chunked_prefill=args.enable_chunked_prefill,
+    #     max_model_len=args.max_model_len,
+    #     max_num_batched_tokens=args.max_num_batched_tokens,
+    #     max_concurrent_batches=args.max_concurrent_batches,
+    #     batch_size=args.batch_size,
+    #     truncate_prompt_tokens=args.truncate_prompt_tokens,
+    #     max_tokens=args.max_tokens,
+    #     run_id=args.run_id,
+    # )
+    # if args.azure:
+    #     inference_server_main(inference_args)
+    # else:
+    #     inference_main(inference_args)
 
-    # 2. Run Evaluation
-    print(f"[IMPROVER: Evaluating run {args.run_id}...]")
-    eval_args = argparse.Namespace(
-        run_id=args.run_id,
-        # inference_dir=args.output_dir,
-        cpus=args.cpus,
-    )
-    asyncio.run(eval_main(eval_args))
+    # # 2. Run Evaluation
+    # print(f"[IMPROVER: Evaluating run {args.run_id}...]")
+    # eval_args = argparse.Namespace(
+    #     run_id=args.run_id,
+    #     # inference_dir=args.output_dir,
+    #     cpus=args.cpus,
+    # )
+    # asyncio.run(eval_main(eval_args))
 
     # 3. Run Analysis
 
@@ -298,6 +298,9 @@ def main(args):
         llm_args = argparse.Namespace(
             run_id=args.run_id,
             prompts_id=args.prompt_id,
+            azure=args.azure,
+            server_concurrency=args.server_concurrency,
+            server_rate_limit=args.server_rate_limit,
             # inference=True,
             # output_dir=args.output_dir,
             judge_model=args.judge_model,
