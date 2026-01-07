@@ -1,0 +1,169 @@
+    # sleep 5
+        59    
+        60    # ============================================================
+        61 -  # PHASE 1: Generate Base Data
+        61 +  # PHASES 1-4: COMPLETED - Commented out
+        62    # ============================================================
+        63 -  echo "============================================================"
+        64 -  echo "PHASE 1: Generating Base Data"
+        65 -  echo "============================================================"
+        66 -  
+        67 -  # ./improver run pipeline \
+        68 -  #     --run_id $BASE_RUN_ID \
+        69 -  #     --annotation --informal --examples 4 \
+        70 -  #     --metric $METRIC --prompt_id final_train \
+        71 -  #     --split train --model $BASE_MODEL \
+        72 -  #     --num_blocks 64 \
+        73 -  #     --config experiments/final/test_eval.yaml
+        74 -  
+        75 -  # echo "✓ Base data generated"
+        76 -  
+        63 +  # These phases have been completed successfully:
+        64 +  # - Phase 1: Base data generation
+        65 +  # - Phase 2: Training dataset generation
+        66 +  # - Phase 3A: SFT training (4 models) + merging
+        67 +  # - Phase 3B: wSFT LR sweep (4 models) + merging
+        68 +  # - Phase 3C: wSFT data sweep (3 models) + merging
+        69 +  # - Phase 4: All SFT/wSFT evaluations
+        70 +  #
+        71 +  # NOTE: Run run_missing_evals.sh if Phase 4 evaluations are incomplete
+        72    # ============================================================
+        73 -  # PHASE 2: Generate Training Datasets
+        74 -  # ============================================================
+        75 -  echo "============================================================"
+        76 -  echo "PHASE 2: Generating Training Datasets"
+        77 -  echo "============================================================"
+        73    
+        74 -  # # Run the auto-generated data generation script
+        75 -  # bash $SCRIPTS_DIR/generate_data.sh
+        76 -  
+        77 -  # echo "✓ All training datasets generated"
+        78 -  
+        74    # ============================================================
+        75 -  # PHASE 3A: SFT Training Sweeps
+        76 -  # ============================================================
+        77 -  echo "============================================================"
+        78 -  echo "PHASE 3A: SFT Learning Rate Sweep"
+        79 -  echo "============================================================"
+        80 -  
+        81 -  # axolotl train $CONFIG_DIR/SFT_base.yaml \
+        82 -  #     --sweep $SWEEP_DIR/SFT_lr.yaml
+        83 -  
+        84 -  # echo "✓ SFT sweep completed"
+        85 -  
+        86 -  # # Merge all SFT LoRA models
+        87 -  # echo "Merging SFT models..."
+        88 -  # for lr in 1e-06 5e-06 1e-05 2e-05; do
+        89 -  #     echo "Converting DeepSpeed checkpoint for SFT_lr${lr}..."
+        90 -  #     # Convert DeepSpeed ZeRO-3 sharded checkpoint to consolidated checkpoint
+        91 -  #     python ${MODELS_DIR}/SFT_lr${lr}_lora/zero_to_fp32.py \
+        92 -  #         ${MODELS_DIR}/SFT_lr${lr}_lora \
+        93 -  #         ${MODELS_DIR}/SFT_lr${lr}_lora --safe_serialization
+        94 -  
+        95 -  #     echo "Merging LoRA adapter for SFT_lr${lr}..."
+        96 -  #     python $IMPROVER_BASE/experiments/final/merge.py \
+        97 -  #         --ref $BASE_MODEL \
+        98 -  #         --adapter ${MODELS_DIR}/SFT_lr${lr}_lora \
+        99 -  #         --output ${MODELS_DIR}/SFT_lr${lr} \
+       100 -  #     rm -rf ${MODELS_DIR}/SFT_lr${lr}_lora
+       101 -  # done
+       102 -  
+       103 -  # ============================================================
+       104 -  # PHASE 3B: wSFT Training Sweeps
+       105 -  # ============================================================
+       106 -  echo "============================================================"
+       107 -  echo "PHASE 3B: wSFT Learning Rate Sweep"
+       108 -  echo "============================================================"
+       109 -  
+       110 -  # axolotl train $CONFIG_DIR/wSFT_base.yaml \
+       111 -  #     --sweep $SWEEP_DIR/wSFT_lr.yaml
+       112 -  
+       113 -  # echo "✓ wSFT LR sweep completed"
+       114 -  
+       115 -  # Merge all wSFT LoRA models
+       116 -  echo "Merging wSFT models..."
+       117 -  for lr in 1e-06 5e-06 1e-05 2e-05; do
+       118 -      echo "Converting DeepSpeed checkpoint for wSFT_lr${lr}..."
+       119 -      python ${MODELS_DIR}/wSFT_lr${lr}_lora/zero_to_fp32.py \
+       120 -          ${MODELS_DIR}/wSFT_lr${lr}_lora \
+       121 -          ${MODELS_DIR}/wSFT_lr${lr}_lora --safe_serialization
+       122 -  
+       123 -      echo "Merging LoRA adapter for wSFT_lr${lr}..."
+       124 -      python $IMPROVER_BASE/experiments/final/merge.py \
+       125 -          --ref $BASE_MODEL \
+       126 -          --adapter ${MODELS_DIR}/wSFT_lr${lr}_lora/ \
+       127 -          --output ${MODELS_DIR}/wSFT_lr${lr}
+       128 -      rm -rf ${MODELS_DIR}/wSFT_lr${lr}_lora
+       129 -  done
+       130 -  
+       131 -  echo "============================================================"
+       132 -  echo "PHASE 3C: wSFT Data Parameter Sweep"
+       133 -  echo "============================================================"
+       134 -  
+       135 -  axolotl train $CONFIG_DIR/wSFT_base.yaml \
+       136 -      --sweep $SWEEP_DIR/wSFT_data.yaml
+       137 -  
+       138 -  echo "✓ wSFT data sweep completed"
+       139 -  
+       140 -  # Merge wSFT data sweep models
+       141 -  echo "Merging wSFT data sweep models..."
+       142 -  for vt in 0.5 0.8 1.0; do
+       143 -      echo "Converting DeepSpeed checkpoint for wSFT_vt${vt}..."
+       144 -      python ${MODELS_DIR}/wSFT_vt${vt}_lora/zero_to_fp32.py \
+       145 -          ${MODELS_DIR}/wSFT_vt${vt}_lora\
+       146 -          ${MODELS_DIR}/wSFT_vt${vt}_lora --safe_serialization
+       147 -  
+       148 -      echo "Merging LoRA adapter for wSFT_vt${vt}..."
+       149 -      python $IMPROVER_BASE/experiments/final/merge.py \
+       150 -          --ref $BASE_MODEL \
+       151 -          --adapter ${MODELS_DIR}/wSFT_vt${vt}_lora/ \
+       152 -          --output ${MODELS_DIR}/wSFT_vt${vt}
+       153 -      rm -rf ${MODELS_DIR}/wSFT_vt${vt}_lora
+       154 -  done
+       155 -  
+       156 -  # ============================================================
+       157 -  # PHASE 4: Evaluate SFT and wSFT Models
+       158 -  # ============================================================
+       159 -  echo "============================================================"
+       160 -  echo "PHASE 4: Evaluating SFT and wSFT Models"
+       161 -  echo "============================================================"
+       162 -  
+       163 -  # Evaluate SFT models
+       164 -  for lr in 1e-06 5e-06 1e-05 2e-05; do
+       165 -      echo "Evaluating SFT_lr${lr}..."
+       166 -      ./improver run pipeline \
+       167 -          --run_id SFT_lr${lr}_test \
+       168 -          --annotation --informal --examples 4 \
+       169 -          --metric $METRIC --prompt_id final_test \
+       170 -          --split test --model ${MODELS_DIR}/SFT_lr${lr} \
+       171 -          --num_blocks 16 \
+       172 -          --config experiments/final/test_eval.yaml
+       173 -  done
+       174 -  
+       175 -  # Evaluate wSFT LR sweep models
+       176 -  for lr in 1e-06 5e-06 1e-05 2e-05; do
+       177 -      echo "Evaluating wSFT_lr${lr}..."
+       178 -      ./improver run pipeline \
+       179 -          --run_id wSFT_lr${lr}_test \
+       180 -          --annotation --informal --examples 4 \
+       181 -          --metric $METRIC --prompt_id final_test \
+       182 -          --split test --model ${MODELS_DIR}/wSFT_lr${lr} \
+       183 -          --num_blocks 16 \
+       184 -          --config experiments/final/test_eval.yaml
+       185 -  done
+       186 -  
+       187 -  # Evaluate wSFT data sweep models
+       188 -  for vt in 0.5 0.8 1.0; do
+       189 -      echo "Evaluating wSFT_vt${vt}..."
+       190 -      ./improver run pipeline \
+       191 -          --run_id wSFT_vt${vt}_test \
+       192 -          --annotation --informal --examples 4 \
+       193 -          --metric $METRIC --prompt_id final_test \
+       194 -          --split test --model ${MODELS_DIR}/wSFT_vt${vt} \
+       195 -          --num_blocks 16 \
+       196 -          --config experiments/final/test_eval.yaml
+       197 -  done
+       198 -  
+       199 -  echo "✓ All SFT/wSFT evaluations completed"
+       200 -  
+       201 -  # ============================================================

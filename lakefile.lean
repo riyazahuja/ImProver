@@ -79,3 +79,6 @@ lean_exe eval_improver_new where
 lean_exe preprocess_rag where
   root := `ImProver.build.preprocess_rag
   supportInterpreter := true
+
+@[default_target]
+lean_lib test where

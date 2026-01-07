@@ -4,7 +4,7 @@ import torch
 import argparse
 
 
-def merge_models(ref, adapter, output):
+def merge_models(ref, adapter, output, safe_serialization=True):
 
     # 1️⃣ Load your base model (8-bit, bf16, etc. as desired)
     base = AutoModelForCausalLM.from_pretrained(
@@ -18,7 +18,7 @@ def merge_models(ref, adapter, output):
 
     merged = model.merge_and_unload()  # now a plain AutoModelForCausalLM
 
-    merged.save_pretrained(output)
+    merged.save_pretrained(output, safe_serialization=safe_serialization)
 
     # load the original tokenizer
     tok = AutoTokenizer.from_pretrained(ref)
@@ -48,10 +48,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output", type=str, required=True, help="Output path for merged model"
     )
+    parser.add_argument(
+        "--safe-serialization", action="store_true", default=False,
+        help="Use safe serialization (safetensors format)"
+    )
 
     args = parser.parse_args()
 
-    merge_models(args.ref, args.adapter, args.output)
+    merge_models(args.ref, args.adapter, args.output, args.safe_serialization)
 
 
 # models = ["wSFT_replace_i2", "wSFT_join_i2", "wSFT_none_i2"]

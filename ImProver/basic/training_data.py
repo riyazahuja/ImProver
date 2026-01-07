@@ -3,6 +3,7 @@ import argparse
 import os
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
+import numpy as np
 
 
 def load_training_data_json(run_id: str) -> Dict[str, Any]:
@@ -151,8 +152,48 @@ def adjust_replay_proportion(
     return data
 
 
-def create_sft_dataset(
-    data: Dict[str, Any], thinking: bool = False
+def filter_high_variance(dataset, threshold: float, filtering_type: str):
+    grouped_dataset = defaultdict(list)
+    for i, item in enumerate(dataset):
+        grouped_dataset[item["key"]].append((i, item))
+
+    variances = {}
+    for key, items in grouped_dataset.items():
+        scores = [item[1]["score"] for item in items]
+        if len(scores) > 1:
+            mean_score = sum(scores) / len(scores)
+            variance = sum((s - mean_score) ** 2 for s in scores) / (len(scores) - 1)
+            variances[key] = variance
+        else:
+            variances[key] = 0.0
+
+    all_data = [(key, items, variances[key]) for key, items in grouped_dataset.items()]
+    all_data.sort(key=lambda x: x[2])
+    if filtering_type == "top":
+        all_data = all_data[
+            : int(len(all_data) * threshold)
+        ]  # i.e. get the top x% of items by variance
+    elif filtering_type == "bottom":
+        all_data = all_data[
+            int(len(all_data) * (1 - threshold)) :
+        ]  # i.e. get the bottom x% of items by variance
+    elif filtering_type == "random":
+        np.random.shuffle(all_data)
+        all_data = all_data[: int(len(all_data) * threshold)]
+    else:
+        print(f"Unknown filtering type: {filtering_type}. No filtering applied.")
+    new_dataset_raw = []
+    for key, items, variance in all_data:
+        new_dataset_raw.extend(items)
+    new_dataset = [item for _, item in sorted(new_dataset_raw, key=lambda x: x[0])]
+    return new_dataset
+
+
+def create_sft_dataset(  # threshold = percent to keep, type is where to filter. 0.8 @ bottom means keep only the bottom 80% most variable items. 0.8 @ top means filter out the bottom 20% least variable items.
+    data: Dict[str, Any],
+    thinking: bool = False,
+    variance_threshold: float = 1.0,
+    variance_threshold_type: str = "bottom",
 ) -> List[Dict[str, str]]:
     """Create SFT dataset in Alpaca format."""
     dataset = []
@@ -174,13 +215,28 @@ def create_sft_dataset(
 
         dataset.append(
             {
+                "key": key,
                 "instruction": item["prompt"],
                 # "input": "",
                 "output": output_text,
+                "score": champion["delta"] if champion["delta"] is not None else 0.0,
             }
         )
 
-    return dataset
+    # Apply variance filtering
+    filtered_dataset = (
+        filter_high_variance(dataset, variance_threshold, variance_threshold_type)
+        if variance_threshold < 1.0
+        else dataset
+    )
+
+    # Remove key and score fields before returning
+    final_dataset = [
+        {k: v for k, v in item.items() if k not in ["key", "score"]}
+        for item in filtered_dataset
+    ]
+
+    return final_dataset
 
 
 from collections import defaultdict
@@ -229,33 +285,6 @@ def group_and_weight_by_key(deduped_dataset, tau=1.0, top_k=-1, epsilon=0.01):
     # Flatten back to a list
     return [item for items in grouped.values() for item in items]
 
-
-def filter_high_variance(dataset, threshold: float):
-    grouped_dataset = defaultdict(list)
-    for i, item in enumerate(dataset):
-        grouped_dataset[item["key"]].append((i, item))
-
-    variances = {}
-    for key, items in grouped_dataset.items():
-        scores = [item[1]["score"] for item in items]
-        if len(scores) > 1:
-            mean_score = sum(scores) / len(scores)
-            variance = sum((s - mean_score) ** 2 for s in scores) / (len(scores) - 1)
-            variances[key] = variance
-        else:
-            variances[key] = 0.0
-
-    all_data = [(key, items, variances[key]) for key, items in grouped_dataset.items()]
-    all_data.sort(key=lambda x: x[2])
-    all_data = all_data[
-        : int(len(all_data) * threshold)
-    ]  # i.e. get the bottom x% of items by variance
-    new_dataset_raw = []
-    for key, items, variance in all_data:
-        new_dataset_raw.extend(items)
-    new_dataset = [item for _, item in sorted(new_dataset_raw, key=lambda x: x[0])]
-    return new_dataset
-
     # filter_high_variance_value = sorted(variances.values(), reverse=True)[
     #     int(len(variances) * threshold)
     # ]
@@ -276,6 +305,7 @@ def create_weighted_sft_dataset(
     num_samples: int = 1,
     epsilon: float = 0.1,
     variance_threshold: float = 0.8,  # get rid of the top x% of items in order of variance of new (correct) scores.
+    variance_threshold_type: str = "top",
 ) -> List[Dict[str, Any]]:
     """Create weighted SFT dataset with scores."""
     dataset = []
@@ -340,8 +370,8 @@ def create_weighted_sft_dataset(
 
     # Group dataset by key
     new_dataset = (
-        filter_high_variance(dataset, variance_threshold)
-        if variance_threshold > 0
+        filter_high_variance(dataset, variance_threshold, variance_threshold_type)
+        if variance_threshold < 1.0
         else dataset
     )
 
@@ -366,18 +396,61 @@ def create_dpo_dataset(
     num_invalid: int = 2,
     max_champions: int = 3,
     reject_valid: bool = False,  # idea is that if this is true, we reject all other valid samples as well: may overlap/double count if max_champions>1.
-    min_gap: float = 0.0,  # (require delta > min_gap for valid)
+    min_gap: float = 0.0,  # (require delta > min_gap for valid) NVM: calculate min gap as percentile
+    hardness_weight: float = 0.0,  # NEW: weight factor for hardness-aware replication (0 = disabled)
 ) -> List[Dict[str, str]]:
-    """Create DPO preference pairs dataset."""
+    """Create DPO preference pairs dataset.
+    
+    If hardness_weight > 0, replicates pairs from harder proofs (low improvement_rate)
+    more times to emphasize learning on difficult cases.
+    """
     dataset = []
+    
+    # Hardness-aware replication setup
+    HARDNESS_EPSILON = 0.05  # Floor to avoid extreme replication
+    if hardness_weight > 0:
+        # Calculate normalizer so average replication ≈ hardness_weight
+        rates = [item.get("improvement_rate", 1.0) for item in data.values()]
+        nonzero_rates = [max(r, HARDNESS_EPSILON) for r in rates if r > 0]
+        if nonzero_rates:
+            avg_hardness = sum(1.0 / r for r in nonzero_rates) / len(nonzero_rates)
+            normalizer = avg_hardness
+        else:
+            normalizer = 1.0
+    else:
+        normalizer = 1.0
+
+    # for each theorem, look at its valid samples and check the distribution of deltas amongst these samples.
+    # then average these distributions across all the theorems to get an overall distribution of deltas amongst valid samples.
+    # then set the min_delta value as the xth percentile of this overall distribution.
+    all_valid_deltas = []
 
     for key, item in data.items():
+        valid_og = item["valid_samples"]
+        for valid in valid_og:
+            if valid["delta"] is not None:
+                all_valid_deltas.append(valid["delta"])
+
+    if all_valid_deltas:
+        min_delta = float(np.percentile(all_valid_deltas, min_gap * 100))
+    else:
+        min_delta = 0.0
+
+    for key, item in data.items():
+        # Calculate replication count for this proof based on hardness
+        if hardness_weight > 0:
+            rate = max(item.get("improvement_rate", 1.0), HARDNESS_EPSILON)
+            hardness = 1.0 / rate
+            replication = max(1, int(hardness_weight * hardness / normalizer))
+        else:
+            replication = 1
+
 
         valid_og = item["valid_samples"]
         invalid_og = item["invalid_samples"]
         valid_filtered, invalid_filtered = [], []
         for valid in valid_og:
-            if valid["delta"] is None or valid["delta"] <= min_gap:
+            if valid["delta"] is None or valid["delta"] <= min_delta:
                 invalid_filtered.append(valid)
             else:
                 valid_filtered.append(valid)
@@ -475,30 +548,32 @@ def create_dpo_dataset(
                 if sample["delta"] is not None and sample["delta"] >= champion["delta"]:
                     continue
 
-                dataset.append(
-                    {
-                        "prompt": item["prompt"],
-                        "chosen": champion_text,
-                        "rejected": rejected_text,
-                    }
-                )
+                pair = {
+                    "prompt": item["prompt"],
+                    "chosen": champion_text,
+                    "rejected": rejected_text,
+                }
+                # Replicate pair based on hardness
+                for _ in range(replication):
+                    dataset.append(pair)
 
             possible_valids_with_invalids = invalids
             if reject_valid:
                 possible_valids_with_invalids = selected_samples + invalids
 
             for invalid in possible_valids_with_invalids:
-                dataset.append(
-                    {
-                        "prompt": item["prompt"],
-                        "chosen": champion_text,
-                        "rejected": (
-                            invalid["cot_output"]
-                            if thinking
-                            else "<IMPROVED>\n" + invalid["output"] + "\n</IMPROVED>"
-                        ),
-                    }
-                )
+                pair = {
+                    "prompt": item["prompt"],
+                    "chosen": champion_text,
+                    "rejected": (
+                        invalid["cot_output"]
+                        if thinking
+                        else "<IMPROVED>\n" + invalid["output"] + "\n</IMPROVED>"
+                    ),
+                }
+                # Replicate pair based on hardness
+                for _ in range(replication):
+                    dataset.append(pair)
 
     return dataset
 
@@ -614,7 +689,12 @@ def main(args):
 
     # Create dataset based on training type
     if args.type == "sft":
-        postprocessed_dataset = create_sft_dataset(final_dataset, args.thinking)
+        postprocessed_dataset = create_sft_dataset(
+            final_dataset,
+            args.thinking,
+            args.variance_threshold,
+            args.variance_threshold_type,
+        )
     elif args.type == "weighted_sft":
         postprocessed_dataset = create_weighted_sft_dataset(
             final_dataset,
@@ -623,6 +703,7 @@ def main(args):
             args.num_samples,
             args.epsilon,
             args.variance_threshold,
+            args.variance_threshold_type,
         )
     elif args.type == "dpo":
         postprocessed_dataset = create_dpo_dataset(
@@ -633,6 +714,7 @@ def main(args):
             args.max_champions,
             args.reject_valid,
             args.min_gap,
+            args.hardness_weight,
         )
     else:
         print(f"Unknown training type: {args.type}")
@@ -727,7 +809,7 @@ def get_parser():
         "--min_gap",
         default=0.0,
         type=float,
-        help="Minimum gap required for valid samples (default: 0.0)",
+        help="filter the bottom x percent of valid samples w.r.t their gap (default: 0.0)",
     )
 
     parser.add_argument(
@@ -741,6 +823,18 @@ def get_parser():
         default=1.0,
         type=float,
         help="(Max) Variance threshold for filtering (default: 1.0)",
+    )
+    parser.add_argument(
+        "--variance_threshold_type",
+        default="top",
+        type=str,
+        help="Filtering strategy for variance threshold (default: filter top x percent, choices: filter bottom or randomly)",
+    )
+    parser.add_argument(
+        "--hardness_weight",
+        type=float,
+        default=0.0,
+        help="Weight factor for hardness-aware replication in DPO (0 = disabled, >0 = replicate hard proofs more)",
     )
 
     return parser

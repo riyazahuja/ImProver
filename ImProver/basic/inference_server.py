@@ -281,23 +281,49 @@ async def _chat_complete_async(
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
+    if model == "DeepSeek-R1-0528" or model == "gpt-5-chat":
+
+        data = {
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            # "temperature": 0.3,
+            # "top_p": 0.9,
+            # "repetition_penalty": 1.05,
+            # "stop": ["</IMPROVED>"]
+            "model": model,
+        }
+    elif model == "gpt-5-mini":
+
+        data = {
+            "input": [{"role": "user", "content": prompt}],
+            "max_output_tokens": max_tokens,
+            # "temperature": 0.3,
+            # "top_p": 0.9,
+            # "repetition_penalty": 1.05,
+            # "stop": ["</IMPROVED>"]
+            "model": model,
+        }
+    else:
+
+        data = {
+            "messages": [{"role": "user", "content": prompt}],
+            "max_completion_tokens": max_tokens,
+            # "temperature": 0.3,
+            # "top_p": 0.9,
+            # "repetition_penalty": 1.05,
+            # "stop": ["</IMPROVED>"]
+            "model": model,
+        }
     # data = {
     #     "messages": [{"role": "user", "content": prompt}],
-    #     "max_completion_tokens": max_tokens,
+    #     # "max_output_tokens": max_tokens,
+    #     "max_tokens": max_tokens,
+    #     "model": model,
     #     # "temperature": 0.3,
     #     # "top_p": 0.9,
     #     # "repetition_penalty": 1.05,
     #     # "stop": ["</IMPROVED>"]
     # }
-    data = {
-        "input": [{"role": "user", "content": prompt}],
-        "max_output_tokens": max_tokens,
-        "model": model,
-        # "temperature": 0.3,
-        # "top_p": 0.9,
-        # "repetition_penalty": 1.05,
-        # "stop": ["</IMPROVED>"]
-    }
 
     # For Azure, the model is in the URL, not in the request body
     if not is_azure:
@@ -382,7 +408,7 @@ async def _chat_complete_async(
                                 f"[ERROR] {type(e).__name__}: {e}\n\n{result.__dict__}"
                             )
         except Exception as e2:
-            return f"[ERROR] {type(e2).__name__}: {e2}\n\n{result.__dict__}"
+            return f"[ERROR] {type(e2).__name__}: {e2}"
 
 
 async def run_inference_async(df: pd.DataFrame, args) -> str:

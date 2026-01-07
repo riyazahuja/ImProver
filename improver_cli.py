@@ -566,6 +566,15 @@ def run_pipeline(**kwargs):
     default=1.0,
     help="Variance threshold for weighted SFT (default: 1.0)",
 )
+@click.option(
+    "--variance_threshold_type", default="top", help="Variance threshold type"
+)
+@click.option(
+    "--hardness_weight",
+    type=float,
+    default=0.0,
+    help="Weight factor for hardness-aware replication in DPO (0 = disabled)",
+)
 @click.option("--config", type=click.Path(exists=True), default=None)
 def run_training_data(**kwargs):
     from ImProver.basic.training_data import main as training_data_main
