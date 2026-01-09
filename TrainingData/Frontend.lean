@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Scott Morrison
 -/
 import Lean.Elab.Frontend
+import Lean.Util.Paths
 import Batteries.Data.MLList.Basic
 
 /-!
@@ -37,7 +38,7 @@ The functions `compileModule : Name → IO (List CompilationStep)` and
 
 set_option autoImplicit true
 
-open Lean Elab Frontend Meta
+open Lean Elab Frontend
 
 namespace Lean.PersistentArray
 
@@ -70,22 +71,6 @@ partial def runStateRefT [Monad m] [MonadLiftT (ST ω) m] (L : MLList (StateRefT
 
 end MLList
 
-private def isInternal' (declName : Name) : Bool :=
-  declName.isInternal ||
-  match declName with
-  | .str _ s => "match_".isPrefixOf s || "proof_".isPrefixOf s
-  | _        => true
-
--- from Lean.Server.Completion
-private def isBlackListed {m} [Monad m] [MonadEnv m] (declName : Name) : m Bool := do
-  if declName == ``sorryAx then return true
-  if declName matches .str _ "inj" then return true
-  if declName matches .str _ "noConfusionType" then return true
-  let env ← getEnv
-  pure $ isInternal' declName
-   || isAuxRecursor env declName
-   || isNoConfusion env declName
-  <||> isRec declName <||> isMatcher declName
 namespace Lean.Elab.IO
 
 /--
@@ -96,14 +81,15 @@ the `src : Substring` and `stx : Syntax` of the command,
 and any `Message`s and `InfoTree`s produced while processing.
 -/
 structure CompilationStep where
-  fileName : String
-  fileMap : FileMap
   src : Substring
   stx : Syntax
   before : Environment
   after : Environment
   msgs : List Message
   trees : List InfoTree
+  parserStateBefore : Parser.ModuleParserState
+  commandStateBefore : Command.State
+
 
 namespace CompilationStep
 
@@ -113,16 +99,16 @@ Process one command, returning a `CompilationStep` and
 -/
 def one : FrontendM (CompilationStep × Bool) := do
   let s := (← get).commandState
+  let parserStateBefore := (← get).parserState
   let before := s.env
   let done ← processCommand
-  let stx := (← get).commands.back
+  let stx := (← get).commands.back!
   let src := ⟨(← read).inputCtx.input, (← get).cmdPos, (← get).parserState.pos⟩
   let s' := (← get).commandState
   let after := s'.env
-  let msgs := s'.messages.toList.drop s.messages.toList.length
+  let msgs := s'.messages.unreported.drop s.messages.unreported.size
   let trees := s'.infoState.trees.drop s.infoState.trees.size
-  let ⟨_, fileName, fileMap⟩  := (← read).inputCtx
-  return ({ fileName, fileMap, src, stx, before, after, msgs, trees }, done)
+  return ({ src, stx, before, after, msgs, trees, parserStateBefore, commandStateBefore := s }, done)
 
 /-- Process all commands in the input. -/
 partial def all : FrontendM (List CompilationStep) := do
@@ -132,36 +118,10 @@ partial def all : FrontendM (List CompilationStep) := do
   else
     return cmd :: (← all)
 
-def runCoreMBefore (c : CompilationStep) (x : CoreM α) : IO α :=
-  (·.1) <$> Core.CoreM.toIO x { fileName := c.fileName, fileMap := c.fileMap } { env := c.before }
-
-open Meta in
-def runMetaMBefore (c : CompilationStep) (x : MetaM α) : IO α :=
-  c.runCoreMBefore <| MetaM.run' x {} {}
-
 /-- Return all new `ConstantInfo`s added during the processed command. -/
 def diff (cmd : CompilationStep) : List ConstantInfo :=
   cmd.after.constants.map₂.toList.filterMap
     fun (c, i) => if cmd.before.constants.map₂.contains c then none else some i
-
-/-- Data extracted from a `ConstantInfo`. -/
-structure DeclInfo where
-  name : Name
-  type : Expr
-  ppType : String
-  docString : Option String
-
-/-- Return info about each new declaration added during the processed command. -/
-def newDecls (cmd : CompilationStep) : IO (List DeclInfo) := do
-  cmd.diff.filterMapM fun ci => cmd.runMetaMBefore do
-    if ← isBlackListed ci.name then
-      pure none
-    else pure <| some {
-      name := ci.name
-      type := ci.type
-      ppType := toString (← Meta.ppExpr ci.type)
-      docString := ← findDocString? cmd.after ci.name
-    }
 
 end CompilationStep
 
@@ -226,28 +186,72 @@ def processInput (input : String) (env? : Option Environment := none)
   match steps.getLast? with
   | none => throw <| IO.userError "No commands found in input."
   | some { after, .. } =>
-    return (after, steps.bind CompilationStep.msgs, steps.bind CompilationStep.trees)
+    return (after, steps.flatMap CompilationStep.msgs, steps.flatMap CompilationStep.trees)
 
 open System
 
--- TODO allow finding Lean 4 sources from the toolchain.
+/-- Parallel to compile_time_search_path% -/
+elab "compile_time_src_search_path%" : term =>
+  return toExpr (← initSrcSearchPath)
+
 def findLean (mod : Name) : IO FilePath := do
-  return FilePath.mk ((← findOLean mod).toString.replace ".lake/build/lib/" "") |>.withExtension "lean"
+  let srcSearchPath : SearchPath := compile_time_src_search_path%
+  if let some fname ← srcSearchPath.findModuleWithExt "lean" mod then
+    return fname
+  else
+    let fname := FilePath.mk ((← findOLean mod).toString.replace ".lake/build/lib/" "") |>.withExtension "lean"
+    if !(← fname.pathExists) then
+      throw <| IO.userError s!"Path to {mod} not found"
+    return fname
+
+/-- Like `findLean` but produces the version of the file in `Examples/WithImports`. This only supports Lean versions at least
+    as recent as Lean v4.3. -/
+def findLeanWithImports (mod : Name) (repoName : String) (withImportsDir : String) : IO FilePath := do
+  let withImportsPathPrefix := withImportsDir ++ "/"
+  let path := (← findOLean mod).toString
+  let path := path.replace "./" ""
+  let path := path.replace "/" "."
+  let path := path.replace s!".lake.packages.{repoName}..lake.build.lib." withImportsPathPrefix
+  return FilePath.mk path |>.withExtension "lean"
+
+/-- Given `mod`, the name of the repository `mod` is from, and the `Examples` directory containing relevant JSON files,
+    returns the JSON file corresponding to `mod` within `jsonDir`. -/
+def findJSONFile (mod : Name) (repoName : String) (jsonDir : String) : IO FilePath := do
+  let jsonDirPrefix := jsonDir ++ "/"
+  let path := (← findOLean mod).toString
+  let path := path.replace "./" ""
+  let path := path.replace "/" "."
+  let path := path.replace s!".lake.packages.{repoName}..lake.build.lib." jsonDirPrefix
+  return FilePath.mk path |>.withExtension "jsonl"
 
 /-- Implementation of `moduleSource`, which is the cached version of this function. -/
 def moduleSource' (mod : Name) : IO String := do
   IO.FS.readFile (← findLean mod)
 
-initialize sourceCache : IO.Ref <| HashMap Name String ←
+/-- Like `moduleSource'` but uses the version of the module that appears in the `Examples/WithImports` directory -/
+def moduleSourceWithImports' (mod : Name) (repoName : String) (withImportsDir : String) : IO String := do
+  IO.FS.readFile (← findLeanWithImports mod repoName withImportsDir)
+
+initialize sourceCache : IO.Ref <| Std.HashMap Name String ←
   IO.mkRef .empty
 
 /-- Read the source code of the named module. The results are cached. -/
 def moduleSource (mod : Name) : IO String := do
   let m ← sourceCache.get
-  match m.find? mod with
+  match m.get? mod with
   | some r => return r
   | none => do
     let v ← moduleSource' mod
+    sourceCache.set (m.insert mod v)
+    return v
+
+/-- Like `moduleSource` but uses the version of the module that appears in the `Examples/WithImports` directory -/
+def moduleSourceWithImports (mod : Name) (repoName : String) (withImportsDir : String) : IO String := do
+  let m ← sourceCache.get
+  match m.get? mod with
+  | some r => return r
+  | none => do
+    let v ← moduleSourceWithImports' mod repoName withImportsDir
     sourceCache.set (m.insert mod v)
     return v
 
@@ -255,7 +259,12 @@ def moduleSource (mod : Name) : IO String := do
 def compileModule' (mod : Name) : MLList IO CompilationStep := do
   Lean.Elab.IO.processInput' (← moduleSource mod) none {} (← findLean mod).toString
 
-initialize compilationCache : IO.Ref <| HashMap Name (List CompilationStep) ←
+/-- Like `compileModule'` but compiles the version of the module that appears in the `Examples/WithImports` directory -/
+def compileModuleWithImports' (mod : Name) (repoName : String) (withImportsDir : String) : MLList IO CompilationStep := do
+  let modSource ← moduleSourceWithImports mod repoName withImportsDir
+  Lean.Elab.IO.processInput' modSource none {} (← findLeanWithImports mod repoName withImportsDir).toString
+
+initialize compilationCache : IO.Ref <| Std.HashMap Name (List CompilationStep) ←
   IO.mkRef .empty
 
 /--
@@ -268,7 +277,7 @@ you should check all compiled files for error messages if attempting this.
 -/
 def compileModule (mod : Name) : IO (List CompilationStep) := do
   let m ← compilationCache.get
-  match m.find? mod with
+  match m.get? mod with
   | some r => return r
   | none => do
     let v ← compileModule' mod |>.force
@@ -278,11 +287,4 @@ def compileModule (mod : Name) : IO (List CompilationStep) := do
 /-- Compile the source file for the named module, returning all info trees. -/
 def moduleInfoTrees (mod : Name) : IO (List InfoTree) := do
   let steps ← compileModule mod
-  return steps.bind (fun c => c.trees)
-
-
-
-  /-- Compile the source file for the named module, returning all info trees. -/
-def moduleMessages (mod : Name) : IO (List Message) := do
-  let steps ← compileModule mod
-  return steps.bind (fun c => c.msgs)
+  return steps.flatMap (fun c => c.trees)

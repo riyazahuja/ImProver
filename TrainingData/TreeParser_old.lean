@@ -28,7 +28,6 @@ structure GoalInfo where
   id : MVarId
   typeKey : TypeKey
   typeExpr : Expr
-
   deriving Inhabited--, ToJson, FromJson
 
 open Meta in

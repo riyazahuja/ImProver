@@ -29,7 +29,9 @@ def kind : Info → String
   | .ofCustomInfo         _ => "CustomInfo"
   | .ofFVarAliasInfo      _ => "FVarAliasInfo"
   | .ofFieldRedeclInfo    _ => "FieldRedeclInfo"
-  | .ofOmissionInfo       _ => "OmissionInfo"
+  | .ofDelabTermInfo      _ => "DelabTermInfo"
+  | .ofChoiceInfo         _ => "ChoiceInfo"
+  | .ofPartialTermInfo    _ => "PartialTermInfo"
 
 /-- The `Syntax` for a `Lean.Elab.Info`, if there is one. -/
 def stx? : Info → Option Syntax
@@ -44,7 +46,9 @@ def stx? : Info → Option Syntax
   | .ofCustomInfo         info => info.stx
   | .ofFVarAliasInfo      _    => none
   | .ofFieldRedeclInfo    info => info.stx
-  | .ofOmissionInfo       info => info.stx
+  | .ofDelabTermInfo      info => info.stx
+  | .ofChoiceInfo         info => info.stx
+  | .ofPartialTermInfo    info => info.stx
 
 /-- Is the `Syntax` for this `Lean.Elab.Info` original, or synthetic? -/
 def isOriginal (i : Info) : Bool :=
@@ -101,9 +105,9 @@ partial def filter (p : Info → Bool) (m : MVarId → Bool := fun _ => false) :
   | .context ctx tree => tree.filter p m |>.map (.context ctx)
   | .node info children =>
     if p info then
-      [.node info (children.toList.map (filter p m)).join.toPArray']
+      [.node info (children.toList.map (filter p m)).flatten.toPArray']
     else
-      (children.toList.map (filter p m)).join
+      (children.toList.map (filter p m)).flatten
   | .hole mvar => if m mvar then [.hole mvar] else []
 
 /-- Discard all nodes besides `.context` nodes and `TacticInfo` nodes. -/
@@ -155,7 +159,7 @@ partial def findAllInfo (t : InfoTree) (ctx? : Option ContextInfo) (p : Info →
   match t with
   | context ctx t => t.findAllInfo (ctx.mergeIntoOuter? ctx?) p
   | node i ts  =>
-      (if p i then [(i, ctx?, ts)] else []) ++ ts.toList.bind (fun t => t.findAllInfo ctx? p)
+      (if p i then [(i, ctx?, ts)] else []) ++ ts.toList.flatMap (fun t => t.findAllInfo ctx? p)
   | _ => []
 
 /-- Return all `TacticInfo` nodes in an `InfoTree` corresponding to tactics,
@@ -167,63 +171,5 @@ def findTacticNodes (t : InfoTree) : List (TacticInfo × ContextInfo × Persiste
   infos.filterMap fun p => match p with
   | (.ofTacticInfo i, some ctx, children) => (i, ctx, children)
   | _ => none
-
-end Lean.Elab.InfoTree
-
-
-namespace Lean.Elab.TacticInfo
-
-/-- Return the range of the tactic, as a pair of file positions. -/
-def range (info : TacticInfo) (ctx : ContextInfo) : Position × Position := ctx.fileMap.stxRange info.stx
-
-/-- Pretty print a tactic. -/
-def pp (info : TacticInfo) (ctx : ContextInfo) : IO Format :=
-  ctx.runMetaM {} try
-    Lean.PrettyPrinter.ppTactic ⟨info.stx⟩
-  catch _ =>
-    pure "<failed to pretty print>"
-
-open Meta
-
-/-- Run a tactic on the goals stored in a `TacticInfo`. -/
-def runMetaMGoalsBefore (info : TacticInfo) (ctx : ContextInfo) (x : List MVarId → MetaM α) : IO α := do
-  ctx.runMetaM {} <| Meta.withMCtx info.mctxBefore <| x info.goalsBefore
-
-/-- Run a tactic on the after goals stored in a `TacticInfo`. -/
-def runMetaMGoalsAfter (info : TacticInfo) (ctx : ContextInfo) (x : List MVarId → MetaM α) : IO α := do
-  ctx.runMetaM {} <| Meta.withMCtx info.mctxAfter <| x info.goalsAfter
-
-/-- Run a tactic on the main goal stored in a `TacticInfo`. -/
-def runMetaM (info : TacticInfo) (ctx : ContextInfo) (x : MVarId → MetaM α) : IO α := do
-  match info.goalsBefore.head? with
-  | none => throw <| IO.userError s!"No goals at {← info.pp ctx}"
-  | some g => info.runMetaMGoalsBefore ctx fun _ => do g.withContext <| x g
-
-def mainGoal (info : TacticInfo) (ctx : ContextInfo) : IO Expr :=
-  info.runMetaM ctx (fun g => do instantiateMVars (← g.getType))
-
-def formatMainGoal (info : TacticInfo) (ctx : ContextInfo) : IO Format :=
-  info.runMetaM ctx (fun g => do ppExpr (← instantiateMVars (← g.getType)))
-
-def goalState (info : TacticInfo) (ctx : ContextInfo) : IO (List Format) := do
-  info.runMetaMGoalsBefore ctx (fun gs => gs.mapM fun g => do Meta.ppGoal g)
-
-def goalStateAfter (info : TacticInfo) (ctx : ContextInfo) : IO (List Format) := do
-  info.runMetaMGoalsAfter ctx (fun gs => gs.mapM fun g => do Meta.ppGoal g)
-
-def ppExpr (info : TacticInfo) (ctx : ContextInfo) (e : Expr) : IO Format :=
-  info.runMetaM ctx (fun _ => do Meta.ppExpr (← instantiateMVars e))
-
-end Lean.Elab.TacticInfo
-
-namespace Lean.Elab.InfoTree
-
-/--
-Finds all tactic invocations in an `InfoTree`,
-ignoring structuring tactics (e.g. `by`, `;`, multiline tactics, parenthesized tactics).
--/
-def tactics (t : InfoTree) : List (TacticInfo × ContextInfo) :=
-  t.findTacticNodes.map (fun ⟨i, ctx, _⟩ => ⟨i, ctx⟩)
-    |>.filter fun i => i.1.isSubstantive
 
 end Lean.Elab.InfoTree
