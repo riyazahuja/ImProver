@@ -20,6 +20,13 @@ structure Hypothesis where
   typeExpr : Expr
   deriving Inhabited--, ToJson, FromJson
 
+structure CanonGoal where
+  targetHash : UInt64
+  hypTypeHashes : Array UInt64   -- sorted
+  -- for “forall/arrow discharge” matching:
+  variantHashes : Array UInt64   -- includes base; sorted/nubbed
+  deriving Inhabited
+
 structure GoalInfo where
   username : String
   type : String
@@ -28,7 +35,7 @@ structure GoalInfo where
   id : MVarId
   typeKey : TypeKey
   typeExpr : Expr
-
+  canon : CanonGoal
   deriving Inhabited--, ToJson, FromJson
 
 open Meta in
@@ -61,12 +68,15 @@ instance : FromJson Pos where
     | some n => .ok { byteIdx := n}
     | _ => .error s!"expected Nat for Pos, got '{json}'"
 
+
 structure ProofStep where
   tacticString : String
   goalBefore : GoalInfo
   goalsAfter : List GoalInfo
   tacticDependsOn : List String
+  usedProofFVars : Std.HashSet FVarId
   spawnedGoals : List GoalInfo
+  introducedFVars : Std.HashSet FVarId
   pos : Option Pos := none
   tailPos : Option Pos := none
   deriving Inhabited--, ToJson, FromJson
@@ -83,7 +93,7 @@ def noInEdgeGoals (allGoals : Std.HashSet GoalInfo) (steps : List ProofStep) : S
   We have assigned something to our goal in mctxAfter.
   All the fvars used in these assignments are what was actually used instead of what was in syntax.
 -/
-def findHypsUsedByTactic (goalId: MVarId) (goalDecl : MetavarDecl) (mctxAfter : MetavarContext) : MetaM (List String) := do
+def findHypsUsedByTacticString (goalId: MVarId) (goalDecl : MetavarDecl) (mctxAfter : MetavarContext) : MetaM (List String) := do
   let some expr := mctxAfter.eAssignment.find? goalId
     | return []
 
@@ -95,6 +105,21 @@ def findHypsUsedByTactic (goalId: MVarId) (goalDecl : MetavarDecl) (mctxAfter : 
   -- let pretty := proofFvars.map (fun x => x.userName)
   -- dbg_trace s!"Used {pretty}"
   return proofFvars.map (fun x => x.fvarId.name.toString) |>.toList
+
+def findHypsUsedByTactic
+    (goalId : MVarId) (goalDecl : MetavarDecl) (mctxAfter : MetavarContext)
+    : MetaM (Std.HashSet FVarId) := do
+  let some expr := mctxAfter.eAssignment.find? goalId
+    | return {}
+
+  let fullExpr ← instantiateExprMVars expr
+  let fvarIds := (collectFVars {} fullExpr).fvarIds
+  let decls := fvarIds.filterMap goalDecl.lctx.find?
+  let proofDecls ← decls.filterM (fun d => Meta.isProof d.toExpr)
+  return proofDecls.foldl (init := {}) (fun s d => s.insert d.fvarId)
+
+private def goalHypFVarSet (g : GoalInfo) : Std.HashSet FVarId :=
+  g.hyps.foldl (init := {}) (fun s h => s.insert h.fid)
 
 -- This is used to match goalsBefore with goalsAfter to see what was assigned to what
 def findMVarsAssigned (goalId : MVarId) (mctxAfter : MetavarContext) : MetaM (List MVarId) := do
@@ -112,12 +137,89 @@ def mayBeProof (expr : Expr) : MetaM String := do
   else
     return "data"
 
+
+open Lean Meta Std
+
+open Lean Meta Std
+
+/-- Mix a list/array of hashes into one. -/
+private def mixHashes (h0 : UInt64) (hs : Array UInt64) : UInt64 :=
+  hs.foldl (fun acc h => mixHash acc h) h0
+
+/-- Stable list of fvar ids to abstract, in lctx order (skipping aux/impl). -/
+private def lctxFVarIdsToAbstract (lctx : LocalContext) : Array FVarId :=
+  lctx.foldl (init := #[]) fun acc d =>
+    if d.isAuxDecl || d.isImplementationDetail then acc else acc.push d.fvarId
+
+/-- Make a deterministic placeholder constant name for an index. -/
+private def canonConstName (i : Nat) : Name :=
+  Name.mkNum (Name.mkSimple "_canon") i
+
+/-- Replace fvars appearing in `lctx` with `_canon.i` constants (closed expr). -/
+private def replaceFVarsWithCanonConsts (lctx : LocalContext) (e : Expr) : Expr := Id.run do
+  let fids := lctxFVarIdsToAbstract lctx
+  -- map fvarId -> index
+  let mut m : Std.HashMap FVarId Nat := {}
+  for h : i in [:fids.size] do
+    m := m.insert (fids[i]) i
+
+  let rec go (e : Expr) : Expr :=
+    match e with
+    | .fvar fid =>
+        match m[fid]? with
+        | some i => Expr.const (canonConstName i) []   -- no levels
+        | none   => e
+    | .mvar _ => e
+    | .forallE n t b bi => .forallE n (go t) (go b) bi
+    | .lam n t b bi     => .lam n (go t) (go b) bi
+    | .letE n t v b _   => .letE n (go t) (go v) (go b) false
+    | .app f a          => .app (go f) (go a)
+    | .mdata md b       => .mdata md (go b)
+    | .proj s i b       => .proj s i (go b)
+    | .sort _ | .const _ _ | .lit _ | .bvar _ => e
+
+  go e
+
+private def canonExpr (lctx : LocalContext) (e : Expr) : MetaM Expr := do
+  let e ← instantiateMVars e
+  let e ← whnf e
+  pure <| replaceFVarsWithCanonConsts lctx e
+
+private def mkCanonGoal (decl : MetavarDecl) (goalTyNorm : Expr) (hyps : List _root_.Hypothesis) : MetaM CanonGoal := do
+  let lctx := decl.lctx
+
+  -- Canonical target
+  let tgtCanon ← canonExpr lctx goalTyNorm
+  let tgtHash := tgtCanon.hash
+
+  -- Canonical hyp *types* (I recommend restricting to proof hyps for modularity)
+  let mut hypHashes : Array UInt64 := #[]
+
+  for h in hyps do
+    if h.isProof == "proof" then
+      let hCanon ← canonExpr lctx h.typeExpr
+      hypHashes := hypHashes.push hCanon.hash
+
+  hypHashes := hypHashes.qsort (· < ·)
+
+  -- Sequent hash: mix target hash with sorted hyp hashes
+  let seqHash := mixHashes tgtHash hypHashes
+
+  pure {
+    targetHash := tgtHash
+    hypTypeHashes := hypHashes
+    -- sequentHash := seqHash
+    variantHashes := #[seqHash]   -- later extend with discharge variants
+  }
+
+open Meta in
 def printGoalInfo (printCtx : ContextInfo) (id : MVarId) : IO GoalInfo := do
   let some decl := printCtx.mctx.findDecl? id
     | panic! "printGoalInfo: goal not found in the mctx"
   -- to get tombstones in name ✝ for unreachable hypothesis
   let lctx := decl.lctx |>.sanitizeNames.run' {options := {}}
   let ppContext := printCtx.toPPContext lctx
+  let goalTyNorm ← printCtx.runMetaM decl.lctx do instantiateMVars decl.type >>= whnf
   let hyps ← lctx.foldrM (init := []) (fun hypDecl acc => do
     if hypDecl.isAuxDecl || hypDecl.isImplementationDetail then
       return acc
@@ -125,6 +227,10 @@ def printGoalInfo (printCtx : ContextInfo) (id : MVarId) : IO GoalInfo := do
     let value ← liftM (hypDecl.value?.mapM (ppExprWithInfos ppContext))
     let isProof : String ← printCtx.runMetaM decl.lctx (mayBeProof hypDecl.toExpr)
     let tkey ← hypTypeKey printCtx decl.lctx hypDecl
+
+    let hypTyNorm ← printCtx.runMetaM decl.lctx do instantiateMVars hypDecl.type >>= whnf
+
+
     return ({
       username := hypDecl.userName.toString,
       type := type.fmt.pretty,
@@ -133,10 +239,22 @@ def printGoalInfo (printCtx : ContextInfo) (id : MVarId) : IO GoalInfo := do
       id := hypDecl.fvarId.name.toString,
       isProof := isProof,
       typeKey := tkey,
-      typeExpr := hypDecl.type
-    } : Hypothesis) :: acc)
+      typeExpr := hypTyNorm
+    } : _root_.Hypothesis) :: acc)
   let gkey ← goalTypeKey printCtx decl
-  return ⟨ decl.userName.toString, (← ppExprWithInfos ppContext decl.type).fmt.pretty, hyps, id, gkey, decl.type⟩
+  let canon ← printCtx.runMetaM decl.lctx do
+    mkCanonGoal decl goalTyNorm hyps
+
+  return {
+    username := decl.userName.toString,
+    type := (← ppExprWithInfos ppContext decl.type).fmt.pretty,
+    hyps := hyps,
+    id := id,
+    typeKey := gkey,
+    typeExpr := goalTyNorm,
+    canon := canon
+  }
+
 
 -- Returns unassigned goals from the provided list of goals
 def getUnassignedGoals (goals : List MVarId) (mctx : MetavarContext) : IO (List MVarId) := do
@@ -153,7 +271,7 @@ structure Result where
   allGoals : Std.HashSet GoalInfo
   deriving Inhabited
 
-def getGoalsChange (ctx : ContextInfo) (tInfo : TacticInfo) : IO (List (List String × GoalInfo × List GoalInfo)) := do
+def getGoalsChangeString (ctx : ContextInfo) (tInfo : TacticInfo) : IO (List (Std.HashSet FVarId × List String × GoalInfo × List GoalInfo)) := do
   -- We want to filter out `focus` like tactics which don't do any assignments
   -- therefore we check all goals on whether they were assigned during the tactic
   let goalMVars := tInfo.goalsBefore ++ tInfo.goalsAfter
@@ -170,19 +288,27 @@ def getGoalsChange (ctx : ContextInfo) (tInfo : TacticInfo) : IO (List (List Str
   goalsBefore := goalsBefore.filter (!commonGoals.contains ·)
   goalsAfter :=  goalsAfter.filter (!commonGoals.contains ·)
   -- We need to match them into (goalBefore, goalsAfter) pairs according to assignment.
-  let mut result : List (List String × GoalInfo × List GoalInfo) := []
+  let mut result : List (Std.HashSet FVarId × List String × GoalInfo × List GoalInfo) := []
   for goalBefore in goalsBefore do
     if let some goalDecl := tInfo.mctxBefore.findDecl? goalBefore then
       let assignedMVars ← ctx.runMetaM goalDecl.lctx (findMVarsAssigned goalBefore tInfo.mctxAfter)
+      let tacticDependsOnString ← ctx.runMetaM goalDecl.lctx
+          (findHypsUsedByTacticString goalBefore goalDecl tInfo.mctxAfter)
       let tacticDependsOn ← ctx.runMetaM goalDecl.lctx
           (findHypsUsedByTactic goalBefore goalDecl tInfo.mctxAfter)
 
+
       result := (
         tacticDependsOn,
+        tacticDependsOnString,
         ← printGoalInfo printCtx goalBefore,
         ← goalsAfter.filter assignedMVars.contains |>.mapM (printGoalInfo printCtx)
       ) :: result
   return result
+
+
+
+
 
 def prettifySteps (stx : Syntax) (steps : List ProofStep) : List ProofStep := Id.run do
   match stx with
