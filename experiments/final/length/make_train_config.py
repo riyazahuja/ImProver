@@ -12,6 +12,7 @@ def create_train_config(
     output_dir: str,
     project_name: str,
     config_path: str,
+    epochs: int = 1,
 ):
     """
     Create a training configuration file with the specified parameters.
@@ -39,7 +40,7 @@ def create_train_config(
         "gradient_checkpointing": True,
         "micro_batch_size": 1,
         "gradient_accumulation_steps": 1,
-        "num_epochs": 1,
+        "num_epochs": epochs,
         "learning_rate": lr,
         "optimizer": "adamw_torch",
         "lr_scheduler": "cosine",
@@ -98,6 +99,9 @@ if __name__ == "__main__":
         required=True,
         help="Path where the config file will be created",
     )
+    parser.add_argument(
+        "--epochs", type=int, default=1, help="Number of training epochs"
+    )
 
     args = parser.parse_args()
 
@@ -110,6 +114,7 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         project_name=args.project_name,
         config_path=args.config_path,
+        epochs=args.epochs,
     )
 
     print(f"Training config created at: {args.config_path}")

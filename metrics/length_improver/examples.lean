@@ -1,0 +1,174 @@
+import ImProver.metrics.tagger
+import Mathlib.Data.Set.Lattice
+import Mathlib.Data.Set.Function
+import Mathlib.Analysis.SpecialFunctions.Log.Basic
+import Mathlib.Data.Real.Basic
+
+namespace lengthExamples
+
+
+namespace unoptimized
+
+@[improver_example inlining, version unoptimized]
+theorem foo {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y := by
+  constructor
+  · rintro ⟨h0, h1⟩
+    constructor
+    · exact h0
+    intro h2
+    apply h1
+    rw [h2]
+  rintro ⟨h0, h1⟩
+  constructor
+  · exact h0
+  intro h2
+  apply h1
+  apply le_antisymm h0 h2
+
+
+
+
+end unoptimized
+
+namespace optimized
+@[improver_example inlining, version optimized]
+theorem foo {x y : ℝ} : x ≤ y ∧ ¬y ≤ x ↔ x ≤ y ∧ x ≠ y  := by
+  constructor
+  · rintro ⟨h0, h1⟩
+    exact ⟨h0, fun h2 => h1 (by rw [h2])⟩
+  · rintro ⟨h0, h1⟩
+    exact ⟨h0, fun h2 => h1 (by linarith)⟩
+
+end optimized
+
+
+
+noncomputable section
+
+
+open Function
+open Set
+
+variable {α β : Type*} [Inhabited α]
+variable (f : α → β)
+
+open Classical
+
+def inverse (f : α → β) : β → α := fun y : β ↦
+  if h : ∃ x, f x = y then Classical.choose h else default
+
+theorem inverse_spec {f : α → β} (y : β) (h : ∃ x, f x = y) : f (inverse f y) = y := by
+  rw [inverse, dif_pos h]
+  exact Classical.choose_spec h
+
+
+namespace unoptimized
+
+@[improver_example inlining2, version unoptimized]
+theorem bar : Injective f ↔ LeftInverse (inverse f) f := by
+  constructor
+  · intro h y
+    apply h
+    apply inverse_spec
+    use y
+  intro h x1 x2 e
+  rw [← h x1, ← h x2, e]
+
+end unoptimized
+
+namespace optimized
+
+@[improver_example inlining2, version optimized]
+theorem bar : Injective f ↔ LeftInverse (inverse f) f  := by
+  constructor
+  · exact fun h y ↦ h (inverse_spec _ ⟨y, rfl⟩)
+  · exact fun h x1 x2 e ↦ by rw [←h x1, e, h x2]
+
+end optimized
+
+end
+
+
+namespace unoptimized
+
+@[improver_example have_reuse, version unoptimized]
+theorem baz {a b c d : ℝ} :
+    max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
+  rcases le_total a b with h_ab | h_ba
+  · rcases le_total c d with h_cd | h_dc
+    -- Case 1: a ≤ b and c ≤ d
+    · calc max a b + max c d
+        _ = b + d := by rw [max_eq_right h_ab, max_eq_right h_cd]
+        _ = max (b+c) (b+d) := by rw [max_eq_right (add_le_add_left h_cd b)]
+        _ = max (max (a+d) (b+c)) (b+d) := by
+          rw [max_eq_right (add_le_add_left h_cd b)]
+          apply symm
+          apply @max_eq_right _ _ (max (a+d) (b+c)) (b+d)
+          rw [max_le_iff]
+          constructor
+          . linarith
+          . exact add_le_add_left h_cd b
+        _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_cd]
+    -- Case 2: a ≤ b and d ≤ c
+    · calc max a b + max c d
+        _ = b + c := by rw [max_eq_right h_ab, max_eq_left h_dc]
+        _ = max (b+c) (b+d) := by rw [max_eq_left (add_le_add_left h_dc b)]
+        _ = max (max (a+d) (b+c)) (b+d) := by
+          rw [max_eq_left (add_le_add_left h_dc b)]
+          apply symm
+          rw [max_assoc (a+d) (b+c) (b+d), max_comm (b+c) (b+d), ← max_assoc (a+d) (b+d) (b+c)]
+          apply @max_eq_right _ _ (max (a+d) (b+d)) (b+c)
+          rw [max_le_iff]
+          constructor
+          . linarith
+          . exact add_le_add_left h_dc b
+        _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ab, h_dc]; linarith
+  · rcases le_total c d with h_cd | h_dc
+    -- Case 3: b ≤ a and c ≤ d
+    · calc max a b + max c d
+        _ = a + d := by rw [max_eq_left h_ba, max_eq_right h_cd]
+        _ = max (a+c) (a+d) := by rw [max_eq_right (add_le_add_left h_cd a)]
+        _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ba, h_cd]
+    -- Case 4: b ≤ a and d ≤ c
+    · calc max a b + max c d
+          _ = a + c := by rw [max_eq_left h_ba, max_eq_left h_dc]
+          _ = max (a+c) (a+d) := by rw [max_eq_left (add_le_add_left h_dc a)]
+          _ = max (max (a+c) (a+d)) (max (b+c) (b+d)) := by simp [h_ba, h_dc]
+
+end unoptimized
+namespace optimized
+
+@[improver_example have_reuse, version optimized]
+theorem baz {a b c d : ℝ} :
+    max a b + max c d = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by
+  have lemma_add_distrib : ∀ (x y z : ℝ), z + max x y = max (z + x) (z + y) := by
+    intro x y z
+    rcases le_total x y with h | h
+    · rw [max_eq_right h, max_eq_right (add_le_add_left h z)]
+    · rw [max_eq_left h, max_eq_left (add_le_add_left h z)]
+
+  calc max a b + max c d
+    _ = max c d + max a b := by rw [add_comm]
+    _ = max (max c d + a) (max c d + b) := by rw [lemma_add_distrib]
+    _ = max (a + max c d) (b + max c d) := by rw [add_comm (max c d) a, add_comm (max c d) b]
+    _ = max (max (a + c) (a + d)) (max (b + c) (b + d)) := by rw [lemma_add_distrib, lemma_add_distrib]
+
+end optimized
+
+namespace unoptimized
+@[improver_example strong_tactics, version unoptimized]
+theorem qux {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
+  apply Left.add_nonneg
+  . exact ha
+  . exact hb
+
+end unoptimized
+namespace optimized
+
+@[improver_example strong_tactics, version optimized]
+theorem qux {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) : 0 ≤ a + b := by
+  linarith
+
+end optimized
+
+end lengthExamples

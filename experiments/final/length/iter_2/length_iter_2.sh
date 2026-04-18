@@ -350,73 +350,6 @@ BEST_GAP_VALUE=$(echo $BEST_GAP_MODEL | cut -d'_' -f9)
 echo "Best Gap: $BEST_GAP_VALUE"
 
 
-# # ============ HARDNESS WEIGHT GRID SEARCH ============
-# # This section searches over different hardness_weight values to upweight hard proofs in DPO training
-
-# echo "Starting Hardness Weight Grid Search..."
-
-# for hardness_weight in 1.0 2.0 5.0; do
-#     echo "=== Generating training data with hardness_weight=$hardness_weight ==="
-    
-#     ./improver run training_data --run_id $BASE_RUN_ID \
-#         --output_path $SWEEP_DATASET_DIR/hardness_${hardness_weight}.jsonl \
-#         --type dpo \
-#         --num_invalid $BEST_L_VALUE \
-#         --max_champions $BEST_W_VALUE \
-#         --filter_threshold $BEST_THRESHOLD_VALUE \
-#         --min_gap $BEST_GAP_VALUE \
-#         --replay_buffer_split $BEST_REPLAY_VALUE \
-#         --replay_type $BEST_REPLAY_TYPE \
-#         --prev_run_id $PREV_RUN_IDS \
-#         --hardness_weight $hardness_weight
-
-#     MODEL_NAME="hardness_${hardness_weight}"
-#     OUTPUT_DIR=$MODELS_DIR/$MODEL_NAME
-#     CONFIG_PATH=$SWEEP_DIR/$MODEL_NAME.yaml
-
-#     python experiments/final/length/make_train_config.py --base-model $BASE_MODEL \
-#         --learning-rate $BEST_LR_VALUE \
-#         --alpha $BEST_ALPHA_VALUE \
-#         --beta $BEST_BETA_VALUE \
-#         --dataset-path $SWEEP_DATASET_DIR/hardness_${hardness_weight}.jsonl \
-#         --output-dir $OUTPUT_DIR \
-#         --project-name $MODEL_NAME \
-#         --config-path $CONFIG_PATH
-
-#     accelerate launch -m axolotl.cli.train $CONFIG_PATH
-# done
-
-# echo "Running inference for hardness models..."
-# RUN_IDS=""
-# for hardness_weight in 1.0 2.0 5.0; do
-#     CURR_RUN_ID="${RUN_IDENTIFIER}_gridsearch_hardness_${hardness_weight}"
-#     RUN_IDS="$RUN_IDS $CURR_RUN_ID"
-#     ./improver run pipeline --run_id $CURR_RUN_ID \
-#         --annotation --informal --examples 4 \
-#         --metric length --prompt_id final_test \
-#         --split test \
-#         --model $MODELS_DIR/hardness_${hardness_weight} \
-#         --num_blocks 64 \
-#         --config $GRID_CONFIG
-# done
-
-# # select best hardness model
-# echo "Selecting best hardness model..."
-# python $SCRIPTS_DIR/select_best_model.py \
-#     $RUN_IDS \
-#     --evals-path $EVALS_DIR \
-#     --models-path $MODELS_DIR \
-#     --output-file $ABLATION_DIR/.best_hardness
-
-BEST_HARDNESS_MODEL=$(cat $ABLATION_DIR/.best_hardness)
-echo "Best Hardness Model: $BEST_HARDNESS_MODEL"
-BEST_HARDNESS_VALUE=$(echo $BEST_HARDNESS_MODEL | grep -oP 'hardness_\K[0-9.]+')
-echo "Best Hardness Weight: $BEST_HARDNESS_VALUE"
-
-echo "Hardness Weight Grid Search Complete!"
-
-
-
 
 
 # ============ Final Training with Best Hyperparameters ===========
@@ -440,33 +373,5 @@ echo "Hardness Weight Grid Search Complete!"
 
 # ./improver run pipeline --run_id ${MODEL_NAME}_train_gap_0.0     --annotation  --informal --examples 4     --metric $METRIC --prompt_id final_train     --split train --model /data/user_data/riyaza/saved_models/length/iter_2/gridsearch/gap_0.0     --num_blocks 64     --config $TEST_CONFIG
 
-
-
-
-# --- W/L ---
-W=1
-L=4
-
-./improver run training_data --run_id $BASE_RUN_ID --output_path $SWEEP_DATASET_DIR/WL_${W}_${L}.jsonl --type dpo --num_invalid $L --max_champions $W --filter_threshold $DEFAULT_THRESHOLD  --min_gap $DEFAULT_GAP  --replay_buffer_split $BEST_REPLAY_VALUE --replay_type $BEST_REPLAY_TYPE --prev_run_id $PREV_RUN_IDS
-
-MODEL_NAME="WL_${W}_${L}"
-OUTPUT_DIR=$MODELS_DIR/$MODEL_NAME
-
-CONFIG_PATH=$SWEEP_DIR/$MODEL_NAME.yaml
-
-python experiments/final/length/make_train_config.py --base-model $BASE_MODEL \
-    --learning-rate $DEFAULT_LR \
-    --alpha $BEST_ALPHA_VALUE \
-    --beta $BEST_BETA_VALUE \
-    --dataset-path $SWEEP_DATASET_DIR/WL_${W}_${L}.jsonl \
-    --output-dir $OUTPUT_DIR \
-    --project-name $MODEL_NAME \
-    --config-path $CONFIG_PATH
-
-accelerate launch -m  axolotl.cli.train $CONFIG_PATH
-
-CURR_RUN_ID="${RUN_IDENTIFIER}_gridsearch_WL_${W}_${L}_AGAIN"
-RUN_IDS="$RUN_IDS $CURR_RUN_ID"
-./improver run pipeline --run_id $CURR_RUN_ID  --annotation  --informal --examples 4 --metric length --prompt_id final_test   --split test --model $MODELS_DIR/WL_${W}_${L}     --num_blocks 64     --config $GRID_CONFIG
 
 

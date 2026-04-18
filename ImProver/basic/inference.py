@@ -310,7 +310,7 @@ def construct_prompts(config_data, data, args):
                     ex_prompt = "<EXAMPLE>\n\n"
 
                     ex_prompt += construct_prompt_core(
-                        config_data, example, 0, 0, 0, False, False, False
+                        config_data, example, 0, 0, 0, False, False, False, False
                     )
 
                     ex_prompt += f"\n<IMPROVED>\n{example['improved']}\n</IMPROVED>\n\n"

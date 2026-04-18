@@ -29,6 +29,7 @@ except Exception:
 # Env vars this script understands:
 #   OPENAI_API_KEY          -> API key for OpenAI-compatible endpoints (including vLLM if required)
 #   OPENAI_BASE_URL         -> Base URL for an OpenAI-compatible endpoint, e.g. http://localhost:8000/v1
+#   OPENROUTER_API_KEY      -> API key for OpenRouter; defaults OPENAI_BASE_URL to OpenRouter if unset
 #   (Azure) AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION
 #
 # NOTE: We intentionally call the Chat Completions API because it is the most widely supported
@@ -72,14 +73,18 @@ def _get_openai_client():
             "OpenAI Python SDK is required. Install with `pip install openai`."
         ) from e
 
-    base_url = os.getenv("OPENAI_BASE_URL")  # e.g., http://localhost:8000/v1 for vLLM
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv(
-        "API_KEY"
-    )  # allow generic API_KEY fallback
+    api_key = (
+        os.getenv("OPENAI_API_KEY")
+        or os.getenv("OPENROUTER_API_KEY")
+        or os.getenv("API_KEY")
+    )
     if not api_key:
         raise RuntimeError(
-            "OPENAI_API_KEY (or API_KEY) must be set for OpenAI-compatible endpoints."
+            "OPENAI_API_KEY, OPENROUTER_API_KEY, or API_KEY must be set for OpenAI-compatible endpoints."
         )
+    base_url = os.getenv("OPENAI_BASE_URL")
+    if not base_url and os.getenv("OPENROUTER_API_KEY"):
+        base_url = "https://openrouter.ai/api/v1"
     client = OpenAI(api_key=api_key, base_url=base_url)
     return client
 
@@ -248,20 +253,23 @@ class RateLimiter:
         self.lock = asyncio.Lock()
 
     async def acquire(self):
-        async with self.lock:
-            now = time.time()
-            # Remove requests older than 1 minute
-            self.requests = [
-                req_time for req_time in self.requests if now - req_time < 60
-            ]
+        while True:
+            async with self.lock:
+                now = time.time()
+                # Remove requests older than 1 minute
+                self.requests = [
+                    req_time for req_time in self.requests if now - req_time < 60
+                ]
 
-            if len(self.requests) >= self.max_requests_per_minute:
-                # Wait until we can make another request
+                if len(self.requests) < self.max_requests_per_minute:
+                    self.requests.append(now)
+                    return  # Successfully acquired
+
+                # Calculate sleep time BEFORE releasing lock
                 sleep_time = 60 - (now - self.requests[0]) + 0.1
-                await asyncio.sleep(sleep_time)
-                return await self.acquire()
 
-            self.requests.append(now)
+            # Sleep OUTSIDE the lock to avoid deadlock!
+            await asyncio.sleep(max(0.1, sleep_time))
 
 
 async def _chat_complete_async(
@@ -273,15 +281,31 @@ async def _chat_complete_async(
     max_tokens: int,
     rate_limiter: RateLimiter,
     is_azure: bool = False,
+    retry_count: int = 0,
+    max_retries: int = 30,
 ) -> str:
     """
     Make a single asynchronous Chat Completions request and return the assistant message text.
+    Implements retry logic with exponential backoff and increasing timeouts.
     """
-    await rate_limiter.acquire()
+    # Only acquire rate limiter on first attempt (retry_count == 0)
+    if retry_count == 0:
+        await rate_limiter.acquire()
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    if os.getenv("OPENROUTER_HTTP_REFERER"):
+        headers["HTTP-Referer"] = os.environ["OPENROUTER_HTTP_REFERER"]
+    if os.getenv("OPENROUTER_X_TITLE"):
+        headers["X-Title"] = os.environ["OPENROUTER_X_TITLE"]
 
-    if model == "DeepSeek-R1-0528" or model == "gpt-5-chat":
+    if (
+        model == "DeepSeek-R1-0528"
+        or model == "DeepSeek-R1"
+        or model == "gpt-5-chat"
+        or model == "gpt-4o"
+        or model == "openai/gpt-4o"
+        or model == "openai/gpt-5"
+    ):
 
         data = {
             "messages": [{"role": "user", "content": prompt}],
@@ -329,86 +353,89 @@ async def _chat_complete_async(
     if not is_azure:
         data["model"] = model
 
+    # For Azure, the URL already includes the full path
+    if is_azure:
+        url = base_url
+    else:
+        url = f"{base_url}/chat/completions"
+
+    # Calculate timeout and backoff based on retry count
+    # Start at 300s, increase by 150s per retry, cap at 1200s (20 min)
+    base_timeout = 300
+    current_timeout = min(1200, base_timeout + (retry_count * 150))
+
+    # Exponential backoff: 2^retry_count seconds, capped at 120s
+    backoff_time = min(120, 2 ** retry_count) if retry_count > 0 else 0
+
+    if backoff_time > 0:
+        print(f"[RETRY {retry_count}/{max_retries}] Waiting {backoff_time}s before retry (timeout={current_timeout}s)")
+        await asyncio.sleep(backoff_time)
+
     try:
-        # For Azure, the URL already includes the full path
-        if is_azure:
-            url = base_url
-        else:
-            url = f"{base_url}/chat/completions"
-        # print(
-        #     f"Making request to \n{url}\n with headers \n{headers}\n and data \n{data}\n\n"
-        #     + "=" * 50
-        # )
-
-        async with session.post(url, headers=headers, json=data) as response:
-
-            if response.status == 429:  # Rate limit hit
-                retry_after = int(response.headers.get("Retry-After", 60))
-                await asyncio.sleep(retry_after)
-                return await _chat_complete_async(
-                    session,
-                    base_url,
-                    api_key,
-                    model,
-                    prompt,
-                    max_tokens,
-                    rate_limiter,
-                    is_azure,
-                )
-
-            if response.status != 200:
-                error_text = await response.text()
-                print(f"API Error {response.status}: {error_text}")
-                print(f"Request URL: {url}")
-                print(f"Request data: {data}")
-
-            response.raise_for_status()
-            result = await response.json()
-            print(f"Response status: {response.status}")
-            print(f"Response body:\n{result}")
-            print("=" * 50)
-
-            # Handle both OpenAI and common OpenAI-compatible response shapes
-            try:
-                return result["choices"][0]["message"]["content"] or ""
-            except Exception:
-                # Fallback: some proxies return `text` in choices for chat
-                try:
-                    return result["choices"][0]["text"] or ""
-                except Exception:
-                    try:
-                        return result["output"][-1]["content"][-1]["text"] or ""
-                    except Exception:
-                        return ""
-
-    except Exception as e:
-        # Retry once after a short backoff
-        await asyncio.sleep(2.0)
-        try:
-            # For Azure, the URL already includes the full path
-            if is_azure:
-                url = base_url
-            else:
-                url = f"{base_url}/chat/completions"
-
+        async with asyncio.timeout(current_timeout):
             async with session.post(url, headers=headers, json=data) as response:
+
+                if response.status == 429:  # Rate limit hit
+                    retry_after = int(response.headers.get("Retry-After", 60))
+                    print(f"[RETRY {retry_count + 1}/{max_retries}] Rate limited (429), waiting {retry_after}s")
+                    await asyncio.sleep(min(retry_after, 120))
+                    if retry_count + 1 < max_retries:
+                        return await _chat_complete_async(
+                            session, base_url, api_key, model, prompt, max_tokens,
+                            rate_limiter, is_azure, retry_count + 1, max_retries,
+                        )
+                    else:
+                        return f"[ERROR] Max retries ({max_retries}) exceeded on rate limit"
+
+                if response.status != 200:
+                    error_text = await response.text()
+                    print(f"[RETRY {retry_count + 1}/{max_retries}] API Error {response.status}: {error_text[:200]}")
+                    if retry_count + 1 < max_retries:
+                        return await _chat_complete_async(
+                            session, base_url, api_key, model, prompt, max_tokens,
+                            rate_limiter, is_azure, retry_count + 1, max_retries,
+                        )
+                    else:
+                        return f"[ERROR] Max retries ({max_retries}) exceeded. Last error: {response.status}"
+
                 response.raise_for_status()
                 result = await response.json()
+                print(f"Response status: {response.status}")
+                print(f"Response body:\n{result}")
+                print("=" * 50)
 
+                # Handle both OpenAI and common OpenAI-compatible response shapes
                 try:
                     return result["choices"][0]["message"]["content"] or ""
                 except Exception:
+                    # Fallback: some proxies return `text` in choices for chat
                     try:
                         return result["choices"][0]["text"] or ""
                     except Exception:
                         try:
                             return result["output"][-1]["content"][-1]["text"] or ""
                         except Exception:
-                            return (
-                                f"[ERROR] {type(e).__name__}: {e}\n\n{result.__dict__}"
-                            )
-        except Exception as e2:
-            return f"[ERROR] {type(e2).__name__}: {e2}"
+                            return ""
+
+    except asyncio.TimeoutError:
+        print(f"[RETRY {retry_count + 1}/{max_retries}] Timeout after {current_timeout}s")
+        if retry_count + 1 < max_retries:
+            return await _chat_complete_async(
+                session, base_url, api_key, model, prompt, max_tokens,
+                rate_limiter, is_azure, retry_count + 1, max_retries,
+            )
+        else:
+            return f"[ERROR] Max retries ({max_retries}) exceeded on timeout"
+
+    except Exception as e:
+        print(f"[RETRY {retry_count + 1}/{max_retries}] Exception: {type(e).__name__}: {e}")
+        if retry_count + 1 < max_retries:
+            return await _chat_complete_async(
+                session, base_url, api_key, model, prompt, max_tokens,
+                rate_limiter, is_azure, retry_count + 1, max_retries,
+            )
+        else:
+            return f"[ERROR] Max retries ({max_retries}) exceeded. Last error: {type(e).__name__}: {e}"
 
 
 async def run_inference_async(df: pd.DataFrame, args) -> str:
@@ -428,13 +455,21 @@ async def run_inference_async(df: pd.DataFrame, args) -> str:
         is_azure = True
     else:
         # Standard OpenAI configuration
-        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY")
+        api_key = (
+            os.getenv("OPENAI_API_KEY")
+            or os.getenv("OPENROUTER_API_KEY")
+            or os.getenv("API_KEY")
+        )
         if not api_key:
             raise RuntimeError(
-                "OPENAI_API_KEY (or API_KEY) must be set for OpenAI-compatible endpoints."
+                "OPENAI_API_KEY, OPENROUTER_API_KEY, or API_KEY must be set for OpenAI-compatible endpoints."
             )
 
-        base_url = os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        base_url = os.getenv("OPENAI_BASE_URL")
+        if not base_url and os.getenv("OPENROUTER_API_KEY"):
+            base_url = "https://openrouter.ai/api/v1"
+        if not base_url:
+            base_url = "https://api.openai.com/v1"
         model_name = args.model
         is_azure = False
 
@@ -506,7 +541,9 @@ async def run_inference_async(df: pd.DataFrame, args) -> str:
         async with semaphore:
             return await process_prompt(row_idx, row)
 
-    async with aiohttp.ClientSession() as session:
+    # Session timeout: 30 min total to accommodate many retries, 1 min connect
+    timeout = aiohttp.ClientTimeout(total=1800, connect=60)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = []
         for row_idx, row in enumerate(df2.itertuples(index=False), start=1):
             task = process_with_semaphore(row_idx, row)
